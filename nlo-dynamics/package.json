@@ -1,0 +1,9 @@
+{
+  "name": "nlo-dynamics",
+  "version": "0.2.0",
+  "description": "Dependency-free numerical engine for nonlinear optics / nonlinear dynamics (split-step NLSE, RK4/RK45, mode-locking master equation)",
+  "main": "nlo-engine.js",
+  "scripts": { "test": "node test/run-tests.js" },
+  "license": "UNLICENSED",
+  "private": true
+}

@@ -55,6 +55,22 @@ const close = (label, got, want, rel, abs = 0) => {
     close(`pa lp01 V λ=${r.wavelength}`, o.V, r.V, 1e-12);
     close(`pa lp01 w λ=${r.wavelength}`, o.w, r.mode_radius, 1e-9);
   }
+  /* χ2 mode: overlapFor and the RK4 in simulate(), normalised amplitudes, no scattering */
+  const ctx2 = vm.createContext({ Math, Float64Array });
+  vm.runInContext('var MODE = "chi2"; function addScat() {}\n' + ['overlapFor', 'simulate'].map(grab).join('\n') +
+    '\n;globalThis.__q = { overlapFor, simulate };', ctx2);
+  const q = ctx2.__q;
+  for (const r of V.chi2_overlap) close(`pa overlapFor ${r.w_pump},${r.w_signal},${r.w_idler}`, q.overlapFor(r.w_pump, r.w_signal, r.w_idler), r.overlap, 1e-13);
+  for (const r of V.chi2_propagation) {
+    const pp = { kappa: r.kappa, alpha: r.alpha_idler, r0: r.flux_ratio, L: r.length, nf: 0, tAmp: 1,
+      wl: { aS: r.alpha_signal, aP: r.alpha_pump, tS: 1, tP: 1 } };
+    const o = q.simulate(pp, r.delta_k, false, 1e9, null);
+    const tag = `κ=${r.kappa} Δk=${r.delta_k} r0=${r.flux_ratio}`;
+    checks++; if (o.steps !== r.steps) { fails++; console.error(`FAIL pa simulate steps ${tag}: got ${o.steps}, want ${r.steps}`); }
+    close(`pa simulate fp ${tag}`, o.fp, r.fp, 1e-10);
+    close(`pa simulate fs ${tag}`, o.fs, r.fs, 1e-10);
+    close(`pa simulate fi ${tag}`, o.fi, r.fi, 1e-10, 1e-20);
+  }
 }
 
 console.log(`${checks - fails}/${checks} JS port checks passed`);

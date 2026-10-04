@@ -278,5 +278,79 @@
    "V": 2.701758789387453,
    "mode_radius": 3.065906752445564e-06
   }
+ ],
+ "chi2_overlap": [
+  {
+   "w_pump": 2e-06,
+   "w_signal": 2e-06,
+   "w_idler": 2e-06,
+   "overlap": 265961.52026762185
+  },
+  {
+   "w_pump": 1.5e-06,
+   "w_signal": 2.5e-06,
+   "w_idler": 3.5e-06,
+   "overlap": 177213.9162015883
+  },
+  {
+   "w_pump": 4.1e-06,
+   "w_signal": 5.2e-06,
+   "w_idler": 6e-06,
+   "overlap": 100401.61773017228
+  }
+ ],
+ "chi2_propagation": [
+  {
+   "kappa": 130.0,
+   "delta_k": 0.0,
+   "length": 0.02,
+   "flux_ratio": 0.001,
+   "alpha_pump": 0.0,
+   "alpha_signal": 0.0,
+   "alpha_idler": 0.0,
+   "steps": 300,
+   "fp": 0.9561333476515962,
+   "fs": 0.044866652343501665,
+   "fi": 0.043866652343499735
+  },
+  {
+   "kappa": 130.0,
+   "delta_k": 150.0,
+   "length": 0.02,
+   "flux_ratio": 1e-06,
+   "alpha_pump": 0.0,
+   "alpha_signal": 0.0,
+   "alpha_idler": 0.0,
+   "steps": 300,
+   "fp": 0.9999745438846595,
+   "fs": 2.645611534074231e-05,
+   "fi": 2.545611534074095e-05
+  },
+  {
+   "kappa": 200.0,
+   "delta_k": 0.0,
+   "length": 0.03,
+   "flux_ratio": 0.01,
+   "alpha_pump": 0.0,
+   "alpha_signal": 0.0,
+   "alpha_idler": 0.0,
+   "steps": 300,
+   "fp": 0.9670140674970392,
+   "fs": 0.04298593228746748,
+   "fi": 0.03298593228575803
+  },
+  {
+   "kappa": 130.0,
+   "delta_k": 60.0,
+   "length": 0.02,
+   "flux_ratio": 0.0001,
+   "alpha_pump": 1.0,
+   "alpha_signal": 2.0,
+   "alpha_idler": 50.0,
+   "steps": 300,
+   "fp": 0.9773052685742742,
+   "fs": 0.002977779844788698,
+   "fi": 0.0024073098672397967
+  }
  ]
 }

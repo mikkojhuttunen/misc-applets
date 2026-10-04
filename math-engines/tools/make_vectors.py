@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 
 from engines.bragg_grating import engine as bg  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
+from engines.opa_chi2 import engine as opa2  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
 
@@ -25,7 +26,7 @@ OUT = ROOT / "test_vectors" / "vectors.json"
 
 def build() -> dict:
     lams = [0.532e-6, 0.775e-6, 1.064e-6, 1.55e-6, 2.0e-6]
-    v = {"units": "SI (m, 1/m); indices dimensionless", "materials": [], "slab": [], "cmt": [], "stack": [], "lp01": []}
+    v = {"units": "SI (m, 1/m); indices dimensionless", "materials": [], "slab": [], "cmt": [], "stack": [], "lp01": [], "chi2_overlap": [], "chi2_propagation": []}
     for m in ("sio2", "si3n4", "ln_e", "ln_o", "lt_e"):
         for l in lams:
             v["materials"].append({"material": m, "wavelength": l, "n": float(mat.index(m, l))})
@@ -50,6 +51,16 @@ def build() -> dict:
     for (l, a, dn) in [(1.55e-6, 4.1e-6, 0.005), (0.532e-6, 2.0e-6, 0.005), (1.064e-6, 3.0e-6, 0.008)]:
         r = sif.lp01(l, a, dn)
         v["lp01"].append({"wavelength": l, "core_radius": a, "delta_n": dn, "neff": float(r["neff"]), "V": float(r["V"]), "mode_radius": float(r["mode_radius"])})
+    for (wp, ws, wi) in [(2e-6, 2e-6, 2e-6), (1.5e-6, 2.5e-6, 3.5e-6), (4.1e-6, 5.2e-6, 6.0e-6)]:
+        v["chi2_overlap"].append({"w_pump": wp, "w_signal": ws, "w_idler": wi, "overlap": float(opa2.mode_overlap(wp, ws, wi))})
+    for (kap, dk, L, r0, ap, as_, ai) in [
+        (130.0, 0.0, 0.02, 1e-3, 0.0, 0.0, 0.0), (130.0, 150.0, 0.02, 1e-6, 0.0, 0.0, 0.0),
+        (200.0, 0.0, 0.03, 1e-2, 0.0, 0.0, 0.0), (130.0, 60.0, 0.02, 1e-4, 1.0, 2.0, 50.0),
+    ]:
+        r = opa2.propagate_normalised(kap, dk, L, r0, ap, as_, ai)
+        v["chi2_propagation"].append({"kappa": kap, "delta_k": dk, "length": L, "flux_ratio": r0, "alpha_pump": ap,
+                                      "alpha_signal": as_, "alpha_idler": ai, "steps": r["steps"],
+                                      "fp": r["fp"], "fs": r["fs"], "fi": r["fi"]})
     return v
 
 

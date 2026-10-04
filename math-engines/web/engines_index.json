@@ -496,6 +496,534 @@
    }
   },
   {
+   "engine": "opa_chi2",
+   "version": 1,
+   "title": "χ² optical parametric amplifier",
+   "description": "Gain coefficient, closed-form small-signal gain, full coupled-wave propagation with pump depletion and loss, and QPM gain spectra for ω_p = ω_s + ω_i in guided modes.",
+   "requires": [],
+   "references": [
+    "R. W. Boyd, Nonlinear Optics, 3rd ed. (Academic Press, 2008), §2.8–2.9",
+    "J. A. Armstrong, N. Bloembergen, J. Ducuing, P. S. Pershan, Phys. Rev. 127, 1918 (1962)",
+    "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)"
+   ],
+   "files": [
+    "engines/materials/__init__.py",
+    "engines/materials/engine.py",
+    "engines/opa_chi2/__init__.py",
+    "engines/opa_chi2/engine.py",
+    "engines/phase_matching/__init__.py",
+    "engines/phase_matching/engine.py"
+   ],
+   "functions": {
+    "coupling": {
+     "title": "Gain coefficient Γ",
+     "equations": [
+      "1/λ_i = 1/λ_p - 1/λ_s",
+      "θ = ∫ e_p e_s e_i dA = (2/π)^{3/2} π / [(w_p⁻² + w_s⁻² + w_i⁻²) w_p w_s w_i]",
+      "Γ = 2 d_eff θ √(ħ ω_p ω_s ω_i F_p / (2 ε0 c³ n_p n_s n_i)),  F_p = P_p/(ħ ω_p)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 780,
+       "min": 100
+      },
+      {
+       "name": "wavelength_signal",
+       "label": "Signal vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "d_eff",
+       "label": "Effective nonlinearity d_eff",
+       "ui_unit": "pm/V",
+       "scale": 1e-12,
+       "default": 14,
+       "min": 0
+      },
+      {
+       "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 0
+      },
+      {
+       "name": "n_pump",
+       "label": "Pump index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.18,
+       "min": 1
+      },
+      {
+       "name": "n_signal",
+       "label": "Signal index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.14,
+       "min": 1
+      },
+      {
+       "name": "n_idler",
+       "label": "Idler index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.14,
+       "min": 1
+      },
+      {
+       "name": "w_pump",
+       "label": "Pump mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "w_signal",
+       "label": "Signal mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "w_idler",
+       "label": "Idler mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "wavelength_idler",
+       "label": "Idler wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "gamma",
+       "label": "Gain coefficient Γ",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      },
+      {
+       "name": "gain_length",
+       "label": "Gain length 1/Γ",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "area_eff",
+       "label": "Effective area 1/θ²",
+       "ui_unit": "µm²",
+       "scale": 1e-12
+      }
+     ]
+    },
+    "small_signal_gain": {
+     "title": "Small-signal gain",
+     "equations": [
+      "g² = Γ² - (Δk/2)²",
+      "G_s = 1 + (Γ/g)² sinh²(gL)",
+      "P_i(L)/P_s(0) = (ω_i/ω_s)(G_s - 1)"
+     ],
+     "inputs": [
+      {
+       "name": "gamma",
+       "label": "Gain coefficient Γ",
+       "ui_unit": "1/cm",
+       "scale": 100.0,
+       "default": 1.3,
+       "min": 0
+      },
+      {
+       "name": "delta_k",
+       "label": "Phase mismatch Δk",
+       "ui_unit": "1/cm",
+       "scale": 100.0,
+       "default": 0
+      },
+      {
+       "name": "length",
+       "label": "Interaction length",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 20,
+       "min": 0
+      },
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 780,
+       "min": 100
+      },
+      {
+       "name": "wavelength_signal",
+       "label": "Signal vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      }
+     ],
+     "outputs": [
+      {
+       "name": "signal_gain_db",
+       "label": "Signal gain",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "idler_conversion",
+       "label": "Idler out / signal in",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "growth_rate",
+       "label": "Growth rate g",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      },
+      {
+       "name": "peak_gain_db",
+       "label": "Gain at Δk = 0",
+       "ui_unit": "dB",
+       "scale": 1.0
+      }
+     ]
+    },
+    "coupled_wave": {
+     "title": "Coupled-wave propagation",
+     "equations": [
+      "da_p/dz = i K a_s a_i e^{-iΔkz} - α_p a_p/2",
+      "da_s/dz = i K a_p a_i* e^{iΔkz} - α_s a_s/2",
+      "da_i/dz = i K a_p a_s* e^{iΔkz} - α_i a_i/2"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 780,
+       "min": 100
+      },
+      {
+       "name": "wavelength_signal",
+       "label": "Signal vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "d_eff",
+       "label": "Effective nonlinearity d_eff",
+       "ui_unit": "pm/V",
+       "scale": 1e-12,
+       "default": 14,
+       "min": 0
+      },
+      {
+       "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 0
+      },
+      {
+       "name": "signal_power",
+       "label": "Signal input power",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "length",
+       "label": "Interaction length",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 20,
+       "min": 0
+      },
+      {
+       "name": "n_pump",
+       "label": "Pump index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.18,
+       "min": 1
+      },
+      {
+       "name": "n_signal",
+       "label": "Signal index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.14,
+       "min": 1
+      },
+      {
+       "name": "n_idler",
+       "label": "Idler index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.14,
+       "min": 1
+      },
+      {
+       "name": "w_pump",
+       "label": "Pump mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "w_signal",
+       "label": "Signal mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "w_idler",
+       "label": "Idler mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "delta_k",
+       "label": "Phase mismatch Δk",
+       "ui_unit": "1/cm",
+       "scale": 100.0,
+       "default": 0
+      },
+      {
+       "name": "alpha_pump",
+       "label": "Pump loss",
+       "ui_unit": "dB/cm",
+       "scale": 23.025850929940457,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "alpha_signal",
+       "label": "Signal loss",
+       "ui_unit": "dB/cm",
+       "scale": 23.025850929940457,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "alpha_idler",
+       "label": "Idler loss",
+       "ui_unit": "dB/cm",
+       "scale": 23.025850929940457,
+       "default": 0,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "signal_out",
+       "label": "Signal output",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "idler_out",
+       "label": "Idler output",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "pump_out",
+       "label": "Pump output",
+       "ui_unit": "W",
+       "scale": 1.0
+      },
+      {
+       "name": "signal_gain_db",
+       "label": "Signal gain",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "pump_depletion",
+       "label": "Pump depletion",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "manley_rowe_residual",
+       "label": "Manley–Rowe residual (f_p + f_s)",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "gain_spectrum": {
+     "title": "QPM gain spectrum",
+     "equations": [
+      "Δk(λ_s) = 2π (n_p/λ_p - n_s/λ_s - n_i/λ_i) - 2π m/Λ",
+      "Λ = m 2π / |Δk_bare(λ_s0)| unless given",
+      "G(λ_s) = 1 + (Γ/g)² sinh²(gL)"
+     ],
+     "inputs": [
+      {
+       "name": "material",
+       "label": "Material",
+       "type": "choice",
+       "choices": [
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "sio2",
+        "si3n4",
+        "si"
+       ],
+       "default": "ln_e"
+      },
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 780,
+       "min": 100
+      },
+      {
+       "name": "wavelength_signal",
+       "label": "Signal centre (phase-matched)",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "span",
+       "label": "Signal span",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 300,
+       "min": 0
+      },
+      {
+       "name": "length",
+       "label": "Interaction length",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 20,
+       "min": 0
+      },
+      {
+       "name": "d_eff",
+       "label": "Effective nonlinearity d_eff",
+       "ui_unit": "pm/V",
+       "scale": 1e-12,
+       "default": 14,
+       "min": 0
+      },
+      {
+       "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 0
+      },
+      {
+       "name": "w_pump",
+       "label": "Pump mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "w_signal",
+       "label": "Signal mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "w_idler",
+       "label": "Idler mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "order",
+       "label": "QPM order m",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "points",
+       "label": "Points",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 401,
+       "min": 3,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "period",
+       "label": "Poling period",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "peak_gain_db",
+       "label": "Peak gain",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "peak_signal_wavelength",
+       "label": "Peak signal wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "bandwidth_3db",
+       "label": "3 dB gain bandwidth (signal)",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "phase_matching",
    "version": 1,
    "title": "Three-wave phase matching",

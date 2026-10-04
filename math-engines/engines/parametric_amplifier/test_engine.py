@@ -4,7 +4,7 @@ import math
 import numpy as np
 import pytest
 
-from engines.common import C0
+C0 = 299_792_458.0
 from engines.parametric_amplifier import engine as pa
 
 

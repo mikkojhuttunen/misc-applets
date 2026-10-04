@@ -1,9 +1,6 @@
-"""Collect every engines/*/spec.yaml into web/engines_index.json.
+"""Collect every engines/*/spec.yaml into web/engines_index.json for the Pyodide calculator.
 
-Common inputs are resolved, so the web page needs no YAML parser. The index also
-lists the Python files Pyodide must load. Run from math-engines/:
-
-    python tools/build_index.py
+Run from math-engines/:  python tools/build_index.py
 """
 from __future__ import annotations
 
@@ -13,57 +10,60 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
-INDEX = ROOT / "web" / "engines_index.json"
+ROOT = Path(__file__).resolve().parent.parent
+ENGINES = ROOT / "engines"
+OUT = ROOT / "web" / "engines_index.json"
+SHARED = ["engines/__init__.py", "engines/common.py", "engines/registry.py"]
 
 
-def _check_numbers(d, where):
-    # PyYAML reads 1.0e6 (no exponent sign) as a string; write 1.0e+6
-    for key in ("scale", "default", "min", "max"):
-        if key in d and "choices" not in d and not isinstance(d[key], (int, float)):
-            raise TypeError(f"{where}: {key}={d[key]!r} is not a number (use 1.0e+6, not 1.0e6)")
-    return d
-
-
-def _resolve(item, common, where):
-    if isinstance(item, str):
-        if item not in common:
-            raise KeyError(f"{where}: input {item!r} is not defined under common_inputs")
-        return _check_numbers({"name": item, **common[item]}, f"{where}.{item}")
-    return _check_numbers(dict(item), f"{where}.{item.get('name')}")
+def resolve_inputs(spec: dict, fn: dict) -> list[dict]:
+    common = spec.get("common_inputs", {}) or {}
+    out = []
+    for item in fn.get("inputs", []):
+        if isinstance(item, str):
+            if item not in common:
+                raise KeyError(f"{spec['engine']}: input {item!r} not in common_inputs")
+            out.append({"name": item, **common[item]})
+        else:
+            out.append(dict(item))
+    return out
 
 
 def build() -> dict:
-    engines, files = [], ["engines/__init__.py", "engines/common.py", "engines/registry.py"]
-    for spec_path in sorted((ROOT / "engines").glob("*/spec.yaml")):
-        name = spec_path.parent.name
-        spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
-        common = spec.get("common_inputs", {}) or {}
-        funcs = []
-        for fname, f in spec["functions"].items():
-            funcs.append({
-                "name": fname,
-                "title": f.get("title", fname),
-                "equations": f.get("equations", []),
-                "inputs": [_resolve(i, common, f"{name}.{fname}") for i in f.get("inputs", [])],
-                "outputs": [_check_numbers(dict(o), f"{name}.{fname}.{o.get('name')}") for o in f.get("outputs", [])],
-            })
-        engines.append({"engine": spec.get("engine", name), "version": spec.get("version"), "title": spec.get("title", name),
-                        "description": spec.get("description", ""), "references": spec.get("references", []), "functions": funcs})
-        files += [f"engines/{name}/__init__.py", f"engines/{name}/engine.py"]
-    return {"generated_by": "tools/build_index.py", "files": files, "engines": engines}
+    engines = []
+    for d in sorted(p for p in ENGINES.iterdir() if (p / "spec.yaml").is_file()):
+        spec = yaml.safe_load((d / "spec.yaml").read_text(encoding="utf-8"))
+        files = sorted(f"engines/{d.name}/{f.name}" for f in d.glob("*.py") if not f.name.startswith("test_"))
+        engines.append({
+            "engine": spec["engine"],
+            "version": spec.get("version", 1),
+            "title": spec.get("title", spec["engine"]),
+            "description": spec.get("description", ""),
+            "requires": spec.get("requires", []),
+            "references": spec.get("references", []),
+            "files": files,
+            "functions": {
+                name: {
+                    "title": fn.get("title", name),
+                    "equations": fn.get("equations", []),
+                    "inputs": resolve_inputs(spec, fn),
+                    "outputs": fn.get("outputs", []),
+                }
+                for name, fn in spec["functions"].items()
+            },
+        })
+    # engines that import other engines need their files too
+    deps = {"step_index_fiber": ["materials"], "parametric_amplifier": ["stimulated_scattering"]}
+    for e in engines:
+        for dep in deps.get(e["engine"], []):
+            e["files"] = sorted(set(e["files"]) | {f"engines/{dep}/__init__.py", f"engines/{dep}/engine.py"})
+    return {"shared": SHARED, "engines": engines}
 
 
-def dumps(index: dict) -> str:
-    return json.dumps(index, indent=1, ensure_ascii=False, sort_keys=True) + "\n"
-
-
-def main() -> int:
-    INDEX.parent.mkdir(exist_ok=True)
-    INDEX.write_text(dumps(build()), encoding="utf-8")
-    print(f"wrote {INDEX.relative_to(ROOT)}")
-    return 0
+def render() -> str:
+    return json.dumps(build(), indent=1, ensure_ascii=False) + "\n"
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    OUT.write_text(render(), encoding="utf-8")
+    print(f"wrote {OUT.relative_to(ROOT)} ({len(build()['engines'])} engines)", file=sys.stderr)

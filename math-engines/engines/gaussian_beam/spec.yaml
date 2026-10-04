@@ -1,34 +1,36 @@
 engine: gaussian_beam
 version: 1
-title: Gaussian beam propagation
-description: Rayleigh range, beam radius, curvature and Gouy phase of a TEM00 beam; thin-lens focusing via the ABCD law.
+title: Gaussian beam
+description: TEM00 beam radius, curvature, Gouy phase, Rayleigh range and thin-lens focusing.
 references:
-  - "H. Kogelnik and T. Li, Laser beams and resonators, Appl. Opt. 5, 1550 (1966)"
-  - "S. A. Self, Focusing of spherical Gaussian beams, Appl. Opt. 22, 658 (1983)"
+  - "A. E. Siegman, Lasers (University Science Books, 1986), ch. 17 and 20"
 common_inputs:
-  w0: {label: "Waist radius w0", ui_unit: mm, scale: 1.0e-3, default: 1.0, min: 0.001, max: 100}
-  wavelength: {label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 633, min: 100, max: 20000}
-  n: {label: "Refractive index n", ui_unit: "1", scale: 1.0, default: 1.0, min: 1.0, max: 5.0}
-  M2: {label: "Beam quality M²", ui_unit: "1", scale: 1.0, default: 1.0, min: 1.0, max: 100}
+  w0: {label: "Waist radius w0", ui_unit: mm, scale: 1.0e-3, default: 1.0, min: 1.0e-4}
+  wavelength: {label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 633, min: 1}
+  n: {label: "Refractive index n", ui_unit: "", scale: 1.0, default: 1.0, min: 1.0}
 functions:
   beam_parameters:
     title: Rayleigh range and divergence
-    equations: ["z_R = pi n w0^2 / (M2 lambda)", "theta = M2 lambda / (pi n w0)"]
-    inputs: [w0, wavelength, n, M2]
+    equations: ["z_R = pi w0^2 n / (M2 lambda)", "theta = M2 lambda / (pi n w0)"]
+    inputs:
+      - w0
+      - wavelength
+      - n
+      - {name: M2, label: "Beam quality M²", ui_unit: "", scale: 1.0, default: 1.0, min: 1.0}
     outputs:
-      - {name: z_R, label: "Rayleigh range z_R", ui_unit: m, scale: 1.0}
-      - {name: divergence, label: "Half-angle divergence", ui_unit: mrad, scale: 1.0e-3}
-      - {name: confocal_parameter, label: "Confocal parameter 2z_R", ui_unit: m, scale: 1.0}
+      - {name: z_R, label: "Rayleigh range", ui_unit: m, scale: 1.0}
+      - {name: theta, label: "Divergence half-angle", ui_unit: mrad, scale: 1.0e-3}
+      - {name: b, label: "Confocal parameter", ui_unit: m, scale: 1.0}
   beam_at:
     title: Beam at a position z
-    equations: ["w(z) = w0 sqrt(1 + ((z - z0)/z_R)^2)", "R(z) = (z - z0) + z_R^2/(z - z0)", "psi = atan((z - z0)/z_R)"]
+    equations: ["w(z) = w0 sqrt(1 + ((z - z0)/z_R)^2)", "R(z) = (z - z0) (1 + (z_R/(z - z0))^2)"]
     inputs:
       - {name: z, label: "Position z", ui_unit: mm, scale: 1.0e-3, default: 1000}
       - w0
       - wavelength
       - {name: z0, label: "Waist position z0", ui_unit: mm, scale: 1.0e-3, default: 0}
       - n
-      - M2
+      - {name: M2, label: "Beam quality M²", ui_unit: "", scale: 1.0, default: 1.0, min: 1.0}
     outputs:
       - {name: w, label: "Beam radius w(z)", ui_unit: mm, scale: 1.0e-3}
       - {name: R, label: "Wavefront radius R(z)", ui_unit: m, scale: 1.0}
@@ -36,16 +38,14 @@ functions:
       - {name: z_R, label: "Rayleigh range", ui_unit: m, scale: 1.0}
   thin_lens_focus:
     title: Focusing by a thin lens
-    equations: ["q' = q / (1 - q/f)", "q = s + i z_R"]
+    equations: ["q' = (A q + B) / (C q + D)"]
     inputs:
       - w0
-      - {name: s, label: "Waist-to-lens distance s", ui_unit: mm, scale: 1.0e-3, default: 500}
-      - {name: f, label: "Focal length f", ui_unit: mm, scale: 1.0e-3, default: 100, min: 0.1}
+      - {name: s, label: "Waist-to-lens distance", ui_unit: mm, scale: 1.0e-3, default: 500}
+      - {name: f, label: "Focal length", ui_unit: mm, scale: 1.0e-3, default: 100}
       - wavelength
       - n
-      - M2
     outputs:
       - {name: w0_out, label: "Output waist", ui_unit: µm, scale: 1.0e-6}
-      - {name: waist_distance, label: "Lens-to-waist distance", ui_unit: mm, scale: 1.0e-3}
-      - {name: z_R_out, label: "Output Rayleigh range", ui_unit: mm, scale: 1.0e-3}
-      - {name: magnification, label: "Waist magnification", ui_unit: "1", scale: 1.0}
+      - {name: z_out, label: "Output waist after lens", ui_unit: mm, scale: 1.0e-3}
+      - {name: w_at_lens, label: "Beam radius at the lens", ui_unit: mm, scale: 1.0e-3}

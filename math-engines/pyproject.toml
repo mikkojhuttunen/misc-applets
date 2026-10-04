@@ -1,20 +1,21 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "math-engines"
 version = "0.1.0"
-description = "Small, tested, UI-free physics engines (SI units in, Result out)"
+description = "Pure-function physics engines with machine-readable specs, shared by the misc-applets front ends."
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.24"]
+dependencies = ["numpy>=1.24", "pyyaml>=6"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pyyaml>=6"]
+fiber = ["scipy>=1.10"]
+test = ["pytest>=7", "scipy>=1.10"]
 
 [tool.setuptools]
-packages = ["engines", "engines.gaussian_beam", "engines.fiber_mode", "engines.parametric_amplifier", "engines.stimulated_scattering"]
+packages = ["engines"]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
 testpaths = ["engines"]
+python_files = ["test_*.py"]

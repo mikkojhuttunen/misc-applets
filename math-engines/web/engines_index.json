@@ -1,1174 +1,1697 @@
 {
+ "shared": [
+  "engines/__init__.py",
+  "engines/common.py",
+  "engines/registry.py"
+ ],
  "engines": [
   {
-   "description": "Fused-silica index, the scalar LP01 mode of a step-index fiber and the three-/four-wave phase mismatch it produces.",
-   "engine": "fiber_mode",
-   "functions": [
-    {
-     "equations": [
-      "n^2 - 1 = sum_k B_k lambda^2 / (lambda^2 - C_k^2)"
-     ],
-     "inputs": [
-      {
-       "default": 1550,
-       "label": "Vacuum wavelength",
-       "max": 3700,
-       "min": 210,
-       "name": "wavelength",
-       "scale": 1e-09,
-       "ui_unit": "nm"
-      }
-     ],
-     "name": "silica_index",
-     "outputs": [
-      {
-       "label": "Refractive index",
-       "name": "n",
-       "scale": 1.0,
-       "ui_unit": "1"
-      }
-     ],
-     "title": "Fused-silica refractive index"
-    },
-    {
-     "equations": [
-      "U J1(U)/J0(U) = W K1(W)/K0(W), U^2 + W^2 = V^2",
-      "w/a = 0.65 + 1.619 V^-3/2 + 2.879 V^-6"
-     ],
-     "inputs": [
-      {
-       "default": 1550,
-       "label": "Vacuum wavelength",
-       "max": 3700,
-       "min": 210,
-       "name": "wavelength",
-       "scale": 1e-09,
-       "ui_unit": "nm"
-      },
-      {
-       "default": 4.1,
-       "label": "Core radius a",
-       "max": 50,
-       "min": 0.5,
-       "name": "core_radius",
-       "scale": 1e-06,
-       "ui_unit": "µm"
-      },
-      {
-       "default": 0.005,
-       "label": "Core index step Δn",
-       "max": 0.05,
-       "min": 0.0005,
-       "name": "delta_n",
-       "scale": 1.0,
-       "ui_unit": "1"
-      }
-     ],
-     "name": "lp01_mode",
-     "outputs": [
-      {
-       "label": "Effective index",
-       "name": "n_eff",
-       "scale": 1.0,
-       "ui_unit": "1"
-      },
-      {
-       "label": "Normalised frequency V",
-       "name": "V",
-       "scale": 1.0,
-       "ui_unit": "1"
-      },
-      {
-       "label": "Normalised propagation constant b",
-       "name": "b",
-       "scale": 1.0,
-       "ui_unit": "1"
-      },
-      {
-       "label": "Mode radius (1/e² intensity)",
-       "name": "w_mode",
-       "scale": 1e-06,
-       "ui_unit": "µm"
-      }
-     ],
-     "title": "LP01 mode of a step-index fiber"
-    },
-    {
-     "equations": [
-      "chi2: dk = k_p - k_s - k_i",
-      "chi3: dbeta = k_s + k_i - 2 k_p",
-      "GVM = beta1_i - beta1_s"
-     ],
-     "inputs": [
-      {
-       "default": 1550,
-       "label": "Signal wavelength",
-       "max": 3000,
-       "min": 400,
-       "name": "lambda_signal",
-       "scale": 1e-09,
-       "ui_unit": "nm"
-      },
-      {
-       "default": 532,
-       "label": "Pump wavelength",
-       "max": 2500,
-       "min": 300,
-       "name": "lambda_pump",
-       "scale": 1e-09,
-       "ui_unit": "nm"
-      },
-      {
-       "default": 4.1,
-       "label": "Core radius a",
-       "max": 50,
-       "min": 0.5,
-       "name": "core_radius",
-       "scale": 1e-06,
-       "ui_unit": "µm"
-      },
-      {
-       "default": 0.005,
-       "label": "Core index step Δn",
-       "max": 0.05,
-       "min": 0.0005,
-       "name": "delta_n",
-       "scale": 1.0,
-       "ui_unit": "1"
-      },
-      {
-       "choices": [
-        "chi2",
-        "chi3"
-       ],
-       "default": "chi2",
-       "label": "Process",
-       "name": "process"
-      }
-     ],
-     "name": "phase_mismatch",
-     "outputs": [
-      {
-       "label": "Linear mismatch at the signal",
-       "name": "dk0",
-       "scale": 1.0,
-       "ui_unit": "rad/m"
-      },
-      {
-       "label": "GVM β1,i − β1,s",
-       "name": "gvm",
-       "scale": 1e-12,
-       "ui_unit": "ps/m"
-      },
-      {
-       "label": "β2,s + β2,i",
-       "name": "beta2_sum",
-       "scale": 1e-27,
-       "ui_unit": "ps²/km"
-      },
-      {
-       "label": "Idler wavelength",
-       "name": "lambda_idler",
-       "scale": 1e-09,
-       "ui_unit": "nm"
-      },
-      {
-       "label": "QPM period (chi2)",
-       "name": "qpm_period",
-       "scale": 1e-06,
-       "ui_unit": "µm"
-      }
-     ],
-     "title": "Phase mismatch and group-velocity mismatch"
-    }
-   ],
+   "engine": "bragg_grating",
+   "version": 1,
+   "title": "Bragg grating",
+   "description": "Coupling coefficient, peak reflectance, bandwidth and exact stack reflectance of a Bragg grating.",
+   "requires": [],
    "references": [
-    "I. H. Malitson, Interspecimen comparison of the refractive index of fused silica, JOSA 55, 1205 (1965)",
-    "D. Marcuse, Loss analysis of single-mode fiber splices, Bell Syst. Tech. J. 56, 703 (1977)",
-    "A. W. Snyder and J. D. Love, Optical Waveguide Theory (1983)"
+    "H. Kogelnik, in Guided-Wave Optoelectronics, ed. T. Tamir (Springer, 1988)",
+    "M. Born and E. Wolf, Principles of Optics, §1.6 (characteristic matrices)"
    ],
-   "title": "Step-index silica fiber",
-   "version": 1
+   "files": [
+    "engines/bragg_grating/__init__.py",
+    "engines/bragg_grating/engine.py"
+   ],
+   "functions": {
+    "coupling_coefficient": {
+     "title": "Coupling coefficient κ",
+     "equations": [
+      "κ = 2 Δn sin(π m f) / (m λ)"
+     ],
+     "inputs": [
+      {
+       "name": "delta_n",
+       "label": "Index contrast Δn",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.0177,
+       "min": 0
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "fill_factor",
+       "label": "Filling ratio f",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "order",
+       "label": "Bragg order m",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "kappa",
+       "label": "Coupling coefficient κ",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      }
+     ]
+    },
+    "grating_summary": {
+     "title": "Peak reflectance and bandwidth",
+     "equations": [
+      "R = tanh^2(κL)",
+      "Δλ_null = λ^2 / (π n_g L) sqrt((κL)^2 + π^2)",
+      "L_eff = tanh(κL) / (2κ)"
+     ],
+     "inputs": [
+      {
+       "name": "kappa",
+       "label": "Coupling coefficient κ",
+       "ui_unit": "1/cm",
+       "scale": 100.0,
+       "default": 229
+      },
+      {
+       "name": "length",
+       "label": "Grating length L",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 307
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_group",
+       "label": "Group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.33,
+       "min": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "R_peak",
+       "label": "Peak reflectance",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "bandwidth_null",
+       "label": "Null-to-null bandwidth",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "L_eff",
+       "label": "Effective length",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "kappa_L",
+       "label": "κL",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "stack_reflectance": {
+     "title": "Quarter-wave or arbitrary periodic stack",
+     "equations": [
+      "[E0, H0] = (M_H M_L)^N [Es, Hs]",
+      "M = [[cos δ, -i sin δ / n], [-i n sin δ, cos δ]]"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_high",
+       "label": "High index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.0272,
+       "min": 1
+      },
+      {
+       "name": "n_low",
+       "label": "Low index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.0095,
+       "min": 1
+      },
+      {
+       "name": "d_high",
+       "label": "High-index layer thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 191.2
+      },
+      {
+       "name": "d_low",
+       "label": "Low-index layer thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 192.8
+      },
+      {
+       "name": "periods",
+       "label": "Periods N",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 800,
+       "min": 1,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "R",
+       "label": "Reflectance",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "T",
+       "label": "Transmittance",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
   },
   {
-   "description": "Rayleigh range, beam radius, curvature and Gouy phase of a TEM00 beam; thin-lens focusing via the ABCD law.",
    "engine": "gaussian_beam",
-   "functions": [
-    {
+   "version": 1,
+   "title": "Gaussian beam",
+   "description": "TEM00 beam radius, curvature, Gouy phase, Rayleigh range and thin-lens focusing.",
+   "requires": [],
+   "references": [
+    "A. E. Siegman, Lasers (University Science Books, 1986), ch. 17 and 20"
+   ],
+   "files": [
+    "engines/gaussian_beam/__init__.py",
+    "engines/gaussian_beam/engine.py"
+   ],
+   "functions": {
+    "beam_parameters": {
+     "title": "Rayleigh range and divergence",
      "equations": [
-      "z_R = pi n w0^2 / (M2 lambda)",
+      "z_R = pi w0^2 n / (M2 lambda)",
       "theta = M2 lambda / (pi n w0)"
      ],
      "inputs": [
       {
-       "default": 1.0,
-       "label": "Waist radius w0",
-       "max": 100,
-       "min": 0.001,
        "name": "w0",
+       "label": "Waist radius w0",
+       "ui_unit": "mm",
        "scale": 0.001,
-       "ui_unit": "mm"
+       "default": 1.0,
+       "min": 0.0001
       },
       {
-       "default": 633,
-       "label": "Vacuum wavelength",
-       "max": 20000,
-       "min": 100,
        "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 633,
+       "min": 1
       },
       {
-       "default": 1.0,
-       "label": "Refractive index n",
-       "max": 5.0,
-       "min": 1.0,
        "name": "n",
+       "label": "Refractive index n",
+       "ui_unit": "",
        "scale": 1.0,
-       "ui_unit": "1"
+       "default": 1.0,
+       "min": 1.0
       },
       {
-       "default": 1.0,
-       "label": "Beam quality M²",
-       "max": 100,
-       "min": 1.0,
        "name": "M2",
+       "label": "Beam quality M²",
+       "ui_unit": "",
        "scale": 1.0,
-       "ui_unit": "1"
+       "default": 1.0,
+       "min": 1.0
       }
      ],
-     "name": "beam_parameters",
      "outputs": [
       {
-       "label": "Rayleigh range z_R",
        "name": "z_R",
-       "scale": 1.0,
-       "ui_unit": "m"
+       "label": "Rayleigh range",
+       "ui_unit": "m",
+       "scale": 1.0
       },
       {
-       "label": "Half-angle divergence",
-       "name": "divergence",
-       "scale": 0.001,
-       "ui_unit": "mrad"
+       "name": "theta",
+       "label": "Divergence half-angle",
+       "ui_unit": "mrad",
+       "scale": 0.001
       },
       {
-       "label": "Confocal parameter 2z_R",
-       "name": "confocal_parameter",
-       "scale": 1.0,
-       "ui_unit": "m"
+       "name": "b",
+       "label": "Confocal parameter",
+       "ui_unit": "m",
+       "scale": 1.0
       }
-     ],
-     "title": "Rayleigh range and divergence"
+     ]
     },
-    {
+    "beam_at": {
+     "title": "Beam at a position z",
      "equations": [
       "w(z) = w0 sqrt(1 + ((z - z0)/z_R)^2)",
-      "R(z) = (z - z0) + z_R^2/(z - z0)",
-      "psi = atan((z - z0)/z_R)"
+      "R(z) = (z - z0) (1 + (z_R/(z - z0))^2)"
      ],
      "inputs": [
       {
-       "default": 1000,
-       "label": "Position z",
        "name": "z",
+       "label": "Position z",
+       "ui_unit": "mm",
        "scale": 0.001,
-       "ui_unit": "mm"
+       "default": 1000
       },
       {
-       "default": 1.0,
-       "label": "Waist radius w0",
-       "max": 100,
-       "min": 0.001,
        "name": "w0",
+       "label": "Waist radius w0",
+       "ui_unit": "mm",
        "scale": 0.001,
-       "ui_unit": "mm"
+       "default": 1.0,
+       "min": 0.0001
       },
       {
-       "default": 633,
-       "label": "Vacuum wavelength",
-       "max": 20000,
-       "min": 100,
        "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 633,
+       "min": 1
       },
       {
-       "default": 0,
-       "label": "Waist position z0",
        "name": "z0",
+       "label": "Waist position z0",
+       "ui_unit": "mm",
        "scale": 0.001,
-       "ui_unit": "mm"
+       "default": 0
       },
       {
-       "default": 1.0,
-       "label": "Refractive index n",
-       "max": 5.0,
-       "min": 1.0,
        "name": "n",
+       "label": "Refractive index n",
+       "ui_unit": "",
        "scale": 1.0,
-       "ui_unit": "1"
+       "default": 1.0,
+       "min": 1.0
       },
       {
-       "default": 1.0,
-       "label": "Beam quality M²",
-       "max": 100,
-       "min": 1.0,
        "name": "M2",
+       "label": "Beam quality M²",
+       "ui_unit": "",
        "scale": 1.0,
-       "ui_unit": "1"
+       "default": 1.0,
+       "min": 1.0
       }
      ],
-     "name": "beam_at",
      "outputs": [
       {
-       "label": "Beam radius w(z)",
        "name": "w",
-       "scale": 0.001,
-       "ui_unit": "mm"
+       "label": "Beam radius w(z)",
+       "ui_unit": "mm",
+       "scale": 0.001
       },
       {
-       "label": "Wavefront radius R(z)",
        "name": "R",
-       "scale": 1.0,
-       "ui_unit": "m"
+       "label": "Wavefront radius R(z)",
+       "ui_unit": "m",
+       "scale": 1.0
       },
       {
-       "label": "Gouy phase",
        "name": "gouy_phase",
-       "scale": 1.0,
-       "ui_unit": "rad"
+       "label": "Gouy phase",
+       "ui_unit": "rad",
+       "scale": 1.0
       },
       {
-       "label": "Rayleigh range",
        "name": "z_R",
-       "scale": 1.0,
-       "ui_unit": "m"
+       "label": "Rayleigh range",
+       "ui_unit": "m",
+       "scale": 1.0
       }
-     ],
-     "title": "Beam at a position z"
+     ]
     },
-    {
+    "thin_lens_focus": {
+     "title": "Focusing by a thin lens",
      "equations": [
-      "q' = q / (1 - q/f)",
-      "q = s + i z_R"
+      "q' = (A q + B) / (C q + D)"
      ],
      "inputs": [
       {
-       "default": 1.0,
-       "label": "Waist radius w0",
-       "max": 100,
-       "min": 0.001,
        "name": "w0",
+       "label": "Waist radius w0",
+       "ui_unit": "mm",
        "scale": 0.001,
-       "ui_unit": "mm"
+       "default": 1.0,
+       "min": 0.0001
       },
       {
-       "default": 500,
-       "label": "Waist-to-lens distance s",
        "name": "s",
+       "label": "Waist-to-lens distance",
+       "ui_unit": "mm",
        "scale": 0.001,
-       "ui_unit": "mm"
+       "default": 500
       },
       {
-       "default": 100,
-       "label": "Focal length f",
-       "min": 0.1,
        "name": "f",
+       "label": "Focal length",
+       "ui_unit": "mm",
        "scale": 0.001,
-       "ui_unit": "mm"
+       "default": 100
       },
       {
-       "default": 633,
-       "label": "Vacuum wavelength",
-       "max": 20000,
-       "min": 100,
        "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 633,
+       "min": 1
       },
       {
-       "default": 1.0,
-       "label": "Refractive index n",
-       "max": 5.0,
-       "min": 1.0,
        "name": "n",
+       "label": "Refractive index n",
+       "ui_unit": "",
        "scale": 1.0,
-       "ui_unit": "1"
-      },
-      {
        "default": 1.0,
-       "label": "Beam quality M²",
-       "max": 100,
-       "min": 1.0,
-       "name": "M2",
-       "scale": 1.0,
-       "ui_unit": "1"
+       "min": 1.0
       }
      ],
-     "name": "thin_lens_focus",
      "outputs": [
       {
-       "label": "Output waist",
        "name": "w0_out",
-       "scale": 1e-06,
-       "ui_unit": "µm"
+       "label": "Output waist",
+       "ui_unit": "µm",
+       "scale": 1e-06
       },
       {
-       "label": "Lens-to-waist distance",
-       "name": "waist_distance",
-       "scale": 0.001,
-       "ui_unit": "mm"
+       "name": "z_out",
+       "label": "Output waist after lens",
+       "ui_unit": "mm",
+       "scale": 0.001
       },
       {
-       "label": "Output Rayleigh range",
-       "name": "z_R_out",
-       "scale": 0.001,
-       "ui_unit": "mm"
-      },
-      {
-       "label": "Waist magnification",
-       "name": "magnification",
-       "scale": 1.0,
-       "ui_unit": "1"
+       "name": "w_at_lens",
+       "label": "Beam radius at the lens",
+       "ui_unit": "mm",
+       "scale": 0.001
       }
-     ],
-     "title": "Focusing by a thin lens"
+     ]
     }
-   ],
-   "references": [
-    "H. Kogelnik and T. Li, Laser beams and resonators, Appl. Opt. 5, 1550 (1966)",
-    "S. A. Self, Focusing of spherical Gaussian beams, Appl. Opt. 22, 658 (1983)"
-   ],
-   "title": "Gaussian beam propagation",
-   "version": 1
+   }
   },
   {
-   "description": "chi2 three-wave and chi3 four-wave optical parametric amplification with pump depletion, idler loss engineering and gain bandwidth.",
+   "engine": "materials",
+   "version": 1,
+   "title": "Material refractive index",
+   "description": "Sellmeier phase and group index of SiO2, Si3N4, LiNbO3 (e, o), LiTaO3 (approximate) and Si.",
+   "requires": [],
+   "references": [
+    "I. H. Malitson, JOSA 55, 1205 (1965)",
+    "D. E. Zelmon, D. L. Small, D. Jundt, JOSA B 14, 3319 (1997)",
+    "K. Luke et al., Opt. Lett. 40, 4823 (2015)"
+   ],
+   "files": [
+    "engines/materials/__init__.py",
+    "engines/materials/engine.py"
+   ],
+   "functions": {
+    "refractive_index": {
+     "title": "Phase and group index",
+     "equations": [
+      "n^2 = 1 + sum_i A_i λ^2 / (λ^2 - B_i)",
+      "n_g = n - λ dn/dλ"
+     ],
+     "inputs": [
+      {
+       "name": "material",
+       "label": "Material",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "si3n4",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "si"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 200
+      }
+     ],
+     "outputs": [
+      {
+       "name": "n",
+       "label": "Phase index n",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_group",
+       "label": "Group index n_g",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "parametric_amplifier",
-   "functions": [
-    {
+   "version": 1,
+   "title": "Fiber parametric amplifier",
+   "description": "chi2 three-wave and chi3 four-wave optical parametric amplification with pump depletion, idler loss engineering and gain bandwidth.",
+   "requires": [],
+   "references": [
+    "R. W. Boyd, Nonlinear Optics, 3rd ed., sec. 2.9 (parametric amplification)",
+    "G. P. Agrawal, Nonlinear Fiber Optics, ch. 10 (four-wave mixing)",
+    "J. Ma et al., Quasi-parametric amplification of chirped pulses based on a Sm3+-doped yttrium calcium oxyborate crystal, Optica 2, 1006 (2015)"
+   ],
+   "files": [
+    "engines/parametric_amplifier/__init__.py",
+    "engines/parametric_amplifier/engine.py",
+    "engines/stimulated_scattering/__init__.py",
+    "engines/stimulated_scattering/engine.py"
+   ],
+   "functions": {
+    "coupling": {
+     "title": "Gain coefficient from the nonlinearity and mode sizes",
      "equations": [
       "chi2: Gamma = K sqrt(P_p / hbar w_p), K = 2 d sqrt(hbar w_p w_s w_i / (2 eps0 c^3 n^3)) Theta",
       "chi3: Gamma = gamma_p P_p sqrt(w_s w_i) / w_p, gamma_p = n2 w_p / (c A_eff)"
      ],
      "inputs": [
       {
+       "name": "process",
+       "label": "Process",
+       "type": "choice",
        "choices": [
         "chi2",
         "chi3"
        ],
-       "default": "chi2",
-       "label": "Process",
-       "name": "process"
+       "default": "chi2"
       },
       {
-       "default": 532,
-       "label": "Pump wavelength",
-       "max": 2500,
-       "min": 300,
        "name": "lambda_pump",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 532,
+       "min": 300,
+       "max": 2500
       },
       {
-       "default": 1550,
-       "label": "Signal wavelength",
-       "max": 3000,
-       "min": 400,
        "name": "lambda_signal",
+       "label": "Signal wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 1550,
+       "min": 400,
+       "max": 3000
       },
       {
-       "default": 2.5,
-       "label": "Pump mode radius",
-       "max": 100,
-       "min": 0.5,
        "name": "w_pump",
+       "label": "Pump mode radius",
+       "ui_unit": "µm",
        "scale": 1e-06,
-       "ui_unit": "µm"
+       "default": 2.5,
+       "min": 0.5,
+       "max": 100
       },
       {
-       "default": 5.0,
-       "label": "Signal mode radius",
-       "max": 100,
-       "min": 0.5,
        "name": "w_signal",
+       "label": "Signal mode radius",
+       "ui_unit": "µm",
        "scale": 1e-06,
-       "ui_unit": "µm"
-      },
-      {
-       "default": 3.18,
-       "label": "Idler mode radius",
-       "max": 100,
+       "default": 5.0,
        "min": 0.5,
+       "max": 100
+      },
+      {
        "name": "w_idler",
+       "label": "Idler mode radius",
+       "ui_unit": "µm",
        "scale": 1e-06,
-       "ui_unit": "µm"
+       "default": 3.18,
+       "min": 0.5,
+       "max": 100
       },
       {
-       "default": 1.0,
-       "label": "Pump power",
-       "max": 1000,
-       "min": 0.0001,
        "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
        "scale": 1.0,
-       "ui_unit": "W"
+       "default": 1.0,
+       "min": 0.0001,
+       "max": 1000
       },
       {
-       "default": 0.08,
-       "label": "d_eff (chi2)",
-       "max": 100,
-       "min": 0.001,
        "name": "d_eff",
+       "label": "d_eff (chi2)",
+       "ui_unit": "pm/V",
        "scale": 1e-12,
-       "ui_unit": "pm/V"
+       "default": 0.08,
+       "min": 0.001,
+       "max": 100
       },
       {
-       "default": 2.6,
-       "label": "n2 (chi3)",
-       "max": 10000,
-       "min": 0.1,
        "name": "n2",
+       "label": "n2 (chi3)",
+       "ui_unit": "1e-20 m²/W",
        "scale": 1e-20,
-       "ui_unit": "1e-20 m²/W"
+       "default": 2.6,
+       "min": 0.1,
+       "max": 10000
       }
      ],
-     "name": "coupling",
      "outputs": [
       {
-       "label": "Gain coefficient Γ",
        "name": "gain_coefficient",
-       "scale": 1.0,
-       "ui_unit": "1/m"
+       "label": "Gain coefficient Γ",
+       "ui_unit": "1/m",
+       "scale": 1.0
       },
       {
-       "label": "Effective area",
        "name": "A_eff",
-       "scale": 1e-12,
-       "ui_unit": "µm²"
+       "label": "Effective area",
+       "ui_unit": "µm²",
+       "scale": 1e-12
       },
       {
-       "label": "Idler wavelength",
        "name": "lambda_idler",
-       "scale": 1e-09,
-       "ui_unit": "nm"
+       "label": "Idler wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
       },
       {
-       "label": "γ at the pump (chi3)",
        "name": "gamma",
-       "scale": 0.001,
-       "ui_unit": "1/(W km)"
+       "label": "γ at the pump (chi3)",
+       "ui_unit": "1/(W km)",
+       "scale": 0.001
       },
       {
-       "label": "2γP (chi3)",
        "name": "nonlinear_phase",
-       "scale": 1.0,
-       "ui_unit": "rad/m"
+       "label": "2γP (chi3)",
+       "ui_unit": "rad/m",
+       "scale": 1.0
       }
-     ],
-     "title": "Gain coefficient from the nonlinearity and mode sizes"
+     ]
     },
-    {
+    "small_signal_gain": {
+     "title": "Undepleted-pump signal gain",
      "equations": [
       "d/dz [s, c] = [[-a_s/2, i Gamma], [-i Gamma, i dk - a_i/2]] [s, c]",
       "G = 1 + (Gamma/g)^2 sinh^2(g L) without loss"
      ],
      "inputs": [
       {
-       "default": 0.95,
-       "label": "Gain coefficient Γ",
-       "max": 1000,
-       "min": 0,
        "name": "gain_coefficient",
+       "label": "Gain coefficient Γ",
+       "ui_unit": "1/m",
        "scale": 1.0,
-       "ui_unit": "1/m"
+       "default": 0.95,
+       "min": 0,
+       "max": 1000
       },
       {
-       "default": 0,
-       "label": "Phase mismatch Δk (chi2) or κ (chi3)",
-       "max": 1000,
-       "min": -1000,
        "name": "phase_mismatch",
+       "label": "Phase mismatch Δk (chi2) or κ (chi3)",
+       "ui_unit": "rad/m",
        "scale": 1.0,
-       "ui_unit": "rad/m"
+       "default": 0,
+       "min": -1000,
+       "max": 1000
       },
       {
-       "default": 5.0,
-       "label": "Fiber length",
-       "max": 1000,
-       "min": 0.01,
        "name": "length",
+       "label": "Fiber length",
+       "ui_unit": "m",
        "scale": 1.0,
-       "ui_unit": "m"
+       "default": 5.0,
+       "min": 0.01,
+       "max": 1000
       },
       {
-       "default": 0,
-       "label": "Idler loss α_i",
-       "max": 1000,
-       "min": 0,
        "name": "idler_loss",
+       "label": "Idler loss α_i",
+       "ui_unit": "1/m",
        "scale": 1.0,
-       "ui_unit": "1/m"
+       "default": 0,
+       "min": 0,
+       "max": 1000
       },
       {
-       "default": 0,
-       "label": "Signal loss α_s",
-       "max": 1000,
-       "min": 0,
        "name": "signal_loss",
+       "label": "Signal loss α_s",
+       "ui_unit": "1/m",
        "scale": 1.0,
-       "ui_unit": "1/m"
-      },
-      {
        "default": 0,
-       "integer": true,
-       "label": "Number of idler dumps",
-       "max": 1000,
        "min": 0,
-       "name": "n_dumps",
-       "scale": 1.0,
-       "ui_unit": "1"
+       "max": 1000
       },
       {
-       "default": 1.0,
-       "label": "Idler transmission per dump",
-       "max": 1,
-       "min": 0,
-       "name": "idler_dump_transmission",
+       "name": "n_dumps",
+       "label": "Number of idler dumps",
+       "ui_unit": "",
        "scale": 1.0,
-       "ui_unit": "1"
+       "default": 0,
+       "min": 0,
+       "max": 1000,
+       "step": 1
+      },
+      {
+       "name": "idler_dump_transmission",
+       "label": "Idler transmission per dump",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 0,
+       "max": 1
       }
      ],
-     "name": "small_signal_gain",
      "outputs": [
       {
-       "label": "Signal gain",
        "name": "gain_db",
-       "scale": 1.0,
-       "ui_unit": "dB"
+       "label": "Signal gain",
+       "ui_unit": "dB",
+       "scale": 1.0
       },
       {
-       "label": "Signal gain (linear)",
        "name": "gain",
-       "scale": 1.0,
-       "ui_unit": "1"
+       "label": "Signal gain (linear)",
+       "ui_unit": "",
+       "scale": 1.0
       },
       {
-       "label": "Idler photons out / signal photons in",
        "name": "idler_conversion",
-       "scale": 1.0,
-       "ui_unit": "1"
+       "label": "Idler photons out / signal photons in",
+       "ui_unit": "",
+       "scale": 1.0
       }
-     ],
-     "title": "Undepleted-pump signal gain"
+     ]
     },
-    {
+    "amplify": {
+     "title": "Full coupled-wave solution (pump depletion)",
      "equations": [
       "RK4 integration of the three coupled amplitude equations"
      ],
      "inputs": [
       {
+       "name": "process",
+       "label": "Process",
+       "type": "choice",
        "choices": [
         "chi2",
         "chi3"
        ],
-       "default": "chi2",
-       "label": "Process",
-       "name": "process"
+       "default": "chi2"
       },
       {
-       "default": 532,
-       "label": "Pump wavelength",
-       "max": 2500,
-       "min": 300,
        "name": "lambda_pump",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 532,
+       "min": 300,
+       "max": 2500
       },
       {
-       "default": 1550,
-       "label": "Signal wavelength",
-       "max": 3000,
-       "min": 400,
        "name": "lambda_signal",
+       "label": "Signal wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 1550,
+       "min": 400,
+       "max": 3000
       },
       {
-       "default": 1.0,
-       "label": "Pump power",
-       "max": 1000,
-       "min": 0.0001,
        "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
        "scale": 1.0,
-       "ui_unit": "W"
+       "default": 1.0,
+       "min": 0.0001,
+       "max": 1000
       },
       {
-       "default": 0.01,
-       "label": "Signal input power",
-       "max": 10000,
-       "min": 1e-09,
        "name": "signal_power",
+       "label": "Signal input power",
+       "ui_unit": "mW",
        "scale": 0.001,
-       "ui_unit": "mW"
+       "default": 0.01,
+       "min": 1e-09,
+       "max": 10000
       },
       {
-       "default": 5.0,
-       "label": "Fiber length",
-       "max": 1000,
-       "min": 0.01,
        "name": "length",
+       "label": "Fiber length",
+       "ui_unit": "m",
        "scale": 1.0,
-       "ui_unit": "m"
+       "default": 5.0,
+       "min": 0.01,
+       "max": 1000
       },
       {
-       "default": 0.95,
-       "label": "Gain coefficient Γ",
-       "max": 1000,
-       "min": 0,
        "name": "gain_coefficient",
+       "label": "Gain coefficient Γ",
+       "ui_unit": "1/m",
        "scale": 1.0,
-       "ui_unit": "1/m"
-      },
-      {
-       "default": 0,
-       "label": "Phase mismatch Δk (chi2) or κ (chi3)",
-       "max": 1000,
-       "min": -1000,
-       "name": "phase_mismatch",
-       "scale": 1.0,
-       "ui_unit": "rad/m"
-      },
-      {
-       "default": 0,
-       "label": "Idler loss α_i",
-       "max": 1000,
+       "default": 0.95,
        "min": 0,
-       "name": "idler_loss",
+       "max": 1000
+      },
+      {
+       "name": "phase_mismatch",
+       "label": "Phase mismatch Δk (chi2) or κ (chi3)",
+       "ui_unit": "rad/m",
        "scale": 1.0,
-       "ui_unit": "1/m"
+       "default": 0,
+       "min": -1000,
+       "max": 1000
+      },
+      {
+       "name": "idler_loss",
+       "label": "Idler loss α_i",
+       "ui_unit": "1/m",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 1000
       }
      ],
-     "name": "amplify",
      "outputs": [
       {
-       "label": "Signal gain",
        "name": "gain_db",
-       "scale": 1.0,
-       "ui_unit": "dB"
+       "label": "Signal gain",
+       "ui_unit": "dB",
+       "scale": 1.0
       },
       {
-       "label": "Signal output",
        "name": "P_signal_out",
-       "scale": 0.001,
-       "ui_unit": "mW"
+       "label": "Signal output",
+       "ui_unit": "mW",
+       "scale": 0.001
       },
       {
-       "label": "Idler output",
        "name": "P_idler_out",
-       "scale": 0.001,
-       "ui_unit": "mW"
+       "label": "Idler output",
+       "ui_unit": "mW",
+       "scale": 0.001
       },
       {
-       "label": "Pump output",
        "name": "P_pump_out",
-       "scale": 1.0,
-       "ui_unit": "W"
+       "label": "Pump output",
+       "ui_unit": "W",
+       "scale": 1.0
       },
       {
-       "label": "Pump depletion",
        "name": "pump_depletion",
-       "scale": 0.01,
-       "ui_unit": "%"
+       "label": "Pump depletion",
+       "ui_unit": "%",
+       "scale": 0.01
       },
       {
-       "label": "Photon-number check",
        "name": "photon_residual",
-       "scale": 1.0,
-       "ui_unit": "1"
+       "label": "Photon-number check",
+       "ui_unit": "",
+       "scale": 1.0
       }
-     ],
-     "title": "Full coupled-wave solution (pump depletion)"
+     ]
     },
-    {
+    "gain_bandwidth": {
+     "title": "Gain bandwidth in nm and GHz",
      "equations": [
       "dk(Omega) = dk0 + s (GVM Omega - (beta2_s + beta2_i) Omega^2 / 2)",
       "Delta-lambda = lambda^2 Delta-nu / c"
      ],
      "inputs": [
       {
-       "default": 0.95,
-       "label": "Gain coefficient Γ",
-       "max": 1000,
-       "min": 0,
        "name": "gain_coefficient",
+       "label": "Gain coefficient Γ",
+       "ui_unit": "1/m",
        "scale": 1.0,
-       "ui_unit": "1/m"
-      },
-      {
-       "default": 5.0,
-       "label": "Fiber length",
-       "max": 1000,
-       "min": 0.01,
-       "name": "length",
-       "scale": 1.0,
-       "ui_unit": "m"
-      },
-      {
-       "default": 1550,
-       "label": "Signal wavelength",
-       "max": 3000,
-       "min": 400,
-       "name": "lambda_signal",
-       "scale": 1e-09,
-       "ui_unit": "nm"
-      },
-      {
-       "default": 532,
-       "label": "Pump wavelength",
-       "max": 2500,
-       "min": 300,
-       "name": "lambda_pump",
-       "scale": 1e-09,
-       "ui_unit": "nm"
-      },
-      {
-       "default": 15.16,
-       "label": "GVM β1,i − β1,s",
-       "max": 1000,
-       "min": -1000,
-       "name": "gvm",
-       "scale": 1e-12,
-       "ui_unit": "ps/m"
-      },
-      {
-       "default": 13.0,
-       "label": "β2,s + β2,i",
-       "max": 10000,
-       "min": -10000,
-       "name": "beta2_sum",
-       "scale": 1e-27,
-       "ui_unit": "ps²/km"
-      },
-      {
-       "default": 0,
-       "label": "Phase mismatch Δk (chi2) or κ (chi3)",
-       "max": 1000,
-       "min": -1000,
-       "name": "phase_mismatch",
-       "scale": 1.0,
-       "ui_unit": "rad/m"
-      },
-      {
-       "default": 0,
-       "label": "Idler loss α_i",
-       "max": 1000,
+       "default": 0.95,
        "min": 0,
-       "name": "idler_loss",
-       "scale": 1.0,
-       "ui_unit": "1/m"
+       "max": 1000
       },
       {
+       "name": "length",
+       "label": "Fiber length",
+       "ui_unit": "m",
+       "scale": 1.0,
+       "default": 5.0,
+       "min": 0.01,
+       "max": 1000
+      },
+      {
+       "name": "lambda_signal",
+       "label": "Signal wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 400,
+       "max": 3000
+      },
+      {
+       "name": "lambda_pump",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 532,
+       "min": 300,
+       "max": 2500
+      },
+      {
+       "name": "gvm",
+       "label": "GVM β1,i − β1,s",
+       "ui_unit": "ps/m",
+       "scale": 1e-12,
+       "default": 15.16,
+       "min": -1000,
+       "max": 1000
+      },
+      {
+       "name": "beta2_sum",
+       "label": "β2,s + β2,i",
+       "ui_unit": "ps²/km",
+       "scale": 1e-27,
+       "default": 13.0,
+       "min": -10000,
+       "max": 10000
+      },
+      {
+       "name": "phase_mismatch",
+       "label": "Phase mismatch Δk (chi2) or κ (chi3)",
+       "ui_unit": "rad/m",
+       "scale": 1.0,
+       "default": 0,
+       "min": -1000,
+       "max": 1000
+      },
+      {
+       "name": "idler_loss",
+       "label": "Idler loss α_i",
+       "ui_unit": "1/m",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 1000
+      },
+      {
+       "name": "process",
+       "label": "Process",
+       "type": "choice",
        "choices": [
         "chi2",
         "chi3"
        ],
-       "default": "chi2",
-       "label": "Process",
-       "name": "process"
+       "default": "chi2"
       }
      ],
-     "name": "gain_bandwidth",
      "outputs": [
       {
-       "label": "Signal −3 dB width",
        "name": "width_nm",
-       "scale": 1e-09,
-       "ui_unit": "nm"
-      },
-      {
        "label": "Signal −3 dB width",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
        "name": "width_hz",
-       "scale": 1000000000.0,
-       "ui_unit": "GHz"
+       "label": "Signal −3 dB width",
+       "ui_unit": "GHz",
+       "scale": 1000000000.0
       },
       {
-       "label": "Idler −3 dB width",
        "name": "idler_width_nm",
-       "scale": 1e-09,
-       "ui_unit": "nm"
+       "label": "Idler −3 dB width",
+       "ui_unit": "nm",
+       "scale": 1e-09
       },
       {
-       "label": "Peak gain",
        "name": "peak_gain_db",
-       "scale": 1.0,
-       "ui_unit": "dB"
+       "label": "Peak gain",
+       "ui_unit": "dB",
+       "scale": 1.0
       }
-     ],
-     "title": "Gain bandwidth in nm and GHz"
+     ]
     }
-   ],
-   "references": [
-    "R. W. Boyd, Nonlinear Optics, 3rd ed., sec. 2.9 (parametric amplification)",
-    "G. P. Agrawal, Nonlinear Fiber Optics, ch. 10 (four-wave mixing)",
-    "J. Ma et al., Quasi-parametric amplification of chirped pulses based on a Sm3+-doped yttrium calcium oxyborate crystal, Optica 2, 1006 (2015)"
-   ],
-   "title": "Fiber parametric amplifier",
-   "version": 1
+   }
   },
   {
-   "description": "SBS shift, linewidth, threshold and exact two-wave reflection; Raman gain spectrum and SRS threshold.",
+   "engine": "phase_matching",
+   "version": 1,
+   "title": "Three-wave phase matching",
+   "description": "Phase mismatch, QPM period of any order, coherence length and sinc² response for ω3 = ω1 + ω2 with arbitrary mode indices (bulk, birefringent or modal).",
+   "requires": [],
+   "references": [
+    "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)",
+    "R. W. Boyd, Nonlinear Optics, 3rd ed. (Academic Press, 2008), ch. 2"
+   ],
+   "files": [
+    "engines/phase_matching/__init__.py",
+    "engines/phase_matching/engine.py"
+   ],
+   "functions": {
+    "three_wave_mismatch": {
+     "title": "Mismatch and required period",
+     "equations": [
+      "1/λ3 = 1/λ1 + 1/λ2",
+      "Δk = 2π (n3/λ3 - n1/λ1 - n2/λ2) - 2π m / Λ",
+      "Λ_req = m 2π / |Δk_bare|"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_1",
+       "label": "Wave 1 vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "wavelength_2",
+       "label": "Wave 2 vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_1",
+       "label": "Wave 1 index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.0272,
+       "min": 1
+      },
+      {
+       "name": "n_2",
+       "label": "Wave 2 index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.0272,
+       "min": 1
+      },
+      {
+       "name": "n_3",
+       "label": "Wave 3 (sum) index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.1924,
+       "min": 1
+      },
+      {
+       "name": "order",
+       "label": "QPM order m",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "wavelength_3",
+       "label": "Wave 3 wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "delta_k_bare",
+       "label": "Bare mismatch Δk",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      },
+      {
+       "name": "period_required",
+       "label": "Required grating period",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "coherence_length",
+       "label": "Coherence length",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "qpm_shg",
+   "version": 1,
+   "title": "QPM second-harmonic generation",
+   "description": "Phase mismatch, first-order poling period, coherence length and QPM bandwidth for SHG.",
+   "requires": [],
+   "references": [
+    "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)"
+   ],
+   "files": [
+    "engines/qpm_shg/__init__.py",
+    "engines/qpm_shg/engine.py"
+   ],
+   "functions": {
+    "phase_matching": {
+     "title": "Poling period and bandwidth",
+     "equations": [
+      "Δk = 4π (n_SH - n_p) / λ",
+      "Λ = 2π / |Δk|",
+      "Δλ_FWHM = 4 x_½ / (L |dΔk/dλ|), dΔk/dλ = -(4π/λ²)(n_g,SH - n_g,p)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_pump",
+       "label": "Pump effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.0272,
+       "min": 1
+      },
+      {
+       "name": "n_sh",
+       "label": "SH effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.1924,
+       "min": 1
+      },
+      {
+       "name": "ng_pump",
+       "label": "Pump group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.33,
+       "min": 1
+      },
+      {
+       "name": "ng_sh",
+       "label": "SH group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.4,
+       "min": 1
+      },
+      {
+       "name": "length",
+       "label": "Poled length",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 4
+      }
+     ],
+     "outputs": [
+      {
+       "name": "period",
+       "label": "Poling period",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "delta_k",
+       "label": "Phase mismatch Δk",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      },
+      {
+       "name": "coherence_length",
+       "label": "Coherence length",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "fwhm",
+       "label": "QPM bandwidth (pump FWHM)",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "slab_waveguide",
+   "version": 1,
+   "title": "Slab waveguide modes",
+   "description": "Effective index, V and b of a three-layer slab mode (multilayer stacks via multilayer_neff in Python).",
+   "requires": [],
+   "references": [
+    "K. Okamoto, Fundamentals of Optical Waveguides, 2nd ed. (Academic Press, 2006), ch. 2"
+   ],
+   "files": [
+    "engines/slab_waveguide/__init__.py",
+    "engines/slab_waveguide/engine.py"
+   ],
+   "functions": {
+    "slab_neff": {
+     "title": "Three-layer slab mode",
+     "equations": [
+      "k d sqrt(n_f^2 - N^2) = m pi + atan(r_s γ_s / κ) + atan(r_c γ_c / κ)",
+      "V = k d sqrt(n_f^2 - n_s^2)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_sub",
+       "label": "Substrate index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1.0
+      },
+      {
+       "name": "n_core",
+       "label": "Core index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.138,
+       "min": 1.0
+      },
+      {
+       "name": "n_clad",
+       "label": "Cladding index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1.0
+      },
+      {
+       "name": "thickness",
+       "label": "Core thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 600,
+       "min": 1
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "order",
+       "label": "Mode order",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Effective index",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V",
+       "label": "Normalised frequency V",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "b",
+       "label": "Normalised index b",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_modes",
+       "label": "Guided modes of this polarisation",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "step_index_fiber",
+   "version": 2,
+   "title": "Step-index fibre LP01 mode and phase mismatch",
+   "description": "LP01 effective index, V number and mode-field radius of a silica step-index fibre, and the chi2 / chi3 phase mismatch, GVM and beta2 of its modes.",
+   "requires": [
+    "scipy"
+   ],
+   "references": [
+    "D. Gloge, Appl. Opt. 10, 2252 (1971)",
+    "D. Marcuse, Bell Syst. Tech. J. 56, 703 (1977)"
+   ],
+   "files": [
+    "engines/materials/__init__.py",
+    "engines/materials/engine.py",
+    "engines/step_index_fiber/__init__.py",
+    "engines/step_index_fiber/engine.py"
+   ],
+   "functions": {
+    "lp01": {
+     "title": "LP01 mode",
+     "equations": [
+      "U J1(U)/J0(U) = W K1(W)/K0(W), U² + W² = V²",
+      "V = k a sqrt(n_co² - n_cl²)",
+      "w/a = 0.65 + 1.619 V^-1.5 + 2.879 V^-6"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 300
+      },
+      {
+       "name": "core_radius",
+       "label": "Core radius a",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 4.1,
+       "min": 0.1
+      },
+      {
+       "name": "delta_n",
+       "label": "Core-cladding index step",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.005,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Effective index",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V",
+       "label": "V number",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "b",
+       "label": "Normalised index b",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "mode_radius",
+       "label": "Mode-field radius",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      }
+     ]
+    },
+    "phase_mismatch": {
+     "title": "Phase mismatch, GVM and β2 (χ2 or χ3)",
+     "equations": [
+      "χ2: Δk = β(ω_p) − β(ω_s) − β(ω_p − ω_s)",
+      "χ3: Δβ = β(ω_s) + β(2ω_p − ω_s) − 2β(ω_p)",
+      "GVM = β1,i − β1,s",
+      "Λ = 2π / |Δk0| (χ2)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_signal",
+       "label": "Signal vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 300
+      },
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 532,
+       "min": 300
+      },
+      {
+       "name": "core_radius",
+       "label": "Core radius a",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 4.1,
+       "min": 0.1
+      },
+      {
+       "name": "delta_n",
+       "label": "Core-cladding index step",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.005,
+       "min": 0
+      },
+      {
+       "name": "process",
+       "label": "Process",
+       "type": "choice",
+       "choices": [
+        "chi2",
+        "chi3"
+       ],
+       "default": "chi2"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "dk0",
+       "label": "Linear mismatch at the signal",
+       "ui_unit": "1/m",
+       "scale": 1.0
+      },
+      {
+       "name": "gvm",
+       "label": "GVM β1,i − β1,s",
+       "ui_unit": "ps/m",
+       "scale": 1e-12
+      },
+      {
+       "name": "beta2_sum",
+       "label": "β2,s + β2,i",
+       "ui_unit": "ps²/km",
+       "scale": 1e-27
+      },
+      {
+       "name": "wavelength_idler",
+       "label": "Idler wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "qpm_period",
+       "label": "QPM period (χ2)",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "stimulated_scattering",
-   "functions": [
-    {
+   "version": 1,
+   "title": "Brillouin and Raman scattering in silica fiber",
+   "description": "SBS shift, linewidth, threshold and exact two-wave reflection; Raman gain spectrum and SRS threshold.",
+   "requires": [],
+   "references": [
+    "R. G. Smith, Optical power handling capacity of low loss optical fibers, Appl. Opt. 11, 2489 (1972)",
+    "K. J. Blow and D. Wood, Theoretical description of transient stimulated Raman scattering in optical fibers, IEEE JQE 25, 2665 (1989)",
+    "G. P. Agrawal, Nonlinear Fiber Optics, ch. 8 and 9"
+   ],
+   "files": [
+    "engines/stimulated_scattering/__init__.py",
+    "engines/stimulated_scattering/engine.py"
+   ],
+   "functions": {
+    "brillouin_parameters": {
+     "title": "Brillouin shift and gain",
      "equations": [
       "nu_B = 2 n v_A / lambda",
       "g_B,eff = g_B dnu_B / (dnu_B + dnu_p)"
      ],
      "inputs": [
       {
-       "default": 1064,
-       "label": "Pump wavelength",
-       "max": 2500,
-       "min": 300,
        "name": "lambda_pump",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 1064,
+       "min": 300,
+       "max": 2500
       },
       {
-       "default": 1,
-       "label": "Pump linewidth",
-       "max": 1000000.0,
-       "min": 0,
        "name": "pump_linewidth",
+       "label": "Pump linewidth",
+       "ui_unit": "MHz",
        "scale": 1000000.0,
-       "ui_unit": "MHz"
+       "default": 1,
+       "min": 0,
+       "max": 1000000.0
       }
      ],
-     "name": "brillouin_parameters",
      "outputs": [
       {
-       "label": "Brillouin shift",
        "name": "shift",
-       "scale": 1000000000.0,
-       "ui_unit": "GHz"
+       "label": "Brillouin shift",
+       "ui_unit": "GHz",
+       "scale": 1000000000.0
       },
       {
-       "label": "Brillouin linewidth",
        "name": "linewidth",
-       "scale": 1000000.0,
-       "ui_unit": "MHz"
+       "label": "Brillouin linewidth",
+       "ui_unit": "MHz",
+       "scale": 1000000.0
       },
       {
-       "label": "Effective gain g_B",
        "name": "g_B",
-       "scale": 1.0,
-       "ui_unit": "m/W"
+       "label": "Effective gain g_B",
+       "ui_unit": "m/W",
+       "scale": 1.0
       },
       {
-       "label": "Thermal seed",
        "name": "seed_power",
-       "scale": 1e-09,
-       "ui_unit": "nW"
+       "label": "Thermal seed",
+       "ui_unit": "nW",
+       "scale": 1e-09
       }
-     ],
-     "title": "Brillouin shift and gain"
+     ]
     },
-    {
+    "sbs_two_wave": {
+     "title": "SBS reflection (exact two-wave CW)",
      "equations": [
       "P_p - P_B = const",
       "P_cr = 21 A_eff / (g_B L)"
      ],
      "inputs": [
       {
-       "default": 10,
-       "label": "Pump power",
-       "max": 10000,
-       "min": 0.0001,
        "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
        "scale": 1.0,
-       "ui_unit": "W"
-      },
-      {
-       "default": 30,
-       "label": "Fiber length",
-       "max": 100000,
-       "min": 0.01,
-       "name": "length",
-       "scale": 1.0,
-       "ui_unit": "m"
-      },
-      {
        "default": 10,
-       "label": "Effective area",
-       "max": 10000,
-       "min": 1,
+       "min": 0.0001,
+       "max": 10000
+      },
+      {
+       "name": "length",
+       "label": "Fiber length",
+       "ui_unit": "m",
+       "scale": 1.0,
+       "default": 30,
+       "min": 0.01,
+       "max": 100000
+      },
+      {
        "name": "mode_area",
+       "label": "Effective area",
+       "ui_unit": "µm²",
        "scale": 1e-12,
-       "ui_unit": "µm²"
+       "default": 10,
+       "min": 1,
+       "max": 10000
       },
       {
-       "default": 1064,
-       "label": "Pump wavelength",
-       "max": 2500,
-       "min": 300,
        "name": "lambda_pump",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 1064,
+       "min": 300,
+       "max": 2500
       },
       {
-       "default": 1,
-       "label": "Pump linewidth",
-       "max": 1000000.0,
-       "min": 0,
        "name": "pump_linewidth",
+       "label": "Pump linewidth",
+       "ui_unit": "MHz",
        "scale": 1000000.0,
-       "ui_unit": "MHz"
+       "default": 1,
+       "min": 0,
+       "max": 1000000.0
       }
      ],
-     "name": "sbs_two_wave",
      "outputs": [
       {
-       "label": "Reflected Stokes",
        "name": "reflected_power",
-       "scale": 1.0,
-       "ui_unit": "W"
+       "label": "Reflected Stokes",
+       "ui_unit": "W",
+       "scale": 1.0
       },
       {
-       "label": "Reflectivity",
        "name": "reflectivity",
-       "scale": 0.01,
-       "ui_unit": "%"
+       "label": "Reflectivity",
+       "ui_unit": "%",
+       "scale": 0.01
       },
       {
-       "label": "Transmitted pump",
        "name": "transmitted_pump",
-       "scale": 1.0,
-       "ui_unit": "W"
+       "label": "Transmitted pump",
+       "ui_unit": "W",
+       "scale": 1.0
       },
       {
-       "label": "SBS threshold",
        "name": "threshold",
-       "scale": 1.0,
-       "ui_unit": "W"
+       "label": "SBS threshold",
+       "ui_unit": "W",
+       "scale": 1.0
       }
-     ],
-     "title": "SBS reflection (exact two-wave CW)"
+     ]
     },
-    {
+    "raman_gain": {
+     "title": "Raman gain at a frequency shift",
      "equations": [
       "g_R(Omega) = g_R,peak (1 um / lambda) Im H(Omega) / max"
      ],
      "inputs": [
       {
-       "default": 13.2,
-       "label": "Pump − wave frequency",
-       "max": 60,
-       "min": -60,
        "name": "frequency_shift",
+       "label": "Pump − wave frequency",
+       "ui_unit": "THz",
        "scale": 1000000000000.0,
-       "ui_unit": "THz"
+       "default": 13.2,
+       "min": -60,
+       "max": 60
       },
       {
-       "default": 1064,
-       "label": "Pump wavelength",
-       "max": 2500,
-       "min": 300,
        "name": "lambda_pump",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 1064,
+       "min": 300,
+       "max": 2500
       }
      ],
-     "name": "raman_gain",
      "outputs": [
       {
-       "label": "Raman gain coefficient",
        "name": "g_R",
-       "scale": 1.0,
-       "ui_unit": "m/W"
+       "label": "Raman gain coefficient",
+       "ui_unit": "m/W",
+       "scale": 1.0
       },
       {
-       "label": "Peak shift",
        "name": "peak_shift",
-       "scale": 1000000000000.0,
-       "ui_unit": "THz"
+       "label": "Peak shift",
+       "ui_unit": "THz",
+       "scale": 1000000000000.0
       }
-     ],
-     "title": "Raman gain at a frequency shift"
+     ]
     },
-    {
+    "srs_threshold": {
+     "title": "SRS threshold",
      "equations": [
       "P_cr = 16 A_eff / (g_R L)"
      ],
      "inputs": [
       {
-       "default": 30,
-       "label": "Fiber length",
-       "max": 100000,
-       "min": 0.01,
        "name": "length",
+       "label": "Fiber length",
+       "ui_unit": "m",
        "scale": 1.0,
-       "ui_unit": "m"
+       "default": 30,
+       "min": 0.01,
+       "max": 100000
       },
       {
-       "default": 10,
-       "label": "Effective area",
-       "max": 10000,
-       "min": 1,
        "name": "mode_area",
+       "label": "Effective area",
+       "ui_unit": "µm²",
        "scale": 1e-12,
-       "ui_unit": "µm²"
+       "default": 10,
+       "min": 1,
+       "max": 10000
       },
       {
-       "default": 1064,
-       "label": "Pump wavelength",
-       "max": 2500,
-       "min": 300,
        "name": "lambda_pump",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
        "scale": 1e-09,
-       "ui_unit": "nm"
+       "default": 1064,
+       "min": 300,
+       "max": 2500
       }
      ],
-     "name": "srs_threshold",
      "outputs": [
       {
-       "label": "SRS threshold",
        "name": "threshold",
-       "scale": 1.0,
-       "ui_unit": "W"
+       "label": "SRS threshold",
+       "ui_unit": "W",
+       "scale": 1.0
       },
       {
-       "label": "First Stokes wavelength",
        "name": "lambda_stokes",
-       "scale": 1e-09,
-       "ui_unit": "nm"
+       "label": "First Stokes wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
       }
-     ],
-     "title": "SRS threshold"
+     ]
     }
-   ],
-   "references": [
-    "R. G. Smith, Optical power handling capacity of low loss optical fibers, Appl. Opt. 11, 2489 (1972)",
-    "K. J. Blow and D. Wood, Theoretical description of transient stimulated Raman scattering in optical fibers, IEEE JQE 25, 2665 (1989)",
-    "G. P. Agrawal, Nonlinear Fiber Optics, ch. 8 and 9"
-   ],
-   "title": "Brillouin and Raman scattering in silica fiber",
-   "version": 1
+   }
   }
- ],
- "files": [
-  "engines/__init__.py",
-  "engines/common.py",
-  "engines/registry.py",
-  "engines/fiber_mode/__init__.py",
-  "engines/fiber_mode/engine.py",
-  "engines/gaussian_beam/__init__.py",
-  "engines/gaussian_beam/engine.py",
-  "engines/parametric_amplifier/__init__.py",
-  "engines/parametric_amplifier/engine.py",
-  "engines/stimulated_scattering/__init__.py",
-  "engines/stimulated_scattering/engine.py"
- ],
- "generated_by": "tools/build_index.py"
+ ]
 }

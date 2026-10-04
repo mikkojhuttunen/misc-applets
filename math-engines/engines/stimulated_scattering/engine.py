@@ -18,7 +18,11 @@ import math
 
 import numpy as np
 
-from engines.common import C0, H_PLANCK, K_B, Result, require_nonnegative, require_positive
+from ..common import Result, require_nonnegative, require_positive
+
+C0 = 299_792_458.0          # m/s
+H_PLANCK = 6.626_070_15e-34  # J s
+K_B = 1.380_649e-23          # J/K
 
 N_SILICA = 1.45
 V_ACOUSTIC = 5960.0       # m/s, longitudinal acoustic velocity in silica
@@ -61,7 +65,7 @@ def raman_peak_gain(lambda_pump):
 
 def raman_gain(frequency_shift, lambda_pump) -> Result:
     """Raman gain coefficient for a pump-to-Stokes frequency shift (Hz, > 0 Stokes)."""
-    require_positive("lambda_pump", lambda_pump)
+    require_positive(lambda_pump=lambda_pump)
     g = raman_peak_gain(lambda_pump) * raman_shape(2 * math.pi * np.asarray(frequency_shift, float))
     return Result({"g_R": g, "peak_shift": RAMAN_PEAK_SHIFT / 2 / math.pi},
                   {"g_R": "m/W", "peak_shift": "Hz"},
@@ -70,8 +74,7 @@ def raman_gain(frequency_shift, lambda_pump) -> Result:
 
 def srs_threshold(length, mode_area, lambda_pump) -> Result:
     """Smith's forward-SRS critical power P_cr = 16 A_eff / (g_R L) and the first Stokes wavelength."""
-    for nm, v in (("length", length), ("mode_area", mode_area), ("lambda_pump", lambda_pump)):
-        require_positive(nm, v)
+    require_positive(length=length, mode_area=mode_area, lambda_pump=lambda_pump)
     wR = 2 * math.pi * C0 / lambda_pump - RAMAN_PEAK_SHIFT
     return Result({"threshold": 16 * mode_area / (raman_peak_gain(lambda_pump) * length), "lambda_stokes": 2 * math.pi * C0 / wR},
                   {"threshold": "W", "lambda_stokes": "m"},
@@ -80,8 +83,8 @@ def srs_threshold(length, mode_area, lambda_pump) -> Result:
 
 def brillouin_parameters(lambda_pump, pump_linewidth=0.0, temperature=293.0) -> Result:
     """Brillouin shift, gain linewidth, effective gain and thermal seed for a pump wavelength."""
-    require_positive("lambda_pump", lambda_pump)
-    require_nonnegative("pump_linewidth", pump_linewidth)
+    require_positive(lambda_pump=lambda_pump)
+    require_nonnegative(pump_linewidth=pump_linewidth)
     nuB = 2 * N_SILICA * V_ACOUSTIC / lambda_pump
     dnuB = 20e6 * (1550e-9 / lambda_pump) ** 2
     g = G_B_PEAK * dnuB / (dnuB + pump_linewidth)
@@ -121,11 +124,10 @@ class SbsSolution:
 
 def sbs_two_wave(pump_power, length, mode_area, lambda_pump, pump_linewidth=0.0) -> Result:
     """Backward Stokes power at the input, transmitted pump and Smith threshold 21 A_eff/(g_B L)."""
-    for nm, v in (("pump_power", pump_power), ("length", length), ("mode_area", mode_area)):
-        require_positive(nm, v)
+    require_positive(pump_power=pump_power, length=length, mode_area=mode_area)
     br = brillouin_parameters(lambda_pump, pump_linewidth)
     sol = SbsSolution(pump_power, br["g_B"] / mode_area, length, br["seed_power"])
     return Result({"reflected_power": sol.D, "transmitted_pump": sol.PL, "reflectivity": sol.D / pump_power,
                    "threshold": 21 * mode_area / (br["g_B"] * length)},
-                  {"reflected_power": "W", "transmitted_pump": "W", "reflectivity": "1", "threshold": "W"},
+                  {"reflected_power": "W", "transmitted_pump": "W", "reflectivity": "", "threshold": "W"},
                   ["CW, undepleted by other processes", "no fiber loss", "co-polarised", "thermal seed at z = L"])

@@ -23,8 +23,12 @@ import math
 
 import numpy as np
 
-from engines.common import C0, EPS0, HBAR, Result, require_choice, require_nonnegative, require_positive
-from engines.stimulated_scattering import engine as ss
+from ..common import Result, require_choice, require_nonnegative, require_positive
+from ..stimulated_scattering import engine as ss
+
+C0 = 299_792_458.0          # m/s
+HBAR = 1.054_571_817e-34     # J s
+EPS0 = 8.854_187_8128e-12    # F/m
 
 _PROCESSES = ("chi2", "chi3")
 
@@ -48,20 +52,19 @@ def coupling(process, lambda_pump, lambda_signal, w_pump, w_signal, w_idler, pum
              d_eff=0.0, n2=0.0, n=1.45) -> Result:
     """Small-signal gain coefficient Gamma and the quantities behind it."""
     require_choice("process", process, _PROCESSES)
-    for nm, v in (("lambda_pump", lambda_pump), ("lambda_signal", lambda_signal), ("w_pump", w_pump),
-                  ("w_signal", w_signal), ("w_idler", w_idler), ("pump_power", pump_power)):
-        require_positive(nm, v)
+    require_positive(lambda_pump=lambda_pump, lambda_signal=lambda_signal, w_pump=w_pump, w_signal=w_signal,
+                     w_idler=w_idler, pump_power=pump_power)
     li = idler_wavelength(lambda_signal, lambda_pump, process)
     wP, wS, wI = (2 * math.pi * C0 / x for x in (lambda_pump, lambda_signal, li))
     th = mode_overlap(w_pump, w_signal, w_idler, process)
     phi_p = pump_power / (HBAR * wP)
     if process == "chi2":
-        require_positive("d_eff", d_eff)
+        require_positive(d_eff=d_eff)
         K = 2 * d_eff * math.sqrt(HBAR * wP * wS * wI / (2 * EPS0 * C0 ** 3 * n ** 3)) * th
         gamma_p, gP, gamma_c = float("nan"), float("nan"), K * math.sqrt(phi_p)
         a_eff = 1 / th ** 2
     else:
-        require_positive("n2", n2)
+        require_positive(n2=n2)
         gamma_p = n2 * wP / C0 * th
         gP = gamma_p * pump_power
         gamma_c = gP * math.sqrt(wS * wI) / wP
@@ -120,10 +123,10 @@ def _gain_one(kap, dk, L, idler_loss, signal_loss, n_dumps, t_idler, t_signal):
 def small_signal_gain(gain_coefficient, phase_mismatch, length, idler_loss=0.0, signal_loss=0.0,
                       n_dumps=0, idler_dump_transmission=1.0, signal_dump_transmission=1.0) -> Result:
     """Exact undepleted-pump signal gain and idler photon conversion; vectorised over phase_mismatch."""
-    require_nonnegative("gain_coefficient", gain_coefficient)
-    require_positive("length", length)
-    require_nonnegative("idler_loss", idler_loss)
-    require_nonnegative("signal_loss", signal_loss)
+    require_nonnegative(gain_coefficient=gain_coefficient)
+    require_positive(length=length)
+    require_nonnegative(idler_loss=idler_loss)
+    require_nonnegative(signal_loss=signal_loss)
     dk = np.asarray(phase_mismatch, float)
     tI, tS = math.sqrt(idler_dump_transmission), math.sqrt(signal_dump_transmission)
     pairs = [_gain_one(gain_coefficient, float(d), length, idler_loss, signal_loss, int(n_dumps), tI, tS) for d in dk.ravel()]
@@ -134,7 +137,7 @@ def small_signal_gain(gain_coefficient, phase_mismatch, length, idler_loss=0.0, 
     with np.errstate(divide="ignore"):
         gdb = 10 * np.log10(G)
     return Result({"gain": G, "gain_db": gdb, "idler_conversion": I},
-                  {"gain": "1", "gain_db": "dB", "idler_conversion": "1"},
+                  {"gain": "", "gain_db": "dB", "idler_conversion": ""},
                   ["Undepleted, lossless pump", "no idler seed (phase-insensitive gain)",
                    "idler_conversion = idler photons out / signal photons in"])
 
@@ -198,10 +201,9 @@ def amplify(process, lambda_pump, lambda_signal, pump_power, signal_power, lengt
     ``mode_radii`` = (w_pump, w_signal, w_idler) in m is needed only when sbs or srs is on.
     """
     require_choice("process", process, _PROCESSES)
-    for nm, v in (("lambda_pump", lambda_pump), ("lambda_signal", lambda_signal), ("pump_power", pump_power),
-                  ("signal_power", signal_power), ("length", length)):
-        require_positive(nm, v)
-    require_nonnegative("gain_coefficient", gain_coefficient)
+    require_positive(lambda_pump=lambda_pump, lambda_signal=lambda_signal, pump_power=pump_power,
+                     signal_power=signal_power, length=length)
+    require_nonnegative(gain_coefficient=gain_coefficient)
     if (sbs or srs) and mode_radii is None:
         raise ValueError("mode_radii (w_pump, w_signal, w_idler) is required when sbs or srs is enabled")
     li = idler_wavelength(lambda_signal, lambda_pump, process)
@@ -317,9 +319,9 @@ def amplify(process, lambda_pump, lambda_signal, pump_power, signal_power, lengt
               "P_raman_out": y[6] * pump_power, "steps": nseg * nper,
               "P_sbs_reflected": sc["sol"].D if sc and sc["sol"] else 0.0,
               "pump_fraction": fp, "signal_fraction": fs, "idler_fraction": fi}
-    units = {"P_pump_out": "W", "P_signal_out": "W", "P_idler_out": "W", "gain_db": "dB", "pump_depletion": "1",
-             "photon_residual": "1", "P_raman_out": "W", "steps": "1", "P_sbs_reflected": "W",
-             "pump_fraction": "1", "signal_fraction": "1", "idler_fraction": "1"}
+    units = {"P_pump_out": "W", "P_signal_out": "W", "P_idler_out": "W", "gain_db": "dB", "pump_depletion": "",
+             "photon_residual": "", "P_raman_out": "W", "steps": "", "P_sbs_reflected": "W",
+             "pump_fraction": "", "signal_fraction": "", "idler_fraction": ""}
     if record:
         for k_, v_ in rec.items():
             values[k_] = np.array(v_)
@@ -339,8 +341,8 @@ def gain_bandwidth(gain_coefficient, length, lambda_signal, lambda_pump, gvm, be
     The band is the contiguous region around the peak within ``drop_db`` of it.
     """
     require_choice("process", process, _PROCESSES)
-    require_positive("gain_coefficient", gain_coefficient)
-    require_positive("length", length)
+    require_positive(gain_coefficient=gain_coefficient)
+    require_positive(length=length)
     sgn = 1.0 if process == "chi2" else -1.0
     dkf = lambda O: phase_mismatch + sgn * (gvm * O - 0.5 * beta2_sum * O * O)
     gdb = lambda O: 10 * math.log10(max(_gain_one(gain_coefficient, dkf(O), length, idler_loss, 0.0, 0, 1.0, 1.0)[0], 1e-300))

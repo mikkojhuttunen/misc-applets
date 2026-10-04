@@ -1,54 +1,71 @@
 # math-engines
 
-Small, tested, UI-free physics engines: SI units in, a `Result` (values, units, assumptions) out.
-The principles and layout follow [docs/math-engines-tutorial.md](docs/math-engines-tutorial.md).
+Pure-function physics engines with machine-readable specs. One Python reference implementation per engine; the applets and the web calculator are front ends on top.
 
-| Engine | What it solves |
-|---|---|
-| [gaussian_beam](engines/gaussian_beam/) | TEM00 beam: Rayleigh range, w(z), R(z), Gouy phase, q parameter, ABCD law, thin-lens focusing (template engine) |
-| [fiber_mode](engines/fiber_mode/) | Fused-silica index, step-index LP01 mode, χ⁽²⁾/χ⁽³⁾ phase mismatch, GVM and β₂ |
-| [parametric_amplifier](engines/parametric_amplifier/) | χ⁽²⁾/χ⁽³⁾ fiber OPA: coupling, undepleted gain with idler-loss engineering, RK4 with depletion, bandwidth in nm |
-| [stimulated_scattering](engines/stimulated_scattering/) | SBS (shift, gain, threshold, exact two-wave reflection) and SRS (gain spectrum, threshold) |
-
-Dependencies point one way: front ends → composition → engines → NumPy and `engines/common.py`.
-The parametric-amplifier engine uses `stimulated_scattering` for its optional scattering terms.
+| Engine | Computes | Extra deps |
+|---|---|---|
+| [gaussian_beam](engines/gaussian_beam/) | Rayleigh range, divergence, w(z), R(z), Gouy phase, ABCD propagation, thin-lens focusing | |
+| [materials](engines/materials/) | Sellmeier phase and group index: SiO₂, Si₃N₄, MgO:LiNbO₃ (e, o), LiTaO₃ (e), Si | |
+| [slab_waveguide](engines/slab_waveguide/) | Three-layer and multilayer slab effective index, V, b, mode count | |
+| [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra | |
+| [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
+| [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius; propagation constant and χ⁽²⁾/χ⁽³⁾ phase mismatch, GVM, β₂, QPM period | scipy |
+| [stimulated_scattering](engines/stimulated_scattering/) | Raman gain shape and threshold, Brillouin shift, linewidth and gain, exact two-wave CW SBS | |
+| [parametric_amplifier](engines/parametric_amplifier/) | χ⁽²⁾/χ⁽³⁾ coupling and overlap, undepleted gain with idler loss and dumps, RK4 coupled-wave amplifier with SBS/SRS, gain bandwidth | |
 
 ## Use
 
-```bash
-cd math-engines
-python -m pip install numpy pyyaml pytest
-python -m pytest -q                 # engine tests, spec checks, index and vector freshness
-python tools/build_index.py         # after editing any spec.yaml
-python tools/make_test_vectors.py   # after changing the amplifier physics; then run the JS test
-node --test ../amplifiers/parametric-amplifiers/test/opa_engine.test.mjs
+```
+pip install -e ".[test]"
+python -m pytest -q
 ```
 
 ```python
-from engines.gaussian_beam import engine as gb
-gb.beam_parameters(w0=1e-3, wavelength=633e-9)["z_R"]          # 4.963 m
+from engines import registry
+from engines.gaussian_beam.engine import beam_parameters
 
-from engines.parametric_amplifier import engine as pa
-c = pa.coupling("chi2", 532e-9, 1550e-9, 2.5e-6, 5e-6, 3.18e-6, pump_power=1.0, d_eff=0.08e-12)
-pa.gain_bandwidth(c["gain_coefficient"], 5.0, 1550e-9, 532e-9, gvm=15.16e-12, beta2_sum=13e-27)["width_nm"]
-
-from engines import registry                                      # bots: JSON-safe dict
-registry.call("stimulated_scattering", "sbs_two_wave", pump_power=10, length=30, mode_area=10e-12, lambda_pump=1064e-9)
+r = beam_parameters(wavelength=1.55e-6, w0=1.0e-3)
+r["z_R"], r.units["z_R"], r.assumptions
+registry.call("qpm_shg", "phase_matching", wavelength=1.55e-6, n_pump=2.138, n_sh=2.183)
 ```
 
-## Web calculator
+Web calculator: `web/index.html` runs every engine in the browser through Pyodide, with forms generated from the specs. Serve the folder over HTTP (`python -m http.server` from the repository root, then open `/math-engines/web/`); on GitHub Pages it is at `https://mikkojhuttunen.github.io/misc-applets/math-engines/web/`.
 
-`web/index.html` builds a form for every function in `web/engines_index.json` and runs the Python
-engines in the browser through Pyodide (loaded from the jsDelivr CDN). With GitHub Pages enabled for
-`main` (root) it is served at https://mikkojhuttunen.github.io/misc-applets/math-engines/web/.
-To try it locally: `python -m http.server` from the repository root, then open
-http://localhost:8000/math-engines/web/.
+## Layout
 
-## Adding an engine
+```
+engines/
+  common.py            Result type and input validation
+  registry.py          engine discovery and JSON-safe calls (used by the web calculator)
+  test_specs.py        every spec matches its engine signature and outputs
+  <engine>/
+    engine.py          pure functions, SI in and out
+    spec.yaml          inputs (SI unit, UI unit, scale, default, range), outputs, equations, references, version
+    test_engine.py     hand-checkable reference values and independent cross-checks
+    README.md
+test_vectors/vectors.json   reference outputs shared with the JavaScript ports
+tools/build_index.py        specs → web/engines_index.json
+tools/make_vectors.py       engines → test_vectors/vectors.json
+tools/check_js_ports.mjs    JS ports in the applets checked against vectors.json
+web/index.html              Pyodide calculator
+```
 
-1. `cp -r engines/gaussian_beam engines/<new_name>`
-2. Rewrite `engine.py` with pure SI functions returning `Result`.
-3. Describe the exposed functions in `spec.yaml` (`version:` field; write exponents as `1.0e+6`).
-4. Write tests whose expected values you can check by hand; cite the source in a comment.
-5. `python tools/build_index.py`, then `python -m pytest -q`.
-6. Add the package to `[tool.setuptools] packages` in `pyproject.toml`. Commit and push; CI runs the same checks.
+After changing a spec or an engine, regenerate and rerun:
+
+```
+python tools/build_index.py
+python tools/make_vectors.py
+python -m pytest -q
+node tools/check_js_ports.mjs
+```
+
+The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out of date.
+
+## JavaScript ports
+
+| Port | Covers | Checked by |
+|---|---|---|
+| `dbr-structures/dbr-engine.js` | Sellmeier indices, three-layer slab, coupled-mode reflectance, transfer-matrix stack | `check_js_ports.mjs` |
+| `amplifiers/parametric-amplifiers/opa_engine.js` | silica Sellmeier, LP01 solver, fiber dispersion (exact and fast quartic), coupling, analytic gain, RK4 solvers with SBS/SRS, Brillouin and Raman | `check_js_ports.mjs` (SI inside) |
+
+Known deviation: `dbr-engine.js` works in µm inside; the check converts SI to µm at the boundary.

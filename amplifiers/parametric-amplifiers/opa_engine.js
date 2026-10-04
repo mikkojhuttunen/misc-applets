@@ -2,11 +2,11 @@
  * opa_engine.js — physics of the fiber parametric amplifier applet, free of any DOM access.
  *
  * This is a JavaScript port of the Python reference engines in
- * math-engines/engines/{fiber_mode,parametric_amplifier,stimulated_scattering}.
+ * math-engines/engines/{materials,step_index_fiber,parametric_amplifier,stimulated_scattering}.
  * The applet needs it because its spectra and optimiser call the solvers tens of
  * thousands of times per update. Shared JSON test vectors generated from Python
- * (math-engines/engines/parametric_amplifier/test_vectors.json) keep the two in
- * step: run  node --test amplifiers/parametric-amplifiers/test/
+ * (math-engines/test_vectors/vectors.json) keep the two in step:
+ * run  node math-engines/tools/check_js_ports.mjs
  *
  * Conventions: SI units throughout (m, s, rad, W). process is "chi2" (w_p = w_s + w_i)
  * or "chi3" (2 w_p = w_s + w_i). Losses are power coefficients in 1/m; lumped dump

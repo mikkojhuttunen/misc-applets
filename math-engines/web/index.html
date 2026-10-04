@@ -2,191 +2,175 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Math Engines Calculator</title>
 <style>
-/* Layout: two columns (form | results) under a slim header; stacks on phones. */
+/* Layout: engine list on the left, the selected function's form and results on the right; one column on phones. */
 :root {
-  --bg: #f1f3f4; --panel: #ffffff; --ink: #1a2128; --muted: #5d6770; --line: #d6dce0;
-  --accent: #2b5d7d; --accent-soft: #e3edf3; --ok: #2f7d4f; --bad: #a3361f;
-  --f-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  --f-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --bg: #eef1f3; --panel: #ffffff; --ink: #16212b; --muted: #5b6874; --line: #d3dae0;
+  --accent: #1d5f86; --accent-soft: #e2eef5; --warn: #a3470b;
+  --f-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --bg: #12171b; --panel: #1a2127; --ink: #e2e7eb; --muted: #95a1ab; --line: #2c3740;
-    --accent: #7fb7d9; --accent-soft: #1c2f3b; --ok: #6fcf97; --bad: #ff8a70; color-scheme: dark; }
-}
-:root[data-theme="dark"] { --bg: #12171b; --panel: #1a2127; --ink: #e2e7eb; --muted: #95a1ab; --line: #2c3740;
-  --accent: #7fb7d9; --accent-soft: #1c2f3b; --ok: #6fcf97; --bad: #ff8a70; color-scheme: dark; }
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0f1519; --panel: #162027; --ink: #dbe5ea; --muted: #8fa0aa; --line: #29373f;
+  --accent: #5cb8dc; --accent-soft: #1b2e38; --warn: #f0a070; color-scheme: dark } }
 * { box-sizing: border-box; }
-[hidden] { display: none !important; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-body); }
-.wrap { max-width: 1100px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; display: grid; gap: 16px; }
-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; }
-h1 { font: 600 clamp(24px, 3vw, 32px)/1.1 var(--f-display); margin: 0; }
-header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
-.pill { font: 600 12px var(--f-mono); padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); white-space: nowrap; }
-.pill.ok { color: var(--ok); } .pill.bad { color: var(--bad); }
-.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 800px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 12px; min-width: 0; }
-h2 { font: 600 18px var(--f-display); margin: 0; }
-label.f { display: grid; gap: 3px; font-size: 13px; }
-select, input { font: 14px var(--f-body); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
-.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
-.unit { font: 12px var(--f-mono); color: var(--muted); min-width: 5ch; }
-.fields { display: grid; gap: 10px; }
-button { font: 600 14px var(--f-body); padding: 8px 14px; border-radius: 7px; border: 1px solid var(--accent); background: var(--accent); color: var(--panel); cursor: pointer; justify-self: start; }
-button:disabled { opacity: .5; cursor: default; }
-button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.desc { color: var(--muted); margin: 0; }
-.eq { font: 12.5px/1.6 var(--f-mono); background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; overflow-x: auto; white-space: pre; }
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-td, th { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-td.v { font: 13px var(--f-mono); text-align: right; white-space: nowrap; }
-.tablewrap { overflow-x: auto; }
-ul { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13px; }
-.err { color: var(--bad); font: 13px var(--f-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
-.note { font-size: 12.5px; color: var(--muted); margin: 0; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-ui); }
+.app { max-width: 1180px; margin: 0 auto; padding: 20px 16px 40px; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 18px; }
+header { grid-column: 1 / -1; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+h1 { margin: 0; font-size: 22px; }
+.sub { margin: 2px 0 0; color: var(--muted); max-width: 75ch; }
+nav { display: grid; gap: 6px; align-content: start; }
+nav button { text-align: left; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 8px 10px; cursor: pointer; font: inherit; }
+nav button small { display: block; color: var(--muted); font-size: 12px; }
+nav button[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+main { display: grid; gap: 14px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; min-width: 0; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs button { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 4px; padding: 4px 10px; cursor: pointer; font: inherit; }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 16px; margin-top: 12px; }
+label { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
+.field { display: flex; gap: 6px; align-items: baseline; }
+input, select { font: 13px var(--f-num); padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); width: 100%; }
+.unit { font: 12px var(--f-num); color: var(--muted); min-width: 3.5em; }
+.actions { margin-top: 12px; display: flex; gap: 10px; align-items: center; }
+.go { background: var(--accent); color: var(--panel); border: 0; border-radius: 4px; padding: 6px 14px; font: inherit; cursor: pointer; }
+.go:disabled { opacity: .5; cursor: default; }
+.status { color: var(--muted); font-size: 12.5px; }
+.err { color: var(--warn); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+td, th { padding: 5px 6px; border-bottom: 1px dotted var(--line); text-align: left; }
+td.v { font-family: var(--f-num); text-align: right; white-space: nowrap; }
+.eq { font-family: var(--f-num); font-size: 12.5px; color: var(--muted); }
+ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; }
+@media (max-width: 760px) { .app { grid-template-columns: minmax(0, 1fr); } }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="app">
   <header>
-    <div>
-      <h1>Math engines calculator</h1>
-      <p>A form for every function described in the engines' <code>spec.yaml</code> files. The Python engines run in your browser through Pyodide; inputs are converted to SI units before the call and results back to display units after it.</p>
-    </div>
-    <span class="pill" id="status">Loading Pyodide…</span>
+    <h1>Math Engines Calculator</h1>
+    <p class="sub">Every engine in <code>math-engines/engines/</code>, with a form built from its <code>spec.yaml</code>. The Python engines run in your browser through Pyodide; nothing is sent to a server.</p>
   </header>
-  <div class="grid">
-    <section class="card" aria-labelledby="h-in">
-      <h2 id="h-in">Inputs</h2>
-      <label class="f">Engine<select id="engine"></select></label>
-      <label class="f">Function<select id="function"></select></label>
-      <p class="desc" id="desc"></p>
-      <div class="eq" id="eqs" hidden></div>
-      <form id="form" class="fields" autocomplete="off"></form>
-      <button type="button" id="run" disabled>Compute</button>
+  <nav id="nav" aria-label="Engines"></nav>
+  <main>
+    <section class="panel">
+      <h2 id="title" style="margin:0;font-size:17px">Loading the engine index…</h2>
+      <p class="sub" id="desc"></p>
+      <div class="tabs" id="tabs"></div>
+      <div class="eq" id="eqs"></div>
+      <form id="form" onsubmit="return false"></form>
+      <div class="actions"><button class="go" id="go" disabled>Compute</button><span class="status" id="status">Starting Python…</span></div>
     </section>
-    <section class="card" aria-labelledby="h-out">
-      <h2 id="h-out">Results</h2>
-      <div class="tablewrap"><table><tbody id="results"><tr><td class="note">Press Compute.</td></tr></tbody></table></div>
-      <div id="errbox" class="err" hidden></div>
-      <div><h2>Assumptions</h2><ul id="assumptions"></ul></div>
-      <div><h2>References</h2><ul id="refs"></ul></div>
+    <section class="panel" id="outPanel" hidden>
+      <table><tbody id="out"></tbody></table>
+      <ul id="assume"></ul>
     </section>
-  </div>
-  <p class="note">Index: <code>web/engines_index.json</code>, generated by <code>tools/build_index.py</code>. Engine sources are fetched from <code>../engines/</code>.</p>
+    <section class="panel"><strong>References</strong><ul id="refs"></ul></section>
+  </main>
 </div>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
-(function () {
-  "use strict";
-  var $ = function (id) { return document.getElementById(id); };
-  var INDEX = null, PY = null, CALL = null;
-
-  function status(text, cls) { var s = $("status"); s.textContent = text; s.className = "pill" + (cls ? " " + cls : ""); }
-  function fmtNum(v) {
-    if (v === null || v === undefined) return "—";
-    if (typeof v === "boolean") return v ? "yes" : "no";
-    if (typeof v !== "number") return String(v);
-    if (v === 0) return "0";
-    var a = Math.abs(v);
-    if (a >= 1e6 || a < 1e-4) return v.toExponential(4).replace("-", "−");
-    return String(+v.toPrecision(6)).replace("-", "−");
+(async () => {
+  const $ = id => document.getElementById(id);
+  const fmt = x => {
+    if (x === null || x === undefined) return '—';
+    if (typeof x === 'boolean') return x ? 'yes' : 'no';
+    if (Array.isArray(x)) return x.map(fmt).join(', ');
+    if (typeof x === 'object' && 're' in x) return `${fmt(x.re)} ${x.im < 0 ? '−' : '+'} ${fmt(Math.abs(x.im))} i`;
+    if (typeof x !== 'number') return String(x);
+    const a = Math.abs(x);
+    const s = a !== 0 && (a >= 1e5 || a < 1e-3) ? x.toExponential(5) : String(+x.toPrecision(6));
+    return s.replace('-', '−');
+  };
+  let index, py, current = null, currentFn = null;
+  const loaded = new Set();
+  try {
+    index = await (await fetch('engines_index.json')).json();
+  } catch (e) {
+    $('title').textContent = 'Could not load engines_index.json';
+    $('status').innerHTML = '<span class="err">Serve this folder over HTTP (for example GitHub Pages or python -m http.server); browsers block fetch from file://.</span>';
+    return;
   }
-  function currentEngine() { return INDEX.engines.find(function (e) { return e.engine === $("engine").value; }); }
-  function currentFunction() { var e = currentEngine(); return e.functions.find(function (f) { return f.name === $("function").value; }); }
-
-  function fillFunctions() {
-    var e = currentEngine();
-    $("function").innerHTML = e.functions.map(function (f) { return '<option value="' + f.name + '">' + f.title + "</option>"; }).join("");
-    $("refs").innerHTML = (e.references || []).map(function (r) { return "<li>" + r + "</li>"; }).join("");
-    buildForm();
+  for (const e of index.engines) {
+    const b = document.createElement('button');
+    b.innerHTML = `${e.title}<small>${e.engine} · v${e.version}</small>`;
+    b.onclick = () => select(e);
+    e.btn = b; $('nav').appendChild(b);
   }
-  function buildForm() {
-    var e = currentEngine(), f = currentFunction();
-    $("desc").textContent = e.description + " (engine version " + e.version + ")";
-    $("eqs").hidden = !f.equations.length;
-    $("eqs").textContent = f.equations.join("\n");
-    $("form").innerHTML = f.inputs.map(function (i, k) {
-      var id = "in" + k, lab = '<span>' + i.label + "</span>";
-      if (i.choices) return '<label class="f" for="' + id + '">' + lab + '<select id="' + id + '">' +
-        i.choices.map(function (c) { return "<option" + (c === i.default ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></label>";
-      var attrs = ' type="number" step="' + (i.integer ? "1" : "any") + '" value="' + i.default + '"' +
-        (i.min !== undefined ? ' min="' + i.min + '"' : "") + (i.max !== undefined ? ' max="' + i.max + '"' : "");
-      return '<label class="f" for="' + id + '">' + lab + '<span class="row"><input id="' + id + '"' + attrs + '><span class="unit">' + i.ui_unit + "</span></span></label>";
-    }).join("");
-    $("results").innerHTML = '<tr><td class="note">Press Compute.</td></tr>';
-    $("assumptions").innerHTML = ""; $("errbox").hidden = true;
+  function select(e) {
+    current = e;
+    for (const x of index.engines) x.btn.setAttribute('aria-current', x === e);
+    $('title').textContent = e.title; $('desc').textContent = e.description;
+    $('refs').innerHTML = e.references.map(r => `<li>${r}</li>`).join('');
+    $('tabs').innerHTML = '';
+    for (const [name, fn] of Object.entries(e.functions)) {
+      const t = document.createElement('button'); t.type = 'button'; t.textContent = fn.title;
+      t.onclick = () => selectFn(name, t); $('tabs').appendChild(t);
+    }
+    selectFn(Object.keys(e.functions)[0], $('tabs').firstChild);
   }
-  // UI values -> SI keyword arguments (si = ui * scale)
-  function collect() {
-    var f = currentFunction(), kw = {};
-    f.inputs.forEach(function (i, k) {
-      var el = $("in" + k);
-      if (i.choices) { kw[i.name] = el.value; return; }
-      var v = parseFloat(el.value);
-      if (!isFinite(v)) throw new Error(i.label + ": enter a number");
-      kw[i.name] = i.integer ? Math.round(v) : v * i.scale;
-    });
-    return kw;
+  function selectFn(name, tab) {
+    currentFn = name;
+    for (const t of $('tabs').children) t.setAttribute('aria-pressed', t === tab);
+    const fn = current.functions[name];
+    $('eqs').innerHTML = fn.equations.map(q => `<div>${q}</div>`).join('');
+    $('form').innerHTML = fn.inputs.map(i => i.type === 'choice'
+      ? `<label>${i.label}<select name="${i.name}">${i.choices.map(c => `<option${c === i.default ? ' selected' : ''}>${c}</option>`).join('')}</select></label>`
+      : `<label>${i.label}<span class="field"><input name="${i.name}" type="number" step="any" value="${i.default}"${i.min !== undefined ? ` min="${i.min}"` : ''}${i.max !== undefined ? ` max="${i.max}"` : ''}><span class="unit">${i.ui_unit || ''}</span></span></label>`).join('');
+    $('outPanel').hidden = true;
   }
-  function show(res) {
-    var f = currentFunction();
-    $("results").innerHTML = f.outputs.map(function (o) {
-      var v = res.values[o.name], txt;
-      if (Array.isArray(v)) txt = v.length + " values, " + fmtNum(Math.min.apply(null, v) / o.scale) + " … " + fmtNum(Math.max.apply(null, v) / o.scale);
-      else txt = typeof v === "number" ? fmtNum(v / o.scale) : fmtNum(v);
-      return "<tr><td>" + o.label + '</td><td class="v">' + txt + " " + (typeof v === "number" || Array.isArray(v) ? o.ui_unit : "") + "</td></tr>";
-    }).join("");
-    $("assumptions").innerHTML = (res.assumptions || []).map(function (a) { return "<li>" + a + "</li>"; }).join("");
+  async function ensureEngine(e) {
+    if (loaded.has(e.engine)) return;
+    if (e.requires.length) { $('status').textContent = `Loading ${e.requires.join(', ')}…`; await py.loadPackage(e.requires); }
+    for (const f of e.files) await writeFile(f);
+    loaded.add(e.engine);
   }
-  function run() {
-    $("errbox").hidden = true;
+  async function writeFile(f) {
+    const text = await (await fetch('../' + f)).text();
+    const full = '/home/pyodide/' + f;
+    py.FS.mkdirTree(full.slice(0, full.lastIndexOf('/')));
+    py.FS.writeFile(full, text);
+  }
+  $('go').onclick = async () => {
+    const fn = current.functions[currentFn], kw = {};
+    for (const i of fn.inputs) {
+      const el = $('form').querySelector(`[name="${i.name}"]`);
+      if (i.type === 'choice') { kw[i.name] = el.value; continue; }
+      const v = parseFloat(el.value);
+      if (!Number.isFinite(v)) { $('status').innerHTML = `<span class="err">${i.label}: enter a number.</span>`; return; }
+      kw[i.name] = i.step === 1 ? Math.round(v) : v * (i.scale ?? 1);
+    }
+    $('go').disabled = true; $('status').textContent = 'Computing…';
     try {
-      var kw = collect();
-      var out = JSON.parse(CALL($("engine").value, $("function").value, JSON.stringify(kw)));
-      show(out);
+      await ensureEngine(current);
+      py.globals.set('ARGS', JSON.stringify({ e: current.engine, f: currentFn, kw }));
+      const res = JSON.parse(py.runPython(`import json\nfrom engines import registry\na = json.loads(ARGS)\njson.dumps(registry.call(a['e'], a['f'], **a['kw']))`));
+      $('out').innerHTML = fn.outputs.map(o => {
+        const v = res.values[o.name];
+        const shown = typeof v === 'number' ? v / (o.scale ?? 1) : v;
+        return `<tr><td>${o.label}</td><td class="v">${fmt(shown)}</td><td>${o.ui_unit || ''}</td></tr>`;
+      }).join('');
+      $('assume').innerHTML = res.assumptions.map(a => `<li>${a}</li>`).join('');
+      $('outPanel').hidden = false; $('status').textContent = 'Done.';
     } catch (err) {
-      var msg = String(err && err.message || err), m = msg.match(/(ValueError|KeyError|TypeError): (.*)$/m);
-      $("errbox").textContent = m ? m[1] + ": " + m[2] : msg;
-      $("errbox").hidden = false;
+      const msg = String(err.message || err).split('\n').filter(Boolean).pop();
+      $('status').innerHTML = `<span class="err">${msg}</span>`;
     }
+    $('go').disabled = false;
+  };
+  select(index.engines[0]);
+  try {
+    py = await loadPyodide();
+    await py.loadPackage('numpy');
+    for (const f of index.shared) await writeFile(f);
+    py.runPython("import sys\nsys.path.insert(0, '/home/pyodide')");
+    $('go').disabled = false; $('status').textContent = 'Python ready.';
+  } catch (err) {
+    $('status').innerHTML = `<span class="err">Pyodide could not start: ${err}</span>`;
   }
-
-  async function boot() {
-    INDEX = await (await fetch("engines_index.json")).json();
-    $("engine").innerHTML = INDEX.engines.map(function (e) { return '<option value="' + e.engine + '">' + e.title + "</option>"; }).join("");
-    fillFunctions();
-    status("Loading Pyodide and NumPy…");
-    PY = await loadPyodide();
-    await PY.loadPackage("numpy");
-    status("Loading engines…");
-    var base = "/home/pyodide/me/";
-    for (var k = 0; k < INDEX.files.length; k++) {
-      var path = INDEX.files[k], text = await (await fetch("../" + path)).text();
-      PY.FS.mkdirTree(base + path.substring(0, path.lastIndexOf("/")));
-      PY.FS.writeFile(base + path, text);
-    }
-    await PY.runPythonAsync([
-      "import json, sys",
-      "sys.path.insert(0, '" + base + "')",
-      "from engines import registry",
-      "def _call(engine, function, kw):",
-      "    return json.dumps(registry.call(engine, function, **json.loads(kw)), allow_nan=False)"
-    ].join("\n"));
-    CALL = PY.globals.get("_call");
-    status("Ready", "ok");
-    $("run").disabled = false;
-  }
-  $("engine").addEventListener("change", fillFunctions);
-  $("function").addEventListener("change", buildForm);
-  $("run").addEventListener("click", run);
-  $("form").addEventListener("submit", function (e) { e.preventDefault(); run(); });
-  boot().catch(function (err) { status("Failed to load", "bad"); $("errbox").textContent = String(err); $("errbox").hidden = false; });
 })();
 </script>
 </body>

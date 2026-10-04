@@ -1,0 +1,36 @@
+engine: step_index_fiber
+version: 2
+title: Step-index fibre LP01 mode and phase mismatch
+description: LP01 effective index, V number and mode-field radius of a silica step-index fibre, and the chi2 / chi3 phase mismatch, GVM and beta2 of its modes.
+requires: [scipy]
+references:
+  - "D. Gloge, Appl. Opt. 10, 2252 (1971)"
+  - "D. Marcuse, Bell Syst. Tech. J. 56, 703 (1977)"
+functions:
+  lp01:
+    title: LP01 mode
+    equations: ["U J1(U)/J0(U) = W K1(W)/K0(W), U² + W² = V²", "V = k a sqrt(n_co² - n_cl²)", "w/a = 0.65 + 1.619 V^-1.5 + 2.879 V^-6"]
+    inputs:
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 300}
+      - {name: core_radius, label: "Core radius a", ui_unit: µm, scale: 1.0e-6, default: 4.1, min: 0.1}
+      - {name: delta_n, label: "Core-cladding index step", ui_unit: "", scale: 1.0, default: 0.0050, min: 0}
+    outputs:
+      - {name: neff, label: "Effective index", ui_unit: "", scale: 1.0}
+      - {name: V, label: "V number", ui_unit: "", scale: 1.0}
+      - {name: b, label: "Normalised index b", ui_unit: "", scale: 1.0}
+      - {name: mode_radius, label: "Mode-field radius", ui_unit: µm, scale: 1.0e-6}
+  phase_mismatch:
+    title: Phase mismatch, GVM and β2 (χ2 or χ3)
+    equations: ["χ2: Δk = β(ω_p) − β(ω_s) − β(ω_p − ω_s)", "χ3: Δβ = β(ω_s) + β(2ω_p − ω_s) − 2β(ω_p)", "GVM = β1,i − β1,s", "Λ = 2π / |Δk0| (χ2)"]
+    inputs:
+      - {name: wavelength_signal, label: "Signal vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 300}
+      - {name: wavelength_pump, label: "Pump vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 532, min: 300}
+      - {name: core_radius, label: "Core radius a", ui_unit: µm, scale: 1.0e-6, default: 4.1, min: 0.1}
+      - {name: delta_n, label: "Core-cladding index step", ui_unit: "", scale: 1.0, default: 0.0050, min: 0}
+      - {name: process, label: "Process", type: choice, choices: [chi2, chi3], default: chi2}
+    outputs:
+      - {name: dk0, label: "Linear mismatch at the signal", ui_unit: 1/m, scale: 1.0}
+      - {name: gvm, label: "GVM β1,i − β1,s", ui_unit: ps/m, scale: 1.0e-12}
+      - {name: beta2_sum, label: "β2,s + β2,i", ui_unit: ps²/km, scale: 1.0e-27}
+      - {name: wavelength_idler, label: "Idler wavelength", ui_unit: nm, scale: 1.0e-9}
+      - {name: qpm_period, label: "QPM period (χ2)", ui_unit: µm, scale: 1.0e-6}

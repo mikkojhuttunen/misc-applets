@@ -1,0 +1,64 @@
+engine: multimode_amplifier
+version: 1
+title: Multimode amplifier, mode-dependent gain and ASE
+description: Guided-mode sets of highly multimode step-index, graded-index and planar waveguides, mode-dependent gain from doping overlaps, random linear mode coupling, and a saturated cladding-pumped amplifier with spatial hole burning; noise via the ase_noise covariance formalism.
+requires: [scipy]
+references:
+  - "D. Gloge, Appl. Opt. 10, 2252 (1971)"
+  - "A. W. Snyder, J. D. Love, Optical Waveguide Theory (Chapman and Hall, 1983), ch. 14-15"
+  - "K.-P. Ho, J. M. Kahn, J. Lightwave Technol. 29, 3119 (2011)"
+  - "C. R. Giles, E. Desurvire, J. Lightwave Technol. 9, 271 (1991)"
+  - "C. M. Caves, Phys. Rev. D 26, 1817 (1982)"
+functions:
+  multimode_small_signal:
+    title: Unsaturated multimode fibre amplifier
+    equations: ["Γ_k = ∫_{r ≤ ρa} I_k dA", "G_k = exp(g0 Γ_k L)", "n_k = n_sp (G_k - 1)", "F_k = 1/G_k + 2 n_sp (G_k - 1)/G_k", "MDG = max G_k / min G_k"]
+    inputs:
+      - {name: waveguide, label: "Index profile", type: choice, choices: [step_index, grin], default: step_index}
+      - {name: core_radius, label: "Core radius a", ui_unit: µm, scale: 1.0e-6, default: 25, min: 0.5}
+      - {name: numerical_aperture, label: "Numerical aperture", ui_unit: "", scale: 1.0, default: 0.1, min: 0.01, max: 0.5}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1064, min: 200}
+      - {name: doping_ratio, label: "Doped radius / core radius ρ", ui_unit: "", scale: 1.0, default: 0.6, min: 0}
+      - {name: gain_coefficient, label: "Medium gain g0", ui_unit: 1/m, scale: 1.0, default: 3.0, min: 0}
+      - {name: n_sp, label: "Inversion factor n_sp", ui_unit: "", scale: 1.0, default: 1.2, min: 1}
+      - {name: length, label: "Length", ui_unit: m, scale: 1.0, default: 2.0, min: 0}
+    outputs:
+      - {name: modes, label: "Guided modes (one polarisation)", ui_unit: "", scale: 1.0}
+      - {name: families, label: "Mode families", ui_unit: "", scale: 1.0}
+      - {name: gain_fundamental, label: "Fundamental-mode gain", ui_unit: "", scale: 1.0}
+      - {name: gain_mean, label: "Mean modal gain", ui_unit: "", scale: 1.0}
+      - {name: mdg, label: "MDG max/min (linear)", ui_unit: "", scale: 1.0}
+      - {name: nf_fundamental, label: "Fundamental-mode noise figure", ui_unit: "", scale: 1.0}
+      - {name: nf_mean, label: "Mean modal noise figure", ui_unit: "", scale: 1.0}
+      - {name: ase_fraction_fundamental, label: "ASE share in fundamental mode", ui_unit: "", scale: 1.0}
+  saturated_fibre_amplifier:
+    title: Saturated cladding-pumped multimode amplifier
+    equations: ["N2/N_t = (σ_ap φ_p + σ_as φ_s) / ((σ_ap+σ_ep) φ_p + (σ_as+σ_es) φ_s + 1/τ)", "γ_e,k = σ_es ∫ N2 I_k dA, γ_a,k = σ_as ∫ N1 I_k dA", "dC_k/dz = (γ_e,k - γ_a,k) C_k + γ_e,k"]
+    inputs:
+      - {name: waveguide, label: "Index profile", type: choice, choices: [step_index, grin], default: step_index}
+      - {name: core_radius, label: "Core radius a", ui_unit: µm, scale: 1.0e-6, default: 25, min: 0.5}
+      - {name: numerical_aperture, label: "Numerical aperture", ui_unit: "", scale: 1.0, default: 0.1, min: 0.01, max: 0.5}
+      - {name: doping_ratio, label: "Doped radius / core radius ρ", ui_unit: "", scale: 1.0, default: 1.0, min: 0}
+      - {name: cladding_diameter, label: "Inner cladding diameter", ui_unit: µm, scale: 1.0e-6, default: 250, min: 1}
+      - {name: length, label: "Length", ui_unit: m, scale: 1.0, default: 3.0, min: 0}
+      - {name: pump_power, label: "Pump power", ui_unit: W, scale: 1.0, default: 50, min: 0}
+      - {name: signal_power, label: "Signal power (fundamental mode)", ui_unit: W, scale: 1.0, default: 1, min: 0}
+      - {name: wavelength, label: "Signal wavelength", ui_unit: nm, scale: 1.0e-9, default: 1064, min: 200}
+      - {name: pump_wavelength, label: "Pump wavelength", ui_unit: nm, scale: 1.0e-9, default: 976, min: 200}
+      - {name: dopant_density, label: "Dopant density", ui_unit: 1/m³, scale: 1.0, default: 6.0e+25, min: 0}
+      - {name: sigma_es, label: "Signal emission cross-section", ui_unit: pm², scale: 1.0e-24, default: 0.25, min: 0}
+      - {name: sigma_as, label: "Signal absorption cross-section", ui_unit: pm², scale: 1.0e-24, default: 0.005, min: 0}
+      - {name: sigma_ep, label: "Pump emission cross-section", ui_unit: pm², scale: 1.0e-24, default: 2.5, min: 0}
+      - {name: sigma_ap, label: "Pump absorption cross-section", ui_unit: pm², scale: 1.0e-24, default: 2.6, min: 0}
+      - {name: lifetime, label: "Upper-level lifetime", ui_unit: ms, scale: 1.0e-3, default: 1.0, min: 0}
+      - {name: ase_bandwidth, label: "ASE bandwidth (one bin)", ui_unit: THz, scale: 1.0e+12, default: 3, min: 0}
+      - {name: steps, label: "z steps", ui_unit: "", scale: 1.0, default: 200, min: 1, step: 1}
+    outputs:
+      - {name: modes, label: "Guided modes (one polarisation)", ui_unit: "", scale: 1.0}
+      - {name: signal_out, label: "Output signal power", ui_unit: W, scale: 1.0}
+      - {name: ase_out, label: "Output ASE power", ui_unit: mW, scale: 1.0e-3}
+      - {name: pump_out, label: "Residual pump", ui_unit: W, scale: 1.0}
+      - {name: gain_fundamental, label: "Fundamental-mode gain", ui_unit: "", scale: 1.0}
+      - {name: mdg, label: "MDG max/min (linear)", ui_unit: "", scale: 1.0}
+      - {name: nf_fundamental, label: "Fundamental-mode noise figure", ui_unit: "", scale: 1.0}
+      - {name: ase_fraction_fundamental, label: "ASE share in fundamental mode", ui_unit: "", scale: 1.0}

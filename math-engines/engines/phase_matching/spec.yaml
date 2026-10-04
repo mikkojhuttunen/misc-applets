@@ -1,0 +1,23 @@
+engine: phase_matching
+version: 1
+title: Three-wave phase matching
+description: Phase mismatch, QPM period of any order, coherence length and sinc² response for ω3 = ω1 + ω2 with arbitrary mode indices (bulk, birefringent or modal).
+references:
+  - "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)"
+  - "R. W. Boyd, Nonlinear Optics, 3rd ed. (Academic Press, 2008), ch. 2"
+functions:
+  three_wave_mismatch:
+    title: Mismatch and required period
+    equations: ["1/λ3 = 1/λ1 + 1/λ2", "Δk = 2π (n3/λ3 - n1/λ1 - n2/λ2) - 2π m / Λ", "Λ_req = m 2π / |Δk_bare|"]
+    inputs:
+      - {name: wavelength_1, label: "Wave 1 vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: wavelength_2, label: "Wave 2 vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: n_1, label: "Wave 1 index", ui_unit: "", scale: 1.0, default: 2.0272, min: 1}
+      - {name: n_2, label: "Wave 2 index", ui_unit: "", scale: 1.0, default: 2.0272, min: 1}
+      - {name: n_3, label: "Wave 3 (sum) index", ui_unit: "", scale: 1.0, default: 2.1924, min: 1}
+      - {name: order, label: "QPM order m", ui_unit: "", scale: 1.0, default: 1, min: 1, step: 1}
+    outputs:
+      - {name: wavelength_3, label: "Wave 3 wavelength", ui_unit: nm, scale: 1.0e-9}
+      - {name: delta_k_bare, label: "Bare mismatch Δk", ui_unit: 1/cm, scale: 100.0}
+      - {name: period_required, label: "Required grating period", ui_unit: µm, scale: 1.0e-6}
+      - {name: coherence_length, label: "Coherence length", ui_unit: µm, scale: 1.0e-6}

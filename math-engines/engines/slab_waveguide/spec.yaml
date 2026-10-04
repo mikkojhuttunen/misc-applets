@@ -1,0 +1,23 @@
+engine: slab_waveguide
+version: 1
+title: Slab waveguide modes
+description: Effective index, V and b of a three-layer slab mode (multilayer stacks via multilayer_neff in Python).
+references:
+  - "K. Okamoto, Fundamentals of Optical Waveguides, 2nd ed. (Academic Press, 2006), ch. 2"
+functions:
+  slab_neff:
+    title: Three-layer slab mode
+    equations: ["k d sqrt(n_f^2 - N^2) = m pi + atan(r_s γ_s / κ) + atan(r_c γ_c / κ)", "V = k d sqrt(n_f^2 - n_s^2)"]
+    inputs:
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: n_sub, label: "Substrate index", ui_unit: "", scale: 1.0, default: 1.444, min: 1.0}
+      - {name: n_core, label: "Core index", ui_unit: "", scale: 1.0, default: 2.138, min: 1.0}
+      - {name: n_clad, label: "Cladding index", ui_unit: "", scale: 1.0, default: 1.0, min: 1.0}
+      - {name: thickness, label: "Core thickness", ui_unit: nm, scale: 1.0e-9, default: 600, min: 1}
+      - {name: polarization, label: "Polarisation", type: choice, choices: [TE, TM], default: TE}
+      - {name: order, label: "Mode order", ui_unit: "", scale: 1.0, default: 0, min: 0, step: 1}
+    outputs:
+      - {name: neff, label: "Effective index", ui_unit: "", scale: 1.0}
+      - {name: V, label: "Normalised frequency V", ui_unit: "", scale: 1.0}
+      - {name: b, label: "Normalised index b", ui_unit: "", scale: 1.0}
+      - {name: n_modes, label: "Guided modes of this polarisation", ui_unit: "", scale: 1.0}

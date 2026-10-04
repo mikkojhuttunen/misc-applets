@@ -1,6 +1,6 @@
 # DBR structures
 
-Waveguide Bragg-grating and CRIGF (cavity-resonant integrated grating filter) calculator for thin-film χ⁽²⁾ waveguides. Self-contained page, no build step: open `index.html` in a browser.
+Waveguide Bragg-grating and CRIGF (cavity-resonant integrated grating filter) calculator for thin-film χ⁽²⁾ waveguides. Self-contained page, no build step: open `index.html` in a browser (keep `dbr-engine.js` next to it).
 
 ## What it computes
 
@@ -20,6 +20,13 @@ pip install matplotlib numpy
 python plot_pump_spectra.py crigf.csv dbr.csv --labels CRIGF "one DBR" --out spectra.png
 python plot_pump_spectra.py crigf.csv --db --no-t --xlim 1549.5 1551
 ```
+
+## Code structure
+
+- `dbr-engine.js`: the physics (Sellmeier indices, slab effective index, coupled-mode and transfer-matrix reflectance, lateral and cavity models), UI-free. Its core functions are a port of the Python reference engines in `../math-engines/` and are checked against their test vectors with `node math-engines/tools/check_js_ports.mjs` from the repository root. Deviation: lengths are in µm inside the port.
+- `index.html`: the UI, loads `dbr-engine.js`.
+
+LiNbO₃ e and o Sellmeier coefficients were swapped in earlier versions (n_e at 1550 nm came out as about 2.21 instead of 2.13). The engine tests caught it; results for LiNbO₃ from earlier versions should be recomputed. LiTaO₃ was not affected.
 
 ## Limits
 

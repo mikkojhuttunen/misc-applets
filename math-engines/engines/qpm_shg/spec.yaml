@@ -1,0 +1,22 @@
+engine: qpm_shg
+version: 1
+title: QPM second-harmonic generation
+description: Phase mismatch, first-order poling period, coherence length and QPM bandwidth for SHG.
+references:
+  - "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)"
+functions:
+  phase_matching:
+    title: Poling period and bandwidth
+    equations: ["Δk = 4π (n_SH - n_p) / λ", "Λ = 2π / |Δk|", "Δλ_FWHM = 4 x_½ / (L |dΔk/dλ|), dΔk/dλ = -(4π/λ²)(n_g,SH - n_g,p)"]
+    inputs:
+      - {name: wavelength, label: "Pump vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: n_pump, label: "Pump effective index", ui_unit: "", scale: 1.0, default: 2.0272, min: 1}
+      - {name: n_sh, label: "SH effective index", ui_unit: "", scale: 1.0, default: 2.1924, min: 1}
+      - {name: ng_pump, label: "Pump group index", ui_unit: "", scale: 1.0, default: 2.33, min: 1}
+      - {name: ng_sh, label: "SH group index", ui_unit: "", scale: 1.0, default: 2.40, min: 1}
+      - {name: length, label: "Poled length", ui_unit: mm, scale: 1.0e-3, default: 4}
+    outputs:
+      - {name: period, label: "Poling period", ui_unit: µm, scale: 1.0e-6}
+      - {name: delta_k, label: "Phase mismatch Δk", ui_unit: 1/cm, scale: 100.0}
+      - {name: coherence_length, label: "Coherence length", ui_unit: µm, scale: 1.0e-6}
+      - {name: fwhm, label: "QPM bandwidth (pump FWHM)", ui_unit: nm, scale: 1.0e-9}

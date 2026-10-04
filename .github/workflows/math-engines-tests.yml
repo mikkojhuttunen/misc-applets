@@ -1,0 +1,39 @@
+name: math-engines tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: math-engines
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install --upgrade pip numpy pyyaml pytest
+      - name: Engine, spec and vector tests
+        run: python -m pytest -q
+      - name: Web index is current
+        run: |
+          python tools/build_index.py
+          git diff --exit-code web/engines_index.json
+      - name: JavaScript test vectors are current
+        run: |
+          python tools/make_test_vectors.py
+          git diff --exit-code engines/parametric_amplifier/test_vectors.json
+
+  javascript-port:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: opa_engine.js against the Python reference vectors
+        run: node --test amplifiers/parametric-amplifiers/test/opa_engine.test.mjs

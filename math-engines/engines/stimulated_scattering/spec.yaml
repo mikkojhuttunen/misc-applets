@@ -1,0 +1,53 @@
+engine: stimulated_scattering
+version: 1
+title: Brillouin and Raman scattering in silica fiber
+description: SBS shift, linewidth, threshold and exact two-wave reflection; Raman gain spectrum and SRS threshold.
+references:
+  - "R. G. Smith, Optical power handling capacity of low loss optical fibers, Appl. Opt. 11, 2489 (1972)"
+  - "K. J. Blow and D. Wood, Theoretical description of transient stimulated Raman scattering in optical fibers, IEEE JQE 25, 2665 (1989)"
+  - "G. P. Agrawal, Nonlinear Fiber Optics, ch. 8 and 9"
+common_inputs:
+  lambda_pump: {label: "Pump wavelength", ui_unit: nm, scale: 1.0e-9, default: 1064, min: 300, max: 2500}
+  length: {label: "Fiber length", ui_unit: m, scale: 1.0, default: 30, min: 0.01, max: 100000}
+  mode_area: {label: "Effective area", ui_unit: µm², scale: 1.0e-12, default: 10, min: 1, max: 10000}
+  pump_linewidth: {label: "Pump linewidth", ui_unit: MHz, scale: 1.0e+6, default: 1, min: 0, max: 1.0e+6}
+functions:
+  brillouin_parameters:
+    title: Brillouin shift and gain
+    equations: ["nu_B = 2 n v_A / lambda", "g_B,eff = g_B dnu_B / (dnu_B + dnu_p)"]
+    inputs: [lambda_pump, pump_linewidth]
+    outputs:
+      - {name: shift, label: "Brillouin shift", ui_unit: GHz, scale: 1.0e+9}
+      - {name: linewidth, label: "Brillouin linewidth", ui_unit: MHz, scale: 1.0e+6}
+      - {name: g_B, label: "Effective gain g_B", ui_unit: m/W, scale: 1.0}
+      - {name: seed_power, label: "Thermal seed", ui_unit: nW, scale: 1.0e-9}
+  sbs_two_wave:
+    title: SBS reflection (exact two-wave CW)
+    equations: ["P_p - P_B = const", "P_cr = 21 A_eff / (g_B L)"]
+    inputs:
+      - {name: pump_power, label: "Pump power", ui_unit: W, scale: 1.0, default: 10, min: 0.0001, max: 10000}
+      - length
+      - mode_area
+      - lambda_pump
+      - pump_linewidth
+    outputs:
+      - {name: reflected_power, label: "Reflected Stokes", ui_unit: W, scale: 1.0}
+      - {name: reflectivity, label: "Reflectivity", ui_unit: "%", scale: 0.01}
+      - {name: transmitted_pump, label: "Transmitted pump", ui_unit: W, scale: 1.0}
+      - {name: threshold, label: "SBS threshold", ui_unit: W, scale: 1.0}
+  raman_gain:
+    title: Raman gain at a frequency shift
+    equations: ["g_R(Omega) = g_R,peak (1 um / lambda) Im H(Omega) / max"]
+    inputs:
+      - {name: frequency_shift, label: "Pump − wave frequency", ui_unit: THz, scale: 1.0e+12, default: 13.2, min: -60, max: 60}
+      - lambda_pump
+    outputs:
+      - {name: g_R, label: "Raman gain coefficient", ui_unit: m/W, scale: 1.0}
+      - {name: peak_shift, label: "Peak shift", ui_unit: THz, scale: 1.0e+12}
+  srs_threshold:
+    title: SRS threshold
+    equations: ["P_cr = 16 A_eff / (g_R L)"]
+    inputs: [length, mode_area, lambda_pump]
+    outputs:
+      - {name: threshold, label: "SRS threshold", ui_unit: W, scale: 1.0}
+      - {name: lambda_stokes, label: "First Stokes wavelength", ui_unit: nm, scale: 1.0e-9}

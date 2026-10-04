@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Math Engines Calculator</title>
+<style>
+/* Layout: two columns (form | results) under a slim header; stacks on phones. */
+:root {
+  --bg: #f1f3f4; --panel: #ffffff; --ink: #1a2128; --muted: #5d6770; --line: #d6dce0;
+  --accent: #2b5d7d; --accent-soft: #e3edf3; --ok: #2f7d4f; --bad: #a3361f;
+  --f-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --f-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #12171b; --panel: #1a2127; --ink: #e2e7eb; --muted: #95a1ab; --line: #2c3740;
+    --accent: #7fb7d9; --accent-soft: #1c2f3b; --ok: #6fcf97; --bad: #ff8a70; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #12171b; --panel: #1a2127; --ink: #e2e7eb; --muted: #95a1ab; --line: #2c3740;
+  --accent: #7fb7d9; --accent-soft: #1c2f3b; --ok: #6fcf97; --bad: #ff8a70; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-body); }
+.wrap { max-width: 1100px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; }
+h1 { font: 600 clamp(24px, 3vw, 32px)/1.1 var(--f-display); margin: 0; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+.pill { font: 600 12px var(--f-mono); padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); white-space: nowrap; }
+.pill.ok { color: var(--ok); } .pill.bad { color: var(--bad); }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 800px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 12px; min-width: 0; }
+h2 { font: 600 18px var(--f-display); margin: 0; }
+label.f { display: grid; gap: 3px; font-size: 13px; }
+select, input { font: 14px var(--f-body); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.unit { font: 12px var(--f-mono); color: var(--muted); min-width: 5ch; }
+.fields { display: grid; gap: 10px; }
+button { font: 600 14px var(--f-body); padding: 8px 14px; border-radius: 7px; border: 1px solid var(--accent); background: var(--accent); color: var(--panel); cursor: pointer; justify-self: start; }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.desc { color: var(--muted); margin: 0; }
+.eq { font: 12.5px/1.6 var(--f-mono); background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; overflow-x: auto; white-space: pre; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+td, th { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+td.v { font: 13px var(--f-mono); text-align: right; white-space: nowrap; }
+.tablewrap { overflow-x: auto; }
+ul { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13px; }
+.err { color: var(--bad); font: 13px var(--f-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.note { font-size: 12.5px; color: var(--muted); margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Math engines calculator</h1>
+      <p>A form for every function described in the engines' <code>spec.yaml</code> files. The Python engines run in your browser through Pyodide; inputs are converted to SI units before the call and results back to display units after it.</p>
+    </div>
+    <span class="pill" id="status">Loading Pyodide…</span>
+  </header>
+  <div class="grid">
+    <section class="card" aria-labelledby="h-in">
+      <h2 id="h-in">Inputs</h2>
+      <label class="f">Engine<select id="engine"></select></label>
+      <label class="f">Function<select id="function"></select></label>
+      <p class="desc" id="desc"></p>
+      <div class="eq" id="eqs" hidden></div>
+      <form id="form" class="fields" autocomplete="off"></form>
+      <button type="button" id="run" disabled>Compute</button>
+    </section>
+    <section class="card" aria-labelledby="h-out">
+      <h2 id="h-out">Results</h2>
+      <div class="tablewrap"><table><tbody id="results"><tr><td class="note">Press Compute.</td></tr></tbody></table></div>
+      <div id="errbox" class="err" hidden></div>
+      <div><h2>Assumptions</h2><ul id="assumptions"></ul></div>
+      <div><h2>References</h2><ul id="refs"></ul></div>
+    </section>
+  </div>
+  <p class="note">Index: <code>web/engines_index.json</code>, generated by <code>tools/build_index.py</code>. Engine sources are fetched from <code>../engines/</code>.</p>
+</div>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var INDEX = null, PY = null, CALL = null;
+
+  function status(text, cls) { var s = $("status"); s.textContent = text; s.className = "pill" + (cls ? " " + cls : ""); }
+  function fmtNum(v) {
+    if (v === null || v === undefined) return "—";
+    if (typeof v === "boolean") return v ? "yes" : "no";
+    if (typeof v !== "number") return String(v);
+    if (v === 0) return "0";
+    var a = Math.abs(v);
+    if (a >= 1e6 || a < 1e-4) return v.toExponential(4).replace("-", "−");
+    return String(+v.toPrecision(6)).replace("-", "−");
+  }
+  function currentEngine() { return INDEX.engines.find(function (e) { return e.engine === $("engine").value; }); }
+  function currentFunction() { var e = currentEngine(); return e.functions.find(function (f) { return f.name === $("function").value; }); }
+
+  function fillFunctions() {
+    var e = currentEngine();
+    $("function").innerHTML = e.functions.map(function (f) { return '<option value="' + f.name + '">' + f.title + "</option>"; }).join("");
+    $("refs").innerHTML = (e.references || []).map(function (r) { return "<li>" + r + "</li>"; }).join("");
+    buildForm();
+  }
+  function buildForm() {
+    var e = currentEngine(), f = currentFunction();
+    $("desc").textContent = e.description + " (engine version " + e.version + ")";
+    $("eqs").hidden = !f.equations.length;
+    $("eqs").textContent = f.equations.join("\n");
+    $("form").innerHTML = f.inputs.map(function (i, k) {
+      var id = "in" + k, lab = '<span>' + i.label + "</span>";
+      if (i.choices) return '<label class="f" for="' + id + '">' + lab + '<select id="' + id + '">' +
+        i.choices.map(function (c) { return "<option" + (c === i.default ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></label>";
+      var attrs = ' type="number" step="' + (i.integer ? "1" : "any") + '" value="' + i.default + '"' +
+        (i.min !== undefined ? ' min="' + i.min + '"' : "") + (i.max !== undefined ? ' max="' + i.max + '"' : "");
+      return '<label class="f" for="' + id + '">' + lab + '<span class="row"><input id="' + id + '"' + attrs + '><span class="unit">' + i.ui_unit + "</span></span></label>";
+    }).join("");
+    $("results").innerHTML = '<tr><td class="note">Press Compute.</td></tr>';
+    $("assumptions").innerHTML = ""; $("errbox").hidden = true;
+  }
+  // UI values -> SI keyword arguments (si = ui * scale)
+  function collect() {
+    var f = currentFunction(), kw = {};
+    f.inputs.forEach(function (i, k) {
+      var el = $("in" + k);
+      if (i.choices) { kw[i.name] = el.value; return; }
+      var v = parseFloat(el.value);
+      if (!isFinite(v)) throw new Error(i.label + ": enter a number");
+      kw[i.name] = i.integer ? Math.round(v) : v * i.scale;
+    });
+    return kw;
+  }
+  function show(res) {
+    var f = currentFunction();
+    $("results").innerHTML = f.outputs.map(function (o) {
+      var v = res.values[o.name], txt;
+      if (Array.isArray(v)) txt = v.length + " values, " + fmtNum(Math.min.apply(null, v) / o.scale) + " … " + fmtNum(Math.max.apply(null, v) / o.scale);
+      else txt = typeof v === "number" ? fmtNum(v / o.scale) : fmtNum(v);
+      return "<tr><td>" + o.label + '</td><td class="v">' + txt + " " + (typeof v === "number" || Array.isArray(v) ? o.ui_unit : "") + "</td></tr>";
+    }).join("");
+    $("assumptions").innerHTML = (res.assumptions || []).map(function (a) { return "<li>" + a + "</li>"; }).join("");
+  }
+  function run() {
+    $("errbox").hidden = true;
+    try {
+      var kw = collect();
+      var out = JSON.parse(CALL($("engine").value, $("function").value, JSON.stringify(kw)));
+      show(out);
+    } catch (err) {
+      var msg = String(err && err.message || err), m = msg.match(/(ValueError|KeyError|TypeError): (.*)$/m);
+      $("errbox").textContent = m ? m[1] + ": " + m[2] : msg;
+      $("errbox").hidden = false;
+    }
+  }
+
+  async function boot() {
+    INDEX = await (await fetch("engines_index.json")).json();
+    $("engine").innerHTML = INDEX.engines.map(function (e) { return '<option value="' + e.engine + '">' + e.title + "</option>"; }).join("");
+    fillFunctions();
+    status("Loading Pyodide and NumPy…");
+    PY = await loadPyodide();
+    await PY.loadPackage("numpy");
+    status("Loading engines…");
+    var base = "/home/pyodide/me/";
+    for (var k = 0; k < INDEX.files.length; k++) {
+      var path = INDEX.files[k], text = await (await fetch("../" + path)).text();
+      PY.FS.mkdirTree(base + path.substring(0, path.lastIndexOf("/")));
+      PY.FS.writeFile(base + path, text);
+    }
+    await PY.runPythonAsync([
+      "import json, sys",
+      "sys.path.insert(0, '" + base + "')",
+      "from engines import registry",
+      "def _call(engine, function, kw):",
+      "    return json.dumps(registry.call(engine, function, **json.loads(kw)), allow_nan=False)"
+    ].join("\n"));
+    CALL = PY.globals.get("_call");
+    status("Ready", "ok");
+    $("run").disabled = false;
+  }
+  $("engine").addEventListener("change", fillFunctions);
+  $("function").addEventListener("change", buildForm);
+  $("run").addEventListener("click", run);
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); run(); });
+  boot().catch(function (err) { status("Failed to load", "bad"); $("errbox").textContent = String(err); $("errbox").hidden = false; });
+})();
+</script>
+</body>
+</html>

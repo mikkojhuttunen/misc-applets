@@ -1,0 +1,282 @@
+{
+ "units": "SI (m, 1/m); indices dimensionless",
+ "materials": [
+  {
+   "material": "sio2",
+   "wavelength": 5.32e-07,
+   "n": 1.4607063448921334
+  },
+  {
+   "material": "sio2",
+   "wavelength": 7.75e-07,
+   "n": 1.4537624760176293
+  },
+  {
+   "material": "sio2",
+   "wavelength": 1.064e-06,
+   "n": 1.4496309898590634
+  },
+  {
+   "material": "sio2",
+   "wavelength": 1.55e-06,
+   "n": 1.444023621703261
+  },
+  {
+   "material": "sio2",
+   "wavelength": 2e-06,
+   "n": 1.4380853528795101
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 5.32e-07,
+   "n": 2.0559166611676005
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 7.75e-07,
+   "n": 2.025907100088649
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 1.064e-06,
+   "n": 2.0112079419228546
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 1.55e-06,
+   "n": 1.9962797317138814
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 2e-06,
+   "n": 1.9834095444468025
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 5.32e-07,
+   "n": 2.2205790148502498
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 7.75e-07,
+   "n": 2.1684640439509453
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 1.064e-06,
+   "n": 2.1468320918009884
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 1.55e-06,
+   "n": 2.129686805517065
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 2e-06,
+   "n": 2.117901064636247
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 5.32e-07,
+   "n": 2.318791052607779
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 7.75e-07,
+   "n": 2.255025849330449
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 1.064e-06,
+   "n": 2.228837147402834
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 1.55e-06,
+   "n": 2.208166670822557
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 2e-06,
+   "n": 2.193979665710777
+  },
+  {
+   "material": "lt_e",
+   "wavelength": 5.32e-07,
+   "n": 2.233631672078373
+  },
+  {
+   "material": "lt_e",
+   "wavelength": 7.75e-07,
+   "n": 2.168797528019026
+  },
+  {
+   "material": "lt_e",
+   "wavelength": 1.064e-06,
+   "n": 2.1413593391550267
+  },
+  {
+   "material": "lt_e",
+   "wavelength": 1.55e-06,
+   "n": 2.119837119049206
+  },
+  {
+   "material": "lt_e",
+   "wavelength": 2e-06,
+   "n": 2.1054484056016887
+  }
+ ],
+ "slab": [
+  {
+   "wavelength": 1.55e-06,
+   "n_sub": 1.444,
+   "n_core": 2.13,
+   "n_clad": 1.0,
+   "thickness": 6e-07,
+   "polarization": "TE",
+   "order": 0,
+   "neff": 1.9494202685612994
+  },
+  {
+   "wavelength": 1.55e-06,
+   "n_sub": 1.444,
+   "n_core": 2.13,
+   "n_clad": 1.0,
+   "thickness": 6e-07,
+   "polarization": "TM",
+   "order": 0,
+   "neff": 1.8450010777948047
+  },
+  {
+   "wavelength": 1.55e-06,
+   "n_sub": 1.444,
+   "n_core": 2.13,
+   "n_clad": 1.0,
+   "thickness": 6e-07,
+   "polarization": "TE",
+   "order": 1,
+   "neff": 1.4478693379925303
+  },
+  {
+   "wavelength": 7.75e-07,
+   "n_sub": 1.454,
+   "n_core": 2.17,
+   "n_clad": 1.0,
+   "thickness": 4e-07,
+   "polarization": "TE",
+   "order": 0,
+   "neff": 2.0501689572276014
+  },
+  {
+   "wavelength": 1.55e-06,
+   "n_sub": 1.444,
+   "n_core": 1.996,
+   "n_clad": 1.444,
+   "thickness": 4e-07,
+   "polarization": "TE",
+   "order": 0,
+   "neff": 1.74339491072929
+  },
+  {
+   "wavelength": 1.55e-06,
+   "n_sub": 1.444,
+   "n_core": 3.476,
+   "n_clad": 1.444,
+   "thickness": 2.2e-07,
+   "polarization": "TE",
+   "order": 0,
+   "neff": 2.8477822434462743
+  }
+ ],
+ "cmt": [
+  {
+   "kappa": 20000.0,
+   "length": 0.0003,
+   "half_detuning": 0.0,
+   "R": 0.9999754234525947
+  },
+  {
+   "kappa": 20000.0,
+   "length": 0.0003,
+   "half_detuning": 15000.0,
+   "R": 0.9993748687763133
+  },
+  {
+   "kappa": 20000.0,
+   "length": 0.0003,
+   "half_detuning": 50000.0,
+   "R": 0.1401689225338018
+  },
+  {
+   "kappa": 5000.0,
+   "length": 0.001,
+   "half_detuning": 3000.0,
+   "R": 0.9991413770693021
+  }
+ ],
+ "stack": [
+  {
+   "wavelength": 1.55e-06,
+   "n_high": 2.0,
+   "n_low": 1.5,
+   "d_high": 1.9375e-07,
+   "d_low": 2.5833333333333333e-07,
+   "periods": 5,
+   "n_in": 1.5,
+   "n_out": 1.5,
+   "R": 0.798122948675949,
+   "T": 0.20187705132405123
+  },
+  {
+   "wavelength": 1.551e-06,
+   "n_high": 2.0272,
+   "n_low": 2.0095,
+   "d_high": 1.918e-07,
+   "d_low": 1.918e-07,
+   "periods": 800,
+   "n_in": 2.0272,
+   "n_out": 2.0272,
+   "R": 0.9999705555359402,
+   "T": 2.9444464059936276e-05
+  },
+  {
+   "wavelength": 1.548e-06,
+   "n_high": 2.0272,
+   "n_low": 2.0095,
+   "d_high": 1.918e-07,
+   "d_low": 1.918e-07,
+   "periods": 800,
+   "n_in": 2.0272,
+   "n_out": 2.0272,
+   "R": 0.9999965284034603,
+   "T": 3.4715965396144375e-06
+  }
+ ],
+ "lp01": [
+  {
+   "wavelength": 1.55e-06,
+   "core_radius": 4.1e-06,
+   "delta_n": 0.005,
+   "neff": 1.4461047805814207,
+   "V": 1.9989171400695402,
+   "mode_radius": 5.198795555619449e-06
+  },
+  {
+   "wavelength": 5.32e-07,
+   "core_radius": 2e-06,
+   "delta_n": 0.005,
+   "neff": 1.4638429796743413,
+   "V": 2.857268277940588,
+   "mode_radius": 1.981007122623504e-06
+  },
+  {
+   "wavelength": 1.064e-06,
+   "core_radius": 3e-06,
+   "delta_n": 0.008,
+   "neff": 1.454415008857536,
+   "V": 2.701758789387453,
+   "mode_radius": 3.065906752445564e-06
+  }
+ ]
+}

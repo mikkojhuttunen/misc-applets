@@ -1,0 +1,34 @@
+name: math-engines tests
+
+on:
+  push:
+    paths:
+      - "math-engines/**"
+      - "dbr-structures/dbr-engine.js"
+      - "parametric-amplifier/index.html"
+      - ".github/workflows/math-engines-tests.yml"
+  pull_request:
+    paths:
+      - "math-engines/**"
+      - "dbr-structures/dbr-engine.js"
+      - "parametric-amplifier/index.html"
+      - ".github/workflows/math-engines-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install numpy scipy pyyaml pytest
+      - name: Engine, spec and test-vector tests
+        working-directory: math-engines
+        run: python -m pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: JS ports against the shared test vectors
+        run: node math-engines/tools/check_js_ports.mjs

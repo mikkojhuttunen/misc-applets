@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Math Engines Calculator</title>
+<style>
+/* Layout: engine list on the left, the selected function's form and results on the right; one column on phones. */
+:root {
+  --bg: #eef1f3; --panel: #ffffff; --ink: #16212b; --muted: #5b6874; --line: #d3dae0;
+  --accent: #1d5f86; --accent-soft: #e2eef5; --warn: #a3470b;
+  --f-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0f1519; --panel: #162027; --ink: #dbe5ea; --muted: #8fa0aa; --line: #29373f;
+  --accent: #5cb8dc; --accent-soft: #1b2e38; --warn: #f0a070; color-scheme: dark } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-ui); }
+.app { max-width: 1180px; margin: 0 auto; padding: 20px 16px 40px; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 18px; }
+header { grid-column: 1 / -1; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+h1 { margin: 0; font-size: 22px; }
+.sub { margin: 2px 0 0; color: var(--muted); max-width: 75ch; }
+nav { display: grid; gap: 6px; align-content: start; }
+nav button { text-align: left; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 8px 10px; cursor: pointer; font: inherit; }
+nav button small { display: block; color: var(--muted); font-size: 12px; }
+nav button[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+main { display: grid; gap: 14px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; min-width: 0; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs button { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 4px; padding: 4px 10px; cursor: pointer; font: inherit; }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 16px; margin-top: 12px; }
+label { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
+.field { display: flex; gap: 6px; align-items: baseline; }
+input, select { font: 13px var(--f-num); padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); width: 100%; }
+.unit { font: 12px var(--f-num); color: var(--muted); min-width: 3.5em; }
+.actions { margin-top: 12px; display: flex; gap: 10px; align-items: center; }
+.go { background: var(--accent); color: var(--panel); border: 0; border-radius: 4px; padding: 6px 14px; font: inherit; cursor: pointer; }
+.go:disabled { opacity: .5; cursor: default; }
+.status { color: var(--muted); font-size: 12.5px; }
+.err { color: var(--warn); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+td, th { padding: 5px 6px; border-bottom: 1px dotted var(--line); text-align: left; }
+td.v { font-family: var(--f-num); text-align: right; white-space: nowrap; }
+.eq { font-family: var(--f-num); font-size: 12.5px; color: var(--muted); }
+ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; }
+@media (max-width: 760px) { .app { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Math Engines Calculator</h1>
+    <p class="sub">Every engine in <code>math-engines/engines/</code>, with a form built from its <code>spec.yaml</code>. The Python engines run in your browser through Pyodide; nothing is sent to a server.</p>
+  </header>
+  <nav id="nav" aria-label="Engines"></nav>
+  <main>
+    <section class="panel">
+      <h2 id="title" style="margin:0;font-size:17px">Loading the engine index…</h2>
+      <p class="sub" id="desc"></p>
+      <div class="tabs" id="tabs"></div>
+      <div class="eq" id="eqs"></div>
+      <form id="form" onsubmit="return false"></form>
+      <div class="actions"><button class="go" id="go" disabled>Compute</button><span class="status" id="status">Starting Python…</span></div>
+    </section>
+    <section class="panel" id="outPanel" hidden>
+      <table><tbody id="out"></tbody></table>
+      <ul id="assume"></ul>
+    </section>
+    <section class="panel"><strong>References</strong><ul id="refs"></ul></section>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+(async () => {
+  const $ = id => document.getElementById(id);
+  const fmt = x => {
+    if (x === null || x === undefined) return '—';
+    if (typeof x === 'boolean') return x ? 'yes' : 'no';
+    if (Array.isArray(x)) return x.map(fmt).join(', ');
+    if (typeof x === 'object' && 're' in x) return `${fmt(x.re)} ${x.im < 0 ? '−' : '+'} ${fmt(Math.abs(x.im))} i`;
+    if (typeof x !== 'number') return String(x);
+    const a = Math.abs(x);
+    const s = a !== 0 && (a >= 1e5 || a < 1e-3) ? x.toExponential(5) : String(+x.toPrecision(6));
+    return s.replace('-', '−');
+  };
+  let index, py, current = null, currentFn = null;
+  const loaded = new Set();
+  try {
+    index = await (await fetch('engines_index.json')).json();
+  } catch (e) {
+    $('title').textContent = 'Could not load engines_index.json';
+    $('status').innerHTML = '<span class="err">Serve this folder over HTTP (for example GitHub Pages or python -m http.server); browsers block fetch from file://.</span>';
+    return;
+  }
+  for (const e of index.engines) {
+    const b = document.createElement('button');
+    b.innerHTML = `${e.title}<small>${e.engine} · v${e.version}</small>`;
+    b.onclick = () => select(e);
+    e.btn = b; $('nav').appendChild(b);
+  }
+  function select(e) {
+    current = e;
+    for (const x of index.engines) x.btn.setAttribute('aria-current', x === e);
+    $('title').textContent = e.title; $('desc').textContent = e.description;
+    $('refs').innerHTML = e.references.map(r => `<li>${r}</li>`).join('');
+    $('tabs').innerHTML = '';
+    for (const [name, fn] of Object.entries(e.functions)) {
+      const t = document.createElement('button'); t.type = 'button'; t.textContent = fn.title;
+      t.onclick = () => selectFn(name, t); $('tabs').appendChild(t);
+    }
+    selectFn(Object.keys(e.functions)[0], $('tabs').firstChild);
+  }
+  function selectFn(name, tab) {
+    currentFn = name;
+    for (const t of $('tabs').children) t.setAttribute('aria-pressed', t === tab);
+    const fn = current.functions[name];
+    $('eqs').innerHTML = fn.equations.map(q => `<div>${q}</div>`).join('');
+    $('form').innerHTML = fn.inputs.map(i => i.type === 'choice'
+      ? `<label>${i.label}<select name="${i.name}">${i.choices.map(c => `<option${c === i.default ? ' selected' : ''}>${c}</option>`).join('')}</select></label>`
+      : `<label>${i.label}<span class="field"><input name="${i.name}" type="number" step="any" value="${i.default}"${i.min !== undefined ? ` min="${i.min}"` : ''}${i.max !== undefined ? ` max="${i.max}"` : ''}><span class="unit">${i.ui_unit || ''}</span></span></label>`).join('');
+    $('outPanel').hidden = true;
+  }
+  async function ensureEngine(e) {
+    if (loaded.has(e.engine)) return;
+    if (e.requires.length) { $('status').textContent = `Loading ${e.requires.join(', ')}…`; await py.loadPackage(e.requires); }
+    for (const f of e.files) await writeFile(f);
+    loaded.add(e.engine);
+  }
+  async function writeFile(f) {
+    const text = await (await fetch('../' + f)).text();
+    const full = '/home/pyodide/' + f;
+    py.FS.mkdirTree(full.slice(0, full.lastIndexOf('/')));
+    py.FS.writeFile(full, text);
+  }
+  $('go').onclick = async () => {
+    const fn = current.functions[currentFn], kw = {};
+    for (const i of fn.inputs) {
+      const el = $('form').querySelector(`[name="${i.name}"]`);
+      if (i.type === 'choice') { kw[i.name] = el.value; continue; }
+      const v = parseFloat(el.value);
+      if (!Number.isFinite(v)) { $('status').innerHTML = `<span class="err">${i.label}: enter a number.</span>`; return; }
+      kw[i.name] = i.step === 1 ? Math.round(v) : v * (i.scale ?? 1);
+    }
+    $('go').disabled = true; $('status').textContent = 'Computing…';
+    try {
+      await ensureEngine(current);
+      py.globals.set('ARGS', JSON.stringify({ e: current.engine, f: currentFn, kw }));
+      const res = JSON.parse(py.runPython(`import json\nfrom engines import registry\na = json.loads(ARGS)\njson.dumps(registry.call(a['e'], a['f'], **a['kw']))`));
+      $('out').innerHTML = fn.outputs.map(o => {
+        const v = res.values[o.name];
+        const shown = typeof v === 'number' ? v / (o.scale ?? 1) : v;
+        return `<tr><td>${o.label}</td><td class="v">${fmt(shown)}</td><td>${o.ui_unit || ''}</td></tr>`;
+      }).join('');
+      $('assume').innerHTML = res.assumptions.map(a => `<li>${a}</li>`).join('');
+      $('outPanel').hidden = false; $('status').textContent = 'Done.';
+    } catch (err) {
+      const msg = String(err.message || err).split('\n').filter(Boolean).pop();
+      $('status').innerHTML = `<span class="err">${msg}</span>`;
+    }
+    $('go').disabled = false;
+  };
+  select(index.engines[0]);
+  try {
+    py = await loadPyodide();
+    await py.loadPackage('numpy');
+    for (const f of index.shared) await writeFile(f);
+    py.runPython("import sys\nsys.path.insert(0, '/home/pyodide')");
+    $('go').disabled = false; $('status').textContent = 'Python ready.';
+  } catch (err) {
+    $('status').innerHTML = `<span class="err">Pyodide could not start: ${err}</span>`;
+  }
+})();
+</script>
+</body>
+</html>

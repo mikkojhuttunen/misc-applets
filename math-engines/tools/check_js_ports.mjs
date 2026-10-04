@@ -57,5 +57,53 @@ const close = (label, got, want, rel, abs = 0) => {
   }
 }
 
+/* ---- er-waveguide-amplifier/er-engine.js: WGCORE (µm inside) and ER (SI) ---- */
+{
+  const ctx = vm.createContext({ Math, Float64Array, Float32Array, Uint8Array, Array, Number, Object, Error, JSON, isFinite });
+  vm.runInContext(fs.readFileSync(path.join(repo, 'er-waveguide-amplifier/er-engine.js'), 'utf8') + '\n;globalThis.__C = WGCORE(); globalThis.__ER = ER;', ctx);
+  const C = ctx.__C, ER = ctx.__ER, um = x => x * 1e6;
+  for (const r of V.materials_er) close(`er n(${r.material}, ${r.wavelength})`, C.nMat({ id: r.material }, um(r.wavelength)), r.n, 1e-12);
+  for (const r of V.er_cross_sections) {
+    close(`er σa(${r.wavelength})`, ER.sigmaAbsorption(r.wavelength, r.sigma_a_peak), r.sigma_a, 1e-12);
+    close(`er σe(${r.wavelength}, ${r.temperature} K)`, ER.sigmaEmission(r.wavelength, r.sigma_a_peak, r.temperature), r.sigma_e, 1e-12);
+  }
+  for (const r of V.er_pump_sigmas) {
+    const o = ER.pumpSigmas(r.pump_wavelength, r.sigma_a_peak, r.sigma_a_980, r.temperature);
+    close(`er pump σa(${r.pump_wavelength})`, o.a, r.sigma_a, 1e-12); close(`er pump σe(${r.pump_wavelength})`, o.e, r.sigma_e, 1e-12, 1e-40);
+  }
+  for (const r of V.er_concentration) {
+    const o = ER.concentrationEffects(r.n_er, r.c_up, r.upconversion, r.quenching, r.k_q, r.f_q);
+    close(`er C_up ${r.upconversion}/${r.quenching}`, o.cupEff, r.c_up_eff, 1e-12); close(`er f_q ${r.upconversion}/${r.quenching}`, o.fq, r.f_q_eff, 1e-12, 1e-15);
+  }
+  for (const r of V.er_upper_population) close(`er N2 ru=${r.rate_up} C=${r.c_up}`, ER.upperPopulation(r.rate_up, r.rate_down, r.n_active, r.tau, r.c_up), r.n2, 1e-12, 1);
+  for (const r of V.er_propagate) {
+    const o = ER.propagate({ pumpPower: r.pump_power, signalPower: r.signal_power, length: r.length, steps: r.steps, wp: r.weight_pump, ws: r.weight_signal,
+      area: r.cell_area, nEr: r.n_er, tau: r.tau, cupEff: r.c_up_eff, fq: r.f_q, sap: r.sigma_ap, sep: r.sigma_ep, sas: r.sigma_as, ses: r.sigma_es,
+      lp: r.pump_wavelength, ls: r.signal_wavelength, alpha: r.alpha });
+    const tag = `er propagate Pp=${r.pump_power} λp=${r.pump_wavelength}`;
+    close(`${tag} gain`, o.gainLn, r.gain_ln, 1e-10, 1e-12); close(`${tag} pump out`, o.pumpPower[r.steps], r.pump_out, 1e-10, 1e-15);
+    close(`${tag} I1`, o.I1, r.I1, 1e-10); close(`${tag} I2`, o.I2, r.I2, 1e-10, 1e-6);
+    close(`${tag} inv in`, o.inversion[0], r.inversion_in, 1e-10, 1e-14); close(`${tag} inv out`, o.inversion[r.steps], r.inversion_out, 1e-10, 1e-14);
+    close(`${tag} probe 1550`, ER.probeGainLn(1.55e-6, o.I1, o.I2, r.length, r.alpha, 1, 5.7e-25, 295), r.probe_1550, 1e-10, 1e-12);
+  }
+  const cst = n => ({ id: 'const', n });
+  for (const r of V.eim) {
+    const G = { geo: r.geometry, t: um(r.film_thickness), w: um(r.width), h: um(r.strip_height), tout: um(r.slab_thickness), d: um(r.depth),
+      mats: { sup: cst(r.n_sup), strip: cst(r.n_strip), film: cst(r.n_film), sub: cst(r.n_sub) } };
+    const pols = {}; pols[r.polarization] = true;
+    const got = C.solveEIM(G, um(r.wavelength), pols).modes.map(m => m.N);
+    r.neff.forEach((n, i) => close(`er EIM ${r.geometry} ${r.polarization} #${i}`, got[i], n, 1e-9));
+  }
+  for (const r of V.fd) {
+    const xe = r.x_edges.map(um), ye = r.y_edges.map(um), Nx = xe.length - 1, Ny = ye.length - 1;
+    const grid = { Nx, Ny, xc: new Float64Array(Nx), dx: new Float64Array(Nx), yc: new Float64Array(Ny), dy: new Float64Array(Ny),
+      reg: Uint8Array.from(r.regions), cb: { y0: um(r.core_y[0]), y1: um(r.core_y[1]) } };
+    for (let i = 0; i < Nx; i++) { grid.xc[i] = 0.5 * (xe[i] + xe[i + 1]); grid.dx[i] = xe[i + 1] - xe[i]; }
+    for (let j = 0; j < Ny; j++) { grid.yc[j] = 0.5 * (ye[j] + ye[j + 1]); grid.dy[j] = ye[j + 1] - ye[j]; }
+    const got = C.fdSolve(grid, r.indices, um(r.wavelength), r.polarization, r.neff.length).map(m => m.N);
+    r.neff.forEach((n, i) => close(`er FD ${r.polarization} #${i}`, got[i], n, 1e-9));
+  }
+}
+
 console.log(`${checks - fails}/${checks} JS port checks passed`);
 process.exit(fails ? 1 : 0);

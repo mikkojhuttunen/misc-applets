@@ -1,17 +1,18 @@
 engine: materials
-version: 1
+version: 2
 title: Material refractive index
-description: Sellmeier phase and group index of SiO2, Si3N4, LiNbO3 (e, o), LiTaO3 (approximate) and Si.
+description: Sellmeier/Cauchy phase and group index of SiO2, Si3N4, LiNbO3 (e, o), LiTaO3 (e, o; approximate), Si and amorphous (Er:)Al2O3.
 references:
   - "I. H. Malitson, JOSA 55, 1205 (1965)"
   - "D. E. Zelmon, D. L. Small, D. Jundt, JOSA B 14, 3319 (1997)"
   - "K. Luke et al., Opt. Lett. 40, 4823 (2015)"
+  - "K. Wörhoff et al., Adv. OptoElectron. 2008, 783213 (2008), reactive co-sputtered Al2O3 films"
 functions:
   refractive_index:
     title: Phase and group index
-    equations: ["n^2 = 1 + sum_i A_i λ^2 / (λ^2 - B_i)", "n_g = n - λ dn/dλ"]
+    equations: ["n^2 = 1 + sum_i A_i λ^2 / (λ^2 - B_i)", "Al2O3: n = A + B/λ^2", "n_g = n - λ dn/dλ"]
     inputs:
-      - {name: material, label: "Material", type: choice, choices: [sio2, si3n4, ln_e, ln_o, lt_e, si], default: sio2}
+      - {name: material, label: "Material", type: choice, choices: [sio2, si3n4, ln_e, ln_o, lt_e, lt_o, si, al2o3, er_al2o3], default: sio2}
       - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 200}
     outputs:
       - {name: n, label: "Phase index n", ui_unit: "", scale: 1.0}

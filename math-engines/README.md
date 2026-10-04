@@ -5,11 +5,13 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | Engine | Computes | Extra deps |
 |---|---|---|
 | [gaussian_beam](engines/gaussian_beam/) | Rayleigh range, divergence, w(z), R(z), Gouy phase, ABCD propagation, thin-lens focusing | |
-| [materials](engines/materials/) | Sellmeier phase and group index: SiO₂, Si₃N₄, MgO:LiNbO₃ (e, o), LiTaO₃ (e), Si | |
+| [materials](engines/materials/) | Sellmeier/Cauchy phase and group index: SiO₂, Si₃N₄, MgO:LiNbO₃ (e, o), LiTaO₃ (e, o), Si, amorphous (Er:)Al₂O₃ | |
 | [slab_waveguide](engines/slab_waveguide/) | Three-layer and multilayer slab effective index, V, b, mode count | |
 | [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra | |
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
 | [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius | scipy |
+| [channel_waveguide](engines/channel_waveguide/) | Strip-loaded, rib, ridge and buried guides: effective index method, semi-vectorial FD modes, field share per region | scipy |
+| [erbium_amplifier](engines/erbium_amplifier/) | Er:Al₂O₃ cross-sections (McCumber), upconversion and quenching, steady-state inversion, pump/signal propagation, probe gain | |
 
 ## Use
 
@@ -64,6 +66,7 @@ The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out
 | Port | Covers | Checked by |
 |---|---|---|
 | `dbr-structures/dbr-engine.js` | Sellmeier indices, three-layer slab, coupled-mode reflectance, transfer-matrix stack | `check_js_ports.mjs` |
+| `er-waveguide-amplifier/er-engine.js` | materials, multilayer slab, EIM, semi-vectorial FD (on a shared grid), Er cross-sections, concentration effects, inversion, propagation, probe gain | `check_js_ports.mjs` |
 | `parametric-amplifier/index.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver | `check_js_ports.mjs` (functions extracted from the page) |
 
-Known deviation: the ports work in µm inside; the check converts SI to µm at the boundary.
+Known deviation: the waveguide parts of the ports work in µm inside; the check converts SI to µm at the boundary. The erbium part of `er-engine.js` is SI. The grid builder and the optimizer in the amplifier page are numerical front-end choices with no Python counterpart; the FD operator they feed is checked.

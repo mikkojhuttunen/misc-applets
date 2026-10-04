@@ -1,0 +1,72 @@
+engine: erbium_amplifier
+version: 1
+title: Erbium-doped waveguide amplifier
+description: Er:Al2O3 cross-sections (band model + McCumber), concentration effects (upconversion, quenched ions), steady-state inversion and pump/signal propagation with mode overlaps.
+references:
+  - "E. Desurvire, Erbium-Doped Fiber Amplifiers (Wiley, 1994), ch. 1-2"
+  - "D. E. McCumber, Phys. Rev. 136, A954 (1964)"
+  - "J. Bradley et al., JOSA B 27, 187 (2010), Er:Al2O3 spectroscopy and energy-transfer upconversion"
+  - "L. Agazzi et al., JOSA B 30, 663 (2013), quenched ions in Er:Al2O3"
+common_inputs:
+  sigma_a_peak: {label: "Peak absorption cross-section, 1533 nm", ui_unit: "1e-21 cm^2", scale: 1.0e-25, default: 5.7, min: 0.1}
+  temperature: {label: "Temperature", ui_unit: K, scale: 1.0, default: 295, min: 1}
+  n_er: {label: "Er concentration", ui_unit: "1e20 cm^-3", scale: 1.0e+26, default: 1.5, min: 0.01}
+  c_up: {label: "Upconversion coefficient (at 1e20 cm^-3 if proportional)", ui_unit: "1e-18 cm^3/s", scale: 1.0e-24, default: 4.0, min: 0}
+  upconversion: {label: "Upconversion model", type: choice, choices: [proportional, fixed], default: proportional}
+  quenching: {label: "Quenching model", type: choice, choices: [proportional, fixed, none], default: proportional}
+  k_q: {label: "Quenched share per 1e20 cm^-3", ui_unit: "%", scale: 0.01, default: 5, min: 0}
+  f_q: {label: "Quenched share (fixed model)", ui_unit: "%", scale: 0.01, default: 10, min: 0, max: 95}
+functions:
+  cross_sections:
+    title: Absorption and emission cross-sections
+    equations: ["σ_a(λ) = σ_peak Σ a_i exp(-4 ln2 ((λ - λ_i)/Δλ_i)^2) / max", "σ_e = σ_a exp[(hc/λ0 - hc/λ)/kT], λ0 = 1532 nm"]
+    inputs:
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1532, min: 1400, max: 1700}
+      - sigma_a_peak
+      - temperature
+    outputs:
+      - {name: sigma_a, label: "Absorption cross-section σ_a", ui_unit: "1e-21 cm^2", scale: 1.0e-25}
+      - {name: sigma_e, label: "Emission cross-section σ_e", ui_unit: "1e-21 cm^2", scale: 1.0e-25}
+  concentration_effects:
+    title: Upconversion and quenching at a concentration
+    equations: ["C_up,eff = C_up N_Er / 1e26 m^-3 (proportional)", "f_q = k_q N_Er / 1e26 m^-3 (proportional), capped at 0.95"]
+    inputs:
+      - n_er
+      - c_up
+      - upconversion
+      - quenching
+      - k_q
+      - f_q
+    outputs:
+      - {name: c_up_eff, label: "Effective C_up", ui_unit: "1e-18 cm^3/s", scale: 1.0e-24}
+      - {name: f_q, label: "Quenched share", ui_unit: "%", scale: 0.01}
+      - {name: n_active, label: "Active ions", ui_unit: "1e20 cm^-3", scale: 1.0e+26}
+  uniform_amplifier:
+    title: Amplifier with given overlaps (uniform intensity in the doped area)
+    equations: ["0 = (R_p,a + R_s,a) N1 - (R_p,e + R_s,e) N2 - N2/τ - C_up N2^2", "dP_s/dz = [Γ_s (σ_e N2 - σ_a N1) - α] P_s", "dP_p/dz = -[Γ_p (σ_a,p N1 - σ_e,p N2) + α] P_p"]
+    inputs:
+      - {name: pump_wavelength, label: "Pump wavelength", ui_unit: nm, scale: 1.0e-9, default: 980, min: 900, max: 1500}
+      - {name: signal_wavelength, label: "Signal wavelength", ui_unit: nm, scale: 1.0e-9, default: 1532, min: 1450, max: 1650}
+      - {name: pump_power, label: "Launched pump power", ui_unit: mW, scale: 1.0e-3, default: 50, min: 0}
+      - {name: signal_power, label: "Launched signal power", ui_unit: mW, scale: 1.0e-3, default: 0.001, min: 1.0e-9}
+      - {name: length, label: "Length", ui_unit: cm, scale: 0.01, default: 3, min: 0.001}
+      - n_er
+      - {name: gamma_pump, label: "Pump overlap Γ_p", ui_unit: "%", scale: 0.01, default: 40, min: 0, max: 100}
+      - {name: gamma_signal, label: "Signal overlap Γ_s", ui_unit: "%", scale: 0.01, default: 30, min: 0, max: 100}
+      - {name: doped_area, label: "Doped cross-section area", ui_unit: "µm^2", scale: 1.0e-12, default: 0.8, min: 0.001}
+      - {name: tau, label: "4I13/2 lifetime", ui_unit: ms, scale: 1.0e-3, default: 7.5, min: 0.01}
+      - c_up
+      - upconversion
+      - quenching
+      - k_q
+      - f_q
+      - {name: alpha, label: "Background loss", ui_unit: dB/cm, scale: 23.02585093, default: 0.25, min: 0}
+      - sigma_a_peak
+      - {name: sigma_a_980, label: "Pump absorption cross-section, 980 nm", ui_unit: "1e-21 cm^2", scale: 1.0e-25, default: 1.7, min: 0.01}
+      - temperature
+    outputs:
+      - {name: gain_ln, label: "Net signal gain", ui_unit: dB, scale: 0.2302585093}
+      - {name: signal_out, label: "Output signal power", ui_unit: mW, scale: 1.0e-3}
+      - {name: pump_out, label: "Output pump power", ui_unit: mW, scale: 1.0e-3}
+      - {name: inversion_in, label: "Inversion N2/N_Er at the input", ui_unit: "%", scale: 0.01}
+      - {name: f_q, label: "Quenched share", ui_unit: "%", scale: 0.01}

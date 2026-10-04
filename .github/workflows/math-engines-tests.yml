@@ -5,12 +5,14 @@ on:
     paths:
       - "math-engines/**"
       - "dbr-structures/dbr-engine.js"
+      - "er-waveguide-amplifier/er-engine.js"
       - "parametric-amplifier/index.html"
       - ".github/workflows/math-engines-tests.yml"
   pull_request:
     paths:
       - "math-engines/**"
       - "dbr-structures/dbr-engine.js"
+      - "er-waveguide-amplifier/er-engine.js"
       - "parametric-amplifier/index.html"
       - ".github/workflows/math-engines-tests.yml"
 

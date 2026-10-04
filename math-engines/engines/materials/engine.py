@@ -25,6 +25,9 @@ _SOURCES = {
     "ln_o": "D. E. Zelmon et al., JOSA B 14, 3319 (1997), 5% MgO:LiNbO3, ordinary",
     "si": "Salzberg & Villa (1957) fit, real part only, valid above about 1.2 µm",
     "lt_e": "Approximate single-pole fit to LiTaO3 extraordinary index (±0.01); verify before design use",
+    "lt_o": "lt_e fit with the pole strength scaled so that n_e - n_o ≈ 0.004 (LiTaO3 ordinary, approximate, ±0.01)",
+    "al2o3": "Cauchy fit n = 1.646 + 0.00962/λ²[µm] to sputtered amorphous Al2O3 films (n ≈ 1.650 at 1550 nm, ±0.01)",
+    "er_al2o3": "Same Cauchy fit as al2o3: Er doping at 1e26 m^-3 changes the index negligibly",
 }
 MATERIALS = tuple(_SOURCES)
 
@@ -34,6 +37,10 @@ def _sellmeier(material: str, wavelength):
     l2 = lu * lu
     if material == "lt_e":
         return np.sqrt(1 + 3.502 * l2 / (l2 - 0.035) - 0.025 * l2)
+    if material == "lt_o":
+        return np.sqrt(1 + 3.4852 * l2 / (l2 - 0.035) - 0.025 * l2)
+    if material in ("al2o3", "er_al2o3"):
+        return 1.646 + 0.00962 / l2
     n2 = np.ones_like(l2)
     for A, B in _SELLMEIER[material]:
         n2 = n2 + A * l2 / (l2 - B)

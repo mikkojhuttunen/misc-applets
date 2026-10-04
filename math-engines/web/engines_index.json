@@ -209,6 +209,672 @@
    }
   },
   {
+   "engine": "channel_waveguide",
+   "version": 1,
+   "title": "Channel waveguide modes (strip-loaded, rib, ridge, buried)",
+   "description": "Effective index method and a semi-vectorial 2D finite-difference solver for channel waveguides, with the field share per material region.",
+   "requires": [
+    "scipy"
+   ],
+   "references": [
+    "K. Okamoto, Fundamentals of Optical Waveguides, 2nd ed. (Academic Press, 2006), ch. 2 (effective index method)",
+    "M. S. Stern, IEE Proc. J 135, 56 (1988), semivectorial finite-difference mode solver",
+    "G. R. Hadley, J. Lightwave Technol. 20, 1210 (2002), finite-difference mode solvers"
+   ],
+   "files": [
+    "engines/channel_waveguide/__init__.py",
+    "engines/channel_waveguide/engine.py",
+    "engines/slab_waveguide/__init__.py",
+    "engines/slab_waveguide/engine.py"
+   ],
+   "functions": {
+    "eim_modes": {
+     "title": "Effective index method",
+     "equations": [
+      "vertical: multilayer slab modes N_in (under the core), N_out (beside it)",
+      "lateral: three-layer slab N_out | N_in (width w) | N_out, other polarisation"
+     ],
+     "inputs": [
+      {
+       "name": "geometry",
+       "label": "Geometry",
+       "type": "choice",
+       "choices": [
+        "strip",
+        "rib",
+        "ridge",
+        "buried"
+       ],
+       "default": "strip"
+      },
+      {
+       "name": "width",
+       "label": "Strip / rib / core width w",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0.05
+      },
+      {
+       "name": "film_thickness",
+       "label": "Film or core thickness t",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4,
+       "min": 0.01
+      },
+      {
+       "name": "n_sup",
+       "label": "Superstrate index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1.0
+      },
+      {
+       "name": "n_film",
+       "label": "Film / core index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.65,
+       "min": 1.0
+      },
+      {
+       "name": "n_sub",
+       "label": "Substrate index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1.0
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532,
+       "min": 200
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation family",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "strip_height",
+       "label": "Strip height h (strip-loaded)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4,
+       "min": 0
+      },
+      {
+       "name": "n_strip",
+       "label": "Strip index (strip-loaded)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.65,
+       "min": 1.0
+      },
+      {
+       "name": "slab_thickness",
+       "label": "Slab beside the rib (rib)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.0,
+       "min": 0
+      },
+      {
+       "name": "depth",
+       "label": "Core top to surface (buried)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.0,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Effective indices (descending)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_modes",
+       "label": "Guided modes of this family",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "outside_slab_neff",
+       "label": "Outside slab fundamental",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "fd_fundamental": {
+     "title": "Fundamental mode, semi-vectorial finite differences",
+     "equations": [
+      "quasi-TE: ∂x[(1/n²)∂x(n² E_x)] + ∂y² E_x + k0² n² E_x = β² E_x",
+      "share_r = ∫_r |E|² dA / ∫|E|² dA"
+     ],
+     "inputs": [
+      {
+       "name": "geometry",
+       "label": "Geometry",
+       "type": "choice",
+       "choices": [
+        "strip",
+        "rib",
+        "ridge",
+        "buried"
+       ],
+       "default": "strip"
+      },
+      {
+       "name": "width",
+       "label": "Strip / rib / core width w",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0.05
+      },
+      {
+       "name": "film_thickness",
+       "label": "Film or core thickness t",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4,
+       "min": 0.01
+      },
+      {
+       "name": "n_sup",
+       "label": "Superstrate index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1.0
+      },
+      {
+       "name": "n_film",
+       "label": "Film / core index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.65,
+       "min": 1.0
+      },
+      {
+       "name": "n_sub",
+       "label": "Substrate index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1.0
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532,
+       "min": 200
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation family",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "strip_height",
+       "label": "Strip height h (strip-loaded)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4,
+       "min": 0
+      },
+      {
+       "name": "n_strip",
+       "label": "Strip index (strip-loaded)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.65,
+       "min": 1.0
+      },
+      {
+       "name": "slab_thickness",
+       "label": "Slab beside the rib (rib)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.0,
+       "min": 0
+      },
+      {
+       "name": "depth",
+       "label": "Core top to surface (buried)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.0,
+       "min": 0
+      },
+      {
+       "name": "cell",
+       "label": "Grid cell size",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 40,
+       "min": 5
+      },
+      {
+       "name": "margin",
+       "label": "Window margin around the core",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 1.5,
+       "min": 0.1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Effective index",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "share_film",
+       "label": "Field share in the film / core",
+       "ui_unit": "%",
+       "scale": 0.01
+      },
+      {
+       "name": "share_strip",
+       "label": "Field share in the strip",
+       "ui_unit": "%",
+       "scale": 0.01
+      },
+      {
+       "name": "share_sup",
+       "label": "Field share in the superstrate",
+       "ui_unit": "%",
+       "scale": 0.01
+      },
+      {
+       "name": "share_sub",
+       "label": "Field share in the substrate",
+       "ui_unit": "%",
+       "scale": 0.01
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "erbium_amplifier",
+   "version": 1,
+   "title": "Erbium-doped waveguide amplifier",
+   "description": "Er:Al2O3 cross-sections (band model + McCumber), concentration effects (upconversion, quenched ions), steady-state inversion and pump/signal propagation with mode overlaps.",
+   "requires": [],
+   "references": [
+    "E. Desurvire, Erbium-Doped Fiber Amplifiers (Wiley, 1994), ch. 1-2",
+    "D. E. McCumber, Phys. Rev. 136, A954 (1964)",
+    "J. Bradley et al., JOSA B 27, 187 (2010), Er:Al2O3 spectroscopy and energy-transfer upconversion",
+    "L. Agazzi et al., JOSA B 30, 663 (2013), quenched ions in Er:Al2O3"
+   ],
+   "files": [
+    "engines/erbium_amplifier/__init__.py",
+    "engines/erbium_amplifier/engine.py"
+   ],
+   "functions": {
+    "cross_sections": {
+     "title": "Absorption and emission cross-sections",
+     "equations": [
+      "σ_a(λ) = σ_peak Σ a_i exp(-4 ln2 ((λ - λ_i)/Δλ_i)^2) / max",
+      "σ_e = σ_a exp[(hc/λ0 - hc/λ)/kT], λ0 = 1532 nm"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532,
+       "min": 1400,
+       "max": 1700
+      },
+      {
+       "name": "sigma_a_peak",
+       "label": "Peak absorption cross-section, 1533 nm",
+       "ui_unit": "1e-21 cm^2",
+       "scale": 1e-25,
+       "default": 5.7,
+       "min": 0.1
+      },
+      {
+       "name": "temperature",
+       "label": "Temperature",
+       "ui_unit": "K",
+       "scale": 1.0,
+       "default": 295,
+       "min": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "sigma_a",
+       "label": "Absorption cross-section σ_a",
+       "ui_unit": "1e-21 cm^2",
+       "scale": 1e-25
+      },
+      {
+       "name": "sigma_e",
+       "label": "Emission cross-section σ_e",
+       "ui_unit": "1e-21 cm^2",
+       "scale": 1e-25
+      }
+     ]
+    },
+    "concentration_effects": {
+     "title": "Upconversion and quenching at a concentration",
+     "equations": [
+      "C_up,eff = C_up N_Er / 1e26 m^-3 (proportional)",
+      "f_q = k_q N_Er / 1e26 m^-3 (proportional), capped at 0.95"
+     ],
+     "inputs": [
+      {
+       "name": "n_er",
+       "label": "Er concentration",
+       "ui_unit": "1e20 cm^-3",
+       "scale": 1e+26,
+       "default": 1.5,
+       "min": 0.01
+      },
+      {
+       "name": "c_up",
+       "label": "Upconversion coefficient (at 1e20 cm^-3 if proportional)",
+       "ui_unit": "1e-18 cm^3/s",
+       "scale": 1e-24,
+       "default": 4.0,
+       "min": 0
+      },
+      {
+       "name": "upconversion",
+       "label": "Upconversion model",
+       "type": "choice",
+       "choices": [
+        "proportional",
+        "fixed"
+       ],
+       "default": "proportional"
+      },
+      {
+       "name": "quenching",
+       "label": "Quenching model",
+       "type": "choice",
+       "choices": [
+        "proportional",
+        "fixed",
+        "none"
+       ],
+       "default": "proportional"
+      },
+      {
+       "name": "k_q",
+       "label": "Quenched share per 1e20 cm^-3",
+       "ui_unit": "%",
+       "scale": 0.01,
+       "default": 5,
+       "min": 0
+      },
+      {
+       "name": "f_q",
+       "label": "Quenched share (fixed model)",
+       "ui_unit": "%",
+       "scale": 0.01,
+       "default": 10,
+       "min": 0,
+       "max": 95
+      }
+     ],
+     "outputs": [
+      {
+       "name": "c_up_eff",
+       "label": "Effective C_up",
+       "ui_unit": "1e-18 cm^3/s",
+       "scale": 1e-24
+      },
+      {
+       "name": "f_q",
+       "label": "Quenched share",
+       "ui_unit": "%",
+       "scale": 0.01
+      },
+      {
+       "name": "n_active",
+       "label": "Active ions",
+       "ui_unit": "1e20 cm^-3",
+       "scale": 1e+26
+      }
+     ]
+    },
+    "uniform_amplifier": {
+     "title": "Amplifier with given overlaps (uniform intensity in the doped area)",
+     "equations": [
+      "0 = (R_p,a + R_s,a) N1 - (R_p,e + R_s,e) N2 - N2/τ - C_up N2^2",
+      "dP_s/dz = [Γ_s (σ_e N2 - σ_a N1) - α] P_s",
+      "dP_p/dz = -[Γ_p (σ_a,p N1 - σ_e,p N2) + α] P_p"
+     ],
+     "inputs": [
+      {
+       "name": "pump_wavelength",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 980,
+       "min": 900,
+       "max": 1500
+      },
+      {
+       "name": "signal_wavelength",
+       "label": "Signal wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532,
+       "min": 1450,
+       "max": 1650
+      },
+      {
+       "name": "pump_power",
+       "label": "Launched pump power",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 50,
+       "min": 0
+      },
+      {
+       "name": "signal_power",
+       "label": "Launched signal power",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 0.001,
+       "min": 1e-09
+      },
+      {
+       "name": "length",
+       "label": "Length",
+       "ui_unit": "cm",
+       "scale": 0.01,
+       "default": 3,
+       "min": 0.001
+      },
+      {
+       "name": "n_er",
+       "label": "Er concentration",
+       "ui_unit": "1e20 cm^-3",
+       "scale": 1e+26,
+       "default": 1.5,
+       "min": 0.01
+      },
+      {
+       "name": "gamma_pump",
+       "label": "Pump overlap Γ_p",
+       "ui_unit": "%",
+       "scale": 0.01,
+       "default": 40,
+       "min": 0,
+       "max": 100
+      },
+      {
+       "name": "gamma_signal",
+       "label": "Signal overlap Γ_s",
+       "ui_unit": "%",
+       "scale": 0.01,
+       "default": 30,
+       "min": 0,
+       "max": 100
+      },
+      {
+       "name": "doped_area",
+       "label": "Doped cross-section area",
+       "ui_unit": "µm^2",
+       "scale": 1e-12,
+       "default": 0.8,
+       "min": 0.001
+      },
+      {
+       "name": "tau",
+       "label": "4I13/2 lifetime",
+       "ui_unit": "ms",
+       "scale": 0.001,
+       "default": 7.5,
+       "min": 0.01
+      },
+      {
+       "name": "c_up",
+       "label": "Upconversion coefficient (at 1e20 cm^-3 if proportional)",
+       "ui_unit": "1e-18 cm^3/s",
+       "scale": 1e-24,
+       "default": 4.0,
+       "min": 0
+      },
+      {
+       "name": "upconversion",
+       "label": "Upconversion model",
+       "type": "choice",
+       "choices": [
+        "proportional",
+        "fixed"
+       ],
+       "default": "proportional"
+      },
+      {
+       "name": "quenching",
+       "label": "Quenching model",
+       "type": "choice",
+       "choices": [
+        "proportional",
+        "fixed",
+        "none"
+       ],
+       "default": "proportional"
+      },
+      {
+       "name": "k_q",
+       "label": "Quenched share per 1e20 cm^-3",
+       "ui_unit": "%",
+       "scale": 0.01,
+       "default": 5,
+       "min": 0
+      },
+      {
+       "name": "f_q",
+       "label": "Quenched share (fixed model)",
+       "ui_unit": "%",
+       "scale": 0.01,
+       "default": 10,
+       "min": 0,
+       "max": 95
+      },
+      {
+       "name": "alpha",
+       "label": "Background loss",
+       "ui_unit": "dB/cm",
+       "scale": 23.02585093,
+       "default": 0.25,
+       "min": 0
+      },
+      {
+       "name": "sigma_a_peak",
+       "label": "Peak absorption cross-section, 1533 nm",
+       "ui_unit": "1e-21 cm^2",
+       "scale": 1e-25,
+       "default": 5.7,
+       "min": 0.1
+      },
+      {
+       "name": "sigma_a_980",
+       "label": "Pump absorption cross-section, 980 nm",
+       "ui_unit": "1e-21 cm^2",
+       "scale": 1e-25,
+       "default": 1.7,
+       "min": 0.01
+      },
+      {
+       "name": "temperature",
+       "label": "Temperature",
+       "ui_unit": "K",
+       "scale": 1.0,
+       "default": 295,
+       "min": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "gain_ln",
+       "label": "Net signal gain",
+       "ui_unit": "dB",
+       "scale": 0.2302585093
+      },
+      {
+       "name": "signal_out",
+       "label": "Output signal power",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "pump_out",
+       "label": "Output pump power",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "inversion_in",
+       "label": "Inversion N2/N_Er at the input",
+       "ui_unit": "%",
+       "scale": 0.01
+      },
+      {
+       "name": "f_q",
+       "label": "Quenched share",
+       "ui_unit": "%",
+       "scale": 0.01
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "gaussian_beam",
    "version": 1,
    "title": "Gaussian beam",
@@ -434,14 +1100,15 @@
   },
   {
    "engine": "materials",
-   "version": 1,
+   "version": 2,
    "title": "Material refractive index",
-   "description": "Sellmeier phase and group index of SiO2, Si3N4, LiNbO3 (e, o), LiTaO3 (approximate) and Si.",
+   "description": "Sellmeier/Cauchy phase and group index of SiO2, Si3N4, LiNbO3 (e, o), LiTaO3 (e, o; approximate), Si and amorphous (Er:)Al2O3.",
    "requires": [],
    "references": [
     "I. H. Malitson, JOSA 55, 1205 (1965)",
     "D. E. Zelmon, D. L. Small, D. Jundt, JOSA B 14, 3319 (1997)",
-    "K. Luke et al., Opt. Lett. 40, 4823 (2015)"
+    "K. Luke et al., Opt. Lett. 40, 4823 (2015)",
+    "K. Wörhoff et al., Adv. OptoElectron. 2008, 783213 (2008), reactive co-sputtered Al2O3 films"
    ],
    "files": [
     "engines/materials/__init__.py",
@@ -452,6 +1119,7 @@
      "title": "Phase and group index",
      "equations": [
       "n^2 = 1 + sum_i A_i λ^2 / (λ^2 - B_i)",
+      "Al2O3: n = A + B/λ^2",
       "n_g = n - λ dn/dλ"
      ],
      "inputs": [
@@ -465,7 +1133,10 @@
         "ln_e",
         "ln_o",
         "lt_e",
-        "si"
+        "lt_o",
+        "si",
+        "al2o3",
+        "er_al2o3"
        ],
        "default": "sio2"
       },

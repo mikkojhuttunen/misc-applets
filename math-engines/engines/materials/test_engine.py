@@ -38,3 +38,16 @@ def test_mgo_lithium_niobate_telecom_values():
 def test_unknown_material_is_rejected():
     with pytest.raises(ValueError, match="material"):
         mat.refractive_index("unobtainium", 1.55e-6)
+
+
+def test_amorphous_alumina_telecom_and_dispersion():
+    # Cauchy fit to sputtered Al2O3: n(1550 nm) = 1.646 + 0.00962/1.55^2 = 1.6500 (hand check)
+    assert mat.index("al2o3", 1.55e-6) == pytest.approx(1.6500, abs=1e-4)
+    assert mat.index("er_al2o3", 1.55e-6) == mat.index("al2o3", 1.55e-6)
+
+
+def test_lithium_tantalate_weak_positive_birefringence():
+    # LiTaO3: n_e - n_o ≈ +0.004 across the near infrared
+    for lam in (0.8e-6, 1.06e-6, 1.55e-6):
+        d = mat.index("lt_e", lam) - mat.index("lt_o", lam)
+        assert 0.003 < d < 0.005

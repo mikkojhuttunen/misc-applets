@@ -53,7 +53,7 @@ def build() -> dict:
             },
         })
     # engines that import other engines need their files too
-    deps = {"step_index_fiber": ["materials"]}
+    deps = {"step_index_fiber": ["materials"], "channel_waveguide": ["slab_waveguide"]}
     for e in engines:
         for dep in deps.get(e["engine"], []):
             e["files"] = sorted(set(e["files"]) | {f"engines/{dep}/__init__.py", f"engines/{dep}/engine.py"})

@@ -1,0 +1,55 @@
+engine: channel_waveguide
+version: 1
+title: Channel waveguide modes (strip-loaded, rib, ridge, buried)
+description: Effective index method and a semi-vectorial 2D finite-difference solver for channel waveguides, with the field share per material region.
+requires: [scipy]
+references:
+  - "K. Okamoto, Fundamentals of Optical Waveguides, 2nd ed. (Academic Press, 2006), ch. 2 (effective index method)"
+  - "M. S. Stern, IEE Proc. J 135, 56 (1988), semivectorial finite-difference mode solver"
+  - "G. R. Hadley, J. Lightwave Technol. 20, 1210 (2002), finite-difference mode solvers"
+common_inputs:
+  geometry: {label: "Geometry", type: choice, choices: [strip, rib, ridge, buried], default: strip}
+  width: {label: "Strip / rib / core width w", ui_unit: µm, scale: 1.0e-6, default: 2.0, min: 0.05}
+  film_thickness: {label: "Film or core thickness t", ui_unit: µm, scale: 1.0e-6, default: 0.4, min: 0.01}
+  n_sup: {label: "Superstrate index", ui_unit: "", scale: 1.0, default: 1.444, min: 1.0}
+  n_film: {label: "Film / core index", ui_unit: "", scale: 1.0, default: 1.65, min: 1.0}
+  n_sub: {label: "Substrate index", ui_unit: "", scale: 1.0, default: 1.444, min: 1.0}
+  wavelength: {label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1532, min: 200}
+  polarization: {label: "Polarisation family", type: choice, choices: [TE, TM], default: TE}
+  strip_height: {label: "Strip height h (strip-loaded)", ui_unit: µm, scale: 1.0e-6, default: 0.4, min: 0}
+  n_strip: {label: "Strip index (strip-loaded)", ui_unit: "", scale: 1.0, default: 1.65, min: 1.0}
+  slab_thickness: {label: "Slab beside the rib (rib)", ui_unit: µm, scale: 1.0e-6, default: 0.0, min: 0}
+  depth: {label: "Core top to surface (buried)", ui_unit: µm, scale: 1.0e-6, default: 0.0, min: 0}
+functions:
+  eim_modes:
+    title: Effective index method
+    equations: ["vertical: multilayer slab modes N_in (under the core), N_out (beside it)", "lateral: three-layer slab N_out | N_in (width w) | N_out, other polarisation"]
+    inputs: [geometry, width, film_thickness, n_sup, n_film, n_sub, wavelength, polarization, strip_height, n_strip, slab_thickness, depth]
+    outputs:
+      - {name: neff, label: "Effective indices (descending)", ui_unit: "", scale: 1.0}
+      - {name: n_modes, label: "Guided modes of this family", ui_unit: "", scale: 1.0}
+      - {name: outside_slab_neff, label: "Outside slab fundamental", ui_unit: "", scale: 1.0}
+  fd_fundamental:
+    title: Fundamental mode, semi-vectorial finite differences
+    equations: ["quasi-TE: ∂x[(1/n²)∂x(n² E_x)] + ∂y² E_x + k0² n² E_x = β² E_x", "share_r = ∫_r |E|² dA / ∫|E|² dA"]
+    inputs:
+      - geometry
+      - width
+      - film_thickness
+      - n_sup
+      - n_film
+      - n_sub
+      - wavelength
+      - polarization
+      - strip_height
+      - n_strip
+      - slab_thickness
+      - depth
+      - {name: cell, label: "Grid cell size", ui_unit: nm, scale: 1.0e-9, default: 40, min: 5}
+      - {name: margin, label: "Window margin around the core", ui_unit: µm, scale: 1.0e-6, default: 1.5, min: 0.1}
+    outputs:
+      - {name: neff, label: "Effective index", ui_unit: "", scale: 1.0}
+      - {name: share_film, label: "Field share in the film / core", ui_unit: "%", scale: 0.01}
+      - {name: share_strip, label: "Field share in the strip", ui_unit: "%", scale: 0.01}
+      - {name: share_sup, label: "Field share in the superstrate", ui_unit: "%", scale: 0.01}
+      - {name: share_sub, label: "Field share in the substrate", ui_unit: "%", scale: 0.01}

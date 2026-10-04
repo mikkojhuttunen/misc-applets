@@ -6,6 +6,154 @@
  ],
  "engines": [
   {
+   "engine": "anisotropic_slab",
+   "version": 1,
+   "title": "Anisotropic slab waveguide",
+   "description": "Guided TE/TM modes of a uniaxial film (x-, y- or z-cut, principal propagation axis) between isotropic cladding layers; arbitrary anisotropic stacks via slab_modes in Python.",
+   "requires": [],
+   "references": [
+    "A. Yariv and P. Yeh, Optical Waves in Crystals (Wiley, 1984), ch. 11",
+    "K. Okamoto, Fundamentals of Optical Waveguides, 2nd ed. (Academic Press, 2006), ch. 2"
+   ],
+   "files": [
+    "engines/anisotropic_slab/__init__.py",
+    "engines/anisotropic_slab/engine.py"
+   ],
+   "functions": {
+    "neff_uniaxial_film": {
+     "title": "Uniaxial film on isotropic substrate",
+     "equations": [
+      "TE: kx² = k0² n_t² - β²",
+      "TM: kx² = k0² n_p² - β² n_p²/n_n²",
+      "TE: E_y, E_y' continuous; TM: H_y, H_y'/n_p² continuous"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_o",
+       "label": "Ordinary index n_o",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.211,
+       "min": 1.0
+      },
+      {
+       "name": "n_e",
+       "label": "Extraordinary index n_e (optic axis = crystal z)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.138,
+       "min": 1.0
+      },
+      {
+       "name": "thickness",
+       "label": "Film thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 600,
+       "min": 1
+      },
+      {
+       "name": "cut",
+       "label": "Cut (crystal axis along the surface normal)",
+       "type": "choice",
+       "choices": [
+        "x",
+        "y",
+        "z"
+       ],
+       "default": "x"
+      },
+      {
+       "name": "propagation",
+       "label": "Propagation along crystal axis",
+       "type": "choice",
+       "choices": [
+        "x",
+        "y",
+        "z"
+       ],
+       "default": "y"
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "order",
+       "label": "Mode order",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "n_sub",
+       "label": "Substrate index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1.0
+      },
+      {
+       "name": "n_clad",
+       "label": "Cladding index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1.0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Effective index",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_modes",
+       "label": "Guided modes of this polarisation",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_normal",
+       "label": "Film index along the normal",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_trans",
+       "label": "Film index along the transverse axis",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_prop",
+       "label": "Film index along propagation",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "bragg_grating",
    "version": 1,
    "title": "Bragg grating",

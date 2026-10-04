@@ -90,5 +90,53 @@ const close = (label, got, want, rel, abs = 0) => {
   }
 }
 
+/* ---- parametric-amplifier.html: dissipative idler (lossT, pchip, analyticOut, simulate/simulate3 with dumps) ---- */
+{
+  const html = fs.readFileSync(path.join(repo, 'parametric-amplifier.html'), 'utf8');
+  const grab = name => {
+    const i = html.indexOf(`function ${name}(`);
+    if (i < 0) throw new Error(`function ${name} not found in parametric-amplifier.html`);
+    let j = html.indexOf('{', i), depth = 0;
+    for (; j < html.length; j++) { if (html[j] === '{') depth++; else if (html[j] === '}' && --depth === 0) break; }
+    return html.slice(i, j + 1);
+  };
+  const names = ['cm', 'ca', 'cs', 'cd', 'ce', 'csq', 'cr', 'expM', 'apply', 'analyticOut', 'pchip', 'lossT', 'simulate', 'simulate3'];
+  const ctx = vm.createContext({ Math, Float64Array });
+  vm.runInContext('var MODE = "chi2"; var customFn = function () { return 0; }; function addScat() {}\n' + names.map(grab).join('\n') +
+    '\n;globalThis.__q = { analyticOut, pchip, lossT, simulate, simulate3, setMode: function (m) { MODE = m; } };', ctx);
+  const q = ctx.__q, nm = x => x * 1e9;
+  for (const r of V.idler_linear) {
+    const pp = { kappa: r.gamma, alpha: r.alpha_idler, L: r.length, nf: r.dumps, tAmp: Math.pow(10, -r.dump_loss_db / 20), r0: 1,
+      wl: { aS: r.alpha_signal, tS: Math.pow(10, -r.dump_loss_signal_db / 20) } };
+    const o = q.analyticOut(pp, r.delta_k);
+    const tag = `Γ=${r.gamma} Δk=${r.delta_k} α=${r.alpha_idler} N=${r.dumps}`;
+    close(`pa analyticOut fs ${tag}`, o.fs, r.fs, 1e-9);
+    close(`pa analyticOut fi ${tag}`, o.fi, r.fi, 1e-9, 1e-300);
+  }
+  for (const r of V.idler_weight) {
+    const pr = { type: r.profile, c: nm(r.band_center), w: nm(r.band_width), e: nm(r.band_edge),
+      fn: r.points ? q.pchip(r.points.map(([x, y]) => ({ x: nm(x), y }))) : null };
+    close(`pa lossT ${r.profile} λ=${r.wavelength}`, q.lossT(pr, nm(r.wavelength)), r.weight, 1e-12, 1e-12);
+  }
+  const db = x => Math.pow(10, -x / 20);
+  for (const r of V.chi2_dumps) {
+    q.setMode('chi2');
+    const pp = { kappa: r.kappa, alpha: r.alpha_idler, r0: r.flux_ratio, L: r.length, nf: r.dumps, tAmp: db(r.dump_loss_db),
+      wl: { aS: 0, aP: 0, tS: db(r.dump_loss_signal_db), tP: db(r.dump_loss_pump_db) } };
+    const o = q.simulate(pp, r.delta_k, false, 1e9, null), tag = `N=${r.dumps} dB=${r.dump_loss_db}`;
+    checks++; if (o.steps !== r.steps) { fails++; console.error(`FAIL pa simulate+dumps steps ${tag}: got ${o.steps}, want ${r.steps}`); }
+    for (const k of ['fp', 'fs', 'fi']) close(`pa simulate+dumps ${k} ${tag}`, o[k], r[k], 1e-10, 1e-20);
+  }
+  for (const r of V.chi3_dumps) {
+    q.setMode('chi3');
+    const C = 299792458, wP = 2 * Math.PI * C / r.wavelength_pump, wS = 2 * Math.PI * C / r.wavelength_signal, wI = 2 * Math.PI * C / r.wavelength_idler;
+    const pp = { wP, wS, wI, gP: r.gamma_power, kappa: r.gamma_power * Math.sqrt(wS * wI) / wP, alpha: r.alpha_idler, r0: r.flux_ratio,
+      L: r.length, nf: r.dumps, tAmp: db(r.dump_loss_db), wl: { aS: 0, aP: 0, tS: 1, tP: 1 } };
+    const o = q.simulate3(pp, r.delta_beta + 2 * r.gamma_power, false, 1e9, null), tag = `N=${r.dumps} dB=${r.dump_loss_db}`;
+    checks++; if (o.steps !== r.steps) { fails++; console.error(`FAIL pa simulate3+dumps steps ${tag}: got ${o.steps}, want ${r.steps}`); }
+    for (const k of ['fp', 'fs', 'fi']) close(`pa simulate3+dumps ${k} ${tag}`, o[k], r[k], 1e-10, 1e-20);
+  }
+}
+
 console.log(`${checks - fails}/${checks} JS port checks passed`);
 process.exit(fails ? 1 : 0);

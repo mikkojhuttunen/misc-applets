@@ -1,7 +1,7 @@
 engine: opa_chi3
-version: 1
+version: 2
 title: χ³ fibre parametric amplifier
-description: Degenerate-pump four-wave-mixing amplification 2ω_p = ω_s + ω_i with SPM/XPM — nonlinear coefficient, closed-form gain, coupled-wave propagation with depletion and loss, Taylor and exact step-index-fibre gain spectra.
+description: Degenerate-pump four-wave-mixing amplification 2ω_p = ω_s + ω_i with SPM/XPM — nonlinear coefficient, small-signal gain, coupled-wave propagation with depletion, Taylor and exact step-index-fibre gain spectra, all with an optional dissipative idler (continuous and lumped).
 requires: [scipy]
 references:
   - "G. P. Agrawal, Nonlinear Fiber Optics, 5th ed. (Academic Press, 2013), ch. 10"
@@ -18,6 +18,14 @@ common_inputs:
   core_radius: {label: "Core radius", ui_unit: µm, scale: 1.0e-6, default: 2.0, min: 0}
   delta_n: {label: "Core-cladding index step Δn", ui_unit: "", scale: 1.0, default: 0.02, min: 0}
   n2: {label: "Nonlinear index n2", ui_unit: 1e-20 m²/W, scale: 1.0e-20, default: 2.6, min: 0}
+  alpha_idler: {label: "Idler loss, continuous (peak)", ui_unit: dB/m, scale: 0.23025850929940457, default: 0, min: 0}
+  dumps: {label: "Idler dumps N (lumped, at kL/(N+1))", ui_unit: "", scale: 1.0, default: 0, min: 0, step: 1}
+  dump_loss_db: {label: "Attenuation per idler dump (peak)", ui_unit: dB, scale: 1.0, default: 30, min: 0}
+  loss_profile: {label: "Idler loss spectrum", type: choice, choices: [flat, pass, stop], default: flat}
+  band_center: {label: "Loss band centre", ui_unit: nm, scale: 1.0e-9, default: 1544, min: 100}
+  band_width: {label: "Loss band width", ui_unit: nm, scale: 1.0e-9, default: 2, min: 0}
+  band_edge: {label: "Loss band edge width", ui_unit: nm, scale: 1.0e-9, default: 0.2, min: 0}
+  loss_acts_on: {label: "Loss curve acts on", type: choice, choices: [idler, all], default: idler}
 functions:
   coupling:
     title: Nonlinear coefficient γ
@@ -38,10 +46,11 @@ functions:
       - {name: gain_max, label: "Maximum gain coefficient √(γ_sγ_i) P", ui_unit: 1/km, scale: 1.0e-3}
   small_signal_gain:
     title: Small-signal gain
-    equations: ["κ = Δβ + 2γ_p P", "g² = (rP)² - (κ/2)²,  r = √(γ_s γ_i)", "G_s = 1 + (rP/g)² sinh²(gL)"]
-    inputs: [gamma_nl, pump_power, delta_beta, length, wavelength_pump, wavelength_signal]
+    equations: ["κ = Δβ + 2γ_p P", "g² = (rP)² - (κ/2)²,  r = √(γ_s γ_i)", "G_s = 1 + (rP/g)² sinh²(gL)  (lossless); with idler loss the idler_loss solution, Γ = rP, Δk → κ"]
+    inputs: [gamma_nl, pump_power, delta_beta, length, wavelength_pump, wavelength_signal, alpha_idler, dumps, dump_loss_db]
     outputs:
       - {name: signal_gain_db, label: "Signal gain", ui_unit: dB, scale: 1.0}
+      - {name: lossless_gain_db, label: "Lossless gain (same κ)", ui_unit: dB, scale: 1.0}
       - {name: idler_conversion, label: "Idler out / signal in", ui_unit: "", scale: 1.0}
       - {name: kappa, label: "Total mismatch κ", ui_unit: 1/km, scale: 1.0e-3}
       - {name: growth_rate, label: "Growth rate g", ui_unit: 1/km, scale: 1.0e-3}
@@ -59,7 +68,9 @@ functions:
       - delta_beta
       - {name: alpha_pump, label: "Pump loss", ui_unit: dB/km, scale: 2.3025850929940457e-4, default: 0, min: 0}
       - {name: alpha_signal, label: "Signal loss", ui_unit: dB/km, scale: 2.3025850929940457e-4, default: 0, min: 0}
-      - {name: alpha_idler, label: "Idler loss", ui_unit: dB/km, scale: 2.3025850929940457e-4, default: 0, min: 0}
+      - {name: alpha_idler, label: "Idler loss, continuous", ui_unit: dB/m, scale: 0.23025850929940457, default: 0, min: 0}
+      - dumps
+      - dump_loss_db
     outputs:
       - {name: signal_out, label: "Signal output", ui_unit: mW, scale: 1.0e-3}
       - {name: idler_out, label: "Idler output", ui_unit: mW, scale: 1.0e-3}
@@ -79,10 +90,20 @@ functions:
       - length
       - span
       - {name: points, label: "Points", ui_unit: "", scale: 1.0, default: 401, min: 3, step: 1}
+      - alpha_idler
+      - dumps
+      - dump_loss_db
+      - loss_profile
+      - band_center
+      - band_width
+      - band_edge
+      - loss_acts_on
     outputs:
       - {name: peak_gain_db, label: "Peak gain", ui_unit: dB, scale: 1.0}
       - {name: peak_signal_wavelength, label: "Peak signal wavelength (long lobe)", ui_unit: nm, scale: 1.0e-9}
       - {name: lobe_width_3db, label: "3 dB lobe width", ui_unit: nm, scale: 1.0e-9}
+      - {name: lossless_peak_gain_db, label: "Lossless peak gain", ui_unit: dB, scale: 1.0}
+      - {name: lossless_lobe_width_3db, label: "Lossless 3 dB lobe width", ui_unit: nm, scale: 1.0e-9}
       - {name: omega_phase_matched, label: "Phase-matched detuning Ω", ui_unit: Trad/s, scale: 1.0e12}
   fiber_parameters:
     title: Step-index fibre dispersion
@@ -108,8 +129,18 @@ functions:
       - span
       - n2
       - {name: points, label: "Points", ui_unit: "", scale: 1.0, default: 201, min: 3, step: 1}
+      - alpha_idler
+      - dumps
+      - dump_loss_db
+      - loss_profile
+      - band_center
+      - band_width
+      - band_edge
+      - loss_acts_on
     outputs:
       - {name: peak_gain_db, label: "Peak gain", ui_unit: dB, scale: 1.0}
       - {name: peak_signal_wavelength, label: "Peak signal wavelength (long lobe)", ui_unit: nm, scale: 1.0e-9}
       - {name: lobe_width_3db, label: "3 dB lobe width", ui_unit: nm, scale: 1.0e-9}
+      - {name: lossless_peak_gain_db, label: "Lossless peak gain", ui_unit: dB, scale: 1.0}
+      - {name: lossless_lobe_width_3db, label: "Lossless 3 dB lobe width", ui_unit: nm, scale: 1.0e-9}
       - {name: gamma_pump, label: "γ at the pump", ui_unit: 1/(W km), scale: 1.0e-3}

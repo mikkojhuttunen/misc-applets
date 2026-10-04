@@ -18,6 +18,7 @@ import math
 import numpy as np
 
 from ..common import Result, half_max_width, require_nonnegative, require_positive
+from ..idler_loss.engine import amplifier_with_loss, propagate_linear
 
 C0 = 299792458.0
 N2_SILICA = 2.6e-20   # m²/W
@@ -77,29 +78,40 @@ def coupling(wavelength_pump, wavelength_signal, n2, pump_power, w_pump, w_signa
     )
 
 
-def small_signal_gain(gamma_nl, pump_power, delta_beta, length, wavelength_pump, wavelength_signal) -> Result:
-    """Undepleted-pump FWM gain including pump SPM and signal/idler XPM (closed form)."""
+def small_signal_gain(gamma_nl, pump_power, delta_beta, length, wavelength_pump, wavelength_signal,
+                      alpha_idler=0.0, dumps=0, dump_loss_db=0.0) -> Result:
+    """Undepleted-pump FWM gain including pump SPM and signal/idler XPM: closed form when lossless,
+    exact 2×2 solution with a dissipative idler (continuous α_i and/or N lumped dumps)."""
     require_positive(gamma_nl=gamma_nl, pump_power=pump_power, length=length)
     gp, r, li = _rates(gamma_nl, pump_power, wavelength_pump, wavelength_signal)
     kappa = np.asarray(delta_beta, dtype=float) + 2 * gp
-    G, g2 = _gain_closed_form(r, kappa, length)
+    G0, g2 = _gain_closed_form(r, kappa, length)
+    lossy = alpha_idler > 0 or (int(dumps) > 0 and dump_loss_db > 0)
+    if lossy:
+        s, c = propagate_linear(r, kappa, length, alpha_idler, dumps, dump_loss_db)
+        G, conv = np.abs(s) ** 2, np.abs(c) ** 2
+    else:
+        G, conv = G0, G0 - 1
     return Result(
         values={"signal_gain": G, "signal_gain_db": 10 * np.log10(G),
-                "idler_conversion": (np.asarray(wavelength_signal, dtype=float) / li) * (G - 1),
+                "idler_conversion": (np.asarray(wavelength_signal, dtype=float) / li) * conv,
+                "lossless_gain_db": 10 * np.log10(G0),
                 "kappa": kappa, "growth_rate": np.sqrt(np.maximum(g2, 0.0)), "g_squared": g2,
                 "peak_gain_db": 10 * np.log10(np.cosh(r * length) ** 2)},
-        units={"signal_gain": "", "signal_gain_db": "dB", "idler_conversion": "", "kappa": "1/m",
-               "growth_rate": "1/m", "g_squared": "1/m^2", "peak_gain_db": "dB"},
+        units={"signal_gain": "", "signal_gain_db": "dB", "idler_conversion": "", "lossless_gain_db": "dB",
+               "kappa": "1/m", "growth_rate": "1/m", "g_squared": "1/m^2", "peak_gain_db": "dB"},
         assumptions=[
             "Undepleted, lossless pump; no idler seed",
-            "κ = Δβ + 2γ_p P; g² = (rP)² - (κ/2)²; G_s = 1 + (rP/g)² sinh²(gL)",
-            "peak_gain_db is cosh²(rPL), reached where κ = 0",
-        ],
+            "κ = Δβ + 2γ_p P; g² = (rP)² - (κ/2)²; G_s = 1 + (rP/g)² sinh²(gL) (lossless)",
+            "peak_gain_db is cosh²(rPL), lossless at κ = 0",
+        ] + (["Dissipative idler: exact matrix exponential with Γ = rP and Δk → κ, dumps at z = kL/(N+1); "
+              "growth_rate and g² refer to the lossless case"] if lossy else []),
     )
 
 
 def propagate_normalised(gamma_power, delta_beta, length, flux_ratio, ratio_signal, ratio_idler,
-                         alpha_pump=0.0, alpha_signal=0.0, alpha_idler=0.0, max_steps=200000, record=False) -> Result:
+                         alpha_pump=0.0, alpha_signal=0.0, alpha_idler=0.0, max_steps=200000, record=False,
+                         dumps=0, dump_loss_db=0.0, dump_loss_signal_db=0.0, dump_loss_pump_db=0.0) -> Result:
     """Fixed-step RK4 of the χ3 equations in A_j / sqrt(P_p0). gamma_power = γ_p P_p0 (1/m),
     ratio_signal = ω_s/ω_p, ratio_idler = ω_i/ω_p, flux_ratio = F_s0/F_p0; alphas are power loss
     coefficients (1/m). fp, fs, fi are photon fluxes / F_p0. Same step rule as the applet."""
@@ -112,7 +124,14 @@ def propagate_normalised(gamma_power, delta_beta, length, flux_ratio, ratio_sign
     rate = max(npp * math.sqrt(ratio_signal * ratio_idler) * math.sqrt(1 + r0), abs(db), 3 * npp * (1 + r0),
                ap, as_, ai, 1e-6)
     N = max(300, min(int(max_steps), math.ceil(length * rate / 0.04)))
-    h = length / N
+    dumps = int(dumps)
+    if dumps < 0:
+        raise ValueError(f"dumps must be >= 0, got {dumps!r}")
+    require_nonnegative(dump_loss_db=dump_loss_db, dump_loss_signal_db=dump_loss_signal_db, dump_loss_pump_db=dump_loss_pump_db)
+    n_seg = dumps + 1
+    n_per = math.ceil(N / n_seg)
+    h = length / (n_seg * n_per)
+    t_i, t_s, t_p = (10 ** (-x / 20) for x in (dump_loss_db, dump_loss_signal_db, dump_loss_pump_db))
 
     def f(z, p, s, i):
         e = complex(math.cos(db * z), math.sin(db * z))
@@ -124,24 +143,34 @@ def propagate_normalised(gamma_power, delta_beta, length, flux_ratio, ratio_sign
 
     cs, ci = 1 / ratio_signal, 1 / ratio_idler   # power fraction → photon-flux fraction
     p, s, i = 1 + 0j, complex(math.sqrt(r0 * ratio_signal)), 0j
-    every = max(1, N // 500)
+    every = max(1, (n_seg * n_per) // 500)
     rec = {"z": [0.0], "fp": [1.0], "fs": [r0], "fi": [0.0]} if record else None
-    for n in range(N):
-        z = n * h
-        k1 = f(z, p, s, i)
-        k2 = f(z + h / 2, p + h / 2 * k1[0], s + h / 2 * k1[1], i + h / 2 * k1[2])
-        k3 = f(z + h / 2, p + h / 2 * k2[0], s + h / 2 * k2[1], i + h / 2 * k2[2])
-        k4 = f(z + h, p + h * k3[0], s + h * k3[1], i + h * k3[2])
-        p += h / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0])
-        s += h / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
-        i += h / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2])
-        if record and ((n + 1) % every == 0 or n == N - 1):
-            rec["z"].append((n + 1) * h)
-            rec["fp"].append(abs(p) ** 2)
-            rec["fs"].append(abs(s) ** 2 * cs)
-            rec["fi"].append(abs(i) ** 2 * ci)
+    for seg in range(n_seg):
+        for n in range(n_per):
+            z = (seg * n_per + n) * h
+            k1 = f(z, p, s, i)
+            k2 = f(z + h / 2, p + h / 2 * k1[0], s + h / 2 * k1[1], i + h / 2 * k1[2])
+            k3 = f(z + h / 2, p + h / 2 * k2[0], s + h / 2 * k2[1], i + h / 2 * k2[2])
+            k4 = f(z + h, p + h * k3[0], s + h * k3[1], i + h * k3[2])
+            p += h / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0])
+            s += h / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
+            i += h / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2])
+            if record and ((seg * n_per + n + 1) % every == 0 or n == n_per - 1):
+                z = (seg * n_per + n + 1) * h
+                rec["z"].append(z)
+                rec["fp"].append(abs(p) ** 2)
+                rec["fs"].append(abs(s) ** 2 * cs)
+                rec["fi"].append(abs(i) ** 2 * ci)
+        if seg < n_seg - 1:      # lumped dump at z = (seg + 1) L / (N + 1)
+            p, s, i = p * t_p, s * t_s, i * t_i
+            if record:
+                z = (seg + 1) * n_per * h
+                rec["z"].append(z)
+                rec["fp"].append(abs(p) ** 2)
+                rec["fs"].append(abs(s) ** 2 * cs)
+                rec["fi"].append(abs(i) ** 2 * ci)
     fp, fs, fi = abs(p) ** 2, abs(s) ** 2 * cs, abs(i) ** 2 * ci
-    vals = {"fp": fp, "fs": fs, "fi": fi, "steps": N, "capped": N == int(max_steps),
+    vals = {"fp": fp, "fs": fs, "fi": fi, "steps": n_seg * n_per, "capped": N == int(max_steps),
             "manley_rowe_residual": abs(fp + 2 * fs - (1 + 2 * r0)) / (1 + 2 * r0)}
     units = {"fp": "", "fs": "", "fi": "", "steps": "", "capped": "", "manley_rowe_residual": ""}
     if record:
@@ -149,21 +178,24 @@ def propagate_normalised(gamma_power, delta_beta, length, flux_ratio, ratio_sign
             vals[f"{k}_z"] = np.array(v)
             units[f"{k}_z"] = "m" if k == "z" else ""
     return Result(values=vals, units=units, assumptions=[
-        "Photon fluxes normalised to the input pump flux", "Fixed-step RK4, step ≤ 0.04 / rate",
+        "Photon fluxes normalised to the input pump flux", "Fixed-step RK4, step ≤ 0.04 / rate; lumped dumps at z = kL/(N+1) split the length into equal segments",
         "manley_rowe_residual |f_p + 2f_s - (1 + 2r0)|/(1 + 2r0) is zero unless pump or signal is lossy"])
 
 
 def coupled_wave(wavelength_pump, wavelength_signal, gamma_nl, pump_power, signal_power, length, delta_beta=0.0,
-                 alpha_pump=0.0, alpha_signal=0.0, alpha_idler=0.0, max_steps=200000) -> Result:
-    """Full nonlinear FWM propagation with pump depletion, SPM/XPM and linear losses: output powers,
-    gain, depletion and power profiles along z (arrays z, pump_power_z, signal_power_z, idler_power_z)."""
+                 alpha_pump=0.0, alpha_signal=0.0, alpha_idler=0.0, dumps=0, dump_loss_db=0.0,
+                 dump_loss_signal_db=0.0, dump_loss_pump_db=0.0, max_steps=200000) -> Result:
+    """Full nonlinear FWM propagation with pump depletion, SPM/XPM, continuous losses α_j and N lumped
+    dumps at z = kL/(N+1) (idler attenuation dump_loss_db; the signal and pump ones model a real
+    filter): output powers, gain, depletion and power profiles along z (arrays z, pump_power_z, ...)."""
     require_positive(gamma_nl=gamma_nl, pump_power=pump_power, signal_power=signal_power)
     lp, ls = float(wavelength_pump), float(wavelength_signal)
     li = float(idler_wavelength(lp, ls))
     gp = gamma_nl * pump_power
     r0 = (signal_power * ls) / (pump_power * lp)
     r = propagate_normalised(gp, delta_beta, length, r0, lp / ls, lp / li, alpha_pump, alpha_signal, alpha_idler,
-                             max_steps=max_steps, record=True)
+                             max_steps=max_steps, record=True, dumps=dumps, dump_loss_db=dump_loss_db,
+                             dump_loss_signal_db=dump_loss_signal_db, dump_loss_pump_db=dump_loss_pump_db)
     sp, ss, si = pump_power, pump_power * lp / ls, pump_power * lp / li
     Pp, Ps, Pi = r["fp"] * sp, r["fs"] * ss, r["fi"] * si
     return Result(
@@ -180,23 +212,37 @@ def coupled_wave(wavelength_pump, wavelength_signal, gamma_nl, pump_power, signa
             "Degenerate CW pump, co-polarised, no idler seed; constant Δβ along z",
             "γ_j = γ ω_j/ω_p (photon-number-conserving mixing terms), SPM and XPM included",
             "Losses are power attenuation coefficients α_j (dP/dz = -α P); no Raman or Brillouin",
-        ] + r.assumptions[1:] + (["Step count hit max_steps: accuracy not guaranteed"] if r["capped"] else []),
+        ] + ([f"{int(dumps)} lumped dumps at z = kL/(N+1)"] if int(dumps) > 0 else []) + r.assumptions[1:] + (["Step count hit max_steps: accuracy not guaranteed"] if r["capped"] else []),
     )
 
 
-def _spectrum_result(lp, ls, li, dbeta, G, extra_vals, extra_units, assumptions):
+LOSS_ARGS = ("alpha_idler", "dumps", "dump_loss_db", "loss_profile", "band_center", "band_width", "band_edge",
+             "loss_points", "loss_acts_on")
+
+
+def _spectrum_result(lp, ls, li, dbeta, r, kappa, length, loss, extra_vals, extra_units, assumptions):
+    A = amplifier_with_loss(r, kappa, length, ls, li, lp, loss["alpha_idler"], loss["dumps"], loss["dump_loss_db"],
+                            loss["loss_profile"], loss["band_center"], loss["band_width"], loss["band_edge"],
+                            loss["loss_points"], loss["loss_acts_on"])
+    G, G0 = A["gain"], A["lossless_gain"]
     long = ls > lp
     k = int(np.argmax(np.where(long, G, -np.inf)))
     vals = {"peak_gain_db": 10 * np.log10(G[k]), "peak_signal_wavelength": ls[k],
             "lobe_width_3db": half_max_width(ls[long], G[long]),
-            "signal_wavelengths": ls, "idler_wavelengths": li, "delta_beta": dbeta, "gain": G, "gain_db": 10 * np.log10(G)}
-    units = {"peak_gain_db": "dB", "peak_signal_wavelength": "m", "lobe_width_3db": "m", "signal_wavelengths": "m",
-             "idler_wavelengths": "m", "delta_beta": "1/m", "gain": "", "gain_db": "dB"}
+            "lossless_peak_gain_db": 10 * np.log10(G0[long].max()), "lossless_lobe_width_3db": half_max_width(ls[long], G0[long]),
+            "pump_loss_weight": A["weight_pump"],
+            "signal_wavelengths": ls, "idler_wavelengths": li, "delta_beta": dbeta, "gain": G, "gain_db": 10 * np.log10(G),
+            "lossless_gain_db": 10 * np.log10(G0), "loss_weight": A["weight_idler"]}
+    units = {"peak_gain_db": "dB", "peak_signal_wavelength": "m", "lobe_width_3db": "m", "lossless_peak_gain_db": "dB",
+             "lossless_lobe_width_3db": "m", "pump_loss_weight": "", "signal_wavelengths": "m",
+             "idler_wavelengths": "m", "delta_beta": "1/m", "gain": "", "gain_db": "dB", "lossless_gain_db": "dB",
+             "loss_weight": ""}
     vals.update(extra_vals)
     units.update(extra_units)
     return Result(values=vals, units=units, assumptions=assumptions + [
         "Peak and lobe_width_3db refer to the long-wavelength gain lobe (λ_s > λ_p); "
-        "lobe_width_3db is the full width where G ≥ G_peak/2, None if it reaches the grid edge"])
+        "lobe_width_3db is the full width where G ≥ G_peak/2, None if it reaches the grid edge",
+        "Idler loss (if any): exact undepleted-pump solution; pump attenuation by the loss curve is not modelled"])
 
 
 def _signal_grid(wavelength_pump, span, points):
@@ -209,9 +255,12 @@ def _signal_grid(wavelength_pump, span, points):
     return ls
 
 
-def gain_spectrum(wavelength_pump, beta2, beta4, gamma_nl, pump_power, length, span, points=401) -> Result:
+def gain_spectrum(wavelength_pump, beta2, beta4, gamma_nl, pump_power, length, span, points=401,
+                  alpha_idler=0.0, dumps=0, dump_loss_db=0.0, loss_profile="flat",
+                  band_center=None, band_width=None, band_edge=None, loss_points=None, loss_acts_on="idler") -> Result:
     """Small-signal gain vs signal wavelength from the even Taylor expansion of Δβ about the pump:
-    Δβ = β2 Ω² + β4 Ω⁴/12, Ω = ω_s - ω_p (β3 cancels for a degenerate pump)."""
+    Δβ = β2 Ω² + β4 Ω⁴/12, Ω = ω_s - ω_p (β3 cancels for a degenerate pump). Optional dissipative
+    idler (see idler_loss): peak α_i and/or N dumps weighted by the loss profile at each λ_i."""
     require_positive(gamma_nl=gamma_nl, pump_power=pump_power, length=length, span=span)
     lp = float(wavelength_pump)
     ls = _signal_grid(lp, span, points)
@@ -219,13 +268,13 @@ def gain_spectrum(wavelength_pump, beta2, beta4, gamma_nl, pump_power, length, s
     O = 2 * np.pi * C0 * (1 / ls - 1 / lp)
     db = beta2 * O**2 + beta4 * O**4 / 12
     gp, r, _ = _rates(gamma_nl, pump_power, lp, ls)
-    G, _ = _gain_closed_form(r, db + 2 * gp, length)
+    loss = {k: v for k, v in locals().items() if k in LOSS_ARGS}
     disc = beta2**2 - 4 * (beta4 / 12) * (2 * gp)      # (β4/12) x² + β2 x + 2γP = 0, x = Ω²
     roots = [] if disc < 0 or (beta2 == 0 and beta4 == 0) else (
         [(-beta2 + sg * math.sqrt(disc)) / (2 * beta4 / 12) for sg in (1, -1)] if beta4 != 0 else [-2 * gp / beta2])
     roots = [x for x in roots if x > 0]
     om = math.sqrt(min(roots)) if roots else float("nan")
-    return _spectrum_result(lp, ls, li, db, G, {"omega_phase_matched": om}, {"omega_phase_matched": "rad/s"}, [
+    return _spectrum_result(lp, ls, li, db, r, db + 2 * gp, length, loss, {"omega_phase_matched": om}, {"omega_phase_matched": "rad/s"}, [
         "Undepleted pump, CW, constant γ (frequency-scaled per wave); Δβ from β2 and β4 only",
         "omega_phase_matched: smallest Ω > 0 with κ = Δβ + 2γP = 0 (None if none exists)",
     ])
@@ -268,9 +317,10 @@ def fiber_parameters(wavelength_pump, wavelength_signal, core_radius, delta_n, n
 
 
 def fiber_gain_spectrum(wavelength_pump, core_radius, delta_n, pump_power, length, span, n2=N2_SILICA,
-                        points=201) -> Result:
+                        points=201, alpha_idler=0.0, dumps=0, dump_loss_db=0.0, loss_profile="flat",
+                        band_center=None, band_width=None, band_edge=None, loss_points=None, loss_acts_on="idler") -> Result:
     """Small-signal gain vs signal wavelength with the exact LP01 Δβ at every point and γ from the
-    pump-signal-idler overlap at each point. Requires SciPy."""
+    pump-signal-idler overlap at each point; optional dissipative idler as in gain_spectrum. Requires SciPy."""
     require_positive(core_radius=core_radius, delta_n=delta_n, pump_power=pump_power, length=length, span=span, n2=n2)
     lp = float(wavelength_pump)
     ls = _signal_grid(lp, span, points)
@@ -282,8 +332,8 @@ def fiber_gain_spectrum(wavelength_pump, core_radius, delta_n, pump_power, lengt
     aeff = effective_area(wp, np.array([s[1] for s in S]), np.array([i[1] for i in I]))
     gamma = n2 * 2 * np.pi / (lp * aeff)
     gp, r, _ = _rates(gamma, pump_power, lp, ls)
-    G, _ = _gain_closed_form(r, db + 2 * gp, length)
-    return _spectrum_result(lp, ls, li, db, G, {"gamma_pump": float(n2 * 2 * np.pi / (lp * effective_area(wp, wp, wp)))},
+    loss = {k: v for k, v in locals().items() if k in LOSS_ARGS}
+    return _spectrum_result(lp, ls, li, db, r, db + 2 * gp, length, loss, {"gamma_pump": float(n2 * 2 * np.pi / (lp * effective_area(wp, wp, wp)))},
                             {"gamma_pump": "1/(W m)"}, [
         "Undepleted pump, CW, LP01 of a weakly guiding silica step-index fibre (exact Δβ, no Taylor expansion)",
         "gamma_pump is γ for equal pump-mode radii (reference value)",

@@ -39,6 +39,8 @@ def jsonable(v: Any) -> Any:
     if isinstance(v, Result):
         return v.to_dict()
     if isinstance(v, np.ndarray):
+        if v.ndim == 0:
+            return jsonable(v[()])
         return [jsonable(x) for x in v.tolist()]
     if isinstance(v, (list, tuple)):
         return [jsonable(x) for x in v]

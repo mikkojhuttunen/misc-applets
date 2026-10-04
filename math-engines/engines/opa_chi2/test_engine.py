@@ -122,3 +122,35 @@ def test_validation():
         e.coupled_wave(pump_power=1.0, signal_power=0.0, length=0.01, **ARGS)
     with pytest.raises(ValueError, match="material"):
         e.gain_spectrum("glass", 780e-9, 1550e-9, 100e-9, 0.02, 14e-12, 1.0, 2e-6, 2e-6, 2e-6)
+
+
+def test_dissipative_idler_options():
+    from engines.idler_loss import engine as il
+    G, dk, L = 120.0, 40.0, 0.03
+    for kw in (dict(alpha_idler=150.0), dict(dumps=3, dump_loss_db=20.0), dict(alpha_idler=50.0, dumps=2, dump_loss_db=10.0)):
+        r = e.small_signal_gain(G, dk, L, 780e-9, 1550e-9, **kw)
+        s, c = il.propagate_linear(G, dk, L, **kw)
+        assert r["signal_gain"] == pytest.approx(abs(s) ** 2, rel=1e-12)
+        assert r["idler_conversion"] == pytest.approx(1550e-9 / e.idler_wavelength(780e-9, 1550e-9) * abs(c) ** 2, rel=1e-12)
+        assert r["signal_gain_db"] < r["lossless_gain_db"]
+    # nonlinear model: idler dumps leave f_p + f_s untouched and cost gain
+    a = e.coupled_wave(pump_power=1.0, signal_power=1e-3, length=0.02, **ARGS)
+    b = e.coupled_wave(pump_power=1.0, signal_power=1e-3, length=0.02, dumps=4, dump_loss_db=30.0, **ARGS)
+    assert b["signal_gain_db"] < a["signal_gain_db"] and b["manley_rowe_residual"] < 1e-9
+    assert len(b["z"]) == len(b["idler_power_z"]) and b["z"][-1] == pytest.approx(0.02)
+    k = int(np.argmin(np.abs(b["z"] - 0.02 / 5)))      # first dump: idler drops by 30 dB at the same z
+    j = [i for i in range(1, len(b["z"])) if b["z"][i] == b["z"][i - 1]][0]
+    assert b["idler_power_z"][j] == pytest.approx(1e-3 * b["idler_power_z"][j - 1], rel=1e-9) and abs(j - k) <= 1
+
+
+def test_gain_spectrum_with_idler_loss():
+    from engines.idler_loss import engine as il
+    base = ("ln_e", 780e-9, 1550e-9, 300e-9, 0.03, 14e-12, 1.0, 2e-6, 2e-6, 2e-6)
+    a = e.gain_spectrum(*base, points=201)
+    b = e.gain_spectrum(*base, points=201, dumps=4, dump_loss_db=30.0)
+    assert b["lossless_peak_gain_db"] == pytest.approx(a["peak_gain_db"])
+    assert b["peak_gain_db"] < a["peak_gain_db"] and b["bandwidth_3db"] > a["bandwidth_3db"]
+    # band-pass loss away from every idler: same as lossless
+    c = e.gain_spectrum(*base, points=201, alpha_idler=500.0, loss_profile="pass", band_offset=500e-9, band_width=10e-9, band_edge=0.5e-9)
+    assert c["gain"] == pytest.approx(a["gain"], rel=1e-9)
+    assert c["loss_weight"].max() < 1e-12

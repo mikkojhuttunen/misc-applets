@@ -1,7 +1,7 @@
 engine: opa_chi2
-version: 1
+version: 2
 title: χ² optical parametric amplifier
-description: Gain coefficient, closed-form small-signal gain, full coupled-wave propagation with pump depletion and loss, and QPM gain spectra for ω_p = ω_s + ω_i in guided modes.
+description: Gain coefficient, small-signal gain, full coupled-wave propagation with pump depletion, and QPM gain spectra, all with an optional dissipative idler (continuous and lumped) for ω_p = ω_s + ω_i in guided modes.
 references:
   - "R. W. Boyd, Nonlinear Optics, 3rd ed. (Academic Press, 2008), §2.8–2.9"
   - "J. A. Armstrong, N. Bloembergen, J. Ducuing, P. S. Pershan, Phys. Rev. 127, 1918 (1962)"
@@ -18,6 +18,9 @@ common_inputs:
   w_signal: {label: "Signal mode radius (1/e²)", ui_unit: µm, scale: 1.0e-6, default: 2.0, min: 0}
   w_idler: {label: "Idler mode radius (1/e²)", ui_unit: µm, scale: 1.0e-6, default: 2.0, min: 0}
   length: {label: "Interaction length", ui_unit: mm, scale: 1.0e-3, default: 20, min: 0}
+  alpha_idler: {label: "Idler loss, continuous (peak)", ui_unit: dB/cm, scale: 23.025850929940457, default: 0, min: 0}
+  dumps: {label: "Idler dumps N (lumped, at kL/(N+1))", ui_unit: "", scale: 1.0, default: 0, min: 0, step: 1}
+  dump_loss_db: {label: "Attenuation per idler dump (peak)", ui_unit: dB, scale: 1.0, default: 30, min: 0}
 functions:
   coupling:
     title: Gain coefficient Γ
@@ -30,15 +33,19 @@ functions:
       - {name: area_eff, label: "Effective area 1/θ²", ui_unit: µm², scale: 1.0e-12}
   small_signal_gain:
     title: Small-signal gain
-    equations: ["g² = Γ² - (Δk/2)²", "G_s = 1 + (Γ/g)² sinh²(gL)", "P_i(L)/P_s(0) = (ω_i/ω_s)(G_s - 1)"]
+    equations: ["g² = Γ² - (Δk/2)²", "G_s = 1 + (Γ/g)² sinh²(gL)  (lossless)", "with idler loss: d/dz [s, c] = [[0, iΓ], [-iΓ, iΔk - α_i/2]] [s, c], dumps c → 10^(-dB/20) c"]
     inputs:
       - {name: gamma, label: "Gain coefficient Γ", ui_unit: 1/cm, scale: 100.0, default: 1.3, min: 0}
       - {name: delta_k, label: "Phase mismatch Δk", ui_unit: 1/cm, scale: 100.0, default: 0}
       - length
       - wavelength_pump
       - wavelength_signal
+      - alpha_idler
+      - dumps
+      - dump_loss_db
     outputs:
       - {name: signal_gain_db, label: "Signal gain", ui_unit: dB, scale: 1.0}
+      - {name: lossless_gain_db, label: "Lossless gain (same Δk)", ui_unit: dB, scale: 1.0}
       - {name: idler_conversion, label: "Idler out / signal in", ui_unit: "", scale: 1.0}
       - {name: growth_rate, label: "Growth rate g", ui_unit: 1/cm, scale: 100.0}
       - {name: peak_gain_db, label: "Gain at Δk = 0", ui_unit: dB, scale: 1.0}
@@ -61,7 +68,9 @@ functions:
       - {name: delta_k, label: "Phase mismatch Δk", ui_unit: 1/cm, scale: 100.0, default: 0}
       - {name: alpha_pump, label: "Pump loss", ui_unit: dB/cm, scale: 23.025850929940457, default: 0, min: 0}
       - {name: alpha_signal, label: "Signal loss", ui_unit: dB/cm, scale: 23.025850929940457, default: 0, min: 0}
-      - {name: alpha_idler, label: "Idler loss", ui_unit: dB/cm, scale: 23.025850929940457, default: 0, min: 0}
+      - {name: alpha_idler, label: "Idler loss, continuous", ui_unit: dB/cm, scale: 23.025850929940457, default: 0, min: 0}
+      - dumps
+      - dump_loss_db
     outputs:
       - {name: signal_out, label: "Signal output", ui_unit: mW, scale: 1.0e-3}
       - {name: idler_out, label: "Idler output", ui_unit: mW, scale: 1.0e-3}
@@ -71,7 +80,7 @@ functions:
       - {name: manley_rowe_residual, label: "Manley–Rowe residual (f_p + f_s)", ui_unit: "", scale: 1.0}
   gain_spectrum:
     title: QPM gain spectrum
-    equations: ["Δk(λ_s) = 2π (n_p/λ_p - n_s/λ_s - n_i/λ_i) - 2π m/Λ", "Λ = m 2π / |Δk_bare(λ_s0)| unless given", "G(λ_s) = 1 + (Γ/g)² sinh²(gL)"]
+    equations: ["Δk(λ_s) = 2π (n_p/λ_p - n_s/λ_s - n_i/λ_i) - 2π m/Λ", "Λ = m 2π / |Δk_bare(λ_s0)| unless given", "G(λ_s) = 1 + (Γ/g)² sinh²(gL), or the idler_loss solution with α_i w(λ_i), dB w(λ_i)"]
     inputs:
       - {name: material, label: "Material", type: choice, choices: [ln_e, ln_o, lt_e, sio2, si3n4, si], default: ln_e}
       - wavelength_pump
@@ -85,8 +94,18 @@ functions:
       - w_idler
       - {name: order, label: "QPM order m", ui_unit: "", scale: 1.0, default: 1, min: 1, step: 1}
       - {name: points, label: "Points", ui_unit: "", scale: 1.0, default: 401, min: 3, step: 1}
+      - alpha_idler
+      - dumps
+      - dump_loss_db
+      - {name: loss_profile, label: "Idler loss spectrum", type: choice, choices: [flat, pass, stop], default: flat}
+      - {name: band_offset, label: "Band centre offset from idler(λ_s0)", ui_unit: nm, scale: 1.0e-9, default: 0}
+      - {name: band_width, label: "Band width", ui_unit: nm, scale: 1.0e-9, default: 20, min: 0}
+      - {name: band_edge, label: "Band edge width", ui_unit: nm, scale: 1.0e-9, default: 1, min: 0}
+      - {name: loss_acts_on, label: "Loss curve acts on", type: choice, choices: [idler, all], default: idler}
     outputs:
       - {name: period, label: "Poling period", ui_unit: µm, scale: 1.0e-6}
       - {name: peak_gain_db, label: "Peak gain", ui_unit: dB, scale: 1.0}
       - {name: peak_signal_wavelength, label: "Peak signal wavelength", ui_unit: nm, scale: 1.0e-9}
       - {name: bandwidth_3db, label: "3 dB gain bandwidth (signal)", ui_unit: nm, scale: 1.0e-9}
+      - {name: lossless_peak_gain_db, label: "Lossless peak gain", ui_unit: dB, scale: 1.0}
+      - {name: lossless_bandwidth_3db, label: "Lossless 3 dB bandwidth", ui_unit: nm, scale: 1.0e-9}

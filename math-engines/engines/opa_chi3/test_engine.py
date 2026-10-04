@@ -130,3 +130,31 @@ def test_validation():
         e.coupled_wave(LP, LS, 0.01, 1.0, 0.0, 100.0)
     with pytest.raises(ValueError, match="points"):
         e.gain_spectrum(LP, -1e-27, 0.0, 0.01, 1.0, 100.0, 20e-9, points=2)
+
+
+def test_dissipative_idler_options():
+    from engines.idler_loss import engine as il
+    g, P, L, db = 0.01, 2.0, 400.0, -0.03
+    _, r, li = e._rates(g, P, LP, LS)
+    for kw in (dict(alpha_idler=0.05), dict(dumps=4, dump_loss_db=10.0)):
+        out = e.small_signal_gain(g, P, db, L, LP, LS, **kw)
+        s, c = il.propagate_linear(r, db + 2 * g * P, L, **kw)
+        assert out["signal_gain"] == pytest.approx(abs(s) ** 2, rel=1e-12)
+        assert out["signal_gain_db"] < out["lossless_gain_db"]
+    a = e.coupled_wave(LP, LS, 0.005, 2.0, 1e-3, 500.0, -0.008)
+    b = e.coupled_wave(LP, LS, 0.005, 2.0, 1e-3, 500.0, -0.008, dumps=4, dump_loss_db=30.0)
+    assert b["signal_gain_db"] < a["signal_gain_db"] and b["manley_rowe_residual"] < 1e-7
+
+
+def test_spectra_with_idler_loss():
+    from engines.idler_loss import engine as il
+    s = e.gain_spectrum(LP, -0.87e-27, -1.3e-55, 0.005, 2.0, 500.0, 40e-9, dumps=4, dump_loss_db=30.0)
+    assert s["peak_gain_db"] < s["lossless_peak_gain_db"] and s["lobe_width_3db"] > s["lossless_lobe_width_3db"]
+    j = 250
+    ls = s["signal_wavelengths"][j]
+    _, r, _ = e._rates(0.005, 2.0, LP, ls)
+    want = il.linear_gain(r, s["delta_beta"][j] + 2 * 0.005 * 2.0, 500.0, dumps=4, dump_loss_db=30.0)["signal_gain"]
+    assert s["gain"][j] == pytest.approx(want, rel=1e-10)
+    f = e.fiber_gain_spectrum(LP, 2.0e-6, 0.02, 2.0, 500.0, 40e-9, points=41, alpha_idler=0.05,
+                              loss_profile="stop", band_center=1544e-9, band_width=4e-9, band_edge=0.2e-9)
+    assert f["peak_gain_db"] < f["lossless_peak_gain_db"] and f["loss_weight"].min() < 0.01

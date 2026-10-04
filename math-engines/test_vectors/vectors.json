@@ -432,5 +432,443 @@
    "fs": 0.19309457815390704,
    "fi": 0.18889919324686935
   }
+ ],
+ "idler_linear": [
+  {
+   "gamma": 120.0,
+   "delta_k": 50.0,
+   "length": 0.03,
+   "alpha_idler": 0.0,
+   "dumps": 4,
+   "dump_loss_db": 30.0,
+   "alpha_signal": 0.0,
+   "dump_loss_signal_db": 0.0,
+   "fs": 11.875422533414026,
+   "fi": 4.673063250981201
+  },
+  {
+   "gamma": 120.0,
+   "delta_k": 0.0,
+   "length": 0.03,
+   "alpha_idler": 300.0,
+   "dumps": 0,
+   "dump_loss_db": 0.0,
+   "alpha_signal": 0.0,
+   "dump_loss_signal_db": 0.0,
+   "fs": 31.656671895822555,
+   "fi": 9.719406356882853
+  },
+  {
+   "gamma": 50.0,
+   "delta_k": 3000.0,
+   "length": 0.2,
+   "alpha_idler": 20000.0,
+   "dumps": 0,
+   "dump_loss_db": 0.0,
+   "alpha_signal": 0.0,
+   "dump_loss_signal_db": 0.0,
+   "fs": 1.0960397045395671,
+   "fi": 2.513756265152124e-05
+  },
+  {
+   "gamma": 140.0,
+   "delta_k": 70.0,
+   "length": 0.025,
+   "alpha_idler": 80.0,
+   "dumps": 2,
+   "dump_loss_db": 6.0,
+   "alpha_signal": 5.0,
+   "dump_loss_signal_db": 0.5,
+   "fs": 41.37214213587635,
+   "fi": 27.575406219398808
+  },
+  {
+   "gamma": 0.02,
+   "delta_k": 0.01,
+   "length": 400.0,
+   "alpha_idler": 0.05,
+   "dumps": 9,
+   "dump_loss_db": 15.0,
+   "alpha_signal": 0.0,
+   "dump_loss_signal_db": 0.0,
+   "fs": 149.56195857250043,
+   "fi": 32.36488295764893
+  }
+ ],
+ "idler_weight": [
+  {
+   "profile": "pass",
+   "wavelength": 1.54e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 0.0
+  },
+  {
+   "profile": "pass",
+   "wavelength": 1.565e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 0.5
+  },
+  {
+   "profile": "pass",
+   "wavelength": 1.569e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 0.9999998874270866
+  },
+  {
+   "profile": "pass",
+   "wavelength": 1.57e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 0.9999999958776927
+  },
+  {
+   "profile": "pass",
+   "wavelength": 1.5752e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 0.31002551887237473
+  },
+  {
+   "profile": "pass",
+   "wavelength": 1.59e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 0.0
+  },
+  {
+   "profile": "pass",
+   "wavelength": 1.61e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 0.0
+  },
+  {
+   "profile": "stop",
+   "wavelength": 1.54e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 1.0
+  },
+  {
+   "profile": "stop",
+   "wavelength": 1.565e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 0.5
+  },
+  {
+   "profile": "stop",
+   "wavelength": 1.569e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 1.1257291343547138e-07
+  },
+  {
+   "profile": "stop",
+   "wavelength": 1.57e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 4.122307273313197e-09
+  },
+  {
+   "profile": "stop",
+   "wavelength": 1.5752e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 0.6899744811276253
+  },
+  {
+   "profile": "stop",
+   "wavelength": 1.59e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 1.0
+  },
+  {
+   "profile": "stop",
+   "wavelength": 1.61e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": null,
+   "weight": 1.0
+  },
+  {
+   "profile": "custom",
+   "wavelength": 1.54e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": [
+    [
+     1.55e-06,
+     0.0
+    ],
+    [
+     1.56e-06,
+     0.8
+    ],
+    [
+     1.58e-06,
+     0.2
+    ],
+    [
+     1.6e-06,
+     1.0
+    ]
+   ],
+   "weight": 0.0
+  },
+  {
+   "profile": "custom",
+   "wavelength": 1.565e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": [
+    [
+     1.55e-06,
+     0.0
+    ],
+    [
+     1.56e-06,
+     0.8
+    ],
+    [
+     1.58e-06,
+     0.2
+    ],
+    [
+     1.6e-06,
+     1.0
+    ]
+   ],
+   "weight": 0.70625
+  },
+  {
+   "profile": "custom",
+   "wavelength": 1.569e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": [
+    [
+     1.55e-06,
+     0.0
+    ],
+    [
+     1.56e-06,
+     0.8
+    ],
+    [
+     1.58e-06,
+     0.2
+    ],
+    [
+     1.6e-06,
+     1.0
+    ]
+   ],
+   "weight": 0.5448500000000038
+  },
+  {
+   "profile": "custom",
+   "wavelength": 1.57e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": [
+    [
+     1.55e-06,
+     0.0
+    ],
+    [
+     1.56e-06,
+     0.8
+    ],
+    [
+     1.58e-06,
+     0.2
+    ],
+    [
+     1.6e-06,
+     1.0
+    ]
+   ],
+   "weight": 0.5
+  },
+  {
+   "profile": "custom",
+   "wavelength": 1.5752e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": [
+    [
+     1.55e-06,
+     0.0
+    ],
+    [
+     1.56e-06,
+     0.8
+    ],
+    [
+     1.58e-06,
+     0.2
+    ],
+    [
+     1.6e-06,
+     1.0
+    ]
+   ],
+   "weight": 0.2870911999999994
+  },
+  {
+   "profile": "custom",
+   "wavelength": 1.59e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": [
+    [
+     1.55e-06,
+     0.0
+    ],
+    [
+     1.56e-06,
+     0.8
+    ],
+    [
+     1.58e-06,
+     0.2
+    ],
+    [
+     1.6e-06,
+     1.0
+    ]
+   ],
+   "weight": 0.5000000000000053
+  },
+  {
+   "profile": "custom",
+   "wavelength": 1.61e-06,
+   "band_center": 1.57e-06,
+   "band_width": 1e-08,
+   "band_edge": 5e-10,
+   "points": [
+    [
+     1.55e-06,
+     0.0
+    ],
+    [
+     1.56e-06,
+     0.8
+    ],
+    [
+     1.58e-06,
+     0.2
+    ],
+    [
+     1.6e-06,
+     1.0
+    ]
+   ],
+   "weight": 1.0
+  }
+ ],
+ "chi2_dumps": [
+  {
+   "kappa": 130.0,
+   "delta_k": 40.0,
+   "length": 0.02,
+   "flux_ratio": 0.001,
+   "alpha_idler": 0.0,
+   "dumps": 4,
+   "dump_loss_db": 30.0,
+   "dump_loss_signal_db": 0.0,
+   "dump_loss_pump_db": 0.0,
+   "steps": 300,
+   "fp": 0.9971454428576513,
+   "fs": 0.003854557142049587,
+   "fi": 0.0009201583352112066
+  },
+  {
+   "kappa": 200.0,
+   "delta_k": 0.0,
+   "length": 0.03,
+   "flux_ratio": 0.01,
+   "alpha_idler": 20.0,
+   "dumps": 9,
+   "dump_loss_db": 10.0,
+   "dump_loss_signal_db": 0.5,
+   "dump_loss_pump_db": 0.2,
+   "steps": 300,
+   "fp": 0.4119966103880613,
+   "fs": 0.21485615546274967,
+   "fi": 0.05727451209476902
+  }
+ ],
+ "chi3_dumps": [
+  {
+   "gamma_power": 0.01,
+   "delta_beta": -0.02,
+   "length": 500.0,
+   "flux_ratio": 0.00010038709677419356,
+   "wavelength_pump": 1.55e-06,
+   "wavelength_signal": 1.556e-06,
+   "wavelength_idler": 1.5440460947503205e-06,
+   "alpha_idler": 0.0,
+   "dumps": 4,
+   "dump_loss_db": 30.0,
+   "steps": 380,
+   "fp": 0.9828416965148522,
+   "fs": 0.008679538977041858,
+   "fi": 0.005113254109995717
+  },
+  {
+   "gamma_power": 0.02,
+   "delta_beta": -0.03,
+   "length": 300.0,
+   "flux_ratio": 0.010129032258064517,
+   "wavelength_pump": 1.55e-06,
+   "wavelength_signal": 1.57e-06,
+   "wavelength_idler": 1.5305031446540883e-06,
+   "alpha_idler": 0.01,
+   "dumps": 7,
+   "dump_loss_db": 6.0,
+   "steps": 456,
+   "fp": 0.292602514492616,
+   "fs": 0.3638277776036248,
+   "fi": 0.02201877707132144
+  }
  ]
 }

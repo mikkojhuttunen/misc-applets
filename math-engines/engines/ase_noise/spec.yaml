@@ -1,0 +1,61 @@
+engine: ase_noise
+version: 1
+title: ASE noise in multimode amplifier chains
+description: Linear phase-insensitive channels on Gaussian states (signal amplitude vector + ASE correlation matrix per mode). Amplifier noise figure, span cascades with OSNR, and multimode amplifiers detected through a pinhole spatial filter or a single-mode fibre.
+references:
+  - "C. M. Caves, Phys. Rev. D 26, 1817 (1982)"
+  - "N. A. Olsson, J. Lightwave Technol. 7, 1071 (1989)"
+  - "E. Desurvire, Erbium-Doped Fiber Amplifiers (Wiley, 1994), ch. 2-3"
+  - "H. A. Haus, Electromagnetic Noise and Quantum Optical Measurements (Springer, 2000)"
+functions:
+  amplifier_noise:
+    title: Single-mode amplifier noise figure
+    equations: ["n_out = G n_in + n_sp (G - 1)", "F = 1/G + 2 n_sp (G - 1)/G", "F ≥ 2 - 1/G (n_sp = 1)"]
+    inputs:
+      - {name: gain, label: "Power gain G", ui_unit: "", scale: 1.0, default: 100, min: 1}
+      - {name: n_sp, label: "Inversion factor n_sp", ui_unit: "", scale: 1.0, default: 1.5, min: 1}
+    outputs:
+      - {name: added_photons, label: "Added ASE photons per mode", ui_unit: "", scale: 1.0}
+      - {name: noise_figure, label: "Noise figure F (linear)", ui_unit: "", scale: 1.0}
+      - {name: noise_figure_analytic, label: "Noise figure, closed form", ui_unit: "", scale: 1.0}
+      - {name: noise_figure_limit, label: "Quantum limit 2 - 1/G", ui_unit: "", scale: 1.0}
+  span_cascade:
+    title: Span cascade OSNR
+    equations: ["chain = N × (loss η, gain G)", "C' = T C T† + D", "OSNR = P_s / (2 h ν C B_ref)", "F_tot = F_1 + (F_2 - 1)/G_1 + ..."]
+    inputs:
+      - {name: n_spans, label: "Number of spans", ui_unit: "", scale: 1.0, default: 10, min: 1, step: 1}
+      - {name: span_transmission, label: "Span transmission η", ui_unit: "", scale: 1.0, default: 0.01, min: 0, max: 1}
+      - {name: amp_gain, label: "Amplifier gain G", ui_unit: "", scale: 1.0, default: 100, min: 1}
+      - {name: n_sp, label: "Inversion factor n_sp", ui_unit: "", scale: 1.0, default: 1.5, min: 1}
+      - {name: signal_power, label: "Launch power", ui_unit: mW, scale: 1.0e-3, default: 1, min: 0}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 200}
+      - {name: reference_bandwidth, label: "OSNR reference bandwidth", ui_unit: GHz, scale: 1.0e+9, default: 12.5, min: 0}
+    outputs:
+      - {name: signal_power_out, label: "Output signal power", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase_power, label: "ASE power in B_ref", ui_unit: µW, scale: 1.0e-6}
+      - {name: osnr, label: "OSNR (linear)", ui_unit: "", scale: 1.0}
+      - {name: noise_figure_total, label: "Chain noise figure (linear)", ui_unit: "", scale: 1.0}
+      - {name: net_gain, label: "Net gain", ui_unit: "", scale: 1.0}
+  multimode_snr:
+    title: Multimode amplifier, spatial filtering and detection SNR
+    equations: ["modes: LG_pl, 2p + |l| ≤ N_max", "σ²_s-sp = 4 R² (hν)² Re(α† W C W α) B_e", "σ²_sp-sp = R² (hν)² n_pol tr((WCW)²)(2B_o - B_e) B_e", "M_eff = n_pol tr(WCW)² / tr((WCW)²)"]
+    inputs:
+      - {name: signal_power, label: "Input signal power", ui_unit: µW, scale: 1.0e-6, default: 1, min: 0}
+      - {name: gain, label: "Modal power gain G", ui_unit: "", scale: 1.0, default: 1000, min: 1}
+      - {name: n_sp, label: "Inversion factor n_sp", ui_unit: "", scale: 1.0, default: 1.5, min: 1}
+      - {name: max_order, label: "Highest guided mode order N_max", ui_unit: "", scale: 1.0, default: 6, min: 0, max: 30, step: 1}
+      - {name: spatial_filter, label: "Spatial filter", type: choice, choices: [none, pinhole, single_mode], default: pinhole}
+      - {name: pinhole_radius, label: "Pinhole radius / w_f", ui_unit: "", scale: 1.0, default: 1.0, min: 0}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1064, min: 200}
+      - {name: optical_bandwidth, label: "Optical filter bandwidth", ui_unit: GHz, scale: 1.0e+9, default: 100, min: 0}
+      - {name: electrical_bandwidth, label: "Electrical bandwidth", ui_unit: GHz, scale: 1.0e+9, default: 1, min: 0}
+      - {name: n_pol, label: "ASE polarisations", ui_unit: "", scale: 1.0, default: 2, min: 1, max: 2, step: 1}
+    outputs:
+      - {name: amplifier_modes, label: "Amplifier modes (incl. polarisation)", ui_unit: "", scale: 1.0}
+      - {name: signal_power, label: "Detected signal power", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase_power, label: "Detected ASE power", ui_unit: µW, scale: 1.0e-6}
+      - {name: var_shot, label: "Shot noise variance", ui_unit: "A²", scale: 1.0}
+      - {name: var_s_sp, label: "Signal-spontaneous variance", ui_unit: "A²", scale: 1.0}
+      - {name: var_sp_sp, label: "Spontaneous-spontaneous variance", ui_unit: "A²", scale: 1.0}
+      - {name: snr, label: "Electrical SNR (linear)", ui_unit: "", scale: 1.0}
+      - {name: effective_modes, label: "Effective detected ASE modes", ui_unit: "", scale: 1.0}

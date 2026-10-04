@@ -9,6 +9,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [slab_waveguide](engines/slab_waveguide/) | Three-layer and multilayer slab effective index, V, b, mode count | |
 | [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra | |
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
+| [ase_noise](engines/ase_noise/) | Linear multimode amplifier/loss/aperture channels on Gaussian states, noise figure, OSNR, shot / s-sp / sp-sp detection noise | |
 | [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius | scipy |
 
 ## Use

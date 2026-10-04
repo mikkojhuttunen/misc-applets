@@ -10,6 +10,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra | |
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
 | [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius | scipy |
+| [squeezed_light](engines/squeezed_light/) | χ⁽²⁾ squeezing in the Hamiltonian formalism: degenerate and two-mode OPA (Heisenberg drift, covariance with loss), OPO spectrum, squeezed-vacuum statistics, exact Fock evolution with a quantum pump | |
 
 ## Use
 

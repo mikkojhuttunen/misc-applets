@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>χ⁽²⁾ Squeezed Light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Front end only: every number comes from math-engines/engines/squeezed_light through Pyodide. */
+:root {
+  color-scheme: light;
+  --bg: #eef0f2; --panel: #fcfcfb; --ink: #0b0b0b; --muted: #52514e; --line: #d4d6d9; --grid: #e6e8ea;
+  --accent: #2a78d6; --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --vac: #8a8985; --err: #b3261e;
+  --f-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-label: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  color-scheme: dark;
+  --bg: #111211; --panel: #1a1a19; --ink: #ffffff; --muted: #c3c2b7; --line: #34342f; --grid: #262624;
+  --accent: #3987e5; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --vac: #8f8e86; --err: #ff8a80 } }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111211; --panel: #1a1a19; --ink: #ffffff; --muted: #c3c2b7; --line: #34342f; --grid: #262624;
+  --accent: #3987e5; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --vac: #8f8e86; --err: #ff8a80 }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-ui); }
+.app { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 20px; padding: 18px 20px 40px; max-width: 1320px; margin: 0 auto; }
+header { grid-column: 1 / -1; border-bottom: 1px solid var(--line); padding-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 8px 24px; }
+h1 { font: 600 26px/1.15 var(--f-label); margin: 0; }
+.sub { color: var(--muted); margin: 3px 0 0; max-width: 78ch; }
+.status { font: 12.5px var(--f-num); color: var(--muted); }
+.status.err { color: var(--err); }
+aside { min-width: 0; }
+.rack { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; display: grid; gap: 12px; padding-right: 4px; }
+fieldset { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; margin: 0; padding: 10px 12px 12px; display: grid; gap: 8px; min-width: 0; }
+legend { font: 600 12px var(--f-label); text-transform: uppercase; letter-spacing: .09em; color: var(--accent); padding: 0 4px; }
+label.f { display: grid; grid-template-columns: minmax(0, 1fr) 92px 52px; align-items: center; gap: 6px; font-size: 13px; }
+label.f input { width: 100%; font: 13px var(--f-num); padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); text-align: right; }
+label.f .u { font: 12px var(--f-num); color: var(--muted); }
+main { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; min-width: 0; }
+.panel h2 { font: 600 15px var(--f-label); letter-spacing: .02em; margin: 0 0 2px; }
+.panel p.note { color: var(--muted); margin: 0 0 8px; font-size: 13px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+.tile .k { font: 500 12.5px var(--f-label); letter-spacing: .02em; color: var(--muted); }
+.tile .v { font: 500 22px var(--f-num); }
+.tile .v small { font-size: 12px; color: var(--muted); margin-left: 3px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font: 11px var(--f-num); fill: var(--muted); }
+.chart .axis-title { font: 500 11.5px var(--f-ui); fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); margin: 2px 0 4px; }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 0; border-top: 2px solid var(--c); margin-right: 6px; vertical-align: middle; }
+.legend span.dash::before { border-top-style: dashed; }
+.legend span.bar::before { height: 10px; border: 0; background: var(--c); border-radius: 2px; width: 10px; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.15); white-space: nowrap; z-index: 2; }
+.tip .row { display: flex; align-items: center; gap: 6px; }
+.tip .row b { font: 500 12.5px var(--f-num); color: var(--ink); }
+.tip .row i { display: inline-block; width: 12px; border-top: 2px solid var(--c); }
+.tip .hd { color: var(--muted); font-family: var(--f-num); margin-bottom: 2px; }
+details { margin-top: 6px; font-size: 12.5px; }
+details summary { cursor: pointer; color: var(--muted); }
+details .tw { max-height: 220px; overflow: auto; }
+table { border-collapse: collapse; font: 12px var(--f-num); }
+td, th { padding: 2px 8px; border-bottom: 1px solid var(--grid); text-align: right; }
+th { font-family: var(--f-ui); font-weight: 600; color: var(--muted); }
+button.run { font: 600 13px var(--f-ui); padding: 6px 12px; border-radius: 4px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+button.run:disabled { opacity: .5; cursor: default; }
+.eq { font: 12.5px var(--f-num); color: var(--muted); display: grid; gap: 2px; margin-bottom: 8px; overflow-x: auto; }
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; padding: 12px 16px 32px; }
+  .rack { position: static; max-height: none; overflow: visible; }
+  .grid2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Squeezed light from χ⁽²⁾ — Hamiltonian engine</h1>
+      <p class="sub">Quadrature squeezing from the interaction Hamiltonian, not coupled-wave equations: the quadratic generator gives the Heisenberg drift and the covariance with loss; the full three-wave Hamiltonian is evolved exactly in Fock space with a quantum, depletable pump.</p>
+    </div>
+    <span class="status" id="status">Starting Python…</span>
+  </header>
+
+  <aside><div class="rack">
+    <fieldset id="fs-wg"><legend>Single-pass waveguide (degenerate)</legend></fieldset>
+    <fieldset id="fs-det"><legend>Loss and detection</legend></fieldset>
+    <fieldset id="fs-opo"><legend>OPO below threshold</legend></fieldset>
+    <fieldset id="fs-fock"><legend>Full quantum (Fock)</legend>
+      <div><button class="run" id="runFock" disabled>Run Fock evolution</button></div>
+    </fieldset>
+  </div></aside>
+
+  <main>
+    <section class="panel">
+      <div class="eq">
+        <div>G/ħ = (Δk/2) a†a + i(γ/2)(a†² − a²) = ½ Rᵀ M R,  R = (x, p),  x = a + a†,  vacuum V = 1</div>
+        <div>dR/dz = (2ΩM − α/2) R  →  dV/dz = A V + V Aᵀ + α I,   γ = √(η P),  η = 8π² d² / (ε₀ c n_s² n_p λ² A)</div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+    </section>
+
+    <div class="grid2">
+      <section class="panel"><h2>Squeezing vs pump power</h2><p class="note">At the set length, Δk and losses.</p><div class="chart" id="cPump"></div></section>
+      <section class="panel"><h2>Phase space at the detector</h2><p class="note">1σ noise contour; vacuum circle for reference. Axes in shot-noise units.</p><div class="chart" id="cEllipse"></div></section>
+      <section class="panel"><h2>Squeezing vs phase mismatch</h2><p class="note">Detected squeezing and anti-squeezing; the vertical marker is the set Δk.</p><div class="chart" id="cDk"></div></section>
+      <section class="panel"><h2>Photon-number distribution</h2><p class="note">Lossless output S(r_eff)|0⟩: only even photon numbers (pairs).</p><div class="chart" id="cPn"></div></section>
+      <section class="panel"><h2>OPO output spectrum</h2><p class="note">Collett–Gardiner: H/ħ = i(ε/2)(a†² − a²) plus input–output, with the detection efficiency above.</p><div class="chart" id="cOpo"></div></section>
+    </div>
+
+    <section class="panel">
+      <h2>Beyond the parametric approximation</h2>
+      <p class="note">H/ħ = i(g/2)(a†² b − a² b†) from |α⟩|β⟩, evolved exactly in blocks of conserved 2b†b + a†a. Dashed: parametric approximation r = βτ (classical undepleted pump). Set β = 0 and α &gt; 0 for SHG, which squeezes the fundamental.</p>
+      <div class="grid2">
+        <div class="chart" id="cFockSq"></div>
+        <div class="chart" id="cFockN"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const ENGINE_FILES = ['engines/__init__.py', 'engines/common.py', 'engines/squeezed_light/__init__.py', 'engines/squeezed_light/engine.py'];
+  const INPUTS = {
+    'fs-wg': [
+      ['pump_power', 'Pump power (peak)', 'W', 1, 1.0],
+      ['length', 'Length', 'mm', 1e-3, 5],
+      ['d_eff', 'd_eff', 'pm/V', 1e-12, 14],
+      ['wavelength_signal', 'Signal wavelength', 'nm', 1e-9, 1550],
+      ['n_signal', 'n signal', '', 1, 2.14],
+      ['n_pump', 'n pump', '', 1, 2.18],
+      ['area_eff', 'A_eff', 'µm²', 1e-12, 2.0],
+      ['delta_k', 'Phase mismatch Δk', '1/cm', 100, 0],
+    ],
+    'fs-det': [
+      ['loss', 'Propagation loss', 'dB/cm', 23.02585093, 0.1],
+      ['detection_efficiency', 'Detection efficiency', '', 1, 0.9],
+      ['phase_noise', 'Phase jitter rms', 'mrad', 1e-3, 10],
+    ],
+    'fs-opo': [
+      ['pump_ratio', 'P / P_th', '', 1, 0.5],
+      ['linewidth', 'Cavity HWHM', 'MHz', 1e6, 10],
+      ['escape_efficiency', 'Escape efficiency', '', 1, 0.95],
+    ],
+    'fs-fock': [
+      ['alpha', 'Signal amplitude α', '', 1, 0],
+      ['beta', 'Pump amplitude β', '', 1, 6],
+      ['tau_max', 'τ = g t up to', '', 1, 0.25],
+    ],
+  };
+  const SCALE = {};
+  for (const [fs, list] of Object.entries(INPUTS)) {
+    const host = $(fs), before = host.querySelector('div');
+    for (const [name, label, unit, scale, def] of list) {
+      SCALE[name] = scale;
+      const l = document.createElement('label'); l.className = 'f';
+      l.innerHTML = `<span></span><input type="number" step="any" name="${name}" value="${def}"><span class="u"></span>`;
+      l.children[0].textContent = label; l.children[2].textContent = unit;
+      host.insertBefore(l, before);
+    }
+  }
+  const read = names => {
+    const o = {};
+    for (const n of names) {
+      const v = parseFloat(document.querySelector(`[name="${n}"]`).value);
+      if (!Number.isFinite(v)) throw new Error(`${n}: enter a number`);
+      o[n] = v * SCALE[n];
+    }
+    return o;
+  };
+
+  /* ---------- number formatting ---------- */
+  const fmt = (x, p = 4) => {
+    if (x === null || x === undefined || !Number.isFinite(x)) return '—';
+    const a = Math.abs(x);
+    const s = a !== 0 && (a >= 1e5 || a < 1e-3) ? x.toExponential(2) : String(+x.toPrecision(p));
+    return s.replace('-', '−');
+  };
+
+  /* ---------- SVG line chart with crosshair tooltip and table view ---------- */
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
+  function ticks(lo, hi, n = 5) {
+    const span = hi - lo || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
+    const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || 10 * mag;
+    const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9 * span; v += step) out.push(+v.toPrecision(10));
+    return out;
+  }
+  function lineChart(host, { x, series, xlabel, ylabel, marker, bars, xfmt = fmt, yRange }) {
+    host.innerHTML = '';
+    const lg = document.createElement('div'); lg.className = 'legend';
+    if (series.length > 1) for (const s of series) {
+      const sp = document.createElement('span'); sp.textContent = s.name; sp.style.setProperty('--c', s.color);
+      if (s.dash) sp.className = 'dash'; if (bars) sp.className = 'bar'; lg.appendChild(sp);
+    }
+    host.appendChild(lg);
+    const W = 520, H = 280, m = { l: 52, r: 14, t: 10, b: 40 };
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': ylabel + ' vs ' + xlabel }, host);
+    const ys = series.flatMap(s => s.y).filter(Number.isFinite);
+    let y0 = yRange ? yRange[0] : Math.min(...ys), y1 = yRange ? yRange[1] : Math.max(...ys);
+    if (bars) y0 = 0;
+    if (y0 === y1) { y0 -= 1; y1 += 1; }
+    const pad = (y1 - y0) * 0.06; if (!bars && !yRange) { y0 -= pad; y1 += pad; }
+    const x0 = bars ? x[0] - 0.5 : x[0], x1 = bars ? x[x.length - 1] + 0.5 : x[x.length - 1];
+    const X = v => m.l + (v - x0) / (x1 - x0) * (W - m.l - m.r), Y = v => H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b);
+    for (const t of ticks(y0, y1)) {
+      el('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), stroke: 'var(--grid)', 'stroke-width': 1 }, svg);
+      el('text', { x: m.l - 6, y: Y(t) + 3.5, 'text-anchor': 'end' }, svg).textContent = fmt(t, 3);
+    }
+    for (const t of ticks(x0, x1, 6)) {
+      if (bars && t !== Math.round(t)) continue;
+      el('text', { x: X(t), y: H - m.b + 15, 'text-anchor': 'middle' }, svg).textContent = xfmt(t, 3);
+    }
+    el('line', { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: 'var(--line)' }, svg);
+    if (y0 < 0 && y1 > 0 && !bars) el('line', { x1: m.l, x2: W - m.r, y1: Y(0), y2: Y(0), stroke: 'var(--muted)', 'stroke-width': 1, 'stroke-opacity': .5 }, svg);
+    el('text', { x: (m.l + W - m.r) / 2, y: H - 6, 'text-anchor': 'middle', class: 'axis-title' }, svg).textContent = xlabel;
+    el('text', { x: 12, y: (m.t + H - m.b) / 2, 'text-anchor': 'middle', class: 'axis-title', transform: `rotate(-90 12 ${(m.t + H - m.b) / 2})` }, svg).textContent = ylabel;
+    if (marker !== undefined && marker >= x0 && marker <= x1)
+      el('line', { x1: X(marker), x2: X(marker), y1: m.t, y2: H - m.b, stroke: 'var(--muted)', 'stroke-dasharray': '3 3' }, svg);
+    if (bars) {
+      const bw = Math.max(2, (W - m.l - m.r) / x.length - 2);
+      series[0].y.forEach((v, i) => { if (v > 0) {
+        const h = Math.max(0, Y(0) - Y(v)), r = Math.min(4, h / 2, bw / 2);
+        const xl = X(x[i]) - bw / 2, yt = Y(v);
+        el('path', { d: `M${xl},${Y(0)} V${yt + r} Q${xl},${yt} ${xl + r},${yt} H${xl + bw - r} Q${xl + bw},${yt} ${xl + bw},${yt + r} V${Y(0)} Z`, fill: series[0].color }, svg);
+      } });
+    } else for (const s of series) {
+      let d = '', pen = false;
+      s.y.forEach((v, i) => { if (Number.isFinite(v)) { d += (pen ? 'L' : 'M') + X(x[i]).toFixed(1) + ',' + Y(Math.max(y0, Math.min(y1, v))).toFixed(1); pen = true; } else pen = false; });
+      el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-dasharray': s.dash ? '5 4' : 'none' }, svg);
+    }
+    /* hover */
+    const hair = el('line', { y1: m.t, y2: H - m.b, stroke: 'var(--muted)', 'stroke-width': 1, visibility: 'hidden' }, svg);
+    const dots = series.map(s => el('circle', { r: 4, fill: s.color, stroke: 'var(--panel)', 'stroke-width': 2, visibility: 'hidden' }, svg));
+    const hit = el('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: 'transparent', tabindex: 0 }, svg);
+    const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; host.appendChild(tip);
+    const show = i => {
+      hair.setAttribute('x1', X(x[i])); hair.setAttribute('x2', X(x[i])); hair.setAttribute('visibility', bars ? 'hidden' : 'visible');
+      tip.replaceChildren();
+      const hd = document.createElement('div'); hd.className = 'hd'; hd.textContent = `${xlabel.split(' (')[0]} = ${xfmt(x[i])}`; tip.appendChild(hd);
+      series.forEach((s, k) => {
+        const v = s.y[i];
+        if (!bars && Number.isFinite(v)) { dots[k].setAttribute('cx', X(x[i])); dots[k].setAttribute('cy', Y(v)); dots[k].setAttribute('visibility', 'visible'); }
+        const row = document.createElement('div'); row.className = 'row';
+        const key = document.createElement('i'); key.style.setProperty('--c', s.color);
+        const b = document.createElement('b'); b.textContent = fmt(v);
+        const nm = document.createElement('span'); nm.textContent = s.name;
+        row.append(key, b, nm); tip.appendChild(row);
+      });
+      tip.hidden = false;
+      const r = svg.getBoundingClientRect(), px = X(x[i]) / W * r.width;
+      tip.style.left = Math.min(px + 12, r.width - tip.offsetWidth - 4) + 'px';
+      tip.style.top = (lg.offsetHeight + 8) + 'px';
+    };
+    const hide = () => { tip.hidden = true; hair.setAttribute('visibility', 'hidden'); dots.forEach(d => d.setAttribute('visibility', 'hidden')); };
+    let cur = 0;
+    hit.addEventListener('pointermove', ev => {
+      const r = svg.getBoundingClientRect(), vx = (ev.clientX - r.left) / r.width * W;
+      const xv = x0 + (vx - m.l) / (W - m.l - m.r) * (x1 - x0);
+      let best = 0; x.forEach((v, i) => { if (Math.abs(v - xv) < Math.abs(x[best] - xv)) best = i; });
+      cur = best; show(best);
+    });
+    hit.addEventListener('pointerleave', hide); hit.addEventListener('blur', hide);
+    hit.addEventListener('focus', () => show(cur));
+    hit.addEventListener('keydown', ev => {
+      if (ev.key === 'ArrowRight') { cur = Math.min(x.length - 1, cur + 1); show(cur); ev.preventDefault(); }
+      if (ev.key === 'ArrowLeft') { cur = Math.max(0, cur - 1); show(cur); ev.preventDefault(); }
+    });
+    /* table view */
+    const det = document.createElement('details'); const sm = document.createElement('summary'); sm.textContent = 'Data table'; det.appendChild(sm);
+    const tw = document.createElement('div'); tw.className = 'tw'; const tb = document.createElement('table');
+    const hr = tb.insertRow(); for (const h of [xlabel, ...series.map(s => s.name)]) { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }
+    x.forEach((xv, i) => { const tr = tb.insertRow(); tr.insertCell().textContent = xfmt(xv); for (const s of series) tr.insertCell().textContent = fmt(s.y[i]); });
+    tw.appendChild(tb); det.appendChild(tw); host.appendChild(det);
+  }
+
+  function ellipseChart(host, cov) {
+    host.innerHTML = '';
+    const lg = document.createElement('div'); lg.className = 'legend';
+    for (const [n, c] of [['Detected state', 'var(--s1)'], ['Vacuum', 'var(--vac)']]) { const s = document.createElement('span'); s.textContent = n; s.style.setProperty('--c', c); lg.appendChild(s); }
+    host.appendChild(lg);
+    const [[a, b], [, d]] = cov;
+    const tr = a + d, det = a * d - b * b, disc = Math.sqrt(Math.max(0, tr * tr / 4 - det));
+    const l1 = tr / 2 + disc, l2 = tr / 2 - disc, th = 0.5 * Math.atan2(2 * b, a - d);
+    const R = Math.max(1.5, Math.sqrt(l1) * 1.15), S = 260, c = S / 2, k = (S / 2 - 18) / R;
+    const svg = el('svg', { viewBox: `0 0 ${S} ${S}`, role: 'img', 'aria-label': 'phase-space noise ellipse', style: 'max-width:340px;margin:0 auto' }, host);
+    for (const t of ticks(-R, R, 4)) {
+      el('line', { x1: c + t * k, x2: c + t * k, y1: 8, y2: S - 8, stroke: 'var(--grid)' }, svg);
+      el('line', { y1: c - t * k, y2: c - t * k, x1: 8, x2: S - 8, stroke: 'var(--grid)' }, svg);
+    }
+    el('text', { x: S - 10, y: c - 6, 'text-anchor': 'end', class: 'axis-title' }, svg).textContent = 'x';
+    el('text', { x: c + 6, y: 18, class: 'axis-title' }, svg).textContent = 'p';
+    el('circle', { cx: c, cy: c, r: k, fill: 'none', stroke: 'var(--vac)', 'stroke-width': 2, 'stroke-dasharray': '4 3' }, svg);
+    el('ellipse', { cx: c, cy: c, rx: Math.sqrt(l1) * k, ry: Math.sqrt(Math.max(l2, 0)) * k, fill: 'var(--s1)', 'fill-opacity': .14, stroke: 'var(--s1)', 'stroke-width': 2, transform: `rotate(${-th * 180 / Math.PI} ${c} ${c})` }, svg);
+    const p = document.createElement('p'); p.className = 'note';
+    p.textContent = `Axes ±${fmt(R, 3)}; principal variances ${fmt(l2)} and ${fmt(l1)} (phase jitter not drawn).`;
+    host.appendChild(p);
+  }
+
+  /* ---------- Python ---------- */
+  const PY_GLUE = `
+import json
+import numpy as np
+from engines.squeezed_light import engine as sl
+
+def _f(v):
+    v = np.asarray(v, dtype=float)
+    return [None if not np.isfinite(x) else float(x) for x in np.atleast_1d(v)]
+
+def gaussian_panel(js):
+    p = json.loads(js)
+    wg = {k: p[k] for k in ("length", "d_eff", "wavelength_signal", "n_signal", "n_pump", "area_eff", "loss", "detection_efficiency", "phase_noise")}
+    r = sl.degenerate_squeezing(pump_power=p["pump_power"], delta_k=p["delta_k"], **wg)
+    out = {k: (float(v) if np.ndim(v) == 0 else None) for k, v in r.values.items()}
+    out["cov_det"] = sl.lossy_channel(r["covariance"], p["detection_efficiency"]).tolist()
+    P = np.linspace(p["pump_power"] * 0.02, p["pump_power"] * 2, 60)
+    rows = [sl.degenerate_squeezing(pump_power=x, delta_k=p["delta_k"], **wg) for x in P]
+    out["pump"] = {"x": _f(P), "gen": _f([q["squeezing_db_generated"] for q in rows]),
+                   "sq": _f([q["squeezing_db"] for q in rows]), "asq": _f([q["antisqueezing_db"] for q in rows])}
+    span = max(3 * 2 * np.pi / p["length"], 2.5 * abs(p["delta_k"]), 4 * r["gain_rate"])
+    DK = np.linspace(-span, span, 121)
+    rows = [sl.degenerate_squeezing(pump_power=p["pump_power"], delta_k=x, **wg) for x in DK]
+    out["dk"] = {"x": _f(DK), "sq": _f([q["squeezing_db"] for q in rows]), "asq": _f([q["antisqueezing_db"] for q in rows])}
+    out["pn"] = _f(sl.photon_number_distribution(r["squeezing_parameter_eff"], 20))
+    W = np.linspace(0, 5 * p["linewidth"], 101)
+    o = sl.opo_spectrum(p["pump_ratio"], W, p["linewidth"], p["escape_efficiency"], p["detection_efficiency"])
+    out["opo"] = {"x": _f(W), "sq": _f(o["squeezing_db"]), "asq": _f(o["antisqueezing_db"]), "dc": float(o["squeezing_db_dc"])}
+    return json.dumps(out)
+
+def fock_panel(js):
+    p = json.loads(js)
+    T = np.linspace(0, p["tau_max"], 41)
+    f = sl.fock_degenerate(p["alpha"], p["beta"], T)
+    return json.dumps({"x": _f(T), "sq": _f(f["signal_squeezing_db"]), "par": _f(f["parametric_squeezing_db"]),
+                       "pump_sq": _f(f["pump_squeezing_db"]), "na": _f(f["signal_photons"]), "nb": _f(f["pump_photons"]),
+                       "na_par": _f(np.sinh(p["beta"] * T) ** 2),
+                       "dim": int(f["hilbert_dimension"])})
+`;
+  let py = null;
+  const setStatus = (t, err) => { $('status').textContent = t; $('status').className = 'status' + (err ? ' err' : ''); };
+  const lastLine = e => String(e.message || e).split('\n').filter(Boolean).pop();
+
+  function tiles(r) {
+    const T = [
+      ['η', fmt(r.efficiency_norm / 100), '%/W/cm²'], ['γ', fmt(r.gain_rate / 100), '1/cm'],
+      ['r = γL', fmt(r.squeezing_parameter), ''], ['r_eff (Δk)', fmt(r.squeezing_parameter_eff), ''],
+      ['Generated', fmt(r.squeezing_db_generated, 3), 'dB'], ['Detected squeezing', fmt(r.squeezing_db, 3), 'dB'],
+      ['Anti-squeezing', fmt(r.antisqueezing_db, 3), 'dB'], ['Photons / mode', fmt(r.mean_photons, 3), ''],
+      ['Purity', fmt(r.purity, 3), ''],
+    ];
+    $('tiles').replaceChildren(...T.map(([k, v, u]) => {
+      const d = document.createElement('div'); d.className = 'tile';
+      const kk = document.createElement('div'); kk.className = 'k'; kk.textContent = k;
+      const vv = document.createElement('div'); vv.className = 'v'; vv.textContent = v;
+      if (u) { const s = document.createElement('small'); s.textContent = u; vv.appendChild(s); }
+      d.append(kk, vv); return d;
+    }));
+  }
+
+  function runGaussian() {
+    if (!py) return;
+    let p;
+    try { p = read([...INPUTS['fs-wg'], ...INPUTS['fs-det'], ...INPUTS['fs-opo']].map(i => i[0])); } catch (e) { setStatus(e.message, true); return; }
+    try {
+      py.globals.set('ARGS', JSON.stringify(p));
+      const r = JSON.parse(py.runPython('gaussian_panel(ARGS)'));
+      tiles(r);
+      lineChart($('cPump'), { x: r.pump.x, xlabel: 'Pump power (W)', ylabel: 'Noise (dB re shot noise)', marker: p.pump_power, series: [
+        { name: 'Generated (at waveguide output)', color: 'var(--s1)', y: r.pump.gen },
+        { name: 'Detected squeezing', color: 'var(--s2)', y: r.pump.sq },
+        { name: 'Detected anti-squeezing', color: 'var(--s3)', y: r.pump.asq }] });
+      ellipseChart($('cEllipse'), r.cov_det);
+      lineChart($('cDk'), { x: r.dk.x.map(v => v / 100), xlabel: 'Δk (1/cm)', ylabel: 'Noise (dB re shot noise)', marker: p.delta_k / 100, series: [
+        { name: 'Detected squeezing', color: 'var(--s2)', y: r.dk.sq },
+        { name: 'Detected anti-squeezing', color: 'var(--s3)', y: r.dk.asq }] });
+      lineChart($('cPn'), { x: r.pn.map((_, i) => i), bars: true, xlabel: 'Photon number n', ylabel: 'P(n)', xfmt: v => String(v), series: [
+        { name: 'P(n)', color: 'var(--s1)', y: r.pn }] });
+      lineChart($('cOpo'), { x: r.opo.x.map(v => v / 1e6), xlabel: 'Sideband frequency Ω/2π (MHz)', ylabel: 'Noise (dB re shot noise)', series: [
+        { name: 'Squeezed quadrature', color: 'var(--s2)', y: r.opo.sq },
+        { name: 'Anti-squeezed quadrature', color: 'var(--s3)', y: r.opo.asq }] });
+      setStatus(`Ready · OPO squeezing at Ω→0: ${fmt(r.opo.dc, 3)} dB`);
+    } catch (e) { setStatus(lastLine(e), true); }
+  }
+
+  async function runFock() {
+    if (!py) return;
+    let p;
+    try { p = read(INPUTS['fs-fock'].map(i => i[0])); } catch (e) { setStatus(e.message, true); return; }
+    $('runFock').disabled = true; setStatus('Evolving the full Hamiltonian…');
+    await new Promise(r => setTimeout(r, 30));
+    try {
+      py.globals.set('ARGS', JSON.stringify(p));
+      const t0 = performance.now();
+      const r = JSON.parse(py.runPython('fock_panel(ARGS)'));
+      const sq = [{ name: 'Signal, full quantum', color: 'var(--s1)', y: r.sq }, { name: 'Pump / SH, full quantum', color: 'var(--s3)', y: r.pump_sq }];
+      if (p.beta > 0) sq.splice(1, 0, { name: 'Signal, parametric approx.', color: 'var(--s2)', dash: true, y: r.par });
+      lineChart($('cFockSq'), { x: r.x, xlabel: 'Interaction τ = g t', ylabel: 'Best quadrature noise (dB)', series: sq });
+      const nn = [{ name: '⟨a†a⟩ signal', color: 'var(--s1)', y: r.na }, { name: '⟨b†b⟩ pump', color: 'var(--s3)', y: r.nb }];
+      if (p.beta > 0 && p.alpha === 0) nn.splice(1, 0, { name: 'sinh²(βτ) parametric', color: 'var(--s2)', dash: true, y: r.na_par });
+      lineChart($('cFockN'), { x: r.x, xlabel: 'Interaction τ = g t', ylabel: 'Mean photon number', series: nn });
+      setStatus(`Fock: ${r.dim} basis states, ${Math.round(performance.now() - t0)} ms`);
+    } catch (e) { setStatus(lastLine(e), true); }
+    $('runFock').disabled = false;
+  }
+
+  let timer = null;
+  document.querySelectorAll('#fs-wg input, #fs-det input, #fs-opo input').forEach(i => i.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(runGaussian, 200); }));
+  $('runFock').onclick = runFock;
+  document.querySelectorAll('#fs-fock input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') runFock(); }));
+
+  (async () => {
+    try {
+      py = await loadPyodide();
+      setStatus('Loading NumPy…');
+      await py.loadPackage('numpy');
+      for (const f of ENGINE_FILES) {
+        const res = await fetch('../math-engines/' + f);
+        if (!res.ok) throw new Error(`could not fetch ${f}: serve the repository over HTTP`);
+        const full = '/home/pyodide/' + f;
+        py.FS.mkdirTree(full.slice(0, full.lastIndexOf('/')));
+        py.FS.writeFile(full, await res.text());
+      }
+      py.runPython("import sys\nsys.path.insert(0, '/home/pyodide')");
+      py.runPython(PY_GLUE);
+      $('runFock').disabled = false;
+      runGaussian();
+      runFock();
+    } catch (e) {
+      py = null;
+      setStatus('Python could not start: ' + lastLine(e) + ' (open via http://, e.g. python -m http.server from the repository root)', true);
+    }
+  })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+engine: squeezed_light
+version: 1
+title: Squeezed light from χ⁽²⁾ (Hamiltonian)
+description: Quadrature and two-mode squeezing from χ⁽²⁾ parametric processes in the Hamiltonian formalism. Quadratic momentum generator → Heisenberg drift → covariance with loss (Bogoliubov), OPO output spectra, squeezed-vacuum statistics, and exact Fock-space evolution of the full three-wave Hamiltonian with a quantum, depletable pump.
+references:
+  - "C. M. Caves, B. L. Schumaker, Phys. Rev. A 31, 3068 (1985)"
+  - "M. J. Collett, C. W. Gardiner, Phys. Rev. A 30, 1386 (1984)"
+  - "C. W. Gardiner, P. Zoller, Quantum Noise, 3rd ed. (Springer, 2004), ch. 10"
+  - "C. Weedbrook et al., Rev. Mod. Phys. 84, 621 (2012)"
+  - "M. Hillery, M. S. Zubairy, Phys. Rev. A 29, 1275 (1984)"
+  - "L.-A. Wu, H. J. Kimble, J. L. Hall, H. Wu, Phys. Rev. Lett. 57, 2520 (1986)"
+common_inputs:
+  pump_power: {label: "Pump power (peak)", ui_unit: W, scale: 1.0, default: 1.0, min: 0}
+  length: {label: "Interaction length", ui_unit: mm, scale: 1.0e-3, default: 5, min: 0}
+  d_eff: {label: "Effective nonlinearity d_eff", ui_unit: pm/V, scale: 1.0e-12, default: 14, min: 0}
+  wavelength_signal: {label: "Signal vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+  n_signal: {label: "Signal effective index", ui_unit: "", scale: 1.0, default: 2.14, min: 1}
+  n_pump: {label: "Pump effective index", ui_unit: "", scale: 1.0, default: 2.18, min: 1}
+  area_eff: {label: "Effective mode area A_eff", ui_unit: µm², scale: 1.0e-12, default: 2.0, min: 0}
+  delta_k: {label: "Phase mismatch Δk", ui_unit: 1/cm, scale: 100.0, default: 0}
+  loss: {label: "Propagation loss (signal)", ui_unit: dB/cm, scale: 23.02585093, default: 0.1, min: 0}
+functions:
+  degenerate_squeezing:
+    title: Degenerate OPA (single-mode)
+    equations:
+      - "G/ħ = (Δk/2) a†a + i(γ/2)(a†² − a²) = ½ Rᵀ M R,  R = (x, p),  x = a + a†"
+      - "dR/dz = A R,  A = 2ΩM − (α/2) I;  dV/dz = A V + V Aᵀ + α I"
+      - "γ = √(η P_p),  η = 8π² d_eff² / (ε₀ c n_s² n_p λ_s² A_eff),  r = γ L"
+      - "lossless: V∓ = (|μ| ∓ |ν|)²,  μ = cosh gL − i(Δk/2g) sinh gL,  ν = (γ/g) sinh gL,  g = √(γ² − Δk²/4)"
+    inputs:
+      - pump_power
+      - length
+      - d_eff
+      - wavelength_signal
+      - n_signal
+      - n_pump
+      - area_eff
+      - delta_k
+      - loss
+      - {name: detection_efficiency, label: "Detection efficiency", ui_unit: "", scale: 1.0, default: 0.9, min: 0, max: 1}
+      - {name: phase_noise, label: "Phase jitter (rms)", ui_unit: mrad, scale: 1.0e-3, default: 10, min: 0}
+    outputs:
+      - {name: efficiency_norm, label: "Normalised efficiency η", ui_unit: "%/(W cm²)", scale: 100.0}
+      - {name: gain_rate, label: "Gain rate γ", ui_unit: 1/cm, scale: 100.0}
+      - {name: squeezing_parameter, label: "Squeezing parameter r = γL", ui_unit: "", scale: 1.0}
+      - {name: squeezing_parameter_eff, label: "Effective r with Δk (asinh|ν|)", ui_unit: "", scale: 1.0}
+      - {name: mean_photons, label: "Photons per mode at output", ui_unit: "", scale: 1.0}
+      - {name: squeezing_db_generated, label: "Squeezing at waveguide output", ui_unit: dB, scale: 1.0}
+      - {name: squeezing_db, label: "Detected squeezing", ui_unit: dB, scale: 1.0}
+      - {name: antisqueezing_db, label: "Detected anti-squeezing", ui_unit: dB, scale: 1.0}
+      - {name: purity, label: "Purity at output", ui_unit: "", scale: 1.0}
+      - {name: squeezing_angle, label: "Squeezed quadrature angle", ui_unit: deg, scale: 0.017453292519943295}
+  two_mode_squeezing:
+    title: Non-degenerate OPA (two-mode)
+    equations:
+      - "G/ħ = (Δk/2)(a_s†a_s + a_i†a_i) + iγ(a_s†a_i† − a_s a_i)"
+      - "1/λ_p = 1/λ_s + 1/λ_i,  η = 8π² d_eff² / (ε₀ c n_s n_i n_p λ_s λ_i A_eff)"
+      - "V_EPR = min_θ Var[(X_s,θ ± X_i,θ)/√2] = e^{−2r} (lossless, Δk = 0);  E_N = Σ max(0, −log₂ ν̃)"
+    inputs:
+      - pump_power
+      - length
+      - d_eff
+      - wavelength_signal
+      - {name: wavelength_idler, label: "Idler vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1600, min: 100}
+      - n_signal
+      - {name: n_idler, label: "Idler effective index", ui_unit: "", scale: 1.0, default: 2.137, min: 1}
+      - n_pump
+      - area_eff
+      - delta_k
+      - loss
+      - {name: efficiency_signal, label: "Signal detection efficiency", ui_unit: "", scale: 1.0, default: 0.9, min: 0, max: 1}
+      - {name: efficiency_idler, label: "Idler detection efficiency", ui_unit: "", scale: 1.0, default: 0.9, min: 0, max: 1}
+    outputs:
+      - {name: wavelength_pump, label: "Pump wavelength", ui_unit: nm, scale: 1.0e-9}
+      - {name: gain_rate, label: "Gain rate γ", ui_unit: 1/cm, scale: 100.0}
+      - {name: squeezing_parameter, label: "Squeezing parameter r = γL", ui_unit: "", scale: 1.0}
+      - {name: signal_photons, label: "Signal photons per mode", ui_unit: "", scale: 1.0}
+      - {name: epr_squeezing_db, label: "Detected EPR (two-mode) squeezing", ui_unit: dB, scale: 1.0}
+      - {name: epr_antisqueezing_db, label: "Detected EPR anti-squeezing", ui_unit: dB, scale: 1.0}
+      - {name: signal_noise_db, label: "Signal alone: thermal excess noise", ui_unit: dB, scale: 1.0}
+      - {name: log_negativity, label: "Logarithmic negativity", ui_unit: ebit, scale: 1.0}
+      - {name: purity, label: "Two-mode purity (detected)", ui_unit: "", scale: 1.0}
+  opo_spectrum:
+    title: OPO below threshold (spectrum)
+    equations:
+      - "H/ħ = i(ε/2)(a†² − a²);  ȧ = −κa + εa† + √(2κ_out) a_in + √(2κ_loss) b_in;  a_out = √(2κ_out) a − a_in"
+      - "S∓(Ω) = 1 ∓ η · 4x / ((1 ± x)² + (Ω/κ)²),  x = √(P/P_th) = ε/κ,  η = η_esc η_det"
+    inputs:
+      - {name: pump_ratio, label: "Pump power / threshold", ui_unit: "", scale: 1.0, default: 0.5, min: 0, max: 0.999}
+      - {name: frequency, label: "Sideband frequency Ω/2π", ui_unit: MHz, scale: 1.0e+6, default: 1, min: 0}
+      - {name: linewidth, label: "Cavity HWHM κ/2π", ui_unit: MHz, scale: 1.0e+6, default: 10, min: 0}
+      - {name: escape_efficiency, label: "Escape efficiency", ui_unit: "", scale: 1.0, default: 0.95, min: 0, max: 1}
+      - {name: detection_efficiency, label: "Detection efficiency", ui_unit: "", scale: 1.0, default: 0.9, min: 0, max: 1}
+    outputs:
+      - {name: squeezing_db, label: "Squeezing at Ω", ui_unit: dB, scale: 1.0}
+      - {name: antisqueezing_db, label: "Anti-squeezing at Ω", ui_unit: dB, scale: 1.0}
+      - {name: squeezing_db_dc, label: "Squeezing at Ω → 0", ui_unit: dB, scale: 1.0}
+      - {name: total_efficiency, label: "Total efficiency", ui_unit: "", scale: 1.0}
+  squeezed_vacuum_statistics:
+    title: Squeezed-vacuum statistics
+    equations:
+      - "|ξ⟩ = S(r)|0⟩,  S(r) = exp[r(a² − a†²)/2]:  ⟨n⟩ = sinh² r,  g⁽²⁾ = 3 + 1/sinh² r"
+      - "P(2n) = (2n)! tanh²ⁿ r / ((2ⁿ n!)² cosh r);  TMSV: P(n, n) = tanh²ⁿ r / cosh² r,  g⁽²⁾_si = 2 + 1/sinh² r"
+      - "V∓ = η e^{∓2r} + 1 − η"
+    inputs:
+      - {name: squeezing_parameter, label: "Squeezing parameter r", ui_unit: "", scale: 1.0, default: 1.0, min: 0}
+      - {name: efficiency, label: "Total efficiency", ui_unit: "", scale: 1.0, default: 1.0, min: 0, max: 1}
+    outputs:
+      - {name: mean_photons, label: "Mean photon number", ui_unit: "", scale: 1.0}
+      - {name: photon_variance, label: "Photon-number variance", ui_unit: "", scale: 1.0}
+      - {name: g2, label: "g⁽²⁾(0)", ui_unit: "", scale: 1.0}
+      - {name: p0, label: "P(0)", ui_unit: "", scale: 1.0}
+      - {name: p2, label: "P(2)", ui_unit: "", scale: 1.0}
+      - {name: p4, label: "P(4)", ui_unit: "", scale: 1.0}
+      - {name: squeezing_db, label: "Squeezing after loss", ui_unit: dB, scale: 1.0}
+      - {name: antisqueezing_db, label: "Anti-squeezing after loss", ui_unit: dB, scale: 1.0}
+      - {name: g2_cross_two_mode, label: "Two-mode: cross g⁽²⁾_si", ui_unit: "", scale: 1.0}
+      - {name: pair_probability_two_mode, label: "Two-mode: P(1, 1)", ui_unit: "", scale: 1.0}
+  infer_squeezing:
+    title: Infer r and loss from a measurement
+    equations: ["V∓ = η e^{∓2r} + 1 − η  →  e^{2r} = −(V₊ − 1)/(V₋ − 1),  η = (V₊ − 1)/(e^{2r} − 1)"]
+    inputs:
+      - {name: squeezing_db, label: "Measured squeezing", ui_unit: dB, scale: 1.0, default: -6.0, max: 0}
+      - {name: antisqueezing_db, label: "Measured anti-squeezing", ui_unit: dB, scale: 1.0, default: 12.0, min: 0}
+    outputs:
+      - {name: squeezing_parameter, label: "Squeezing parameter r", ui_unit: "", scale: 1.0}
+      - {name: efficiency, label: "Total efficiency", ui_unit: "", scale: 1.0}
+      - {name: squeezing_db_lossless, label: "Squeezing without loss", ui_unit: dB, scale: 1.0}
+      - {name: mean_photons_generated, label: "Generated photons per mode", ui_unit: "", scale: 1.0}
+  fock_degenerate:
+    title: Full quantum DOPA / SHG (Fock)
+    equations:
+      - "H/ħ = i(g/2)(a†² b − a² b†),  |ψ(0)⟩ = |α⟩_a |β⟩_b,  τ = g t"
+      - "conserved 2b†b + a†a → exact block evolution;  parametric limit r = |β| τ"
+      - "V_min = 1 + 2(⟨a†a⟩ − |⟨a⟩|²) − 2|⟨a²⟩ − ⟨a⟩²|"
+    inputs:
+      - {name: alpha, label: "Signal / fundamental amplitude α", ui_unit: "", scale: 1.0, default: 0, min: 0, max: 12}
+      - {name: beta, label: "Pump / second-harmonic amplitude β", ui_unit: "", scale: 1.0, default: 8, min: 0, max: 12}
+      - {name: interaction, label: "Interaction τ = g t", ui_unit: "", scale: 1.0, default: 0.1, min: 0}
+    outputs:
+      - {name: signal_photons, label: "⟨a†a⟩", ui_unit: "", scale: 1.0}
+      - {name: pump_photons, label: "⟨b†b⟩", ui_unit: "", scale: 1.0}
+      - {name: signal_squeezing_db, label: "Signal squeezing", ui_unit: dB, scale: 1.0}
+      - {name: signal_antisqueezing_db, label: "Signal anti-squeezing", ui_unit: dB, scale: 1.0}
+      - {name: parametric_squeezing_db, label: "Parametric approximation (r = βτ)", ui_unit: dB, scale: 1.0}
+      - {name: pump_squeezing_db, label: "Pump / SH squeezing", ui_unit: dB, scale: 1.0}
+      - {name: signal_g2, label: "Signal g⁽²⁾(0)", ui_unit: "", scale: 1.0}
+      - {name: pump_depletion, label: "Pump depletion", ui_unit: "", scale: 1.0}
+      - {name: conserved_number, label: "2⟨b†b⟩ + ⟨a†a⟩", ui_unit: "", scale: 1.0}
+      - {name: hilbert_dimension, label: "States evolved", ui_unit: "", scale: 1.0}
+  fock_two_mode:
+    title: Full quantum NDOPA (Fock)
+    equations:
+      - "H/ħ = i g (a_s†a_i† b − a_s a_i b†),  |ψ(0)⟩ = |0, 0⟩ |β⟩,  τ = g t"
+      - "conserved a_s†a_s + b†b, n_s = n_i;  parametric limit: TMSV with r = |β| τ"
+    inputs:
+      - {name: beta, label: "Pump amplitude β", ui_unit: "", scale: 1.0, default: 8, min: 0, max: 12}
+      - {name: interaction, label: "Interaction τ = g t", ui_unit: "", scale: 1.0, default: 0.1, min: 0}
+    outputs:
+      - {name: signal_photons, label: "⟨a_s†a_s⟩", ui_unit: "", scale: 1.0}
+      - {name: parametric_signal_photons, label: "Parametric approximation sinh² r", ui_unit: "", scale: 1.0}
+      - {name: pump_photons, label: "⟨b†b⟩", ui_unit: "", scale: 1.0}
+      - {name: epr_squeezing_db, label: "EPR squeezing", ui_unit: dB, scale: 1.0}
+      - {name: parametric_squeezing_db, label: "Parametric approximation", ui_unit: dB, scale: 1.0}
+      - {name: signal_g2, label: "Signal g⁽²⁾ (thermal → 2)", ui_unit: "", scale: 1.0}
+      - {name: cross_g2, label: "Cross g⁽²⁾_si", ui_unit: "", scale: 1.0}
+      - {name: conserved_number, label: "⟨a_s†a_s⟩ + ⟨b†b⟩", ui_unit: "", scale: 1.0}

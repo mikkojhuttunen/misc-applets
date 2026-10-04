@@ -1,0 +1,21 @@
+engine: step_index_fiber
+version: 1
+title: Step-index fibre LP01 mode
+description: LP01 effective index, V number and mode-field radius of a silica step-index fibre.
+requires: [scipy]
+references:
+  - "D. Gloge, Appl. Opt. 10, 2252 (1971)"
+  - "D. Marcuse, Bell Syst. Tech. J. 56, 703 (1977)"
+functions:
+  lp01:
+    title: LP01 mode
+    equations: ["U J1(U)/J0(U) = W K1(W)/K0(W), U² + W² = V²", "V = k a sqrt(n_co² - n_cl²)", "w/a = 0.65 + 1.619 V^-1.5 + 2.879 V^-6"]
+    inputs:
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 300}
+      - {name: core_radius, label: "Core radius a", ui_unit: µm, scale: 1.0e-6, default: 4.1, min: 0.1}
+      - {name: delta_n, label: "Core-cladding index step", ui_unit: "", scale: 1.0, default: 0.0050, min: 0}
+    outputs:
+      - {name: neff, label: "Effective index", ui_unit: "", scale: 1.0}
+      - {name: V, label: "V number", ui_unit: "", scale: 1.0}
+      - {name: b, label: "Normalised index b", ui_unit: "", scale: 1.0}
+      - {name: mode_radius, label: "Mode-field radius", ui_unit: µm, scale: 1.0e-6}

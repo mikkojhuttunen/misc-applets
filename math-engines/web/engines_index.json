@@ -1024,6 +1024,638 @@
    }
   },
   {
+   "engine": "opa_chi3",
+   "version": 1,
+   "title": "χ³ fibre parametric amplifier",
+   "description": "Degenerate-pump four-wave-mixing amplification 2ω_p = ω_s + ω_i with SPM/XPM — nonlinear coefficient, closed-form gain, coupled-wave propagation with depletion and loss, Taylor and exact step-index-fibre gain spectra.",
+   "requires": [
+    "scipy"
+   ],
+   "references": [
+    "G. P. Agrawal, Nonlinear Fiber Optics, 5th ed. (Academic Press, 2013), ch. 10",
+    "J. Hansryd, P. A. Andrekson, M. Westlund, J. Li, P.-O. Hedekvist, IEEE J. Sel. Top. Quantum Electron. 8, 506 (2002)",
+    "M. E. Marhic, Fiber Optical Parametric Amplifiers, Oscillators and Related Devices (Cambridge, 2007)"
+   ],
+   "files": [
+    "engines/materials/__init__.py",
+    "engines/materials/engine.py",
+    "engines/opa_chi3/__init__.py",
+    "engines/opa_chi3/engine.py",
+    "engines/step_index_fiber/__init__.py",
+    "engines/step_index_fiber/engine.py"
+   ],
+   "functions": {
+    "coupling": {
+     "title": "Nonlinear coefficient γ",
+     "equations": [
+      "1/λ_i = 2/λ_p - 1/λ_s",
+      "A_eff = 1/∫e_p² e_s e_i dA = (π/2)² w_p² w_s w_i (2w_p⁻² + w_s⁻² + w_i⁻²)/π  (πw² for equal radii)",
+      "γ = n2 ω_p / (c A_eff),  γ_j = γ ω_j/ω_p"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "wavelength_signal",
+       "label": "Signal vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1556,
+       "min": 100
+      },
+      {
+       "name": "n2",
+       "label": "Nonlinear index n2",
+       "ui_unit": "1e-20 m²/W",
+       "scale": 1e-20,
+       "default": 2.6,
+       "min": 0
+      },
+      {
+       "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
+       "scale": 1.0,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "w_pump",
+       "label": "Pump mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.6,
+       "min": 0
+      },
+      {
+       "name": "w_signal",
+       "label": "Signal mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.6,
+       "min": 0
+      },
+      {
+       "name": "w_idler",
+       "label": "Idler mode radius (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.6,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "wavelength_idler",
+       "label": "Idler wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "gamma_nl",
+       "label": "Nonlinear coefficient γ",
+       "ui_unit": "1/(W km)",
+       "scale": 0.001
+      },
+      {
+       "name": "area_eff",
+       "label": "Effective area",
+       "ui_unit": "µm²",
+       "scale": 1e-12
+      },
+      {
+       "name": "nonlinear_length",
+       "label": "Nonlinear length 1/(γP)",
+       "ui_unit": "m",
+       "scale": 1.0
+      },
+      {
+       "name": "gain_max",
+       "label": "Maximum gain coefficient √(γ_sγ_i) P",
+       "ui_unit": "1/km",
+       "scale": 0.001
+      }
+     ]
+    },
+    "small_signal_gain": {
+     "title": "Small-signal gain",
+     "equations": [
+      "κ = Δβ + 2γ_p P",
+      "g² = (rP)² - (κ/2)²,  r = √(γ_s γ_i)",
+      "G_s = 1 + (rP/g)² sinh²(gL)"
+     ],
+     "inputs": [
+      {
+       "name": "gamma_nl",
+       "label": "Nonlinear coefficient γ",
+       "ui_unit": "1/(W km)",
+       "scale": 0.001,
+       "default": 5.0,
+       "min": 0
+      },
+      {
+       "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
+       "scale": 1.0,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "delta_beta",
+       "label": "Linear mismatch Δβ = β_s + β_i - 2β_p",
+       "ui_unit": "1/km",
+       "scale": 0.001,
+       "default": -8.0
+      },
+      {
+       "name": "length",
+       "label": "Fibre length",
+       "ui_unit": "m",
+       "scale": 1.0,
+       "default": 500,
+       "min": 0
+      },
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "wavelength_signal",
+       "label": "Signal vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1556,
+       "min": 100
+      }
+     ],
+     "outputs": [
+      {
+       "name": "signal_gain_db",
+       "label": "Signal gain",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "idler_conversion",
+       "label": "Idler out / signal in",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "kappa",
+       "label": "Total mismatch κ",
+       "ui_unit": "1/km",
+       "scale": 0.001
+      },
+      {
+       "name": "growth_rate",
+       "label": "Growth rate g",
+       "ui_unit": "1/km",
+       "scale": 0.001
+      },
+      {
+       "name": "peak_gain_db",
+       "label": "Gain at κ = 0",
+       "ui_unit": "dB",
+       "scale": 1.0
+      }
+     ]
+    },
+    "coupled_wave": {
+     "title": "Coupled-wave propagation",
+     "equations": [
+      "dA_p/dz = iγ_p[(|A_p|² + 2|A_s|² + 2|A_i|²)A_p + 2A_sA_iA_p* e^{iΔβz}]",
+      "dA_s/dz = iγ_s[(|A_s|² + 2|A_p|² + 2|A_i|²)A_s + A_p²A_i* e^{-iΔβz}]",
+      "dA_i/dz = iγ_i[(|A_i|² + 2|A_p|² + 2|A_s|²)A_i + A_p²A_s* e^{-iΔβz}]"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "wavelength_signal",
+       "label": "Signal vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1556,
+       "min": 100
+      },
+      {
+       "name": "gamma_nl",
+       "label": "Nonlinear coefficient γ",
+       "ui_unit": "1/(W km)",
+       "scale": 0.001,
+       "default": 5.0,
+       "min": 0
+      },
+      {
+       "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
+       "scale": 1.0,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "signal_power",
+       "label": "Signal input power",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 0.1,
+       "min": 0
+      },
+      {
+       "name": "length",
+       "label": "Fibre length",
+       "ui_unit": "m",
+       "scale": 1.0,
+       "default": 500,
+       "min": 0
+      },
+      {
+       "name": "delta_beta",
+       "label": "Linear mismatch Δβ = β_s + β_i - 2β_p",
+       "ui_unit": "1/km",
+       "scale": 0.001,
+       "default": -8.0
+      },
+      {
+       "name": "alpha_pump",
+       "label": "Pump loss",
+       "ui_unit": "dB/km",
+       "scale": 0.00023025850929940457,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "alpha_signal",
+       "label": "Signal loss",
+       "ui_unit": "dB/km",
+       "scale": 0.00023025850929940457,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "alpha_idler",
+       "label": "Idler loss",
+       "ui_unit": "dB/km",
+       "scale": 0.00023025850929940457,
+       "default": 0,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "signal_out",
+       "label": "Signal output",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "idler_out",
+       "label": "Idler output",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "pump_out",
+       "label": "Pump output",
+       "ui_unit": "W",
+       "scale": 1.0
+      },
+      {
+       "name": "signal_gain_db",
+       "label": "Signal gain",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "pump_depletion",
+       "label": "Pump depletion",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "manley_rowe_residual",
+       "label": "Manley–Rowe residual (f_p + 2f_s)",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "gain_spectrum": {
+     "title": "Gain spectrum (β2, β4)",
+     "equations": [
+      "Δβ = β2 Ω² + β4 Ω⁴/12,  Ω = ω_s - ω_p",
+      "κ = Δβ + 2γP = 0 at the gain peak",
+      "G(λ_s) = 1 + (rP/g)² sinh²(gL)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "beta2",
+       "label": "β2 at pump",
+       "ui_unit": "ps²/km",
+       "scale": 1e-27,
+       "default": -0.87
+      },
+      {
+       "name": "beta4",
+       "label": "β4 at pump",
+       "ui_unit": "ps⁴/km",
+       "scale": 1e-51,
+       "default": -0.00013
+      },
+      {
+       "name": "gamma_nl",
+       "label": "Nonlinear coefficient γ",
+       "ui_unit": "1/(W km)",
+       "scale": 0.001,
+       "default": 5.0,
+       "min": 0
+      },
+      {
+       "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
+       "scale": 1.0,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "length",
+       "label": "Fibre length",
+       "ui_unit": "m",
+       "scale": 1.0,
+       "default": 500,
+       "min": 0
+      },
+      {
+       "name": "span",
+       "label": "Signal span (centred on pump)",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 40,
+       "min": 0
+      },
+      {
+       "name": "points",
+       "label": "Points",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 401,
+       "min": 3,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "peak_gain_db",
+       "label": "Peak gain",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "peak_signal_wavelength",
+       "label": "Peak signal wavelength (long lobe)",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "lobe_width_3db",
+       "label": "3 dB lobe width",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "omega_phase_matched",
+       "label": "Phase-matched detuning Ω",
+       "ui_unit": "Trad/s",
+       "scale": "1.0e12"
+      }
+     ]
+    },
+    "fiber_parameters": {
+     "title": "Step-index fibre dispersion",
+     "equations": [
+      "β(ω) = ω n_eff,LP01(ω) / c",
+      "Δβ = β(ω_s) + β(ω_i) - 2β(ω_p)",
+      "β_n = dⁿβ/dωⁿ at ω_p (polynomial fit)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "wavelength_signal",
+       "label": "Signal vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1556,
+       "min": 100
+      },
+      {
+       "name": "core_radius",
+       "label": "Core radius",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "delta_n",
+       "label": "Core-cladding index step Δn",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.02,
+       "min": 0
+      },
+      {
+       "name": "n2",
+       "label": "Nonlinear index n2",
+       "ui_unit": "1e-20 m²/W",
+       "scale": 1e-20,
+       "default": 2.6,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "wavelength_idler",
+       "label": "Idler wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "delta_beta",
+       "label": "Linear mismatch Δβ",
+       "ui_unit": "1/km",
+       "scale": 0.001
+      },
+      {
+       "name": "beta2",
+       "label": "β2",
+       "ui_unit": "ps²/km",
+       "scale": 1e-27
+      },
+      {
+       "name": "beta3",
+       "label": "β3",
+       "ui_unit": "ps³/km",
+       "scale": 1e-39
+      },
+      {
+       "name": "beta4",
+       "label": "β4",
+       "ui_unit": "ps⁴/km",
+       "scale": 1e-51
+      },
+      {
+       "name": "area_eff",
+       "label": "Effective area",
+       "ui_unit": "µm²",
+       "scale": 1e-12
+      },
+      {
+       "name": "gamma_nl",
+       "label": "Nonlinear coefficient γ",
+       "ui_unit": "1/(W km)",
+       "scale": 0.001
+      }
+     ]
+    },
+    "fiber_gain_spectrum": {
+     "title": "Fibre gain spectrum (exact Δβ)",
+     "equations": [
+      "Δβ(λ_s) from the LP01 n_eff at λ_s, λ_i, λ_p",
+      "γ from the four-wave Gaussian overlap at each λ_s",
+      "G(λ_s) = 1 + (rP/g)² sinh²(gL)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_pump",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "core_radius",
+       "label": "Core radius",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "delta_n",
+       "label": "Core-cladding index step Δn",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.02,
+       "min": 0
+      },
+      {
+       "name": "pump_power",
+       "label": "Pump power",
+       "ui_unit": "W",
+       "scale": 1.0,
+       "default": 2.0,
+       "min": 0
+      },
+      {
+       "name": "length",
+       "label": "Fibre length",
+       "ui_unit": "m",
+       "scale": 1.0,
+       "default": 500,
+       "min": 0
+      },
+      {
+       "name": "span",
+       "label": "Signal span (centred on pump)",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 40,
+       "min": 0
+      },
+      {
+       "name": "n2",
+       "label": "Nonlinear index n2",
+       "ui_unit": "1e-20 m²/W",
+       "scale": 1e-20,
+       "default": 2.6,
+       "min": 0
+      },
+      {
+       "name": "points",
+       "label": "Points",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 201,
+       "min": 3,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "peak_gain_db",
+       "label": "Peak gain",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "peak_signal_wavelength",
+       "label": "Peak signal wavelength (long lobe)",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "lobe_width_3db",
+       "label": "3 dB lobe width",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "gamma_pump",
+       "label": "γ at the pump",
+       "ui_unit": "1/(W km)",
+       "scale": 0.001
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "phase_matching",
    "version": 1,
    "title": "Three-wave phase matching",

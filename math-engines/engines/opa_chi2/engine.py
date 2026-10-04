@@ -19,7 +19,7 @@ import math
 
 import numpy as np
 
-from ..common import Result, require_choice, require_nonnegative, require_positive
+from ..common import Result, half_max_width, require_choice, require_nonnegative, require_positive
 from ..materials.engine import MATERIALS, index as material_index
 from ..phase_matching.engine import three_wave_mismatch
 
@@ -219,17 +219,7 @@ def gain_spectrum(material, wavelength_pump, wavelength_signal, span, length, d_
     gamma = _coupling_k(lp, ls, d_eff, np_, n_s, n_i, theta) * np.sqrt(pump_power * lp / (2 * np.pi * HBAR * C0))
     G, _ = _gain_closed_form(gamma, dk, length)
     k = int(np.argmax(G))
-    half = G[k] / 2
-    lo, hi = k, k
-    while lo > 0 and G[lo - 1] >= half:
-        lo -= 1
-    while hi < points - 1 and G[hi + 1] >= half:
-        hi += 1
-    if lo == 0 or hi == points - 1:
-        fwhm = float("nan")
-    else:
-        edge = lambda a, b: ls[a] + (half - G[a]) * (ls[b] - ls[a]) / (G[b] - G[a])
-        fwhm = edge(hi, hi + 1) - edge(lo - 1, lo)
+    fwhm = half_max_width(ls, G)
     return Result(
         values={"period": period, "peak_gain_db": 10 * np.log10(G[k]), "peak_signal_wavelength": ls[k],
                 "bandwidth_3db": fwhm, "gamma_center": gamma[points // 2],

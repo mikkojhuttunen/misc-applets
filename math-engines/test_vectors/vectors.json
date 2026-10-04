@@ -352,5 +352,85 @@
    "fs": 0.002977779844788698,
    "fi": 0.0024073098672397967
   }
+ ],
+ "chi3_area": [
+  {
+   "w_pump": 2.6e-06,
+   "w_signal": 2.6e-06,
+   "w_idler": 2.6e-06,
+   "area_eff": 2.1237166338267002e-11
+  },
+  {
+   "w_pump": 2e-06,
+   "w_signal": 2.6e-06,
+   "w_idler": 3.1e-06,
+   "area_eff": 1.904124764201462e-11
+  }
+ ],
+ "chi3_propagation": [
+  {
+   "gamma_power": 0.01,
+   "delta_beta": -0.02,
+   "length": 500.0,
+   "flux_ratio": 0.00010038709677419356,
+   "wavelength_pump": 1.55e-06,
+   "wavelength_signal": 1.556e-06,
+   "wavelength_idler": 1.5440460947503205e-06,
+   "alpha_pump": 0.0,
+   "alpha_signal": 0.0,
+   "alpha_idler": 0.0,
+   "steps": 376,
+   "fp": 0.5144347842710315,
+   "fs": 0.24288300117605163,
+   "fi": 0.2427826141073216
+  },
+  {
+   "gamma_power": 0.01,
+   "delta_beta": 0.0,
+   "length": 400.0,
+   "flux_ratio": 1.0064516129032258e-06,
+   "wavelength_pump": 1.55e-06,
+   "wavelength_signal": 1.56e-06,
+   "wavelength_idler": 1.5401273885350319e-06,
+   "alpha_pump": 0.0,
+   "alpha_signal": 0.0,
+   "alpha_idler": 0.0,
+   "steps": 301,
+   "fp": 0.9999678041209021,
+   "fs": 1.710439690568745e-05,
+   "fi": 1.609794529373395e-05
+  },
+  {
+   "gamma_power": 0.02,
+   "delta_beta": -0.03,
+   "length": 300.0,
+   "flux_ratio": 0.010129032258064517,
+   "wavelength_pump": 1.55e-06,
+   "wavelength_signal": 1.57e-06,
+   "wavelength_idler": 1.5305031446540883e-06,
+   "alpha_pump": 0.0,
+   "alpha_signal": 0.0,
+   "alpha_idler": 0.0,
+   "steps": 455,
+   "fp": 0.9877352550421125,
+   "fs": 0.016261404955578814,
+   "fi": 0.006132372626164232
+  },
+  {
+   "gamma_power": 0.01,
+   "delta_beta": -0.02,
+   "length": 500.0,
+   "flux_ratio": 0.00010038709677419356,
+   "wavelength_pump": 1.55e-06,
+   "wavelength_signal": 1.556e-06,
+   "wavelength_idler": 1.5440460947503205e-06,
+   "alpha_pump": 0.0001,
+   "alpha_signal": 0.0002,
+   "alpha_idler": 0.0005,
+   "steps": 376,
+   "fp": 0.5624182673553192,
+   "fs": 0.19309457815390704,
+   "fi": 0.18889919324686935
+  }
  ]
 }

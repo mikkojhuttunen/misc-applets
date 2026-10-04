@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT))
 from engines.bragg_grating import engine as bg  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.opa_chi2 import engine as opa2  # noqa: E402
+from engines.opa_chi3 import engine as opa3  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
 
@@ -26,7 +27,7 @@ OUT = ROOT / "test_vectors" / "vectors.json"
 
 def build() -> dict:
     lams = [0.532e-6, 0.775e-6, 1.064e-6, 1.55e-6, 2.0e-6]
-    v = {"units": "SI (m, 1/m); indices dimensionless", "materials": [], "slab": [], "cmt": [], "stack": [], "lp01": [], "chi2_overlap": [], "chi2_propagation": []}
+    v = {"units": "SI (m, 1/m); indices dimensionless", "materials": [], "slab": [], "cmt": [], "stack": [], "lp01": [], "chi2_overlap": [], "chi2_propagation": [], "chi3_area": [], "chi3_propagation": []}
     for m in ("sio2", "si3n4", "ln_e", "ln_o", "lt_e"):
         for l in lams:
             v["materials"].append({"material": m, "wavelength": l, "n": float(mat.index(m, l))})
@@ -60,6 +61,20 @@ def build() -> dict:
         r = opa2.propagate_normalised(kap, dk, L, r0, ap, as_, ai)
         v["chi2_propagation"].append({"kappa": kap, "delta_k": dk, "length": L, "flux_ratio": r0, "alpha_pump": ap,
                                       "alpha_signal": as_, "alpha_idler": ai, "steps": r["steps"],
+                                      "fp": r["fp"], "fs": r["fs"], "fi": r["fi"]})
+    for (wp, ws, wi) in [(2.6e-6, 2.6e-6, 2.6e-6), (2.0e-6, 2.6e-6, 3.1e-6)]:
+        v["chi3_area"].append({"w_pump": wp, "w_signal": ws, "w_idler": wi, "area_eff": float(opa3.effective_area(wp, ws, wi))})
+    for (gP, db, L, ls, Ps, ap, as_, ai) in [
+        (0.01, -0.02, 500.0, 1556e-9, 1e-4, 0.0, 0.0, 0.0), (0.01, 0.0, 400.0, 1560e-9, 1e-6, 0.0, 0.0, 0.0),
+        (0.02, -0.03, 300.0, 1570e-9, 1e-2, 0.0, 0.0, 0.0), (0.01, -0.02, 500.0, 1556e-9, 1e-4, 1e-4, 2e-4, 5e-4),
+    ]:
+        lp = 1550e-9
+        li = float(opa3.idler_wavelength(lp, ls))
+        r0 = Ps * ls / lp      # pump normalised to 1 W
+        r = opa3.propagate_normalised(gP, db, L, r0, lp / ls, lp / li, ap, as_, ai)
+        v["chi3_propagation"].append({"gamma_power": gP, "delta_beta": db, "length": L, "flux_ratio": r0,
+                                      "wavelength_pump": lp, "wavelength_signal": ls, "wavelength_idler": li,
+                                      "alpha_pump": ap, "alpha_signal": as_, "alpha_idler": ai, "steps": r["steps"],
                                       "fp": r["fp"], "fs": r["fs"], "fi": r["fi"]})
     return v
 

@@ -71,6 +71,23 @@ const close = (label, got, want, rel, abs = 0) => {
     close(`pa simulate fs ${tag}`, o.fs, r.fs, 1e-10);
     close(`pa simulate fi ${tag}`, o.fi, r.fi, 1e-10, 1e-20);
   }
+  /* χ3 mode: overlapFor (A_eff = 1/θ) and the RK4 in simulate3(), power amplitudes / √P_p0 */
+  const ctx3 = vm.createContext({ Math, Float64Array });
+  vm.runInContext('var MODE = "chi3"; function addScat() {}\n' + ['overlapFor', 'simulate3'].map(grab).join('\n') +
+    '\n;globalThis.__q = { overlapFor, simulate3 };', ctx3);
+  const q3 = ctx3.__q;
+  for (const r of V.chi3_area) close(`pa overlapFor χ3 ${r.w_pump},${r.w_signal},${r.w_idler}`, 1 / q3.overlapFor(r.w_pump, r.w_signal, r.w_idler), r.area_eff, 1e-13);
+  for (const r of V.chi3_propagation) {
+    const C = 299792458, wP = 2 * Math.PI * C / r.wavelength_pump, wS = 2 * Math.PI * C / r.wavelength_signal, wI = 2 * Math.PI * C / r.wavelength_idler;
+    const pp = { wP, wS, wI, gP: r.gamma_power, kappa: r.gamma_power * Math.sqrt(wS * wI) / wP, alpha: r.alpha_idler, r0: r.flux_ratio,
+      L: r.length, nf: 0, tAmp: 1, wl: { aS: r.alpha_signal, aP: r.alpha_pump, tS: 1, tP: 1 } };
+    const o = q3.simulate3(pp, r.delta_beta + 2 * r.gamma_power, false, 1e9, null);
+    const tag = `γP=${r.gamma_power} Δβ=${r.delta_beta} λs=${r.wavelength_signal}`;
+    checks++; if (o.steps !== r.steps) { fails++; console.error(`FAIL pa simulate3 steps ${tag}: got ${o.steps}, want ${r.steps}`); }
+    close(`pa simulate3 fp ${tag}`, o.fp, r.fp, 1e-10);
+    close(`pa simulate3 fs ${tag}`, o.fs, r.fs, 1e-10);
+    close(`pa simulate3 fi ${tag}`, o.fi, r.fi, 1e-10, 1e-20);
+  }
 }
 
 console.log(`${checks - fails}/${checks} JS port checks passed`);

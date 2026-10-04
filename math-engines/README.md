@@ -11,6 +11,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
 | [phase_matching](engines/phase_matching/) | Three-wave Δk, QPM period of any order, grating strength, sinc² response | |
 | [opa_chi2](engines/opa_chi2/) | χ² OPA: gain coefficient, small-signal gain, coupled-wave RK4 with depletion and loss, QPM gain spectrum | |
+| [opa_chi3](engines/opa_chi3/) | χ³ fibre OPA (degenerate-pump FWM): γ, small-signal gain with SPM/XPM, coupled-wave RK4, Taylor and exact LP01 gain spectra, fibre β2–β4 | scipy (fibre functions) |
 | [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius | scipy |
 
 ## Use
@@ -66,6 +67,6 @@ The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out
 | Port | Covers | Checked by |
 |---|---|---|
 | `dbr-structures/dbr-engine.js` | Sellmeier indices, three-layer slab, coupled-mode reflectance, transfer-matrix stack | `check_js_ports.mjs` |
-| `parametric-amplifier.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver, χ² overlap and RK4 (`overlapFor`, `simulate`) | `check_js_ports.mjs` (functions extracted from the page) |
+| `parametric-amplifier.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver, χ² and χ³ overlap and RK4 (`overlapFor`, `simulate`, `simulate3`) | `check_js_ports.mjs` (functions extracted from the page) |
 
 Known deviation: the ports work in µm inside; the check converts SI to µm at the boundary.

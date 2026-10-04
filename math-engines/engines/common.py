@@ -78,3 +78,20 @@ def require_range(name: str, value: Any, lo: float, hi: float) -> None:
 def require_choice(name: str, value: str, choices: tuple[str, ...]) -> None:
     if value not in choices:
         raise ValueError(f"{name} must be one of {choices}, got {value!r}")
+
+
+def half_max_width(x, y) -> float:
+    """Full width of the contiguous region around argmax(y) where y >= max(y)/2, with linear
+    interpolation at both edges; NaN if the region reaches either end of the grid."""
+    x, y = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+    k = int(np.argmax(y))
+    half = y[k] / 2
+    lo, hi = k, k
+    while lo > 0 and y[lo - 1] >= half:
+        lo -= 1
+    while hi < len(y) - 1 and y[hi + 1] >= half:
+        hi += 1
+    if lo == 0 or hi == len(y) - 1:
+        return float("nan")
+    edge = lambda a, b: x[a] + (half - y[a]) * (x[b] - x[a]) / (y[b] - y[a])
+    return float(abs(edge(hi, hi + 1) - edge(lo - 1, lo)))

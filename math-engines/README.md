@@ -5,7 +5,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | Engine | Computes | Extra deps |
 |---|---|---|
 | [gaussian_beam](engines/gaussian_beam/) | Rayleigh range, divergence, w(z), R(z), Gouy phase, ABCD propagation, thin-lens focusing | |
-| [materials](engines/materials/) | Sellmeier phase and group index: SiO₂, Si₃N₄, MgO:LiNbO₃ (e, o), LiTaO₃ (e), Si | |
+| [materials](engines/materials/) | Sellmeier phase index, group index and GVD: SiO₂, Si₃N₄, Si, LiNbO₃ (e, o, temperature-dependent), LiTaO₃, KTP, BBO, AlN, GaAs, TiO₂, sapphire | |
 | [slab_waveguide](engines/slab_waveguide/) | Three-layer and multilayer slab effective index, V, b, mode count | |
 | [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra | |
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |

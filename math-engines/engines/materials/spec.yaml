@@ -1,18 +1,36 @@
 engine: materials
-version: 1
+version: 2
 title: Material refractive index
-description: Sellmeier phase and group index of SiO2, Si3N4, LiNbO3 (e, o), LiTaO3 (approximate) and Si.
+description: Sellmeier phase index, group index and GVD of SiO2, Si3N4, Si, LiNbO3, LiTaO3, KTP (x, y, z), BBO, AlN, GaAs, TiO2 and sapphire; temperature-dependent index of MgO:LiNbO3.
 references:
   - "I. H. Malitson, JOSA 55, 1205 (1965)"
   - "D. E. Zelmon, D. L. Small, D. Jundt, JOSA B 14, 3319 (1997)"
   - "K. Luke et al., Opt. Lett. 40, 4823 (2015)"
+  - "O. Gayer, Z. Sacks, E. Galun, A. Arie, Appl. Phys. B 91, 343 (2008)"
+  - "K. Kato and E. Takaoka, Appl. Opt. 41, 5040 (2002)"
+  - "D. Zhang, Y. Kong, J.-Y. Zhang, Opt. Commun. 184, 485 (2000)"
+  - "T. Skauli et al., J. Appl. Phys. 94, 6447 (2003)"
+  - "J. Pastrnak and L. Roskovcova, Phys. Stat. Sol. 14, K5 (1966)"
+  - "J. R. Devore, JOSA 41, 416 (1951)"
+  - "W. L. Bond, J. Appl. Phys. 36, 1674 (1965)"
 functions:
   refractive_index:
-    title: Phase and group index
-    equations: ["n^2 = 1 + sum_i A_i λ^2 / (λ^2 - B_i)", "n_g = n - λ dn/dλ"]
+    title: Phase index, group index and GVD
+    equations: ["n^2 = 1 + sum_i A_i λ^2 / (λ^2 - B_i)  (or the published form of each fit)", "n_g = n - λ dn/dλ", "β2 = λ^3 d²n/dλ² / (2π c²)"]
     inputs:
-      - {name: material, label: "Material", type: choice, choices: [sio2, si3n4, ln_e, ln_o, lt_e, si], default: sio2}
+      - {name: material, label: "Material", type: choice, choices: [sio2, si3n4, si, ln_e, ln_o, ln_e_gayer, lt_e, lt_e_bond, lt_o_bond, ktp_x, ktp_y, ktp_z, bbo_o, bbo_e, aln_o, aln_e, gaas, tio2_o, tio2_e, sapphire_o, sapphire_e], default: sio2}
       - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 200}
+    outputs:
+      - {name: n, label: "Phase index n", ui_unit: "", scale: 1.0}
+      - {name: n_group, label: "Group index n_g", ui_unit: "", scale: 1.0}
+      - {name: gvd, label: "GVD β2", ui_unit: fs²/mm, scale: 1.0e-27}
+  thermal_index:
+    title: Temperature-dependent index
+    equations: ["f = (T - 24.5)(T + 570.82), T in °C", "n_e^2 = a1 + b1 f + (a2 + b2 f)/(λ^2 - (a3 + b3 f)^2) + (a4 + b4 f)/(λ^2 - a5^2) - a6 λ^2"]
+    inputs:
+      - {name: material, label: "Material", type: choice, choices: [ln_e_gayer], default: ln_e_gayer}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 500}
+      - {name: temperature, label: "Temperature", ui_unit: K, scale: 1.0, default: 297.65, min: 200}
     outputs:
       - {name: n, label: "Phase index n", ui_unit: "", scale: 1.0}
       - {name: n_group, label: "Group index n_g", ui_unit: "", scale: 1.0}

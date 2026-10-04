@@ -1,0 +1,789 @@
+{
+ "shared": [
+  "engines/__init__.py",
+  "engines/common.py",
+  "engines/registry.py"
+ ],
+ "engines": [
+  {
+   "engine": "bragg_grating",
+   "version": 1,
+   "title": "Bragg grating",
+   "description": "Coupling coefficient, peak reflectance, bandwidth and exact stack reflectance of a Bragg grating.",
+   "requires": [],
+   "references": [
+    "H. Kogelnik, in Guided-Wave Optoelectronics, ed. T. Tamir (Springer, 1988)",
+    "M. Born and E. Wolf, Principles of Optics, §1.6 (characteristic matrices)"
+   ],
+   "files": [
+    "engines/bragg_grating/__init__.py",
+    "engines/bragg_grating/engine.py"
+   ],
+   "functions": {
+    "coupling_coefficient": {
+     "title": "Coupling coefficient κ",
+     "equations": [
+      "κ = 2 Δn sin(π m f) / (m λ)"
+     ],
+     "inputs": [
+      {
+       "name": "delta_n",
+       "label": "Index contrast Δn",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.0177,
+       "min": 0
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "fill_factor",
+       "label": "Filling ratio f",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "order",
+       "label": "Bragg order m",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "kappa",
+       "label": "Coupling coefficient κ",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      }
+     ]
+    },
+    "grating_summary": {
+     "title": "Peak reflectance and bandwidth",
+     "equations": [
+      "R = tanh^2(κL)",
+      "Δλ_null = λ^2 / (π n_g L) sqrt((κL)^2 + π^2)",
+      "L_eff = tanh(κL) / (2κ)"
+     ],
+     "inputs": [
+      {
+       "name": "kappa",
+       "label": "Coupling coefficient κ",
+       "ui_unit": "1/cm",
+       "scale": 100.0,
+       "default": 229
+      },
+      {
+       "name": "length",
+       "label": "Grating length L",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 307
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_group",
+       "label": "Group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.33,
+       "min": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "R_peak",
+       "label": "Peak reflectance",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "bandwidth_null",
+       "label": "Null-to-null bandwidth",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "L_eff",
+       "label": "Effective length",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "kappa_L",
+       "label": "κL",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "stack_reflectance": {
+     "title": "Quarter-wave or arbitrary periodic stack",
+     "equations": [
+      "[E0, H0] = (M_H M_L)^N [Es, Hs]",
+      "M = [[cos δ, -i sin δ / n], [-i n sin δ, cos δ]]"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_high",
+       "label": "High index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.0272,
+       "min": 1
+      },
+      {
+       "name": "n_low",
+       "label": "Low index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.0095,
+       "min": 1
+      },
+      {
+       "name": "d_high",
+       "label": "High-index layer thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 191.2
+      },
+      {
+       "name": "d_low",
+       "label": "Low-index layer thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 192.8
+      },
+      {
+       "name": "periods",
+       "label": "Periods N",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 800,
+       "min": 1,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "R",
+       "label": "Reflectance",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "T",
+       "label": "Transmittance",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "gaussian_beam",
+   "version": 1,
+   "title": "Gaussian beam",
+   "description": "TEM00 beam radius, curvature, Gouy phase, Rayleigh range and thin-lens focusing.",
+   "requires": [],
+   "references": [
+    "A. E. Siegman, Lasers (University Science Books, 1986), ch. 17 and 20"
+   ],
+   "files": [
+    "engines/gaussian_beam/__init__.py",
+    "engines/gaussian_beam/engine.py"
+   ],
+   "functions": {
+    "beam_parameters": {
+     "title": "Rayleigh range and divergence",
+     "equations": [
+      "z_R = pi w0^2 n / (M2 lambda)",
+      "theta = M2 lambda / (pi n w0)"
+     ],
+     "inputs": [
+      {
+       "name": "w0",
+       "label": "Waist radius w0",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1.0,
+       "min": 0.0001
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 633,
+       "min": 1
+      },
+      {
+       "name": "n",
+       "label": "Refractive index n",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1.0
+      },
+      {
+       "name": "M2",
+       "label": "Beam quality M²",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1.0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "z_R",
+       "label": "Rayleigh range",
+       "ui_unit": "m",
+       "scale": 1.0
+      },
+      {
+       "name": "theta",
+       "label": "Divergence half-angle",
+       "ui_unit": "mrad",
+       "scale": 0.001
+      },
+      {
+       "name": "b",
+       "label": "Confocal parameter",
+       "ui_unit": "m",
+       "scale": 1.0
+      }
+     ]
+    },
+    "beam_at": {
+     "title": "Beam at a position z",
+     "equations": [
+      "w(z) = w0 sqrt(1 + ((z - z0)/z_R)^2)",
+      "R(z) = (z - z0) (1 + (z_R/(z - z0))^2)"
+     ],
+     "inputs": [
+      {
+       "name": "z",
+       "label": "Position z",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1000
+      },
+      {
+       "name": "w0",
+       "label": "Waist radius w0",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1.0,
+       "min": 0.0001
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 633,
+       "min": 1
+      },
+      {
+       "name": "z0",
+       "label": "Waist position z0",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "n",
+       "label": "Refractive index n",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1.0
+      },
+      {
+       "name": "M2",
+       "label": "Beam quality M²",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1.0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "w",
+       "label": "Beam radius w(z)",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "R",
+       "label": "Wavefront radius R(z)",
+       "ui_unit": "m",
+       "scale": 1.0
+      },
+      {
+       "name": "gouy_phase",
+       "label": "Gouy phase",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "z_R",
+       "label": "Rayleigh range",
+       "ui_unit": "m",
+       "scale": 1.0
+      }
+     ]
+    },
+    "thin_lens_focus": {
+     "title": "Focusing by a thin lens",
+     "equations": [
+      "q' = (A q + B) / (C q + D)"
+     ],
+     "inputs": [
+      {
+       "name": "w0",
+       "label": "Waist radius w0",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1.0,
+       "min": 0.0001
+      },
+      {
+       "name": "s",
+       "label": "Waist-to-lens distance",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 500
+      },
+      {
+       "name": "f",
+       "label": "Focal length",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 100
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 633,
+       "min": 1
+      },
+      {
+       "name": "n",
+       "label": "Refractive index n",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1.0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "w0_out",
+       "label": "Output waist",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "z_out",
+       "label": "Output waist after lens",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "w_at_lens",
+       "label": "Beam radius at the lens",
+       "ui_unit": "mm",
+       "scale": 0.001
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "materials",
+   "version": 1,
+   "title": "Material refractive index",
+   "description": "Sellmeier phase and group index of SiO2, Si3N4, LiNbO3 (e, o), LiTaO3 (approximate) and Si.",
+   "requires": [],
+   "references": [
+    "I. H. Malitson, JOSA 55, 1205 (1965)",
+    "D. E. Zelmon, D. L. Small, D. Jundt, JOSA B 14, 3319 (1997)",
+    "K. Luke et al., Opt. Lett. 40, 4823 (2015)"
+   ],
+   "files": [
+    "engines/materials/__init__.py",
+    "engines/materials/engine.py"
+   ],
+   "functions": {
+    "refractive_index": {
+     "title": "Phase and group index",
+     "equations": [
+      "n^2 = 1 + sum_i A_i λ^2 / (λ^2 - B_i)",
+      "n_g = n - λ dn/dλ"
+     ],
+     "inputs": [
+      {
+       "name": "material",
+       "label": "Material",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "si3n4",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "si"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 200
+      }
+     ],
+     "outputs": [
+      {
+       "name": "n",
+       "label": "Phase index n",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_group",
+       "label": "Group index n_g",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "qpm_shg",
+   "version": 1,
+   "title": "QPM second-harmonic generation",
+   "description": "Phase mismatch, first-order poling period, coherence length and QPM bandwidth for SHG.",
+   "requires": [],
+   "references": [
+    "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)"
+   ],
+   "files": [
+    "engines/qpm_shg/__init__.py",
+    "engines/qpm_shg/engine.py"
+   ],
+   "functions": {
+    "phase_matching": {
+     "title": "Poling period and bandwidth",
+     "equations": [
+      "Δk = 4π (n_SH - n_p) / λ",
+      "Λ = 2π / |Δk|",
+      "Δλ_FWHM = 4 x_½ / (L |dΔk/dλ|), dΔk/dλ = -(4π/λ²)(n_g,SH - n_g,p)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Pump vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_pump",
+       "label": "Pump effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.0272,
+       "min": 1
+      },
+      {
+       "name": "n_sh",
+       "label": "SH effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.1924,
+       "min": 1
+      },
+      {
+       "name": "ng_pump",
+       "label": "Pump group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.33,
+       "min": 1
+      },
+      {
+       "name": "ng_sh",
+       "label": "SH group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.4,
+       "min": 1
+      },
+      {
+       "name": "length",
+       "label": "Poled length",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 4
+      }
+     ],
+     "outputs": [
+      {
+       "name": "period",
+       "label": "Poling period",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "delta_k",
+       "label": "Phase mismatch Δk",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      },
+      {
+       "name": "coherence_length",
+       "label": "Coherence length",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "fwhm",
+       "label": "QPM bandwidth (pump FWHM)",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "slab_waveguide",
+   "version": 1,
+   "title": "Slab waveguide modes",
+   "description": "Effective index, V and b of a three-layer slab mode (multilayer stacks via multilayer_neff in Python).",
+   "requires": [],
+   "references": [
+    "K. Okamoto, Fundamentals of Optical Waveguides, 2nd ed. (Academic Press, 2006), ch. 2"
+   ],
+   "files": [
+    "engines/slab_waveguide/__init__.py",
+    "engines/slab_waveguide/engine.py"
+   ],
+   "functions": {
+    "slab_neff": {
+     "title": "Three-layer slab mode",
+     "equations": [
+      "k d sqrt(n_f^2 - N^2) = m pi + atan(r_s γ_s / κ) + atan(r_c γ_c / κ)",
+      "V = k d sqrt(n_f^2 - n_s^2)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_sub",
+       "label": "Substrate index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1.0
+      },
+      {
+       "name": "n_core",
+       "label": "Core index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.138,
+       "min": 1.0
+      },
+      {
+       "name": "n_clad",
+       "label": "Cladding index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1.0
+      },
+      {
+       "name": "thickness",
+       "label": "Core thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 600,
+       "min": 1
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "order",
+       "label": "Mode order",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Effective index",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V",
+       "label": "Normalised frequency V",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "b",
+       "label": "Normalised index b",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_modes",
+       "label": "Guided modes of this polarisation",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "step_index_fiber",
+   "version": 1,
+   "title": "Step-index fibre LP01 mode",
+   "description": "LP01 effective index, V number and mode-field radius of a silica step-index fibre.",
+   "requires": [
+    "scipy"
+   ],
+   "references": [
+    "D. Gloge, Appl. Opt. 10, 2252 (1971)",
+    "D. Marcuse, Bell Syst. Tech. J. 56, 703 (1977)"
+   ],
+   "files": [
+    "engines/materials/__init__.py",
+    "engines/materials/engine.py",
+    "engines/step_index_fiber/__init__.py",
+    "engines/step_index_fiber/engine.py"
+   ],
+   "functions": {
+    "lp01": {
+     "title": "LP01 mode",
+     "equations": [
+      "U J1(U)/J0(U) = W K1(W)/K0(W), U² + W² = V²",
+      "V = k a sqrt(n_co² - n_cl²)",
+      "w/a = 0.65 + 1.619 V^-1.5 + 2.879 V^-6"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 300
+      },
+      {
+       "name": "core_radius",
+       "label": "Core radius a",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 4.1,
+       "min": 0.1
+      },
+      {
+       "name": "delta_n",
+       "label": "Core-cladding index step",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.005,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Effective index",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V",
+       "label": "V number",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "b",
+       "label": "Normalised index b",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "mode_radius",
+       "label": "Mode-field radius",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

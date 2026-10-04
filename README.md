@@ -1,6 +1,6 @@
 # misc-applets
 
-Self-contained interactive applets, one `.html` file each, no build step.
+Self-contained interactive applets, one `.html` file each, no build step, on top of a shared set of tested calculation engines in `math-engines/`.
 
 | Applet | Description |
 |---|---|

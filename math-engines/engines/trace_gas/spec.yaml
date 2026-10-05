@@ -1,0 +1,38 @@
+engine: trace_gas
+version: 1
+title: Trace-gas absorption lines
+description: Voigt line centre, widths, peak absorption coefficient and absorbance of trace gases near 1.5-1.7 µm (illustrative line list unless a HITRAN export is supplied); shot-noise-limited absorbance.
+requires: [scipy]
+references:
+  - "I. E. Gordon et al., J. Quant. Spectrosc. Radiat. Transf. 277, 107949 (2022) (HITRAN2020; line-strength and broadening conventions)"
+  - "R. V. Kochanov et al., J. Quant. Spectrosc. Radiat. Transf. 177, 15 (2016) (HAPI)"
+  - "J. Humlíček, J. Quant. Spectrosc. Radiat. Transf. 27, 437 (1982) (Voigt via the Faddeeva function)"
+functions:
+  line_peak:
+    title: Strongest line of a species
+    equations: ["S(T) = S₀ (Q(296)/Q(T)) e^{-c₂E''(1/T - 1/296)} (1 - e^{-c₂ν₀/T}) / (1 - e^{-c₂ν₀/296})", "γ_L = γ_air (p/p₀)(296/T)^n", "γ_D = ν₀ sqrt(2 ln2 kT / m c²)", "α = S N x V(ν - ν₀; γ_L, γ_D)", "A = α L"]
+    inputs:
+      - {name: species, label: "Species", type: choice, choices: [NH3, CH4, CO2, H2O], default: NH3}
+      - {name: mole_fraction, label: "Mole fraction", ui_unit: ppm, scale: 1.0e-6, default: 1, min: 0}
+      - {name: pressure, label: "Pressure", ui_unit: kPa, scale: 1.0e+3, default: 101.325}
+      - {name: temperature, label: "Temperature", ui_unit: K, scale: 1.0, default: 296}
+      - {name: path_length, label: "(Gas-equivalent) path length", ui_unit: cm, scale: 1.0e-2, default: 100}
+    outputs:
+      - {name: wavelength, label: "Line centre (vacuum)", ui_unit: nm, scale: 1.0e-9}
+      - {name: wavenumber, label: "Line centre", ui_unit: 1/cm, scale: 100.0}
+      - {name: S, label: "Line strength at T", ui_unit: cm/molecule, scale: 1.0e-2}
+      - {name: lorentz_hwhm, label: "Lorentz HWHM", ui_unit: MHz, scale: 1.0e+6}
+      - {name: doppler_hwhm, label: "Doppler HWHM", ui_unit: MHz, scale: 1.0e+6}
+      - {name: alpha_peak, label: "Peak absorption coefficient", ui_unit: 1/cm, scale: 100.0}
+      - {name: absorbance, label: "Peak absorbance α L", ui_unit: "", scale: 1.0}
+  shot_noise:
+    title: Shot-noise-limited absorbance
+    equations: ["σ_A = sqrt(2 q B / (ℜ P_in T_det))"]
+    inputs:
+      - {name: P_in, label: "Input power", ui_unit: mW, scale: 1.0e-3, default: 1}
+      - {name: T_det, label: "Cell transmission", ui_unit: "", scale: 1.0, default: 0.05}
+      - {name: bandwidth, label: "Noise bandwidth", ui_unit: Hz, scale: 1.0, default: 1}
+      - {name: responsivity, label: "Responsivity", ui_unit: A/W, scale: 1.0, default: 1}
+    outputs:
+      - {name: sigma_A, label: "Absorbance noise σ_A", ui_unit: "", scale: 1.0}
+      - {name: P_det, label: "Detected power", ui_unit: µW, scale: 1.0e-6}

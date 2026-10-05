@@ -1,0 +1,2366 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fiber Parametric Amplifier</title>
+<style>
+/* Layout: lab-notebook console. Sticky control column on the left, two plots and a readout table on the right, model notes below. */
+:root {
+  --bg: #eef1f3;
+  --panel: #ffffff;
+  --ink: #16212b;
+  --muted: #5b6874;
+  --line: #d3dae0;
+  --grid: #e6ebef;
+  --accent: #1d5f86;
+  --accent-soft: #e2eef5;
+  --pump: #16884a;
+  --signal: #b4164f;
+  --idler: #b86400;
+  --sbs: #6a3fc6;
+  --srs: #0b7285;
+  --warn: #a3470b;
+  --f-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --f-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151a; --panel: #161f26; --ink: #e2e8ed; --muted: #92a1ad; --line: #2a3640;
+    --grid: #1f2a33; --accent: #6fb6dd; --accent-soft: #1b2e3a;
+    --pump: #4fd187; --signal: #ff6a9a; --idler: #ffad4a; --warn: #ffa265; --sbs: #b197fc; --srs: #3bc9db;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151a; --panel: #161f26; --ink: #e2e8ed; --muted: #92a1ad; --line: #2a3640;
+  --grid: #1f2a33; --accent: #6fb6dd; --accent-soft: #1b2e3a;
+  --pump: #4fd187; --signal: #ff6a9a; --idler: #ffad4a; --warn: #ffa265; --sbs: #b197fc; --srs: #3bc9db;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; display: grid; gap: 18px; }
+header { display: grid; gap: 6px; }
+header .eyebrow { font: 600 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.1; margin: 0; text-wrap: balance; }
+header p { margin: 0; max-width: 72ch; color: var(--muted); }
+.waves { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--f-mono); padding: 6px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.dot.p { background: var(--pump); } .dot.s { background: var(--signal); } .dot.i { background: var(--idler); }
+
+.layout { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 880px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+.controls { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 14px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow-y: auto; }
+@media (max-width: 880px) { .controls { position: static; max-height: none; } }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+legend { font: 600 11px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); padding: 0 0 4px; }
+.ctl { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: baseline; }
+.ctl label { font-size: 13px; }
+.ctl output { font: 500 12.5px var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; }
+.ctl input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); margin: 2px 0 0; }
+.ctl .hint { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); }
+.ctl select, .ctl input[type=number] { grid-column: 1 / -1; font: 13px var(--f-body); padding: 5px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.dkrow { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; }
+.dkrow input[type=number] { flex: 1; min-width: 0; font: 12.5px var(--f-mono); padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.seg.procsw { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 640px; margin-top: 8px; }
+.seg.procsw label { padding: 9px 8px; font-size: 13px; }
+.seg { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { text-align: center; padding: 7px 4px; font-size: 12.5px; cursor: pointer; border-right: 1px solid var(--line); background: var(--bg); }
+.seg label:last-of-type { border-right: 0; }
+.seg input:checked + label { background: var(--accent); color: var(--panel); font-weight: 600; }
+.seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -3px; }
+button { font: 500 12.5px var(--f-body); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.switch { display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; }
+.switch input { appearance: none; -webkit-appearance: none; width: 36px; height: 20px; border-radius: 10px; background: var(--line); position: relative; flex: none; cursor: pointer; transition: background .15s; margin: 0; }
+.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--panel); transition: transform .15s; }
+.switch input:checked { background: var(--accent); }
+.switch input:checked::after { transform: translateX(16px); }
+
+.main { display: grid; gap: 18px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.cardhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 19px; margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 18px; height: 0; border-top: 2.5px solid; display: inline-block; }
+.sw.dash { border-top-style: dashed; }
+.plotbox { position: relative; width: 100%; height: 320px; }
+.plotbox.short { height: 250px; }
+.band { width: 14px; height: 10px; display: inline-block; background: var(--accent); opacity: .22; border-radius: 2px; }
+.band.faint { opacity: .1; }
+.band.prof { background: var(--idler); opacity: .3; }
+h3.sub { font-family: var(--f-display); font-weight: 600; font-size: 16px; margin: 6px 0 0; }
+#idlerBox, #editorBox { display: grid; gap: 10px; }
+#cp { cursor: crosshair; }
+.optgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 18px; }
+.optgrid input, .optgrid select { grid-column: 1 / -1; font: 13px var(--f-body); padding: 5px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+.optvars { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.optvars legend { width: 100%; }
+.optvars label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+button:disabled { opacity: .5; cursor: default; }
+.tablewrap { overflow-x: auto; }
+.plotbox.map { height: 330px; }
+#cm { cursor: pointer; }
+table.scan { border-collapse: collapse; width: 100%; font: 12.5px var(--f-mono); font-variant-numeric: tabular-nums; }
+table.scan th { text-align: left; font: 600 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.scan td { padding: 6px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+table.scan tr.miss td { color: var(--muted); }
+#cp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bwline { display: flex; flex-wrap: wrap; gap: 4px 18px; font: 500 12.5px var(--f-mono); font-variant-numeric: tabular-nums; }
+.bwline span { min-width: 0; overflow-wrap: anywhere; }
+.bwline b { font-weight: 600; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.hover { font: 12px var(--f-mono); color: var(--muted); min-height: 1.5em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.toggle button { border: 0; border-radius: 0; padding: 5px 10px; }
+.toggle button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+
+.readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0 24px; }
+.readouts dl { margin: 0 0 6px; display: grid; grid-template-columns: 1fr auto; gap: 0 12px; align-content: start; }
+.readouts dt, .readouts dd { padding: 5px 0; border-bottom: 1px solid var(--grid); margin: 0; }
+.readouts dt { color: var(--muted); font-size: 13px; }
+.readouts dd { font: 500 13px var(--f-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.readouts h3 { font: 600 11px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 10px 0 2px; }
+.note { font-size: 12.5px; color: var(--muted); margin: 0; }
+.warn { color: var(--warn); }
+
+.theory { display: grid; gap: 10px; }
+.theory p, .theory ul { margin: 0; max-width: 80ch; }
+.eq { font: 13.5px/1.7 var(--f-mono); background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; overflow-x: auto; white-space: nowrap; }
+.theory ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+i.v { font-family: var(--f-display); font-size: 1.05em; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">χ<sup>(2)</sup> and χ<sup>(3)</sup> parametric amplification · coupled-wave solver</span>
+    <h1>Fiber parametric amplifier</h1>
+    <p id="intro">A 532 nm pump amplifies a signal near 1550 nm in a second-order nonlinear fiber and creates an idler near 810 nm. The coupled amplitude equations are integrated with RK4, including pump depletion, phase mismatch, Gaussian mode overlap and optional dissipation of the idler.</p>
+    <div class="seg procsw" role="radiogroup" aria-label="Nonlinear process">
+      <input type="radio" name="proc" id="proc2" value="chi2" checked><label for="proc2">χ<sup>(2)</sup> OPA · three-wave, ω<sub>p</sub> = ω<sub>s</sub> + ω<sub>i</sub></label>
+      <input type="radio" name="proc" id="proc3" value="chi3"><label for="proc3">χ<sup>(3)</sup> OPA · four-wave, 2ω<sub>p</sub> = ω<sub>s</sub> + ω<sub>i</sub></label>
+    </div>
+    <div class="waves">
+      <span class="chip"><span class="dot p"></span>pump <span id="chipP">532.0 nm</span></span>
+      <span class="chip"><span class="dot s"></span>signal <span id="chipS">1550.0 nm</span></span>
+      <span class="chip"><span class="dot i"></span>idler <span id="chipI">810.0 nm</span></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <form class="controls" id="form" autocomplete="off">
+      <div class="presets" aria-label="Presets">
+        <button type="button" data-preset="lossless">Lossless, Δk = 0</button>
+        <button type="button" data-preset="cont">Continuous idler loss</button>
+        <button type="button" data-preset="lumped">Lumped idler dumps</button>
+        <button type="button" data-preset="broad">Loss vs equal-gain fiber</button>
+        <button type="button" data-preset="flatten">Gain flattening</button>
+        <button type="button" data-preset="reset">Reset</button>
+      </div>
+
+      <fieldset>
+        <legend>Waves and fiber</legend>
+        <div class="ctl"><label for="ls">Signal wavelength λ<sub>s</sub></label><output id="ls_o"></output>
+          <input type="range" id="ls" min="1500" max="1600" step="0.5" value="1550"></div>
+        <div class="ctl" id="ctlLp" hidden><label for="lp">Pump wavelength λ<sub>p</sub></label><output id="lp_o"></output>
+          <input type="range" id="lp" min="1000" max="2100" step="0.5" value="1064">
+          <div class="presets">
+            <button type="button" data-lp="1030">1030 Yb</button><button type="button" data-lp="1064">1064 Yb</button><button type="button" data-lp="1560">1560 Er</button><button type="button" data-lp="1950">1950 Tm</button>
+          </div>
+          <span class="hint" id="lpHint"></span></div>
+        <div class="ctl"><label for="L">Fiber length <i class="v">L</i></label><output id="L_o"></output>
+          <input type="range" id="L" min="0" max="1000" step="1" value="434" data-log="0.5,200"></div>
+        <div class="ctl"><label for="dk" id="dkLabel">Phase mismatch Δ<i class="v">k</i></label><output id="dk_o"></output>
+          <input type="range" id="dk" min="-600" max="600" step="1" value="0">
+          <div class="dkrow"><input type="number" id="dkn" step="0.01" value="0" aria-label="Phase mismatch in rad per metre"><span class="note">rad/m</span><button type="button" id="dk0">Δk = 0</button></div>
+          <span class="hint" id="dkHint">Δk = k<sub>p</sub> − k<sub>s</sub> − k<sub>i</sub> − K<sub>G</sub> at the signal wavelength λ<sub>s</sub>. With a dispersion model on, the QPM grating K<sub>G</sub> = 2π/Λ is chosen so the mismatch at λ<sub>s</sub> equals this value; other wavelengths follow from the dispersion. Fine near 0, up to ±400 rad/m.</span></div>
+        <div class="ctl" id="ctlDeff"><label for="deff">Effective nonlinearity <i class="v">d</i><sub>eff</sub></label><output id="deff_o"></output>
+          <input type="range" id="deff" min="0" max="1000" step="1" value="491" data-log="0.01,30"></div>
+        <div class="ctl" id="ctlN2" hidden><label for="n2">Nonlinear index <i class="v">n</i><sub>2</sub></label><output id="n2_o"></output>
+          <input type="range" id="n2" min="0" max="1000" step="1" value="138" data-log="1,1000">
+          <span class="hint">Fused silica 2.6×10⁻²⁰ m²/W; chalcogenide or tellurite glasses roughly 50–1000×10⁻²⁰ m²/W. γ = n<sub>2</sub>ω<sub>p</sub>/(c A<sub>eff</sub>).</span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Dispersion and bandwidth</legend>
+        <div class="ctl"><label for="disp">Dispersion model</label>
+          <select id="disp">
+            <option value="fiber">Step-index silica fiber, LP01 modes</option>
+            <option value="taylor">Taylor expansion (GVM, GVD)</option>
+            <option value="none">None: Δk independent of wavelength</option>
+          </select></div>
+        <div class="ctl" id="ctlA"><label for="fa">Core radius <i class="v">a</i></label><output id="fa_o"></output>
+          <input type="range" id="fa" min="1" max="8" step="0.01" value="4.1"></div>
+        <div class="ctl" id="ctlDn"><label for="fdn">Core index step Δn</label><output id="fdn_o"></output>
+          <input type="range" id="fdn" min="0.002" max="0.04" step="0.0001" value="0.005">
+          <span class="hint" id="fhint"></span>
+          <div class="dkrow"><button type="button" id="useModes">Use LP01 mode radii</button></div></div>
+        <div class="ctl" id="ctlGvm" hidden><label for="gvm">GVM 1/v<sub>g,i</sub> − 1/v<sub>g,s</sub></label><output id="gvm_o"></output>
+          <input type="range" id="gvm" min="-40" max="40" step="0.1" value="15"></div>
+        <div class="ctl" id="ctlB2" hidden><label for="b2">GVD sum β<sub>2,s</sub> + β<sub>2,i</sub></label><output id="b2_o"></output>
+          <input type="range" id="b2" min="-150" max="150" step="0.5" value="13">
+          <span class="hint">Δk(Ω) = Δk + GVM·Ω − ½(β<sub>2,s</sub> + β<sub>2,i</sub>)Ω², Ω = ω<sub>s</sub> − ω<sub>s0</sub>. Defaults match a standard single-mode fiber.</span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Mode sizes (1/e² field radius)</legend>
+        <div class="ctl"><label for="wp">Pump mode radius <i class="v">w</i><sub>p</sub></label><output id="wp_o"></output>
+          <input type="range" id="wp" min="1" max="20" step="0.01" value="2.5"></div>
+        <div class="ctl"><label for="ws">Signal mode radius <i class="v">w</i><sub>s</sub></label><output id="ws_o"></output>
+          <input type="range" id="ws" min="1" max="20" step="0.01" value="5"></div>
+        <div class="ctl"><label for="wimode">Idler mode radius <i class="v">w</i><sub>i</sub></label><output id="wi_o"></output>
+          <select id="wimode">
+            <option value="lambda">Scaled with wavelength, between wₚ and wₛ</option>
+            <option value="pol">Matched to driving polarisation, 1/wᵢ² = 1/wₚ² + 1/wₛ²</option>
+            <option value="signal">Equal to signal</option>
+            <option value="fiber">LP01 of the fiber geometry (Marcuse)</option>
+          </select></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Input powers</legend>
+        <div class="ctl"><label for="Pp">Pump power <i class="v">P</i><sub>p</sub>(0)</label><output id="Pp_o"></output>
+          <input type="range" id="Pp" min="0" max="1000" step="1" value="500" data-log="0.01,100"></div>
+        <div class="ctl"><label for="Ps">Signal power <i class="v">P</i><sub>s</sub>(0)</label><output id="Ps_o"></output>
+          <input type="range" id="Ps" min="0" max="1000" step="1" value="200" data-log="1e-6,0.1"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Brillouin and Raman scattering</legend>
+        <label class="switch"><input type="checkbox" role="switch" id="sbsOn"> Stimulated Brillouin scattering (SBS)</label>
+        <div class="ctl" id="ctlLw" hidden><label for="lw">Pump linewidth Δν<sub>p</sub></label><output id="lw_o"></output>
+          <input type="range" id="lw" min="0" max="1000" step="1" value="286" data-log="0.01,100000">
+          <span class="hint">Backward Stokes seeded by thermal phonons at the fiber end. Gain g<sub>B</sub> = 5×10⁻¹¹ m/W × Δν<sub>B</sub>/(Δν<sub>B</sub> + Δν<sub>p</sub>). Broadening the pump by phase modulation raises the threshold.</span></div>
+        <label class="switch"><input type="checkbox" role="switch" id="srsOn"> Stimulated Raman scattering (SRS)</label>
+        <p class="note" id="srsHint" hidden>Forward Raman Stokes of the pump seeded by spontaneous noise, plus Raman gain and loss between pump, signal and idler (silica response, peak 1×10⁻¹³ m/W·(1 µm/λ)). Cascaded Stokes orders and backward SRS are not modelled.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Idler dissipation</legend>
+        <div class="seg" role="radiogroup" aria-label="Idler loss scheme">
+          <input type="radio" name="lossmode" id="lm0" value="none" checked><label for="lm0">None</label>
+          <input type="radio" name="lossmode" id="lm1" value="cont"><label for="lm1">Continuous</label>
+          <input type="radio" name="lossmode" id="lm2" value="lumped"><label for="lm2">Lumped</label>
+        </div>
+        <div class="ctl" id="ctlAlpha" hidden><label for="alpha">Idler loss α<sub>i</sub></label><output id="alpha_o"></output>
+          <input type="range" id="alpha" min="0" max="1000" step="1" value="500" data-log="0.1,1000">
+          <span class="hint">Distributed power loss of the idler only (e.g. a core dopant or leaky mode absorbing near 810 nm).</span></div>
+        <div class="ctl" id="ctlAtt" hidden><label for="att">Attenuation per idler dump</label><output id="att_o"></output>
+          <input type="range" id="att" min="0" max="60" step="0.5" value="30"></div>
+        <div class="ctl" id="ctlNf" hidden><label for="nf">Number of idler dumps</label><output id="nf_o"></output>
+          <input type="range" id="nf" min="1" max="49" step="1" value="4">
+          <span class="hint">Dumps sit at <i class="v">z</i> = <i class="v">k</i>·<i class="v">L</i>/(<i class="v">N</i>+1), splitting the fiber into equal lossless segments. Each removes the idler with the set attenuation.</span></div>
+        <div class="ctl" id="ctlProf" hidden><label for="lprof">Loss spectrum</label>
+          <select id="lprof">
+            <option value="flat">Flat over all idler wavelengths</option>
+            <option value="pass">Loss only inside a band</option>
+            <option value="stop">Loss outside a band (lossless notch)</option>
+            <option value="custom">Custom curve (drag points)</option>
+          </select>
+          <span class="hint" id="customHint" hidden>Edit the curve in the loss profile editor under the gain spectrum.</span>
+          <span class="hint">The strength above is the peak loss. The profile scales it at each idler wavelength; dumps scale their dB attenuation the same way.</span>
+          <label class="switch" id="physWrap" hidden><input type="checkbox" role="switch" id="physLoss"> Loss curve acts on every wave (real filter or absorber)</label>
+          <span class="hint" id="physHint" hidden>On: the band, notch or custom curve also attenuates the signal and the pump at their own wavelengths. This matters when the idler is spectrally close, as for a χ⁽³⁾ pump near 1560 nm. Off: only the idler is attenuated (ideal idler-selective loss). The flat profile is always idler-only.</span></div>
+        <div class="ctl" id="ctlBc" hidden><label for="lbc">Band centre</label><output id="lbc_o"></output>
+          <input type="range" id="lbc" min="-1000" max="1000" step="1" value="0">
+          <span class="hint">Offset from the idler wavelength at λ<sub>s</sub>; fine near zero, up to ±50 nm.</span></div>
+        <div class="ctl" id="ctlBw" hidden><label for="lbw">Band width</label><output id="lbw_o"></output>
+          <input type="range" id="lbw" min="0" max="1000" step="1" value="429" data-log="0.001,100"></div>
+        <div class="ctl" id="ctlBe" hidden><label for="lbe">Edge width</label><output id="lbe_o"></output>
+          <input type="range" id="lbe" min="0" max="1000" step="1" value="500" data-log="0.0001,0.5">
+          <span class="hint">tanh edges: the loss goes from 12 % to 88 % over twice this width.</span>
+          <div class="dkrow"><button type="button" id="fitBand">Fit band to the lossless idler −3 dB band</button></div></div>
+        <div class="ctl" id="ctlRef" hidden><label for="refmode">Compare with</label>
+          <select id="refmode">
+            <option value="same">Phase-matched, lossless, same length</option>
+            <option value="gain">Phase-matched, lossless, equal peak gain</option>
+          </select>
+          <span class="hint">The reference has no idler loss and Δk = 0 at λ<sub>s</sub>. It is drawn in the gain spectrum. "Equal peak gain" shortens the lossless fiber until its small-signal peak gain matches, which is the fair bandwidth comparison.</span></div>
+      </fieldset>
+    </form>
+
+    <div class="main">
+      <section class="card" aria-labelledby="h-z">
+        <div class="cardhead">
+          <h2 id="h-z">Evolution along the fiber</h2>
+          <div class="toggle" role="group" aria-label="Vertical scale">
+            <button type="button" id="modeDbm" aria-pressed="true">Power, dBm</button>
+            <button type="button" id="modeFlux" aria-pressed="false">Photon flux</button>
+          </div>
+        </div>
+        <div class="legend">
+          <span><span class="sw" style="border-color:var(--pump)"></span>pump</span>
+          <span><span class="sw" style="border-color:var(--signal)"></span>signal</span>
+          <span><span class="sw" style="border-color:var(--idler)"></span>idler</span>
+          <span><span class="sw dash" style="border-color:var(--muted)"></span>undepleted-pump analytic (no scattering)</span>
+          <span id="lgSBS" hidden><span class="sw dash" style="border-color:var(--sbs)"></span>SBS backward Stokes</span>
+          <span id="lgSRS" hidden><span class="sw" style="border-color:var(--srs)"></span>Raman Stokes</span>
+        </div>
+        <div class="plotbox"><canvas id="cz" role="img" aria-label="Pump, signal and idler power versus position along the fiber"></canvas></div>
+        <div class="hover" id="hz">Move the pointer over the plot to read values.</div>
+      </section>
+
+      <section class="card" aria-labelledby="h-sp">
+        <div class="cardhead">
+          <h2 id="h-sp">Gain spectrum and bandwidth</h2>
+          <div class="presets">
+            <button type="button" id="showIdler" aria-pressed="false">Show idler spectrum</button>
+            <button type="button" id="copySpec">Copy spectrum as CSV</button>
+          </div>
+        </div>
+        <div class="legend">
+          <span><span class="sw" style="border-color:var(--signal)"></span>signal gain, full numerical</span>
+          <span><span class="sw dash" style="border-color:var(--muted)"></span>undepleted analytic</span>
+          <span id="lgRef" hidden><span class="sw" style="border-color:var(--pump)"></span>phase-matched lossless reference</span>
+          <span><span class="band"></span>−3 dB band</span>
+          <span id="lgProf" hidden><span class="band prof"></span>idler loss profile</span>
+        </div>
+        <div class="plotbox short"><canvas id="cs" role="img" aria-label="Signal gain in decibels as a function of signal wavelength"></canvas></div>
+        <div class="bwline" id="bwline"></div>
+        <div class="hover" id="hs">CW pump; each signal wavelength is solved separately.</div>
+        <div id="editorBox" hidden>
+          <div class="cardhead"><h3 class="sub">Idler loss profile editor</h3>
+            <div class="legend">
+              <span><span class="sw" style="border-color:var(--idler)"></span>loss, % of peak</span>
+              <span><span class="sw dash" style="border-color:var(--muted)"></span>idler generated, normalised</span>
+              <span><span class="band"></span>signal −3 dB band</span>
+            </div></div>
+          <div class="plotbox short"><canvas id="cp" tabindex="0" role="application" aria-label="Idler loss profile editor. Click to add a point, drag to move, double-click or Delete to remove, arrow keys move the selected point."></canvas></div>
+          <div class="hover" id="hp">Click empty space to add a point · drag to move · double-click or Delete removes · arrow keys nudge the selected point (Shift for larger steps).</div>
+          <div class="presets">
+            <button type="button" id="cpResample">Resample to 9 points</button>
+            <button type="button" id="cpZero">All 0 %</button>
+            <button type="button" id="cpFull">All 100 %</button>
+            <button type="button" id="cpInvert">Invert</button>
+            <button type="button" id="cpCopy">Copy points as CSV</button>
+          </div>
+        </div>
+        <div id="idlerBox" hidden>
+          <div class="cardhead"><h3 class="sub">Idler spectrum at the fiber output</h3>
+            <div class="legend">
+              <span><span class="sw" style="border-color:var(--idler)"></span>idler generated</span>
+              <span id="lgOut"><span class="sw dash" style="border-color:var(--idler)"></span>idler leaving the fiber</span>
+              <span><span class="band"></span>−3 dB</span><span><span class="band faint"></span>−20 dB</span>
+              <span id="lgProf2" hidden><span class="band prof"></span>loss profile</span>
+            </div></div>
+          <div class="plotbox short"><canvas id="ci" role="img" aria-label="Idler power spectrum versus idler wavelength with the −3 dB and −20 dB bands shaded"></canvas></div>
+          <div class="hover" id="hi"></div>
+          <div class="readouts" id="idlerReadouts"></div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-o">
+        <div class="cardhead"><h2 id="h-o">Bandwidth optimiser</h2></div>
+        <p class="note">Searches for settings whose signal −3 dB band is a given factor wider than a perfectly phase-matched (Δk = 0), lossless fiber. The −3 dB band must be continuous, with no dip below −3 dB. The search uses undepleted analytic spectra (Nelder–Mead with restarts). The result is applied to the controls, and the full numerical spectrum then re-checks it.</p>
+        <div class="optgrid">
+          <div class="ctl"><label for="optTarget">Target signal −3 dB width</label>
+            <div class="dkrow"><input type="number" id="optTarget" min="0.0001" max="10000" step="any" value="5" aria-label="Target value">
+              <select id="optUnit" aria-label="Target unit"><option value="ratio">× reference</option><option value="nm">nm</option><option value="GHz">GHz</option></select></div>
+            <span class="hint" id="optTargetEq"></span></div>
+          <div class="ctl"><label for="optGmin">Minimum peak gain (dB)</label>
+            <input type="number" id="optGmin" min="5" max="80" step="1" value="10"></div>
+          <div class="ctl"><label for="optRef">Reference</label>
+            <select id="optRef"><option value="same">Phase-matched, same length</option><option value="gain">Phase-matched, equal peak gain</option></select></div>
+          <div class="ctl"><label for="optEffort">Effort</label>
+            <select id="optEffort"><option value="400">Quick (400 evaluations)</option><option value="1500" selected>Normal (1500)</option><option value="4000">Thorough (4000)</option></select></div>
+        </div>
+        <fieldset class="optvars"><legend>Vary</legend>
+          <label><input type="checkbox" id="optLoss" checked> Peak idler loss</label>
+          <label><input type="checkbox" id="optProf" checked> Loss curve shape (9 points)</label>
+          <label><input type="checkbox" id="optDk"> Δk detuning</label>
+          <label><input type="checkbox" id="optL"> Fiber length</label>
+          <label><input type="checkbox" id="optPp"> Pump power</label>
+          <label><input type="checkbox" id="optA"> Core radius</label>
+          <label><input type="checkbox" id="optDn"> Core index step</label>
+          <label><input type="checkbox" id="optFollow" checked> Mode sizes follow the fiber geometry</label>
+          <label><input type="checkbox" id="optSmall" checked> Stay in the small-signal regime (signal out &lt; 10 % of pump photons, also for the reference)</label>
+        </fieldset>
+        <div class="presets">
+          <button type="button" id="optRun">Run optimiser</button>
+          <button type="button" id="optScan">Trade-off scan</button>
+          <button type="button" id="optStop" disabled>Stop</button>
+          <button type="button" id="optRevert" disabled>Revert to previous settings</button>
+        </div>
+        <h3 class="sub">Fiber group-velocity map</h3>
+        <p class="note">GVM = 1/v<sub>g,i</sub> − 1/v<sub>g,s</sub> of the LP01 modes at the current λ<sub>s</sub>, over core radius and index step. The phase-matching bandwidth scales roughly as 1/|GVM|. Click the map to load that fiber. The hatched area has signal V &lt; 1.4, where the mode is weakly guided and the Gaussian fit is unreliable.</p>
+        <div class="presets">
+          <button type="button" id="mapRun">Compute map</button>
+          <button type="button" id="mapMin">Minimise GVM</button>
+          <span class="toggle" role="group" aria-label="Map quantity"><button type="button" id="mapQg" aria-pressed="true">GVM</button><button type="button" id="mapQb" aria-pressed="false">β₂,s + β₂,i</button><button type="button" id="mapQw" aria-pressed="false">GVM-limited width</button></span>
+        </div>
+        <div class="plotbox map"><canvas id="cm" role="img" aria-label="Map of group-velocity mismatch over core radius and index step"></canvas></div>
+        <div class="hover" id="hm">Press Compute map (about one second).</div>
+        <div class="dkrow"><span class="note" id="refInfo">Reference: the current fiber, phase-matched and lossless.</span><button type="button" id="refReset" disabled>Use current fiber as reference</button></div>
+        <div class="hover" id="optStatus">Set a target and press Run. With the defaults a run takes a few seconds.</div>
+        <div class="readouts" id="optResult"></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-g">
+        <div class="cardhead">
+          <h2 id="h-g">Signal gain versus phase mismatch</h2>
+          <div class="legend">
+            <span><span class="sw" style="border-color:var(--signal)"></span>full numerical</span>
+            <span><span class="sw dash" style="border-color:var(--muted)"></span>undepleted analytic</span>
+            <span><span class="sw" style="border-color:var(--accent)"></span>current Δk</span>
+          </div>
+        </div>
+        <div class="plotbox short"><canvas id="cg" role="img" aria-label="Signal gain in decibels as a function of the phase mismatch"></canvas></div>
+        <div class="hover" id="hg">Click the plot to set Δk.</div>
+      </section>
+
+      <section class="card" aria-labelledby="h-r">
+        <div class="cardhead"><h2 id="h-r">Readouts</h2><button type="button" id="copy">Copy z-data as CSV</button></div>
+        <div class="readouts" id="readouts"></div>
+        <p class="note" id="numnote"></p>
+      </section>
+
+      <section class="card theory" aria-labelledby="h-t">
+        <h2 id="h-t">Model</h2>
+        <p>Amplitudes <i class="v">a</i><sub>j</sub>(<i class="v">z</i>) are normalised so that |<i class="v">a</i><sub>j</sub>|² is the photon flux (photons/s) in mode <i class="v">j</i>. With a continuous-wave, slowly varying envelope and a single transverse mode per wave:</p>
+        <div class="eq">
+          da<sub>p</sub>/dz = iK a<sub>s</sub> a<sub>i</sub> e<sup>−iΔkz</sup><br>
+          da<sub>s</sub>/dz = iK a<sub>p</sub> a<sub>i</sub>* e<sup>+iΔkz</sup><br>
+          da<sub>i</sub>/dz = iK a<sub>p</sub> a<sub>s</sub>* e<sup>+iΔkz</sup> − (α<sub>i</sub>/2) a<sub>i</sub>
+        </div>
+        <div class="eq">
+          K = 2 d<sub>eff</sub> √( ħ ω<sub>p</sub> ω<sub>s</sub> ω<sub>i</sub> / (2 ε<sub>0</sub> c³ n<sub>p</sub> n<sub>s</sub> n<sub>i</sub>) ) · Θ<br>
+          Θ = ∫f<sub>p</sub>f<sub>s</sub>f<sub>i</sub> dA / √(∫f<sub>p</sub>² ∫f<sub>s</sub>² ∫f<sub>i</sub>²) = π / (Σ w<sub>j</sub><sup>−2</sup>) / √((π/2)³ w<sub>p</sub>² w<sub>s</sub>² w<sub>i</sub>²)
+        </div>
+        <p><b>χ<sup>(3)</sup> mode (degenerate four-wave mixing, 2ω<sub>p</sub> = ω<sub>s</sub> + ω<sub>i</sub>).</b> With power amplitudes B<sub>j</sub> (|B|² in W), γ<sub>j</sub> = n<sub>2</sub>ω<sub>j</sub>/(c A<sub>eff</sub>), and Δβ = β<sub>s</sub> + β<sub>i</sub> − 2β<sub>p</sub>:</p>
+        <div class="eq">
+          dB<sub>p</sub>/dz = iγ<sub>p</sub>[(|B<sub>p</sub>|² + 2|B<sub>s</sub>|² + 2|B<sub>i</sub>|²)B<sub>p</sub> + 2B<sub>s</sub>B<sub>i</sub>B<sub>p</sub>* e<sup>iΔβz</sup>]<br>
+          dB<sub>s</sub>/dz = iγ<sub>s</sub>[(|B<sub>s</sub>|² + 2|B<sub>p</sub>|² + 2|B<sub>i</sub>|²)B<sub>s</sub> + B<sub>p</sub>² B<sub>i</sub>* e<sup>−iΔβz</sup>]<br>
+          dB<sub>i</sub>/dz = iγ<sub>i</sub>[(|B<sub>i</sub>|² + 2|B<sub>p</sub>|² + 2|B<sub>s</sub>|²)B<sub>i</sub> + B<sub>p</sub>² B<sub>s</sub>* e<sup>−iΔβz</sup>] − (α<sub>i</sub>/2)B<sub>i</sub><br>
+          1/A<sub>eff</sub> = ∫f<sub>p</sub>²f<sub>s</sub>f<sub>i</sub> dA / ((π/2)² w<sub>p</sub>² w<sub>s</sub> w<sub>i</sub>) = π / (2w<sub>p</sub><sup>−2</sup> + w<sub>s</sub><sup>−2</sup> + w<sub>i</sub><sup>−2</sup>) / ((π/2)² w<sub>p</sub>² w<sub>s</sub> w<sub>i</sub>)
+        </div>
+        <p>With γ<sub>j</sub> ∝ ω<sub>j</sub>, two pump photons become one signal and one idler photon exactly, so Φ<sub>p</sub> + 2Φ<sub>s</sub> is conserved even with idler loss. The net mismatch is κ = Δβ + 2γ<sub>p</sub>P<sub>p</sub>, set by the Δk slider at λ<sub>s</sub>. The fiber is taken to be dispersion-engineered (PCF, birefringence or intermodal matching) so that κ at λ<sub>s</sub> has this value; its own linear Δβ is shown in the readouts. For an undepleted pump, the signal–idler pair obeys the same 2×2 system as in χ<sup>(2)</sup> with Γ = γ<sub>p</sub>P<sub>p</sub>√(ω<sub>s</sub>ω<sub>i</sub>)/ω<sub>p</sub> and Δk → κ. The bandwidth physics is therefore the same: the mismatch away from λ<sub>s</sub> again follows the signal–idler GVM (β<sub>1,i</sub> − β<sub>1,s</sub>) and β<sub>2,s</sub> + β<sub>2,i</sub>. Stimulated Raman and Brillouin scattering are not modelled. For narrow-linewidth CW pumps of several watts, Brillouin limits the usable length unless the pump is phase-modulated.</p>
+        <p>Here f<sub>j</sub> = exp(−r²/w<sub>j</sub>²) and A<sub>eff</sub> = 1/Θ². The small-signal gain coefficient is Γ = K√Φ<sub>p</sub>(0) with Φ<sub>p</sub> = P<sub>p</sub>/ħω<sub>p</sub>. Without loss and with an undepleted pump, G = 1 + (Γ/g)² sinh²(gL), g² = Γ² − (Δk/2)².</p>
+        <p>The dashed curves solve the linearised signal–idler pair exactly (2×2 matrix exponential, with lumped dumps applied as jumps). With strong continuous idler loss (α<sub>i</sub> ≫ Γ) the idler follows the signal adiabatically and the signal sees a Lorentzian gain coefficient g<sub>s</sub> = Γ²α<sub>i</sub> / ((α<sub>i</sub>/2)² + Δk²). The gain becomes smaller but much less sensitive to Δk.</p>
+        <p><b>Dispersion and bandwidth.</b> For a CW pump, the mismatch seen by a signal at ω<sub>s0</sub> + Ω is Δk(Ω) = Δk + [Δk<sub>D</sub>(ω<sub>s0</sub> + Ω) − Δk<sub>D</sub>(ω<sub>s0</sub>)], where Δk<sub>D</sub>(ω<sub>s</sub>) = k<sub>p</sub>(ω<sub>p</sub>) − k<sub>s</sub>(ω<sub>s</sub>) − k<sub>i</sub>(ω<sub>p</sub> − ω<sub>s</sub>). In the step-index model each k = ω n<sub>eff</sub>/c comes from the exact scalar LP01 eigenvalue equation U J<sub>1</sub>(U)/J<sub>0</sub>(U) = W K<sub>1</sub>(W)/K<sub>0</sub>(W) with a fused-silica Sellmeier core and cladding plus a constant Δn, so material and waveguide dispersion are both included. To first order Δk(Ω) ≈ Δk + (β<sub>1,i</sub> − β<sub>1,s</sub>)Ω − ½(β<sub>2,s</sub> + β<sub>2,i</sub>)Ω². With the gain coefficient Γ, the GVM-limited full width at half maximum is roughly Δω ≈ 4√(Γ ln 2 / L)/|GVM| at high gain and 5.57/(L |GVM|) at low gain. The plotted spectrum is exact within the model.</p>
+        <p>The idler band follows from ω<sub>i</sub> = ω<sub>p</sub> − ω<sub>s</sub>. It has the same width as the signal band in frequency, but (λ<sub>i</sub>/λ<sub>s</sub>)² ≈ 0.27 times the width in wavelength. The idler plot shows the generated idler (photons created, equal to the signal photons gained) and the idler that leaves the fiber. The difference is what the loss element must absorb. </p>
+        <p><b>Idler loss engineering.</b> The idler loss can follow a spectral profile T(λ<sub>i</sub>) between 0 and 1: flat, a band with loss inside it, or a lossless notch with loss outside it. Both continuous α<sub>i</sub> and the dB attenuation of each dump scale with T. Outside the lossless phase-matching band (|Δk| &gt; 2Γ) a lossless fiber only oscillates, but a strongly damped idler still gives the signal the gain coefficient Γ²α<sub>i</sub>/((α<sub>i</sub>/2)² + Δk²). That wing gain is about 4Γ²L/α<sub>i</sub>, so it only matters next to a low peak gain. To judge the extension fairly, compare with a lossless fiber of equal peak gain, whose length is L<sub>ref</sub> = arccosh(√G<sub>peak</sub>)/Γ. With the default fiber this comparison gives: flat loss broadens the −3 dB band only once α<sub>i</sub> ≳ 3Γ (about 1.6× at 30 dB/m, but with 10 dB peak gain from 5 m). A lossless notch narrows the band when its edges fall inside the gain band, and changes nothing when all of the loss lies outside it. The reverse works: weak loss (about 3 dB/m) only at the centre of the lossless idler band lowers the peak and flattens the top. At equal peak gain that gives about 1.4× the bandwidth for roughly 4 dB less peak gain than the same fiber without loss (preset "Gain flattening"). Stronger centre loss opens a dip, which the readouts flag. With "Custom curve", control points (idler wavelength, fraction of peak loss) are joined by a monotone cubic that never overshoots 0–100 %. The points are fixed in absolute idler wavelength, so they stay put when λ<sub>s</sub> or Δk change.</p>
+        <p><b>Optimiser.</b> It minimises 10·[max(0, ln(target/R))]² + 0.05·[max(0, G<sub>min</sub> − G)]² − 0.01·G, where R is the continuous −3 dB width divided by the width of the phase-matched lossless reference and G is the peak gain in dB. Once the target ratio is met, it keeps raising the peak gain. With core radius and index step free, each evaluation rebuilds the fiber dispersion from LP01 solutions at Ω = 0, ±1 and ±2 THz (a quartic interpolant, within 10⁻⁴ rad/m of the exact model to ±4 THz). If mode sizes follow the geometry, Γ is rescaled by the LP01 overlap. A new fiber is only better if it is compared with the original one. So when the geometry or pump power is varied (or a fiber is picked on the map), the starting fiber is frozen as the reference baseline until you press "Use current fiber as reference". Fibers whose signal mode has V &lt; 1.4 are penalised. In this silica step-index family the minimum GVM is about 5 ps/m (a ≈ 2.5–3 µm, Δn ≈ 0.04), compared with 15 ps/m for an SMF-like fiber, so geometry alone gives up to about 3× more bandwidth. The trade-off scan instead maximises R for each minimum peak gain (5–30 dB; below about 5 dB the −3 dB width is not meaningful), which maps the bandwidth that is achievable at each gain. Each evaluation solves the undepleted signal–idler pair on 301 wavelengths. The loss-curve points sit at fixed idler wavelengths spanning 2.5 × target × the reference width, and their heights are varied. The clearer benefit of a lossy idler is in the depleted regime and in tolerance to Δk: it suppresses back-conversion, so the pump keeps flowing into the signal (compare the photon-flux view with and without loss).</p>
+        <ul>
+          <li>The coupling K uses n = 1.45 for all three waves. Across the spectrum, K scales as √(ω<sub>s</sub>ω<sub>i</sub>) and the mode overlap Θ stays at its value at λ<sub>s</sub>.</li>
+          <li>LP01 is the fundamental mode at all three wavelengths. At 532 nm the fiber is usually few-mode (V &gt; 2.405), and other modes are ignored. Mode radii use Marcuse's Gaussian fit w/a = 0.65 + 1.619 V<sup>−3/2</sup> + 2.879 V<sup>−6</sup>.</li>
+          <li><b>Brillouin and Raman scattering</b> (switches; silica host in both modes). SBS uses the exact CW two-wave solution for pump and backward Stokes (P<sub>p</sub> − P<sub>B</sub> constant, P<sub>B</sub>(L) = thermal seed h ν<sub>p</sub>(kT/hν<sub>B</sub>)Δν<sub>B</sub>, ν<sub>B</sub> = 2nv<sub>A</sub>/λ<sub>p</sub>, Δν<sub>B</sub> = 20 MHz·(1550 nm/λ<sub>p</sub>)²). Its pump loss g<sub>B</sub>P<sub>B</sub>(z)/A<sub>p</sub> is applied in the coupled-wave run. SRS adds a forward Raman Stokes wave of the pump at the gain peak, seeded with hν·1 THz, and photon-conserving Raman terms dP<sub>k</sub>/dz = g<sub>R</sub>(Ω)P<sub>j</sub>P<sub>k</sub>/A<sub>jk</sub> between pump, signal and idler, with A<sub>jk</sub> = π(w<sub>j</sub>² + w<sub>k</sub>²)/2. In the spectral runs the pump loss into both Stokes waves is taken from the main run. The analytic curves and the optimiser leave scattering out.</li>
+          <li>Pump and signal are lossless. Without idler seed the gain does not depend on the input phases.</li>
+          <li>The sum Φ<sub>p</sub> + Φ<sub>s</sub> is conserved even with idler loss; its drift is reported as the numerical error.</li>
+          <li>Step size adapts to max(Γ√(1 + Φ<sub>s</sub>/Φ<sub>p</sub>), |Δk|, α<sub>i</sub>/2). The gain scan uses at most 20 000 steps per point.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var HB = 1.054571817e-34, C0 = 299792458, EPS0 = 8.8541878128e-12, NIDX = 1.45, LP = 532e-9;
+  // Process: "chi2" (ω_p = ω_s + ω_i, pump 532 nm) or "chi3" (2ω_p = ω_s + ω_i, pump set by the λp slider)
+  var MODE = "chi2", LPUMP = LP;
+  function lamSum() { return MODE === "chi3" ? LPUMP / 2 : LPUMP; }
+  function idlerOf(ls) { return 1 / (1 / lamSum() - 1 / ls); }
+  function SGN() { return MODE === "chi3" ? -1 : 1; }
+  // Coupling overlap 1/√A (χ2, three Gaussian modes) or 1/A_eff (χ3, f_p² f_s f_i)
+  function overlapFor(wp, ws, wi) {
+    if (MODE === "chi3") return (Math.PI / (2 / (wp * wp) + 1 / (ws * ws) + 1 / (wi * wi))) / (Math.pow(Math.PI / 2, 2) * wp * wp * ws * wi);
+    var sumInv = 1 / (wp * wp) + 1 / (ws * ws) + 1 / (wi * wi);
+    return (Math.PI / sumInv) / Math.sqrt(Math.pow(Math.PI / 2, 3) * wp * wp * ws * ws * wi * wi);
+  }
+  var $ = function (id) { return document.getElementById(id); };
+  var MINUS = "−";
+
+  function fmt(x, d) { if (!isFinite(x)) return "—"; var s = x.toFixed(d); if (/^-0(\.0+)?$/.test(s)) s = s.slice(1); return s.replace("-", MINUS); }
+  function sig(x, n) {
+    if (!isFinite(x)) return "—";
+    if (x === 0) return "0";
+    var a = Math.abs(x), e = Math.floor(Math.log10(a));
+    if (e >= 5 || e <= -4) { var m = x / Math.pow(10, e); return fmt(m, n - 1) + "×10" + sup(e); }
+    return fmt(x, Math.max(0, n - 1 - e));
+  }
+  function sup(e) { var map = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" }; return String(e).split("").map(function (c) { return map[c]; }).join(""); }
+  function fmtP(W) {
+    if (!(W > 0) || !isFinite(W)) return "0 W";
+    var u = [[1, "W"], [1e-3, "mW"], [1e-6, "µW"], [1e-9, "nW"], [1e-12, "pW"], [1e-15, "fW"]];
+    for (var k = 0; k < u.length; k++) if (W >= u[k][0] * 0.9995) return sig(W / u[k][0], 3) + " " + u[k][1];
+    return sig(W, 3) + " W";
+  }
+  function dBm(W) { return 10 * Math.log10(W / 1e-3); }
+  function fmtdB(x) { if (x === Infinity) return "overflow"; return isFinite(x) ? fmt(x, 2) + " dB" : "—"; }
+
+  function sliderVal(el) {
+    if (el.dataset.log) { var ab = el.dataset.log.split(",").map(Number); return ab[0] * Math.pow(ab[1] / ab[0], el.value / 1000); }
+    return +el.value;
+  }
+  function setSlider(el, v) {
+    if (el.dataset.log) { var ab = el.dataset.log.split(",").map(Number); el.value = Math.round(1000 * Math.log(v / ab[0]) / Math.log(ab[1] / ab[0])); }
+    else el.value = v;
+  }
+  function dkFromSlider(x) { return 2 * Math.sinh(x / 100); }
+  function sliderFromDk(dk) { return Math.max(-600, Math.min(600, Math.round(100 * Math.asinh(dk / 2)))); }
+
+  // ---------- fiber dispersion: fused-silica Sellmeier + weakly guiding step-index LP01 ----------
+  function nSilica(lam) {
+    var x = lam * 1e6, x2 = x * x;
+    return Math.sqrt(1 + 0.6961663 * x2 / (x2 - 0.0684043 * 0.0684043) + 0.4079426 * x2 / (x2 - 0.1162414 * 0.1162414) + 0.8974794 * x2 / (x2 - 9.896161 * 9.896161));
+  }
+  function besJ1overJ0(x) {
+    var q = x * x / 4, t0 = 1, t1 = x / 2, j0 = 1, j1 = x / 2;
+    for (var m = 1; m < 60; m++) { t0 *= -q / (m * m); t1 *= -q / (m * (m + 1)); j0 += t0; j1 += t1; if (Math.abs(t0) + Math.abs(t1) < 1e-19) break; }
+    return j1 / j0;
+  }
+  // K1(x)/K0(x) from K_nu(x) = int_0^inf exp(-x cosh t) cosh(nu t) dt (trapezoid rule converges exponentially)
+  function besK1overK0(x) {
+    var h = 0.2, s0 = 0.5, s1 = 0.5;
+    for (var k = 1; k < 20000; k++) {
+      var ch = Math.cosh(k * h), e = Math.exp(-x * (ch - 1));
+      s0 += e; s1 += e * ch;
+      if (e * ch < 1e-18 * s1) break;
+    }
+    return s1 / s0;
+  }
+  var neffCache = new Map();
+  function lp01(lam, a, dn) {
+    var key = lam.toPrecision(15) + "|" + a + "|" + dn, hit = neffCache.get(key);
+    if (hit) return hit;
+    var ncl = nSilica(lam), nco = ncl + dn, k0 = 2 * Math.PI / lam, NA2 = nco * nco - ncl * ncl;
+    var V = k0 * a * Math.sqrt(NA2);
+    function F(U) { var W = Math.sqrt(V * V - U * U); return U * besJ1overJ0(U) - W * besK1overK0(W); }
+    var lo = 1e-9, hi = Math.min(V, 2.404825557695773) * (1 - 1e-12), flo = F(lo), fhi = F(hi), side = 0, U = lo;
+    for (var it = 0; it < 200; it++) {
+      U = (lo * fhi - hi * flo) / (fhi - flo);
+      if (!(U > lo && U < hi)) U = 0.5 * (lo + hi);
+      var fu = F(U);
+      if (fu === 0 || hi - lo < 1e-15 * hi) break;
+      if (fu * fhi > 0) { hi = U; fhi = fu; if (side === -1) flo /= 2; side = -1; }
+      else { lo = U; flo = fu; if (side === 1) fhi /= 2; side = 1; }
+    }
+    var b = 1 - U * U / (V * V), neff = Math.sqrt(ncl * ncl + NA2 * b);
+    var res = { neff: neff, V: V, w: a * (0.65 + 1.619 / Math.pow(V, 1.5) + 2.879 / Math.pow(V, 6)) };
+    if (neffCache.size > 20000) neffCache.clear();
+    neffCache.set(key, res);
+    return res;
+  }
+
+  // Barycentric interpolation on Chebyshev points of the first kind
+  function chebInterp(f, lo, hi, N) {
+    var xs = new Float64Array(N), fs = new Float64Array(N), ws = new Float64Array(N);
+    for (var j = 0; j < N; j++) {
+      var th = Math.PI * (j + 0.5) / N;
+      xs[j] = 0.5 * (lo + hi) + 0.5 * (hi - lo) * Math.cos(th);
+      fs[j] = f(xs[j]); ws[j] = (j % 2 ? -1 : 1) * Math.sin(th);
+    }
+    return function (x) {
+      var num = 0, den = 0;
+      for (var j = 0; j < N; j++) { var d = x - xs[j]; if (d === 0) return fs[j]; var t = ws[j] / d; num += t * fs[j]; den += t; }
+      return num / den;
+    };
+  }
+
+  var OM_MAX = 2 * Math.PI * 15e12;
+  var dispCache = { key: "", val: null };
+  // Returns dkRel(Ω): Δk(ωs0 + Ω) − Δk(ωs0) for a fixed CW pump, plus GVM, β2 sum and QPM grating vector
+  function dispersion(p) {
+    var model = $("disp").value;
+    if (model === "none") return { model: model, dkRel: function () { return 0; }, gvm: 0, b2: 0, KG: NaN };
+    if (model === "taylor") {
+      var g = +$("gvm").value * 1e-12, B = +$("b2").value * 1e-27, sg0 = SGN();
+      return { model: model, dkRel: function (O) { return sg0 * (g * O - 0.5 * B * O * O); }, gvm: g, b2: B, KG: NaN };
+    }
+    var key = [MODE, LPUMP, p.ls, p.a, p.dn].join("|");
+    if (dispCache.key !== key) {
+      var kf = function (w) { return w / C0 * lp01(2 * Math.PI * C0 / w, p.a, p.dn).neff; };
+      // χ2: Δk_D = k_p − k_s − k_i ; χ3: Δβ = k_s + k_i − 2k_p (both written as sg·(k_Σ − k_s − k_i))
+      var sg = SGN(), kSum = MODE === "chi3" ? 2 * kf(p.wP) : kf(p.wP);
+      var dkD = function (O) { var ws = p.wS + O; return sg * (kSum - kf(ws) - kf(p.wSum - ws)); };
+      var d0 = dkD(0), cheb = chebInterp(function (O) { return dkD(O) - d0; }, -OM_MAX, OM_MAX, 56);
+      var h1 = 1e12, h2 = 1e13;
+      var b1 = function (w) { return (kf(w + h1) - kf(w - h1)) / (2 * h1); };
+      var b2 = function (w) { return (kf(w + h2) - 2 * kf(w) + kf(w - h2)) / (h2 * h2); };
+      dispCache = { key: key, val: { model: model, dkRel: cheb, gvm: b1(p.wI) - b1(p.wS), b2: b2(p.wS) + b2(p.wI), dk0: d0,
+        V: [lp01(LPUMP, p.a, p.dn).V, lp01(p.ls, p.a, p.dn).V, lp01(p.li, p.a, p.dn).V] } };
+    }
+    var v = dispCache.val;
+    v.KG = v.dk0 - p.dk;
+    return v;
+  }
+
+  // Spectral idler-loss profile, 0..1, idler wavelength in nm
+  // Custom profile: control points {x: idler nm, y: 0..1}, monotone cubic (Fritsch–Carlson) interpolation
+  var CUSTOM = { pts: [], sel: -1 };
+  function pchip(pts) {
+    var P2 = pts.slice().sort(function (a, b) { return a.x - b.x; }), n = P2.length;
+    var xs = P2.map(function (p) { return p.x; }), ys = P2.map(function (p) { return p.y; }), d = [], m = [], k;
+    for (k = 0; k < n - 1; k++) d.push((ys[k + 1] - ys[k]) / Math.max(1e-15, xs[k + 1] - xs[k]));
+    for (k = 0; k < n; k++) {
+      if (k === 0) m.push(n > 1 ? d[0] : 0);
+      else if (k === n - 1) m.push(d[n - 2]);
+      else m.push(d[k - 1] * d[k] <= 0 ? 0 : (d[k - 1] + d[k]) / 2);
+    }
+    for (k = 0; k < n - 1; k++) {
+      if (d[k] === 0) { m[k] = m[k + 1] = 0; continue; }
+      var a = m[k] / d[k], b = m[k + 1] / d[k], h = a * a + b * b;
+      if (h > 9) { var t = 3 / Math.sqrt(h); m[k] = t * a * d[k]; m[k + 1] = t * b * d[k]; }
+    }
+    return function (x) {
+      if (n === 0) return 0;
+      if (x <= xs[0]) return ys[0];
+      if (x >= xs[n - 1]) return ys[n - 1];
+      var lo = 0, hi = n - 1;
+      while (hi - lo > 1) { var mid = (lo + hi) >> 1; if (xs[mid] > x) hi = mid; else lo = mid; }
+      var hh = xs[hi] - xs[lo], t2 = (x - xs[lo]) / hh, t3 = t2 * t2 * t2, tt = t2 * t2;
+      return (2 * t3 - 3 * tt + 1) * ys[lo] + (t3 - 2 * tt + t2) * hh * m[lo] + (-2 * t3 + 3 * tt) * ys[hi] + (t3 - tt) * hh * m[hi];
+    };
+  }
+  var customFn = pchip([]);
+  function customChanged() { customFn = pchip(CUSTOM.pts); }
+
+  function lossT(pr, lamNm) {
+    if (pr.type === "flat") return 1;
+    if (pr.type === "custom") return Math.max(0, Math.min(1, (pr.fn || customFn)(lamNm)));
+    var a = pr.c - pr.w / 2, b = pr.c + pr.w / 2;
+    var box = 0.5 * (Math.tanh((lamNm - a) / pr.e) - Math.tanh((lamNm - b) / pr.e));
+    box = Math.max(0, Math.min(1, box));
+    return pr.type === "pass" ? box : 1 - box;
+  }
+
+  // Loss of signal and pump from the same spectral curve (real filter), zero when the switch is off or the profile is flat
+  function waveLoss(prof, lm, aPk, attDb, lamS, lamP) {
+    if (!$("physLoss").checked || lm === "none" || prof.type === "flat") return { aS: 0, aP: 0, tS: 1, tP: 1, TS: 0, TP: 0 };
+    var TS = lossT(prof, lamS * 1e9), TP = lossT(prof, lamP * 1e9);
+    return { aS: aPk * TS, aP: aPk * TP, tS: lm === "lumped" ? Math.pow(10, -attDb * TS / 20) : 1, tP: lm === "lumped" ? Math.pow(10, -attDb * TP / 20) : 1, TS: TS, TP: TP };
+  }
+
+  // band-centre offset slider: sinh scale, 1 pm steps near zero, ±50 nm at the ends
+  function lbcNm(x) { return 0.01 * Math.sinh(x / 1000 * Math.asinh(5000)); }
+  function lbcSlider(nm) { return Math.max(-1000, Math.min(1000, Math.round(1000 * Math.asinh(nm / 0.01) / Math.asinh(5000)))); }
+
+  var dkValue = 0;
+  function lossMode() { return document.querySelector('input[name="lossmode"]:checked').value; }
+
+  function params() {
+    MODE = document.querySelector('input[name="proc"]:checked').value;
+    LPUMP = MODE === "chi3" ? +$("lp").value * 1e-9 : LP;
+    var ls = +$("ls").value * 1e-9;
+    var li = idlerOf(ls);
+    var wp = +$("wp").value * 1e-6, ws = +$("ws").value * 1e-6, wi;
+    var mode = $("wimode").value, fa = +$("fa").value * 1e-6, fdn = +$("fdn").value;
+    if (mode === "fiber") wi = lp01(li, fa, fdn).w;
+    else if (mode === "pol") wi = 1 / Math.sqrt(1 / (wp * wp) + 1 / (ws * ws));
+    else if (mode === "signal") wi = ws;
+    else wi = Math.max(0.5 * Math.min(wp, ws), Math.min(2 * Math.max(wp, ws), wp + (ws - wp) * (li - LPUMP) / (ls - LPUMP)));
+    var wP = 2 * Math.PI * C0 / LPUMP, wSum = 2 * Math.PI * C0 / lamSum(), wS = 2 * Math.PI * C0 / ls, wI = 2 * Math.PI * C0 / li;
+    var deff = sliderVal($("deff")) * 1e-12, n2 = sliderVal($("n2")) * 1e-20;
+    var theta = overlapFor(wp, ws, wi);
+    var Pp = sliderVal($("Pp")), Ps = sliderVal($("Ps"));
+    var Fp0 = Pp / (HB * wP), Fs0 = Ps / (HB * wS), K, kappa, gP = 0, gammaP = 0;
+    if (MODE === "chi3") {
+      gammaP = n2 * wP / C0 * theta; gP = gammaP * Pp;
+      kappa = gP * Math.sqrt(wS * wI) / wP; K = kappa / Math.sqrt(Fp0);
+    } else {
+      var gam = 2 * deff * Math.sqrt(HB * wP * wS * wI / (2 * EPS0 * C0 * C0 * C0 * NIDX * NIDX * NIDX));
+      K = gam * theta; kappa = K * Math.sqrt(Fp0);
+    }
+    var lm = lossMode();
+    var alphaDb = sliderVal($("alpha"));
+    var prof = { type: lm === "none" ? "flat" : $("lprof").value, c: li * 1e9 + lbcNm(+$("lbc").value), w: sliderVal($("lbw")), e: sliderVal($("lbe")), fn: customFn };
+    var T0 = lossT(prof, li * 1e9), aPk = lm === "cont" ? alphaDb * Math.LN10 / 10 : 0;
+    return {
+      ls: ls, li: li, wp: wp, ws: ws, wi: wi, wP: wP, wSum: wSum, wS: wS, wI: wI, deff: deff, n2: n2, theta: theta, Aeff: MODE === "chi3" ? 1 / theta : 1 / (theta * theta),
+      K: K, Pp: Pp, Ps: Ps, Fp0: Fp0, Fs0: Fs0, r0: Fs0 / Fp0, kappa: kappa, gP: gP, gammaP: gammaP, chi3: MODE === "chi3",
+      L: sliderVal($("L")), dk: dkValue, lm: lm, a: fa, dn: fdn,
+      alphaDb: alphaDb, alphaPk: aPk, alpha: aPk * T0, prof: prof, T0: T0, refmode: $("refmode").value,
+      nf: lm === "lumped" ? +$("nf").value : 0, attDb: +$("att").value,
+      tAmp: Math.pow(10, -(+$("att").value) * T0 / 20),
+      wl: waveLoss(prof, lm, aPk, +$("att").value, ls, LPUMP)
+    };
+  }
+
+  // Full nonlinear RK4 in normalised amplitudes u_j = a_j / sqrt(Fp0)
+  function simulate(p, dk, record, maxSteps, sc) {
+    if (MODE === "chi3") return simulate3(p, dk, record, maxSteps, sc);
+    var kap = p.kappa, a2 = p.alpha / 2, r0 = p.r0, wlz = p.wl || { aS: 0, aP: 0, tS: 1, tP: 1 }, a2s = wlz.aS / 2, a2p = wlz.aP / 2;
+    var rate = Math.max(kap * Math.sqrt(1 + r0), Math.abs(dk), a2, sc ? sc.rate : 0, 1e-6);
+    var N = Math.ceil(p.L * rate / 0.04);
+    N = Math.max(record ? 2000 : 300, Math.min(maxSteps, N));
+    var nSeg = p.nf + 1, nPer = Math.ceil(N / nSeg), h = p.L / (nSeg * nPer);
+    var y = new Float64Array([1, 0, Math.sqrt(r0), 0, 0, 0, sc && sc.trackR ? sc.x0R : 0]);
+    var k1 = new Float64Array(7), k2 = new Float64Array(7), k3 = new Float64Array(7), k4 = new Float64Array(7), t = new Float64Array(7);
+    function f(z, Y, o) {
+      var c = Math.cos(dk * z), s = Math.sin(dk * z);
+      var pr = Y[0], pi = Y[1], sr = Y[2], si = Y[3], ir = Y[4], ii = Y[5], xr, xi, yr, yi;
+      xr = sr * ir - si * ii; xi = sr * ii + si * ir;
+      yr = xr * c + xi * s; yi = xi * c - xr * s;
+      o[0] = -kap * yi; o[1] = kap * yr;
+      xr = pr * ir + pi * ii; xi = pi * ir - pr * ii;
+      yr = xr * c - xi * s; yi = xr * s + xi * c;
+      o[2] = -kap * yi; o[3] = kap * yr;
+      xr = pr * sr + pi * si; xi = pi * sr - pr * si;
+      yr = xr * c - xi * s; yi = xr * s + xi * c;
+      o[4] = -kap * yi - a2 * ir; o[5] = kap * yr - a2 * ii;
+      if (a2s) { o[2] -= a2s * Y[2]; o[3] -= a2s * Y[3]; }
+      if (a2p) { o[0] -= a2p * Y[0]; o[1] -= a2p * Y[1]; }
+      if (sc) addScat(sc, z, Y, o); else o[6] = 0;
+    }
+    var rec = record ? { z: [], seg: [], fp: [], fs: [], fi: [], fR: [] } : null;
+    var every = Math.max(1, Math.floor(nSeg * nPer / 900));
+    function push(z, sgi) { rec.z.push(z); rec.seg.push(sgi); rec.fp.push(y[0] * y[0] + y[1] * y[1]); rec.fs.push(y[2] * y[2] + y[3] * y[3]); rec.fi.push(y[4] * y[4] + y[5] * y[5]); rec.fR.push(y[6]); }
+    var z = 0, cnt = 0, j;
+    if (record) push(0, 0);
+    for (var sg = 0; sg < nSeg; sg++) {
+      for (var n = 0; n < nPer; n++) {
+        f(z, y, k1);
+        for (j = 0; j < 7; j++) t[j] = y[j] + 0.5 * h * k1[j];
+        f(z + 0.5 * h, t, k2);
+        for (j = 0; j < 7; j++) t[j] = y[j] + 0.5 * h * k2[j];
+        f(z + 0.5 * h, t, k3);
+        for (j = 0; j < 7; j++) t[j] = y[j] + h * k3[j];
+        f(z + h, t, k4);
+        for (j = 0; j < 7; j++) y[j] += h / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]);
+        cnt++;
+        z = (sg * nPer + n + 1) * h;
+        if (record && (cnt % every === 0 || n === nPer - 1)) push(z, sg);
+      }
+      if (sg < nSeg - 1) { y[4] *= p.tAmp; y[5] *= p.tAmp; y[2] *= wlz.tS; y[3] *= wlz.tS; y[0] *= wlz.tP; y[1] *= wlz.tP; if (record) push(z, sg + 1); }
+    }
+    var fp = y[0] * y[0] + y[1] * y[1], fs = y[2] * y[2] + y[3] * y[3], fi = y[4] * y[4] + y[5] * y[5];
+    return { rec: rec, fp: fp, fs: fs, fi: fi, xR: y[6], steps: nSeg * nPer, capped: N === maxSteps, resid: Math.abs(fp + fs - (1 + r0)) / (1 + r0) };
+  }
+
+
+  // χ3 degenerate FWM with SPM/XPM, power amplitudes normalised to √P_p(0); dkNet = κ = Δβ + 2γ_pP_p(0)
+  function simulate3(p, dkNet, record, maxSteps, sc) {
+    var wpf = p.wP, wsf = p.wS, wif = p.wI, np = p.gP, ns = np * wsf / wpf, ni = np * wif / wpf, a2 = p.alpha / 2, r0 = p.r0, wlz = p.wl || { aS: 0, aP: 0, tS: 1, tP: 1 }, a2s = wlz.aS / 2, a2p = wlz.aP / 2;
+    var db = dkNet - 2 * np;
+    var rate = Math.max(p.kappa * Math.sqrt(1 + r0), Math.abs(db), 3 * np * (1 + r0), a2, sc ? sc.rate : 0, 1e-6);
+    var N = Math.ceil(p.L * rate / 0.04);
+    N = Math.max(record ? 2000 : 300, Math.min(maxSteps, N));
+    var nSeg = p.nf + 1, nPer = Math.ceil(N / nSeg), h = p.L / (nSeg * nPer);
+    var y = new Float64Array([1, 0, Math.sqrt(r0 * wsf / wpf), 0, 0, 0, sc && sc.trackR ? sc.x0R : 0]);
+    var k1 = new Float64Array(7), k2 = new Float64Array(7), k3 = new Float64Array(7), k4 = new Float64Array(7), t = new Float64Array(7);
+    function f(z, Y, o) {
+      var c = Math.cos(db * z), sn = Math.sin(db * z);
+      var pr = Y[0], pi = Y[1], sr = Y[2], si = Y[3], ir = Y[4], ii = Y[5];
+      var Pp2 = pr * pr + pi * pi, Ps2 = sr * sr + si * si, Pi2 = ir * ir + ii * ii;
+      // pump: n_p[(|p|²+2|s|²+2|i|²) p + 2 s i p* e^{iΔβz}]
+      var xr = sr * ir - si * ii, xi = sr * ii + si * ir;            // s·i
+      var yr = xr * pr + xi * pi, yi = xi * pr - xr * pi;            // ·p*
+      var er = yr * c - yi * sn, ei = yr * sn + yi * c;              // ·e^{+iΔβz}
+      var Ar = (Pp2 + 2 * Ps2 + 2 * Pi2) * pr + 2 * er, Ai = (Pp2 + 2 * Ps2 + 2 * Pi2) * pi + 2 * ei;
+      o[0] = -np * Ai; o[1] = np * Ar;
+      // p² e^{−iΔβz}
+      var qr = pr * pr - pi * pi, qi = 2 * pr * pi, gr = qr * c + qi * sn, gi = qi * c - qr * sn;
+      // signal: n_s[(|s|²+2|p|²+2|i|²) s + p² i* e^{−iΔβz}]
+      var Br = (Ps2 + 2 * Pp2 + 2 * Pi2) * sr + (gr * ir + gi * ii), Bi = (Ps2 + 2 * Pp2 + 2 * Pi2) * si + (gi * ir - gr * ii);
+      o[2] = -ns * Bi; o[3] = ns * Br;
+      var Cr = (Pi2 + 2 * Pp2 + 2 * Ps2) * ir + (gr * sr + gi * si), Ci = (Pi2 + 2 * Pp2 + 2 * Ps2) * ii + (gi * sr - gr * si);
+      o[4] = -ni * Ci - a2 * ir; o[5] = ni * Cr - a2 * ii;
+      if (a2s) { o[2] -= a2s * Y[2]; o[3] -= a2s * Y[3]; }
+      if (a2p) { o[0] -= a2p * Y[0]; o[1] -= a2p * Y[1]; }
+      if (sc) addScat(sc, z, Y, o); else o[6] = 0;
+    }
+    var cs_ = wpf / wsf, ci_ = wpf / wif;
+    var rec = record ? { z: [], seg: [], fp: [], fs: [], fi: [], fR: [] } : null;
+    var every = Math.max(1, Math.floor(nSeg * nPer / 900));
+    function push(z, sgi) { rec.z.push(z); rec.seg.push(sgi); rec.fp.push(y[0] * y[0] + y[1] * y[1]); rec.fs.push((y[2] * y[2] + y[3] * y[3]) * cs_); rec.fi.push((y[4] * y[4] + y[5] * y[5]) * ci_); rec.fR.push(y[6]); }
+    var z = 0, cnt = 0, j;
+    if (record) push(0, 0);
+    for (var sg = 0; sg < nSeg; sg++) {
+      for (var n = 0; n < nPer; n++) {
+        f(z, y, k1);
+        for (j = 0; j < 7; j++) t[j] = y[j] + 0.5 * h * k1[j];
+        f(z + 0.5 * h, t, k2);
+        for (j = 0; j < 7; j++) t[j] = y[j] + 0.5 * h * k2[j];
+        f(z + 0.5 * h, t, k3);
+        for (j = 0; j < 7; j++) t[j] = y[j] + h * k3[j];
+        f(z + h, t, k4);
+        for (j = 0; j < 7; j++) y[j] += h / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]);
+        cnt++;
+        z = (sg * nPer + n + 1) * h;
+        if (record && (cnt % every === 0 || n === nPer - 1)) push(z, sg);
+      }
+      if (sg < nSeg - 1) { y[4] *= p.tAmp; y[5] *= p.tAmp; y[2] *= wlz.tS; y[3] *= wlz.tS; y[0] *= wlz.tP; y[1] *= wlz.tP; if (record) push(z, sg + 1); }
+    }
+    var fp = y[0] * y[0] + y[1] * y[1], fs = (y[2] * y[2] + y[3] * y[3]) * cs_, fi = (y[4] * y[4] + y[5] * y[5]) * ci_;
+    return { rec: rec, fp: fp, fs: fs, fi: fi, xR: y[6], steps: nSeg * nPer, capped: N === maxSteps, resid: Math.abs(fp + 2 * fs - (1 + 2 * r0)) / (1 + 2 * r0) };
+  }
+
+
+  // ---------- stimulated Brillouin and Raman scattering (silica) ----------
+  var KB = 1.380649e-23, HPL = 6.62607015e-34, VAC = 5960, GB0 = 5e-11;
+  // Raman response h(t) = A e^{-t/τ2} sin(t/τ1) (Blow & Wood); gain ∝ Im H(Ω), odd in Ω (Stokes gain, anti-Stokes loss)
+  var RT1 = 12.2e-15, RT2 = 32e-15;
+  function ramanIm(O) { var a = 1 / RT2, b = 1 / RT1, X = a * a + b * b - O * O, Y = 2 * a * O; return 2 * a * b * O / (X * X + Y * Y); }
+  var RAMAN_PEAK = (function () { var best = 0, Ob = 0; for (var k = 1; k < 4000; k++) { var O = 2 * Math.PI * 40e12 * k / 4000, v = ramanIm(O); if (v > best) { best = v; Ob = O; } } return { v: best, O: Ob }; })();
+  // the single-oscillator model has long tails; silica gain is negligible beyond ~40 THz, so roll it off smoothly
+  function ramanShape(O) {
+    var nu = Math.abs(O) / 2 / Math.PI / 1e12, win = nu > 32 ? Math.exp(-Math.pow((nu - 32) / 5, 2)) : 1;
+    return ramanIm(O) / RAMAN_PEAK.v * win;
+  }
+  function gRpeak(lam) { return 1e-13 * (1e-6 / lam); }
+  function scatOn() { return $("sbsOn").checked || $("srsOn").checked; }
+  function brillouin(lamP, lwHz) {
+    var nuB = 2 * NIDX * VAC / lamP, dnuB = 20e6 * Math.pow(1550e-9 / lamP, 2);
+    var g = GB0 * dnuB / (dnuB + lwHz), nth = KB * 293 / (HPL * nuB);
+    return { nuB: nuB, dnuB: dnuB, g: g, seed: HPL * C0 / lamP * nth * dnuB };
+  }
+  // Exact CW two-wave SBS: Pp − PB = C along z, PB(L) = seed. Returns PB(z).
+  function sbsSolve(P0, gA, L, seed) {
+    function pbL(D) { var C = P0 - D, q = D / P0, e = q * Math.exp(-gA * C * L); return C * e / (1 - e); }
+    var lo = Math.log(seed * 1e-6), hi = Math.log(P0 * (1 - 1e-9));
+    for (var it = 0; it < 200; it++) { var m = 0.5 * (lo + hi); if (pbL(Math.exp(m)) > seed) hi = m; else lo = m; }
+    var D = Math.exp(0.5 * (lo + hi)), C = P0 - D, q = D / P0;
+    return { D: D, C: C, PL: C / (1 - q * Math.exp(-gA * C * L)), PB: function (z) { var e = q * Math.exp(-gA * C * z); return C * e / (1 - e); } };
+  }
+  // Build the scattering terms for one solver run. lossTable: pump loss into the Raman Stokes, taken from the main run (spectral runs).
+  function scatBuild(p, q, lossTable) {
+    var sbs = $("sbsOn").checked, srs = $("srsOn").checked;
+    if (!sbs && !srs) return null;
+    var w = [q.wP, q.wS, q.wI], rad = [p.wp, p.ws, p.wi], P0 = p.Pp, Ap = Math.PI * p.wp * p.wp, rate = 0;
+    var sc = { P0: P0, w: w, wt: MODE === "chi3" ? [1, 1, 1] : [1, w[1] / w[0], w[2] / w[0]], pairs: [], trackR: false, sbs: null };
+    if (srs) {
+      [[0, 1], [0, 2], [1, 2]].forEach(function (pr) {
+        var j = w[pr[0]] > w[pr[1]] ? pr[0] : pr[1], k = j === pr[0] ? pr[1] : pr[0];
+        var g = gRpeak(2 * Math.PI * C0 / w[j]) * ramanShape(w[j] - w[k]) / (Math.PI * (rad[j] * rad[j] + rad[k] * rad[k]) / 2);
+        sc.pairs.push({ j: j, k: k, c: g, r: w[j] / w[k] });
+        rate = Math.max(rate, Math.abs(g) * P0 * w[j] / w[k]);
+      });
+      var wR = w[0] - RAMAN_PEAK.O;
+      sc.gRp = gRpeak(2 * Math.PI * C0 / w[0]) / Ap; sc.ratioPR = w[0] / wR; sc.lamR = 2 * Math.PI * C0 / wR;
+      sc.thrR = 16 * Ap / (gRpeak(2 * Math.PI * C0 / w[0]) * p.L);
+      if (!lossTable) { sc.trackR = true; sc.x0R = HPL * wR / (2 * Math.PI) * 1e12 / P0; }
+      rate = Math.max(rate, sc.gRp * P0);
+    }
+    var lossB = null;
+    if (sbs) {
+      var br = brillouin(2 * Math.PI * C0 / w[0], sliderVal($("lw")) * 1e6), gA = br.g / Ap, sol = sbsSolve(P0, gA, p.L, br.seed);
+      sc.sbs = { br: br, sol: sol, gA: gA, thr: 21 * Ap / (br.g * p.L) };
+      lossB = function (z) { return gA * sol.PB(z); };
+      rate = Math.max(rate, gA * sol.D);
+    }
+    var tab = lossTable;
+    sc.lossAt = function (z) {
+      var v = lossB ? lossB(z) : 0;
+      if (tab) {
+        var a = 0, b = tab.z.length - 1;
+        if (z <= tab.z[0]) v += tab.v[0]; else if (z >= tab.z[b]) v += tab.v[b];
+        else { while (b - a > 1) { var m = (a + b) >> 1; if (tab.z[m] > z) b = m; else a = m; } var t = (z - tab.z[a]) / Math.max(1e-30, tab.z[b] - tab.z[a]); v += tab.v[a] + t * (tab.v[b] - tab.v[a]); }
+      }
+      return v;
+    };
+    sc.rate = rate;
+    return sc;
+  }
+  function addScat(sc, z, Y, o) {
+    var P0 = sc.P0, Pw = [P0 * sc.wt[0] * (Y[0] * Y[0] + Y[1] * Y[1]), P0 * sc.wt[1] * (Y[2] * Y[2] + Y[3] * Y[3]), P0 * sc.wt[2] * (Y[4] * Y[4] + Y[5] * Y[5])];
+    for (var n = 0; n < sc.pairs.length; n++) {
+      var pr = sc.pairs[n], j = pr.j, k = pr.k, gk = 0.5 * pr.c * Pw[j], gj = -0.5 * pr.c * pr.r * Pw[k];
+      o[2 * k] += gk * Y[2 * k]; o[2 * k + 1] += gk * Y[2 * k + 1];
+      o[2 * j] += gj * Y[2 * j]; o[2 * j + 1] += gj * Y[2 * j + 1];
+    }
+    var l = sc.lossAt(z);
+    if (sc.trackR) { o[6] = sc.gRp * Pw[0] * Y[6]; l += sc.ratioPR * sc.gRp * P0 * Y[6]; } else o[6] = 0;
+    o[0] -= 0.5 * l * Y[0]; o[1] -= 0.5 * l * Y[1];
+  }
+
+  // complex helpers [re, im]
+  function cm(a, b) { return [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]]; }
+  function ca(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
+  function cs(a, b) { return [a[0] - b[0], a[1] - b[1]]; }
+  function cd(a, b) { var d = b[0] * b[0] + b[1] * b[1]; return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]; }
+  function ce(a) { var e = Math.exp(a[0]); return [e * Math.cos(a[1]), e * Math.sin(a[1])]; }
+  function csq(a) { var r = Math.hypot(a[0], a[1]); var re = Math.sqrt((r + a[0]) / 2), im = Math.sqrt(Math.max(0, (r - a[0]) / 2)); return [re, a[1] < 0 ? -im : im]; }
+  function cr(x) { return [x, 0]; }
+
+  // Undepleted pump: d/dz [s, c] = M [s, c], c = a_i* e^{iΔkz}, M = [[0, iκ], [−iκ, β]], β = iΔk − α/2
+  // M = [[as, iκ], [−iκ, β]]; as = −α_s/2 (signal loss from a real filter, usually 0)
+  function expM(kap, beta, z, as) {
+    as = as || 0;
+    var tr = [beta[0] + as, beta[1]], df = [beta[0] - as, beta[1]];
+    var disc = csq(ca(cm(df, df), cr(4 * kap * kap)));
+    var l1 = [(tr[0] + disc[0]) / 2, (tr[1] + disc[1]) / 2], l2 = [(tr[0] - disc[0]) / 2, (tr[1] - disc[1]) / 2];
+    if (Math.max(l1[0], l2[0]) * z > 600) return null;
+    var M = [[cr(as), [0, kap]], [[0, -kap], beta]];
+    if (Math.hypot(disc[0], disc[1]) * z < 1e-7) {
+      var l = [tr[0] / 2, tr[1] / 2], el = ce([l[0] * z, l[1] * z]);
+      return [[cm(el, ca(cr(1), cm(cs(M[0][0], l), cr(z)))), cm(el, cm(M[0][1], cr(z)))],
+              [cm(el, cm(M[1][0], cr(z))), cm(el, ca(cr(1), cm(cs(M[1][1], l), cr(z))))]];
+    }
+    var e1 = ce([l1[0] * z, l1[1] * z]), e2 = ce([l2[0] * z, l2[1] * z]);
+    var E = [[0, 0], [0, 0]];
+    for (var r = 0; r < 2; r++) for (var q = 0; q < 2; q++) {
+      var a = M[r][q], b = M[r][q];
+      if (r === q) { a = cs(a, l2); b = cs(b, l1); }
+      E[r][q] = cd(cs(cm(e1, a), cm(e2, b)), disc);
+    }
+    return E;
+  }
+  function apply(E, v) { return [ca(cm(E[0][0], v[0]), cm(E[0][1], v[1])), ca(cm(E[1][0], v[0]), cm(E[1][1], v[1]))]; }
+
+  function analyticOut(p, dk) {
+    var beta = [-p.alpha / 2, dk], nSeg = p.nf + 1, dz = p.L / nSeg, wl = p.wl || { aS: 0, tS: 1 };
+    var E = expM(p.kappa, beta, dz, -wl.aS / 2); if (!E) return null;
+    var v = [cr(Math.sqrt(p.r0)), cr(0)];
+    for (var sg = 0; sg < nSeg; sg++) {
+      v = apply(E, v);
+      if (sg < nSeg - 1) { v[1] = cm(v[1], cr(p.tAmp)); v[0] = cm(v[0], cr(wl.tS)); }
+    }
+    return { fs: v[0][0] * v[0][0] + v[0][1] * v[0][1], fi: v[1][0] * v[1][0] + v[1][1] * v[1][1] };
+  }
+  function analyticAlongZ(p, zs, segs) {
+    var beta = [-p.alpha / 2, p.dk], nSeg = p.nf + 1, dz = p.L / nSeg, wl = p.wl || { aS: 0, tS: 1 }, as = -wl.aS / 2;
+    var starts = [], v = [cr(Math.sqrt(p.r0)), cr(0)], E = expM(p.kappa, beta, dz, as);
+    for (var sg = 0; sg < nSeg; sg++) {
+      starts.push(v);
+      if (!E) break;
+      var w = apply(E, v); w[1] = cm(w[1], cr(p.tAmp)); w[0] = cm(w[0], cr(wl.tS)); v = w;
+    }
+    var out = { fs: [], fi: [] };
+    for (var k = 0; k < zs.length; k++) {
+      var s = segs[k], loc = Math.max(0, Math.min(dz, zs[k] - s * dz));
+      var Ez = starts[s] ? expM(p.kappa, beta, loc, as) : null;
+      if (!Ez) { out.fs.push(Infinity); out.fi.push(Infinity); continue; }
+      var u = apply(Ez, starts[s]);
+      out.fs.push(u[0][0] * u[0][0] + u[0][1] * u[0][1]); out.fi.push(u[1][0] * u[1][0] + u[1][1] * u[1][1]);
+    }
+    return out;
+  }
+
+  // ---------- plotting ----------
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function ticks(a, b, n) {
+    var span = b - a, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+    var st = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag, out = [];
+    for (var v = Math.ceil(a / st) * st; v <= b + st * 1e-9; v += st) out.push(Math.abs(v) < st * 1e-9 ? 0 : v);
+    return { v: out, st: st };
+  }
+  function tickLabel(v, st) { var d = Math.max(0, -Math.floor(Math.log10(st) + 1e-9)); return fmt(v, d); }
+
+  function powLabel(W) {
+    if (W >= 1e6 * 0.9999) { var e0 = Math.round(Math.log10(W)); return "10" + sup(e0) + " W"; }
+    var u = [[1e3, "kW"], [1, "W"], [1e-3, "mW"], [1e-6, "µW"], [1e-9, "nW"], [1e-12, "pW"], [1e-15, "fW"]];
+    for (var k = 0; k < u.length; k++) if (W >= u[k][0] * 0.9999) return String(+(W / u[k][0]).toPrecision(3)) + " " + u[k][1];
+    var e = Math.round(Math.log10(W)); return "10" + sup(e) + " W";
+  }
+  // Ticks for a log power axis given a dBm range: decades, or 1-2-5 / 1..9 mantissas when the range is narrow
+  function powerTicks(d0, d1, nmax) {
+    var span = d1 - d0, out = [], mant;
+    if (span > 1e4 || !isFinite(span)) return out;
+    if (span >= 20) {
+      var dec = Math.max(1, Math.ceil(span / 10 / nmax));
+      for (var e = Math.ceil(d0 / 10); e * 10 <= d1; e++) {
+        var major = e % dec === 0;
+        out.push({ dbm: e * 10, major: major, label: major ? powLabel(1e-3 * Math.pow(10, e)) : "" });
+      }
+      return out;
+    }
+    var sets = [[1], [1, 2, 5], [1, 2, 3, 4, 5, 6, 7, 8, 9]];
+    for (var si = 0; si < sets.length; si++) {
+      out = [];
+      for (var e2 = Math.floor(d0 / 10) - 1; e2 * 10 <= d1 + 10; e2++) sets[si].forEach(function (mv) {
+        var db = 10 * e2 + 10 * Math.log10(mv);
+        if (db >= d0 && db <= d1) out.push({ dbm: db, major: mv === 1, label: powLabel(1e-3 * mv * Math.pow(10, e2)) });
+      });
+      if (out.length >= 3) break;
+    }
+    if (out.length < 3) {
+      // very narrow range: linear ticks in power
+      var p0 = 1e-3 * Math.pow(10, d0 / 10), p1 = 1e-3 * Math.pow(10, d1 / 10), tk = ticks(p0, p1, 4);
+      out = tk.v.filter(function (v) { return v > 0; }).map(function (v) { return { dbm: 10 * Math.log10(v / 1e-3), major: true, label: powLabel(v) }; });
+    }
+    if (out.length > nmax) { var stp = Math.ceil(out.length / nmax); out.forEach(function (t, i) { if (i % stp) t.label = ""; }); }
+    return out;
+  }
+
+  function setupCanvas(cv) {
+    var r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    var W = Math.max(10, Math.round(r.width * dpr)), H = Math.max(10, Math.round(r.height * dpr));
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx: ctx, w: r.width, h: r.height };
+  }
+
+  function drawPlot(cv, o) {
+    var S = setupCanvas(cv), ctx = S.ctx, w = S.w, h = S.h;
+    var m = { l: 56, r: o.y2 ? 70 : 14, t: 10, b: 40 };
+    var pw = w - m.l - m.r, ph = h - m.t - m.b;
+    var X = function (x) { return m.l + (x - o.xlim[0]) / (o.xlim[1] - o.xlim[0]) * pw; };
+    var Y = function (y) { return m.t + (1 - (y - o.ylim[0]) / (o.ylim[1] - o.ylim[0])) * ph; };
+    ctx.clearRect(0, 0, w, h);
+    var cGrid = css("--grid"), cLine = css("--line"), cMuted = css("--muted"), cInk = css("--ink");
+    ctx.font = "11.5px " + css("--f-mono"); ctx.lineWidth = 1;
+    var tx = ticks(o.xlim[0], o.xlim[1], Math.max(3, Math.floor(pw / 80))), ty = ticks(o.ylim[0], o.ylim[1], Math.max(3, Math.floor(ph / 45)));
+    ctx.strokeStyle = cGrid; ctx.fillStyle = cMuted;
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    tx.v.forEach(function (v) { var x = X(v); ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke(); ctx.fillText(tickLabel(v, tx.st), x, m.t + ph + 6); });
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ty.v.forEach(function (v) { var y = Y(v); ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke(); ctx.fillText(tickLabel(v, ty.st), m.l - 6, y); });
+    ctx.strokeStyle = cLine; ctx.strokeRect(m.l + 0.5, m.t + 0.5, pw - 1, ph - 1);
+    ctx.fillStyle = cMuted; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    ctx.fillText(o.xlabel, m.l + pw / 2, h - 2);
+    ctx.save(); ctx.translate(12, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "middle"; ctx.fillText(o.ylabel, 0, 0); ctx.restore();
+    if (o.y2) {
+      // right axis: absolute power, left value + offset = dBm
+      var off = o.y2.offset, pt = powerTicks(o.ylim[0] + off, o.ylim[1] + off, Math.max(3, Math.floor(ph / 40)));
+      ctx.strokeStyle = cMuted; ctx.fillStyle = cMuted; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      pt.forEach(function (t) {
+        var y = Y(t.dbm - off);
+        ctx.beginPath(); ctx.moveTo(m.l + pw, y); ctx.lineTo(m.l + pw + (t.major ? 5 : 3), y); ctx.stroke();
+        if (t.label) ctx.fillText(t.label, m.l + pw + 7, y);
+      });
+      ctx.save(); ctx.translate(w - 8, m.t + ph / 2); ctx.rotate(Math.PI / 2); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(o.y2.label, 0, 0); ctx.restore();
+    }
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, pw, ph); ctx.clip();
+    (o.bands || []).forEach(function (bd) {
+      ctx.fillStyle = css("--accent"); ctx.globalAlpha = bd.alpha;
+      ctx.fillRect(X(bd.x0), m.t, X(bd.x1) - X(bd.x0), ph); ctx.globalAlpha = 1;
+    });
+    if (o.profile) {
+      // idler-loss profile as a filled area along the bottom 40 % of the plot
+      ctx.fillStyle = css("--idler"); ctx.globalAlpha = 0.16; ctx.beginPath();
+      ctx.moveTo(X(o.profile.x[0]), m.t + ph);
+      for (var q = 0; q < o.profile.x.length; q++) ctx.lineTo(X(o.profile.x[q]), m.t + ph - 0.4 * ph * o.profile.y[q]);
+      ctx.lineTo(X(o.profile.x[o.profile.x.length - 1]), m.t + ph); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    (o.vlines || []).forEach(function (vl) {
+      ctx.strokeStyle = vl.color; ctx.lineWidth = vl.width || 1; ctx.setLineDash(vl.dash || []);
+      ctx.beginPath(); ctx.moveTo(X(vl.x), m.t); ctx.lineTo(X(vl.x), m.t + ph); ctx.stroke();
+    });
+    var span = o.ylim[1] - o.ylim[0];
+    o.series.forEach(function (sr) {
+      ctx.strokeStyle = sr.color; ctx.lineWidth = sr.width || 2; ctx.setLineDash(sr.dash || []); ctx.lineJoin = "round";
+      ctx.beginPath(); var pen = false;
+      for (var k = 0; k < sr.x.length; k++) {
+        var yv = sr.y[k];
+        if (yv === -Infinity || (isNaN(yv))) { pen = false; continue; }
+        if (yv === Infinity) yv = o.ylim[1] + span;
+        yv = Math.max(o.ylim[0] - span, Math.min(o.ylim[1] + span, yv));
+        var px = X(sr.x[k]), py = Y(yv);
+        if (!pen) { ctx.moveTo(px, py); pen = true; } else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    (o.points || []).forEach(function (pt) { ctx.fillStyle = pt.color; ctx.beginPath(); ctx.arc(X(pt.x), Y(pt.y), 4, 0, 2 * Math.PI); ctx.fill(); });
+    if (o.cursor != null) { ctx.strokeStyle = cInk; ctx.globalAlpha = 0.35; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(o.cursor), m.t); ctx.lineTo(X(o.cursor), m.t + ph); ctx.stroke(); ctx.globalAlpha = 1; }
+    (o.markers || []).forEach(function (mk) {
+      ctx.fillStyle = css("--panel"); ctx.strokeStyle = mk.color; ctx.lineWidth = mk.sel ? 3 : 2;
+      ctx.beginPath(); ctx.arc(X(mk.x), Y(mk.y), mk.sel ? 7 : 5.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    });
+    ctx.restore();
+    (o.annots || []).forEach(function (an) {
+      if (an.x0 == null || an.x1 == null) return;
+      var x0 = Math.max(m.l, X(an.x0)), x1 = Math.min(m.l + pw, X(an.x1)), y = Y(an.y);
+      if (y < m.t || y > m.t + ph) return;
+      ctx.strokeStyle = an.color; ctx.fillStyle = an.color; ctx.lineWidth = 1.4; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+      [[x0, 1], [x1, -1]].forEach(function (e) { ctx.beginPath(); ctx.moveTo(e[0], y); ctx.lineTo(e[0] + 6 * e[1], y - 3.5); ctx.lineTo(e[0] + 6 * e[1], y + 3.5); ctx.closePath(); ctx.fill(); });
+      ctx.font = "600 11.5px " + css("--f-mono");
+      var tw = ctx.measureText(an.label).width, cx = Math.max(m.l + tw / 2 + 4, Math.min(m.l + pw - tw / 2 - 4, (x0 + x1) / 2));
+      var ty = an.below ? y + 5 : y - 5;
+      ctx.textAlign = "center"; ctx.textBaseline = an.below ? "top" : "bottom";
+      ctx.fillStyle = css("--panel"); ctx.globalAlpha = 0.85; ctx.fillRect(cx - tw / 2 - 3, an.below ? ty - 1 : ty - 14, tw + 6, 15); ctx.globalAlpha = 1;
+      ctx.fillStyle = an.color; ctx.fillText(an.label, cx, ty);
+    });
+    return { m: m, pw: pw, ph: ph, xlim: o.xlim, ylim: o.ylim };
+  }
+
+  // ---------- state & rendering ----------
+  var SC = null, SCTAB = null;
+  function scatSpec(q) { return scatOn() ? scatBuild(P, q, SCTAB || { z: [0], v: [0] }) : null; }
+  var DISP, SPEC = null, specToken = 0, showIdler = false, sGeom = null, iGeom = null;
+  var P, SIM, AZ, AOUT, yMode = "dbm", zGeom = null, gGeom = null, zCursor = null, scan = { dk: [], gn: [], dka: [], ga: [], range: 1 }, scanToken = 0;
+
+  function lossDescr(p) {
+    var pf = p.prof.type === "pass" ? ", band" : p.prof.type === "stop" ? ", notch" : p.prof.type === "custom" ? ", custom curve" : "";
+    if (p.lm === "cont") return fmt(p.alphaDb, p.alphaDb < 10 ? 2 : 1) + " dB/m peak" + pf;
+    if (p.lm === "lumped") return p.nf + " × " + fmt(p.attDb, 1) + " dB peak" + pf;
+    return "none";
+  }
+
+  var INTRO = {
+    chi2: "A 532 nm pump amplifies a signal near 1550 nm in a second-order nonlinear fiber and creates an idler near 810 nm. The coupled amplitude equations are integrated with RK4, including pump depletion, phase mismatch, Gaussian mode overlap and optional dissipation of the idler.",
+    chi3: "Two pump photons amplify a signal near 1550 nm by four-wave mixing in a Kerr (χ⁽³⁾) fiber and create an idler at 2ωₚ − ωₛ. The coupled equations include self- and cross-phase modulation, pump depletion, dispersion-engineered phase matching and optional dissipation of the idler."
+  };
+  function lpAdvice(p) {
+    var lp = LPUMP * 1e9, li = p.li * 1e9, sep = Math.abs(li - p.ls * 1e9);
+    var t = "Idler at " + fmt(li, 1) + " nm, " + fmt(sep, 1) + " nm from the signal. ";
+    if (Math.abs(lp - 1064) < 15) t += "Recommended: Yb fiber lasers and amplifiers deliver tens of watts CW at 1064 nm with narrow linewidth. Since 2ω(1064 nm) = ω(532 nm), the signal–idler pair is the same as in the χ⁽²⁾ case, and the 810 nm idler is far from the signal and easy to absorb or split off. Phase matching such widely spaced bands needs a fiber engineered near its zero-dispersion wavelength at about 1 µm (e.g. a PCF).";
+    else if (Math.abs(lp - 1030) < 15) t += "Yb at 1030 nm (high-power fiber and thin-disk sources). Idler near 770 nm; same widely spaced scheme as 1064 nm.";
+    else if (lp > 1500 && lp < 1625) t += "Er/EDFA pumps near the zero dispersion of highly nonlinear fiber give the classic broadband fiber OPA. Signal and idler sit symmetrically around the pump, so the GVM is tiny and the gain band is wide, but the idler is only " + fmt(sep, 1) + " nm away and needs a very sharp filter or absorber. Turn on \"Loss curve acts on every wave\" to see what a real filter does to the signal and pump: here the idler band overlaps the signal band and the pump.";
+    else if (lp > 1900 && lp < 2100) t += "Tm pumps near 2 µm put the idler in the mid-infrared, where silica itself absorbs strongly beyond about 2.5 µm. That gives built-in idler dissipation, but the Sellmeier-based fiber model becomes approximate there.";
+    else t += "Choose a pump with a common high-power fiber laser: 1030/1064 nm (Yb), 1560 nm (Er) or 1950 nm (Tm).";
+    if (Math.abs(lp - p.ls * 1e9) < 1) t += " The signal is within 1 nm of the pump (degenerate case), which this model does not treat.";
+    return t;
+  }
+  function updateOutputs(p) {
+    var c3 = MODE === "chi3";
+    $("intro").textContent = INTRO[MODE];
+    $("chipP").textContent = fmt(LPUMP * 1e9, 1) + " nm" + (c3 ? " (×2)" : "");
+    $("ctlLp").hidden = !c3; $("ctlN2").hidden = !c3; $("ctlDeff").hidden = c3;
+    $("lp_o").textContent = fmt(LPUMP * 1e9, 1) + " nm";
+    if (c3) $("lpHint").textContent = lpAdvice(p);
+    $("n2_o").textContent = sig(p.n2 * 1e20, 3) + "×10⁻²⁰ m²/W · γ " + sig(p.gammaP * 1e3, 3) + " W⁻¹km⁻¹";
+    $("dkLabel").innerHTML = c3 ? "Net phase mismatch κ = Δβ + 2γP" : "Phase mismatch Δ<i class=\"v\">k</i>";
+    $("dkHint").innerHTML = c3 ? "κ = β<sub>s</sub> + β<sub>i</sub> − 2β<sub>p</sub> + 2γ<sub>p</sub>P<sub>p</sub> at λ<sub>s</sub>. The fiber is taken to be dispersion-engineered so that κ at λ<sub>s</sub> has this value; other wavelengths follow from the dispersion model. Gain needs |κ| &lt; 2Γ. Fine near 0, up to ±400 rad/m."
+      : "Δk = k<sub>p</sub> − k<sub>s</sub> − k<sub>i</sub> − K<sub>G</sub> at the signal wavelength λ<sub>s</sub>. With a dispersion model on, the QPM grating K<sub>G</sub> = 2π/Λ is chosen so the mismatch at λ<sub>s</sub> equals this value; other wavelengths follow from the dispersion. Fine near 0, up to ±400 rad/m.";
+    $("dk0").textContent = c3 ? "κ = 0" : "Δk = 0";
+    $("ls_o").textContent = fmt(p.ls * 1e9, 1) + " nm";
+    $("chipS").textContent = fmt(p.ls * 1e9, 1) + " nm";
+    $("chipI").textContent = fmt(p.li * 1e9, 1) + " nm";
+    $("L_o").textContent = fmt(p.L, 2) + " m";
+    $("dk_o").textContent = fmt(p.dk, Math.abs(p.dk) < 10 ? 2 : 1) + " rad/m";
+    $("deff_o").textContent = sig(p.deff * 1e12, 3) + " pm/V";
+    $("wp_o").textContent = fmt(p.wp * 1e6, 2) + " µm";
+    $("ws_o").textContent = fmt(p.ws * 1e6, 2) + " µm";
+    $("wi_o").textContent = fmt(p.wi * 1e6, 2) + " µm";
+    $("Pp_o").textContent = fmtP(p.Pp);
+    $("Ps_o").textContent = fmtP(p.Ps) + " · " + fmt(dBm(p.Ps), 1) + " dBm";
+    $("alpha_o").textContent = sig(p.alphaDb, 3) + " dB/m";
+    $("att_o").textContent = fmt(p.attDb, 1) + " dB";
+    $("nf_o").textContent = String(+$("nf").value);
+    var dm = $("disp").value;
+    $("ctlA").hidden = $("ctlDn").hidden = dm !== "fiber";
+    $("ctlGvm").hidden = $("ctlB2").hidden = dm !== "taylor";
+    $("fa_o").textContent = fmt(p.a * 1e6, 2) + " µm";
+    $("fdn_o").textContent = fmt(p.dn, 4) + " · NA " + fmt(Math.sqrt(Math.pow(nSilica(p.ls) + p.dn, 2) - Math.pow(nSilica(p.ls), 2)), 3);
+    $("gvm_o").textContent = fmt(+$("gvm").value, 1) + " ps/m";
+    $("b2_o").textContent = fmt(+$("b2").value, 1) + " ps²/km";
+    if (dm === "fiber") {
+      var mP = lp01(LPUMP, p.a, p.dn), mS = lp01(p.ls, p.a, p.dn), mI = lp01(p.li, p.a, p.dn);
+      $("fhint").textContent = "V = " + fmt(mP.V, 2) + " / " + fmt(mI.V, 2) + " / " + fmt(mS.V, 2) + " and LP01 radius " + fmt(mP.w * 1e6, 2) + " / " + fmt(mI.w * 1e6, 2) + " / " + fmt(mS.w * 1e6, 2) + " µm at pump / idler / signal." + (mS.V > 2.405 ? " Signal is multimode." : "");
+    }
+    var banded = p.lm !== "none" && p.prof.type !== "flat";
+    $("ctlProf").hidden = $("ctlRef").hidden = p.lm === "none";
+    var custom = p.lm !== "none" && p.prof.type === "custom";
+    $("ctlBc").hidden = $("ctlBw").hidden = $("ctlBe").hidden = !banded || custom;
+    $("physWrap").hidden = $("physHint").hidden = !banded;
+    $("customHint").hidden = !custom;
+    $("editorBox").hidden = !custom;
+    $("lbc_o").textContent = fmt(p.prof.c, 3) + " nm (" + (p.prof.c - p.li * 1e9 >= 0 ? "+" : "") + sig(p.prof.c - p.li * 1e9, 3) + ")";
+    $("lbw_o").textContent = sig(p.prof.w, 3) + " nm";
+    $("lbe_o").textContent = sig(p.prof.e, 2) + " nm";
+    $("ctlLw").hidden = !$("sbsOn").checked; $("srsHint").hidden = !$("srsOn").checked;
+    $("lw_o").textContent = (function (v) { return v >= 1000 ? sig(v / 1000, 3) + " GHz" : v >= 1 ? sig(v, 3) + " MHz" : sig(v * 1000, 3) + " kHz"; })(sliderVal($("lw")));
+    $("ctlAlpha").hidden = p.lm !== "cont";
+    $("ctlAtt").hidden = p.lm !== "lumped";
+    $("ctlNf").hidden = p.lm !== "lumped";
+  }
+
+  function compute() {
+    P = params();
+    updateOutputs(P);
+    SC = scatBuild(P, P, null);
+    SIM = simulate(P, P.dk, true, 400000, SC);
+    SCTAB = null;
+    if (SC && SC.trackR) SCTAB = { z: SIM.rec.z, v: SIM.rec.fR.map(function (x) { return SC.ratioPR * SC.gRp * SC.P0 * x; }) };
+    AZ = analyticAlongZ(P, SIM.rec.z, SIM.rec.seg);
+    AOUT = analyticOut(P, P.dk);
+    DISP = dispersion(P);
+    specAnalytic();
+    renderReadouts();
+    drawZ();
+    if (MAP.grid && MAP.grid.ls !== P.ls) MAP.grid = null;
+    targetEqText();
+    drawMap();
+    startScan();
+    startSpecNumeric();
+  }
+
+  function renderReadouts() {
+    var p = P, s = SIM;
+    var Gn = s.fs / p.r0, Ga = AOUT ? AOUT.fs / p.r0 : Infinity;
+    var Psout = s.fs * p.Fp0 * HB * p.wS, Piout = s.fi * p.Fp0 * HB * p.wI, Ppout = s.fp * p.Fp0 * HB * p.wP;
+    var genI = (s.fs - p.r0) * p.Fp0, lostI = p.lm === "none" ? 0 : Math.max(0, genI - s.fi * p.Fp0);
+    var g2 = p.kappa * p.kappa - p.dk * p.dk / 4;
+    var adiab = p.lm === "cont" ? p.kappa * p.kappa * p.alpha / (p.alpha * p.alpha / 4 + p.dk * p.dk) : NaN;
+    var rows = [
+      ["Coupling and phase matching", [
+        ["Idler wavelength λ<sub>i</sub>", fmt(p.li * 1e9, 1) + " nm"],
+        [p.chi3 ? "FWM effective area A<sub>eff</sub>" : "Mode overlap A<sub>eff</sub> = 1/Θ²", fmt(p.Aeff * 1e12, 1) + " µm²"]].concat(p.chi3 ? [
+        ["γ at the pump", sig(p.gammaP * 1e3, 3) + " W⁻¹km⁻¹"],
+        ["Nonlinear phase 2γP<sub>p</sub>", sig(2 * p.gP, 3) + " rad/m"],
+        ["Linear Δβ needed at λ<sub>s</sub> (κ − 2γP)", fmt(p.dk - 2 * p.gP, 3) + " rad/m"]] : []).concat([
+        ["Small-signal gain coefficient Γ", sig(p.kappa, 3) + " m⁻¹" + (p.chi3 ? " (γP√(ω<sub>s</sub>ω<sub>i</sub>)/ω<sub>p</sub>)" : "")],
+        ["ΓL", sig(p.kappa * p.L, 3)],
+        ["ΔkL", fmt(p.dk * p.L, 2) + " rad"],
+        ["g = √(Γ² − Δk²/4)", g2 >= 0 ? sig(Math.sqrt(g2), 3) + " m⁻¹" : sig(Math.sqrt(-g2), 3) + "i m⁻¹ (oscillating)"],
+        ["Gain band edge |Δk| = 2Γ", sig(2 * p.kappa, 3) + " rad/m"]
+      ])],
+      ["Output at z = L", [
+        ["Signal power", fmtP(Psout) + " · " + fmt(dBm(Psout), 1) + " dBm"],
+        ["Signal gain, full numerical", fmtdB(10 * Math.log10(Gn))],
+        ["Signal gain, undepleted analytic", fmtdB(Ga === Infinity ? Infinity : 10 * Math.log10(Ga))],
+        ["Idler power", fmtP(Piout)],
+        ["Idler power dissipated", fmtP(lostI * HB * p.wI)],
+        ["Pump power", fmtP(Ppout)],
+        ["Pump depletion", fmt(100 * (1 - s.fp), 2) + " %"]
+      ]],
+      ["Idler dissipation", [
+        ["Scheme", lossDescr(p)],
+        ["Loss at λ<sub>i</sub> relative to peak", p.lm === "none" ? "—" : fmt(100 * p.T0, 1) + " %"]].concat($("physLoss").checked && p.lm !== "none" && p.prof.type !== "flat" ? [
+        ["Curve at λ<sub>s</sub> / λ<sub>p</sub> (real filter)", fmt(100 * p.wl.TS, 2) + " % / " + fmt(100 * p.wl.TP, 2) + " %"],
+        ["Signal / pump attenuation from the curve", (p.lm === "cont" ? fmt(p.alphaDb * p.wl.TS * p.L, 2) + " / " + fmt(p.alphaDb * p.wl.TP * p.L, 2) : fmt(p.attDb * p.wl.TS * p.nf, 2) + " / " + fmt(p.attDb * p.wl.TP * p.nf, 2)) + " dB" +
+          (p.alphaDb * p.wl.TS * p.L > 1 || p.attDb * p.wl.TS * p.nf > 1 ? ' <span class="warn">(signal attenuated)</span>' : "")]] : []).concat([
+        ["α<sub>i</sub> at λ<sub>i</sub> (power, m⁻¹)", p.lm === "cont" ? sig(p.alpha, 3) + " m⁻¹" : "—"],
+        ["α<sub>i</sub>/Γ", p.lm === "cont" ? sig(p.alpha / p.kappa, 3) : "—"],
+        ["Adiabatic-limit gain exp(g<sub>s</sub>L)", p.lm === "cont" ? fmtdB(10 * Math.log10(Math.E) * adiab * p.L) : "—"],
+        ["Segment length", p.lm === "lumped" ? fmt(p.L / (p.nf + 1), 3) + " m" : "—"],
+        ["Total idler attenuation at λ<sub>i</sub>", p.lm === "cont" ? fmt(p.alphaDb * p.T0 * p.L, 1) + " dB (distributed)" : p.lm === "lumped" ? fmt(p.attDb * p.T0 * p.nf, 1) + " dB (lumped)" : "0 dB"]
+      ])]
+    ];
+    var D = DISP, B = specBands(), lam0 = p.ls * 1e9, gv = Math.abs(D.gvm);
+    var estHi = gv > 0 ? 4 * Math.sqrt(p.kappa * Math.LN2 / p.L) / gv / (2 * Math.PI) : Infinity;
+    var estLo = gv > 0 ? 5.566 / (p.L * gv) / (2 * Math.PI) : Infinity;
+    var ghzToNm = function (hz) { return hz * Math.pow(p.ls, 2) / C0 * 1e9; };
+    rows.splice(1, 0, ["Phase-matching bandwidth", [
+      ["Dispersion model", D.model === "fiber" ? "step-index LP01" : D.model === "taylor" ? "Taylor" : "none"],
+      p.chi3 ? ["Step-index fiber's own Δβ at λ<sub>s</sub>", D.model === "fiber" ? sig(D.dk0, 4) + " rad/m (to be compensated by design)" : "—"]
+        : ["QPM period Λ", D.model === "fiber" ? fmt(2 * Math.PI / Math.abs(D.KG) * 1e6, 3) + " µm" : "—"],
+      ["GVM β<sub>1,i</sub> − β<sub>1,s</sub>", D.model === "none" ? "—" : fmt(D.gvm * 1e12, 2) + " ps/m"],
+      ["β<sub>2,s</sub> + β<sub>2,i</sub>", D.model === "none" ? "—" : fmt(D.b2 * 1e27, 2) + " ps²/km"],
+      ["Signal −3 dB width, undepleted", D.model === "none" ? "flat (no dispersion)" : bandText(B.sA, lam0)],
+      ["Signal −3 dB width, full numerical", D.model === "none" ? "flat (no dispersion)" : B.sN ? bandText(B.sN, lam0) : "computing…"],
+      ["Phase-matched lossless reference", !(SPEC && SPEC.Lref) ? "—" : (p.refmode === "gain" ? "equal peak gain, L = " : "same length, L = ") + fmt(SPEC.Lref, 2) + " m" +
+        (REFFIB ? " · baseline fiber" + (REFFIB.a != null ? " a " + fmt(REFFIB.a * 1e6, 2) + " µm, Δn " + fmt(REFFIB.dn, 4) : "") + ", Γ " + sig(REFFIB.kappa, 3) + " m⁻¹" : "")],
+      ["Reference −3 dB width", !B.rA || D.model === "none" ? "—" : bandText(B.rN || B.rA, lam0)],
+      ["Peak gain, with / without loss", !B.rA ? "—" : fmt((B.sN || B.sA).peak, 1) + " / " + fmt((B.rN || B.rA).peak, 1) + " dB"],
+      ["Bandwidth ÷ reference", !B.rA || D.model === "none" ? "—" : ratioText(B.sN || B.sA, B.rN || B.rA) + (B.sN && B.rN ? "" : " (undepleted)") + nmPair(B.sN || B.sA, B.rN || B.rA)],
+      ["GVM estimate, high gain", isFinite(estHi) ? sig(ghzToNm(estHi), 3) + " nm · " + sig(estHi / 1e9, 3) + " GHz" : "—"],
+      ["GVM estimate, low gain (sinc²)", isFinite(estLo) ? sig(ghzToNm(estLo), 3) + " nm · " + sig(estLo / 1e9, 3) + " GHz" : "—"]
+    ]]);
+    if (SC) {
+      var sr = [], b = SC.sbs;
+      if (b) {
+        sr.push(["Brillouin shift / linewidth Δν<sub>B</sub>", sig(b.br.nuB / 1e9, 3) + " GHz / " + sig(b.br.dnuB / 1e6, 3) + " MHz"]);
+        sr.push(["Effective g<sub>B</sub> (pump linewidth)", sig(b.br.g, 3) + " m/W"]);
+        sr.push(["SBS threshold ≈ 21 A<sub>p</sub>/(g<sub>B</sub>L)", fmtP(b.thr) + (p.Pp > b.thr ? ' <span class="warn">(exceeded)</span>' : "")]);
+        sr.push(["Reflected backward Stokes at z = 0", fmtP(b.sol.D) + " · " + fmt(100 * b.sol.D / p.Pp, 2) + " % of pump"]);
+        sr.push(["Pump left after SBS alone (two-wave)", fmtP(b.sol.PL)]);
+      }
+      if ($("srsOn").checked) {
+        var thrR = 16 * Math.PI * p.wp * p.wp / (gRpeak(LPUMP) * p.L);
+        sr.push(["Raman Stokes of the pump", fmt(SC.lamR * 1e9, 1) + " nm (−" + fmt(RAMAN_PEAK.O / 2 / Math.PI / 1e12, 1) + " THz)"]);
+        sr.push(["SRS threshold ≈ 16 A<sub>p</sub>/(g<sub>R</sub>L)", fmtP(thrR) + (p.Pp > thrR ? ' <span class="warn">(exceeded)</span>' : "")]);
+        sr.push(["Raman Stokes power at z = L", fmtP((SIM.xR || 0) * p.Pp)]);
+        var nm = ["pump", "signal", "idler"];
+        SC.pairs.forEach(function (pr) {
+          var dnu = (SC.w[pr.j] - SC.w[pr.k]) / 2 / Math.PI / 1e12, gdb = 10 / Math.LN10 * pr.c * p.Pp * p.L;
+          if (pr.j === 0 || pr.k === 0) {
+            var other = pr.j === 0 ? pr.k : pr.j, sign = pr.j === 0 ? 1 : -pr.r;
+            sr.push(["Raman " + (sign > 0 ? "gain" : "loss") + " of the " + nm[other] + " from the pump (Δν " + fmt(dnu, 1) + " THz)", fmt(Math.abs(sign) * gdb, 3) + " dB over L, undepleted"]);
+          } else sr.push(["Signal–idler Raman coupling (Δν " + fmt(dnu, 1) + " THz)", sig(pr.c, 3) + " W⁻¹m⁻¹ · " + (Math.abs(dnu) > 40 ? "outside the Raman band" : "inside the Raman band")]);
+        });
+      }
+      sr.push(["Pump depletion, all processes", fmt(100 * (1 - s.fp), 2) + " %"]);
+      rows.push(["Brillouin and Raman scattering", sr]);
+    }
+    $("readouts").innerHTML = groupsHtml(rows);
+    var note = "RK4 with " + s.steps.toLocaleString("en-US") + " steps. " + (SC ? "Photon-number check not applicable: scattering removes pump photons. " : "") + (SC ? "" : p.chi3 ? "Photon-number check |Δ(Φ<sub>p</sub> + 2Φ<sub>s</sub>)| / (Φ<sub>p</sub> + 2Φ<sub>s</sub>) = " : "Photon-number check |ΔΦ<sub>p</sub> + ΔΦ<sub>s</sub>| / Φ<sub>total</sub> = ") + (SC ? "" : sig(s.resid, 2) + ".");
+    if (p.wl && p.wl.TP > 1e-4) note += ' <span class="warn">The loss curve also attenuates the pump (' + fmt(100 * p.wl.TP, 1) + ' % of peak). The full numerical solution includes this; the undepleted analytic curves do not.</span>';
+    if (s.capped) note += ' <span class="warn">Step count capped; reduce ΓL or Δk·L for higher accuracy.</span>';
+    if (s.fp < 0.5) note += " The pump is strongly depleted, so the analytic undepleted curve overestimates the gain.";
+    $("numnote").innerHTML = note;
+  }
+
+  function groupsHtml(rows) {
+    var html = "";
+    rows.forEach(function (g) {
+      html += "<div><h3>" + g[0] + "</h3><dl>";
+      g[1].forEach(function (r) { html += "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>"; });
+      html += "</dl></div>";
+    });
+    return html;
+  }
+
+  function ySeries(f, w) {
+    var out = new Array(f.length);
+    for (var k = 0; k < f.length; k++) out[k] = yMode === "dbm" ? (f[k] > 0 ? dBm(f[k] * P.Fp0 * HB * w) : -Infinity) : f[k];
+    return out;
+  }
+
+  function drawZ() {
+    if (!SIM) return;
+    var r = SIM.rec, p = P, ylim, ylabel;
+    var yp = ySeries(r.fp, p.wP), ys = ySeries(r.fs, p.wS), yi = ySeries(r.fi, p.wI);
+    var ays = ySeries(AZ.fs, p.wS), ayi = ySeries(AZ.fi, p.wI);
+    if (yMode === "dbm") {
+      var top = Math.max.apply(null, yp.concat(ys).filter(isFinite));
+      var bot = dBm(p.Ps) - 25;
+      ylim = [Math.floor(bot / 10) * 10, Math.ceil((top + 3) / 10) * 10];
+      ylabel = "power (dBm)";
+    } else {
+      var mx = Math.max(1, Math.max.apply(null, r.fs), Math.max.apply(null, r.fi));
+      ylim = [0, mx * 1.05];
+      ylabel = "photon flux / Φp(0)";
+    }
+    var vl = [];
+    for (var k = 1; k <= p.nf; k++) vl.push({ x: k * p.L / (p.nf + 1), color: css("--idler"), dash: [3, 4] });
+    var series = [
+      { x: r.z, y: ays, color: css("--muted"), dash: [6, 5], width: 1.5 },
+      { x: r.z, y: ayi, color: css("--muted"), dash: [2, 4], width: 1.5 },
+      { x: r.z, y: yp, color: css("--pump") },
+      { x: r.z, y: yi, color: css("--idler") },
+      { x: r.z, y: ys, color: css("--signal"), width: 2.4 }
+    ];
+    if (SC && SC.sbs) series.push({ x: r.z, y: r.z.map(function (z) { var v = SC.sbs.sol.PB(z); return yMode === "dbm" ? dBm(v) : v / p.Pp; }), color: css("--sbs"), dash: [6, 4], width: 1.8 });
+    if (SC && SC.trackR) series.push({ x: r.z, y: r.fR.map(function (x) { return yMode === "dbm" ? (x > 0 ? dBm(x * p.Pp) : -Infinity) : x; }), color: css("--srs"), width: 1.8 });
+    $("lgSBS").hidden = !(SC && SC.sbs); $("lgSRS").hidden = !(SC && SC.trackR);
+    if (yMode !== "dbm") series.splice(0, 2);
+    zGeom = drawPlot($("cz"), { xlim: [0, p.L], ylim: ylim, xlabel: "z (m)", ylabel: ylabel, series: series, vlines: vl, cursor: zCursor,
+      y2: yMode === "dbm" ? { offset: 0, label: "power" } : null });
+  }
+
+  function hoverZ(z) {
+    if (!SIM) return;
+    var r = SIM.rec, best = 0;
+    for (var k = 0; k < r.z.length; k++) if (Math.abs(r.z[k] - z) < Math.abs(r.z[best] - z)) best = k;
+    var p = P, Pp = r.fp[best] * p.Fp0 * HB * p.wP, Ps = r.fs[best] * p.Fp0 * HB * p.wS, Pi = r.fi[best] * p.Fp0 * HB * p.wI;
+    $("hz").textContent = "z = " + fmt(r.z[best], 3) + " m · pump " + fmtP(Pp) + " · signal " + fmtP(Ps) + " (" + fmt(10 * Math.log10(r.fs[best] / p.r0), 2) + " dB) · idler " + fmtP(Pi) +
+      (SC && SC.sbs ? " · SBS backward " + fmtP(SC.sbs.sol.PB(r.z[best])) : "") + (SC && SC.trackR ? " · Raman Stokes " + fmtP(r.fR[best] * p.Pp) : "");
+  }
+
+
+  // ---------- gain spectrum ----------
+  function specParams(p, O) {
+    var ws = p.wS + O, wi = p.wSum - ws;
+    var T = lossT(p.prof, 2 * Math.PI * C0 / wi * 1e9);
+    return { kappa: p.kappa * Math.sqrt(ws * wi / (p.wS * p.wI)), alpha: p.alphaPk * T, L: p.L, nf: p.nf, tAmp: Math.pow(10, -p.attDb * T / 20), r0: p.Ps / (HB * ws) / p.Fp0, ws: ws, wi: wi, T: T,
+      wS: ws, wI: wi, wP: p.wP, gP: p.gP, wl: waveLoss(p.prof, p.lm, p.alphaPk, p.attDb, 2 * Math.PI * C0 / ws, LPUMP) };
+  }
+  function refParams(p, O, Lref) {
+    var q = specParams(p, O);
+    q.alpha = 0; q.nf = 0; q.tAmp = 1; q.L = Lref; q.wl = null;
+    return q;
+  }
+  // Reference fiber: the current fiber, or a baseline frozen when the optimiser varies fiber geometry or pump power
+  var REFFIB = null;
+  function refBase(p) {
+    if (!REFFIB) return { kappa: p.kappa, gP: p.gP, D: p.D || DISP };
+    if (REFFIB.a != null && DISP.model === "fiber" && REFFIB.ls !== p.ls) { REFFIB.D = fastDisp(p.ls, REFFIB.a, REFFIB.dn); REFFIB.ls = p.ls; }
+    return { kappa: REFFIB.kappa, gP: REFFIB.gP, D: REFFIB.a != null && DISP.model === "fiber" ? REFFIB.D : DISP };
+  }
+  function refQ(p, O, Lref, rb) {
+    var q = refParams(p, O, Lref);
+    q.kappa = rb.kappa * Math.sqrt(q.ws * q.wi / (p.wS * p.wI));
+    if (rb.gP != null) q.gP = rb.gP;
+    return q;
+  }
+  function refLength(p, rb, gpkDb) {
+    if (p.refmode !== "gain" || !isFinite(gpkDb)) return p.L;
+    return Math.max(1e-3, Math.acosh(Math.sqrt(Math.max(1, Math.pow(10, gpkDb / 10)))) / rb.kappa);
+  }
+  function nmPair(a, b) {
+    if (!a || !b || a.lo == null || a.hi == null || b.lo == null || b.hi == null) return "";
+    var wa = a.hi - a.lo, wb = b.hi - b.lo;
+    return " · " + sig(wa, 3) + " vs " + sig(wb, 3) + " nm (" + (wa >= wb ? "+" : "−") + sig(Math.abs(wa - wb), 3) + " nm)";
+  }
+  function ratioText(a, b) {
+    if (!a || !b || a.lo == null || a.hi == null || b.lo == null || b.hi == null) return "—";
+    return fmt((a.hi - a.lo) / (b.hi - b.lo), 2) + "×";
+  }
+  function bandEdges(x, y, drop) {
+    var k0 = -1, best = -Infinity, k;
+    for (k = 0; k < y.length; k++) if (isFinite(y[k]) && y[k] > best) { best = y[k]; k0 = k; }
+    if (k0 < 0) return null;
+    // outermost crossings of peak − drop; dip = the band contains points below the threshold
+    var thr = best - drop, lo = null, hi = null, first = -1, last = -1, dip = false;
+    for (k = 0; k < y.length; k++) if (y[k] >= thr) { if (first < 0) first = k; last = k; }
+    for (k = first; k <= last; k++) if (!(y[k] >= thr)) dip = true;
+    if (first > 0) lo = x[first - 1] + (x[first] - x[first - 1]) * (thr - y[first - 1]) / (y[first] - y[first - 1]);
+    if (last >= 0 && last < y.length - 1) hi = x[last] + (x[last + 1] - x[last]) * (y[last] - thr) / (y[last] - y[last + 1]);
+    if (lo != null && hi != null && lo > hi) { var t = lo; lo = hi; hi = t; }
+    else if (x[0] > x[x.length - 1]) { var t2 = lo; lo = hi; hi = t2; }
+    return { lo: lo, hi: hi, peak: best, xpk: x[k0], dip: dip };
+  }
+  // Ω window where |dk + Δk_rel(Ω)| ≤ Rk, padded by 12 %
+  function specWindow(D, dk, Rk) {
+    var Olo, Ohi, k;
+    if (D.model === "none") return [-OM_MAX / 3, OM_MAX / 3];
+    {
+      var p = { dk: dk };
+      var N = 6001, fbest = Infinity, Obest = 0; Olo = Infinity; Ohi = -Infinity;
+      for (k = 0; k < N; k++) {
+        var O = -OM_MAX + 2 * OM_MAX * k / (N - 1), fk = Math.abs(p.dk + D.dkRel(O));
+        if (fk <= Rk) { if (O < Olo) Olo = O; if (O > Ohi) Ohi = O; }
+        if (fk < fbest) { fbest = fk; Obest = O; }
+      }
+      var cell = 2 * OM_MAX / (N - 1);
+      if (!isFinite(Olo)) { Olo = Obest - cell; Ohi = Obest + cell; }
+      // refine edges outward to the |Δk| = R crossing within one coarse cell
+      var refine = function (O, dir) {
+        var a = O, b = Math.max(-OM_MAX, Math.min(OM_MAX, O + dir * cell));
+        for (var it = 0; it < 50; it++) { var m = 0.5 * (a + b); if (Math.abs(p.dk + D.dkRel(m)) <= Rk) a = m; else b = m; }
+        return a;
+      };
+      Olo = refine(Olo, -1); Ohi = refine(Ohi, 1);
+      var pad = 0.12 * (Ohi - Olo);
+      Olo = Math.max(-OM_MAX, Olo - pad); Ohi = Math.min(OM_MAX, Ohi + pad);
+    }
+    return [Olo, Ohi];
+  }
+  function specAnalytic(expand) {
+    var p = P, D = DISP, Rk = Math.max(6 * p.kappa, 8 * Math.PI / p.L, p.lm === "cont" && p.prof.type === "flat" ? 1.5 * p.alpha : 0, 1e-3), k;
+    var win = specWindow(D, p.dk, Rk);
+    var rb = refBase(p), hasRef = p.lm !== "none" || !!REFFIB;
+    if (hasRef) { var w2 = specWindow(rb.D, 0, Math.max(6 * rb.kappa, 8 * Math.PI / p.L)); win = [Math.min(win[0], w2[0]), Math.max(win[1], w2[1])]; }
+    if (expand) { var c = 0.5 * (win[0] + win[1]), h = 0.5 * (win[1] - win[0]) * expand; win = [Math.max(-OM_MAX, c - h), Math.min(OM_MAX, c + h)]; }
+    var Olo = win[0], Ohi = win[1];
+    var NA = 601, sp = { O: [], lam: [], lamI: [], ga: [], igA: [], ioA: [], prof: [], gR: [], Lref: null, Olo: Olo, Ohi: Ohi, num: null };
+    for (k = 0; k < NA; k++) {
+      var Om = Olo + (Ohi - Olo) * k / (NA - 1), q = specParams(p, Om), a = analyticOut(q, p.dk + D.dkRel(Om));
+      sp.O.push(Om); sp.lam.push(2 * Math.PI * C0 / q.ws * 1e9); sp.lamI.push(2 * Math.PI * C0 / q.wi * 1e9); sp.prof.push(p.lm === "none" ? 0 : q.T);
+      if (a) {
+        sp.ga.push(10 * Math.log10(a.fs / q.r0));
+        sp.igA.push(dBm(Math.max(1e-300, (a.fs - q.r0) * p.Fp0 * HB * q.wi)));
+        sp.ioA.push(dBm(Math.max(1e-300, a.fi * p.Fp0 * HB * q.wi)));
+      } else { sp.ga.push(Infinity); sp.igA.push(Infinity); sp.ioA.push(Infinity); }
+    }
+    if (hasRef) {
+      var Lref = refLength(p, rb, Math.max.apply(null, sp.ga.filter(isFinite).concat([-Infinity])));
+      sp.Lref = Lref; sp.rb = rb;
+      for (k = 0; k < NA; k++) {
+        var qr = refQ(p, sp.O[k], Lref, rb), ar = analyticOut(qr, rb.D.dkRel(sp.O[k]));
+        sp.gR.push(ar ? 10 * Math.log10(ar.fs / qr.r0) : Infinity);
+      }
+    }
+    SPEC = sp;
+    var e = bandEdges(sp.lam, sp.ga, 3), e10 = bandEdges(sp.lam, sp.ga, 10);
+    if (D.model !== "none" && e && (e.lo == null || e.hi == null || (e10.peak > 10.5 && (e10.lo == null || e10.hi == null))) && (expand || 1) < 8 && (Olo > -OM_MAX || Ohi < OM_MAX)) specAnalytic((expand || 1) * 2);
+  }
+  function startSpecNumeric() {
+    var p = P, D = DISP, sp = SPEC, token = ++specToken, NN = 181, idx = 0;
+    var num = { lam: [], lamI: [], gn: new Array(NN).fill(NaN), ig: new Array(NN).fill(NaN), io: new Array(NN).fill(NaN), gR: new Array(NN).fill(NaN), done: false };
+    for (var k = 0; k < NN; k++) {
+      var Om = sp.Olo + (sp.Ohi - sp.Olo) * k / (NN - 1);
+      num.lam.push(2 * Math.PI * C0 / (p.wS + Om) * 1e9); num.lamI.push(2 * Math.PI * C0 / (p.wSum - p.wS - Om) * 1e9);
+    }
+    sp.num = num;
+    drawSpec();
+    function chunk() {
+      if (token !== specToken) return;
+      var t0 = performance.now();
+      while (idx < NN && performance.now() - t0 < 14) {
+        var Om = sp.Olo + (sp.Ohi - sp.Olo) * idx / (NN - 1), q = specParams(p, Om), s = simulate(q, p.dk + D.dkRel(Om), false, 20000, scatSpec(q));
+        num.gn[idx] = 10 * Math.log10(s.fs / q.r0);
+        num.ig[idx] = dBm(Math.max(1e-300, (s.fs - q.r0) * p.Fp0 * HB * q.wi));
+        num.io[idx] = dBm(Math.max(1e-300, s.fi * p.Fp0 * HB * q.wi));
+        if (sp.Lref) { var qr = refQ(p, Om, sp.Lref, sp.rb), sr = simulate(qr, sp.rb.D.dkRel(Om), false, 20000, scatSpec(qr)); num.gR[idx] = 10 * Math.log10(sr.fs / qr.r0); }
+        idx++;
+      }
+      if (idx >= NN) { num.done = true; renderReadouts(); }
+      drawSpec();
+      if (idx < NN) setTimeout(chunk, 0);
+    }
+    setTimeout(chunk, 0);
+  }
+  function specBands() {
+    var sp = SPEC, n = sp.num && sp.num.done ? sp.num : null;
+    return {
+      src: n ? "full numerical" : "undepleted analytic",
+      sA: bandEdges(sp.lam, sp.ga, 3),
+      sN: n ? bandEdges(n.lam, n.gn, 3) : null,
+      rA: sp.Lref ? bandEdges(sp.lam, sp.gR, 3) : null,
+      rN: n && sp.Lref ? bandEdges(n.lam, n.gR, 3) : null,
+      i3: n ? bandEdges(n.lamI.slice().reverse(), n.ig.slice().reverse(), 3) : bandEdges(sp.lamI.slice().reverse(), sp.igA.slice().reverse(), 3),
+      i20: n ? bandEdges(n.lamI.slice().reverse(), n.ig.slice().reverse(), 20) : bandEdges(sp.lamI.slice().reverse(), sp.igA.slice().reverse(), 20)
+    };
+  }
+  function nmToGHz(lam0, dl) { return C0 * dl * 1e-9 / Math.pow(lam0 * 1e-9, 2) / 1e9; }
+  function bandText(b, lam0) {
+    if (!b) return "—";
+    if (b.lo == null || b.hi == null) return "wider than plotted window";
+    var w = b.hi - b.lo;
+    return sig(w, 3) + " nm · " + sig(nmToGHz(lam0, w), 3) + " GHz" + (b.dip ? " (with dip)" : "");
+  }
+  function rangeText(b) {
+    if (!b) return "—";
+    if (b.lo == null || b.hi == null) return "beyond window";
+    var d = Math.min(5, Math.max(1, -Math.floor(Math.log10(Math.max(1e-6, b.hi - b.lo))) + 2));
+    return fmt(b.lo, d) + " – " + fmt(b.hi, d) + " nm";
+  }
+
+  function drawSpec() {
+    if (!SPEC) return;
+    var sp = SPEC, n = sp.num, B = specBands(), bandS = B.sN || B.sA;
+    var vals = sp.ga.filter(isFinite).concat(n ? n.gn.filter(isFinite) : [], sp.gR.filter(isFinite));
+    var top = vals.length ? Math.max.apply(null, vals) : 10, bot = vals.length ? Math.min.apply(null, vals) : 0;
+    top = Math.max(top, 1); bot = Math.max(Math.min(bot, 0), top - 80);
+    var pad = Math.max(1, 0.06 * (top - bot));
+    var xl = [Math.min(sp.lam[0], sp.lam[sp.lam.length - 1]), Math.max(sp.lam[0], sp.lam[sp.lam.length - 1])];
+    var bands = bandS && bandS.lo != null && bandS.hi != null ? [{ x0: bandS.lo, x1: bandS.hi, alpha: 0.18 }] : [];
+    var s10 = n && n.done ? bandEdges(n.lam, n.gn, 10) : bandEdges(sp.lam, sp.ga, 10), refB = B.rN || B.rA;
+    if (s10 && s10.peak < 10.5) s10 = { undef: true };
+    var wl = function (b) { return b && b.lo != null && b.hi != null ? sig(b.hi - b.lo, 3) + " nm" : "> window"; };
+    var annots = [];
+    if (bandS) annots.push({ x0: bandS.lo, x1: bandS.hi, y: bandS.peak - 3, label: "−3 dB  " + wl(bandS), color: css("--signal") });
+    if (s10 && !s10.undef) annots.push({ x0: s10.lo, x1: s10.hi, y: s10.peak - 10, label: "−10 dB  " + wl(s10), color: css("--signal") });
+    if (refB && SPEC.Lref) annots.push({ x0: refB.lo, x1: refB.hi, y: refB.peak - 3, label: "ref −3 dB  " + wl(refB), color: css("--pump"), below: true });
+    var lam0 = P.ls * 1e9, bw = [];
+    if (DISP.model === "none") bw.push("<span>No dispersion: the gain spectrum is flat over the window.</span>");
+    else {
+      bw.push("<span>Signal −3 dB: <b>" + bandText(bandS, lam0) + "</b></span>");
+      bw.push("<span>−10 dB: <b>" + (s10 && s10.undef ? "n/a (peak gain < 10 dB)" : bandText(s10, lam0)) + "</b></span>");
+      if (refB && SPEC.Lref) bw.push("<span style=\"color:var(--pump)\">reference −3 dB: <b>" + bandText(refB, lam0) + "</b> · ratio " + ratioText(bandS, refB) + "</span>");
+      bw.push("<span class=\"note\">" + B.src + "</span>");
+    }
+    $("bwline").innerHTML = bw.join("");
+    sGeom = drawPlot($("cs"), {
+      annots: DISP.model === "none" ? [] : annots,
+      xlim: xl, ylim: [bot - pad, top + pad], xlabel: "signal wavelength (nm)", ylabel: "signal gain (dB)", bands: bands,
+      y2: { offset: dBm(P.Ps), label: "signal output power" },
+      series: [
+        { x: sp.lam, y: sp.ga, color: css("--muted"), dash: [6, 5], width: 1.5 },
+        { x: n ? n.lam : [], y: n ? n.gn : [], color: css("--signal"), width: 2.2 }
+      ].concat(sp.Lref ? [{ x: n && n.done ? n.lam : sp.lam, y: n && n.done ? n.gR : sp.gR, color: css("--pump"), width: 1.6 }] : []),
+      profile: P.lm !== "none" && P.prof.type !== "flat" ? { x: sp.lam, y: sp.prof } : null,
+      vlines: [{ x: P.ls * 1e9, color: css("--accent"), width: 1, dash: [2, 3] }]
+    });
+    $("lgRef").hidden = !sp.Lref;
+    drawEditor();
+    $("lgProf").hidden = $("lgProf2").hidden = !(P.lm !== "none" && P.prof.type !== "flat");
+    if (!showIdler) return;
+    $("lgOut").hidden = P.lm === "none";
+    var xi = [Math.min(sp.lamI[0], sp.lamI[sp.lamI.length - 1]), Math.max(sp.lamI[0], sp.lamI[sp.lamI.length - 1])];
+    var iv = sp.igA.filter(isFinite).concat(n ? n.ig.filter(isFinite) : []);
+    var itop = iv.length ? Math.max.apply(null, iv) : 0;
+    var ib = [];
+    if (B.i20 && B.i20.lo != null && B.i20.hi != null) ib.push({ x0: B.i20.lo, x1: B.i20.hi, alpha: 0.08 });
+    if (B.i3 && B.i3.lo != null && B.i3.hi != null) ib.push({ x0: B.i3.lo, x1: B.i3.hi, alpha: 0.18 });
+    var ser = [{ x: sp.lamI, y: sp.igA, color: css("--muted"), dash: [6, 5], width: 1.2 },
+               { x: n ? n.lamI : [], y: n ? n.ig : [], color: css("--idler"), width: 2.2 }];
+    if (P.lm !== "none") ser.push({ x: n ? n.lamI : [], y: n ? n.io : [], color: css("--idler"), dash: [5, 4], width: 1.8 });
+    iGeom = drawPlot($("ci"), { xlim: xi, ylim: [itop - 45, itop + 5], xlabel: "idler wavelength (nm)", ylabel: "idler power (dBm)", bands: ib, series: ser,
+      profile: P.lm !== "none" && P.prof.type !== "flat" ? { x: sp.lamI, y: sp.prof } : null, y2: { offset: 0, label: "idler power" },
+      vlines: [{ x: P.li * 1e9, color: css("--accent"), width: 1, dash: [2, 3] }] });
+    var rows = [["Idler band, " + B.src, [
+      ["Centre (at λ<sub>s</sub>)", fmt(P.li * 1e9, 2) + " nm"],
+      ["−3 dB band", rangeText(B.i3)],
+      ["−3 dB width", bandText(B.i3, P.li * 1e9)],
+      ["−20 dB band", rangeText(B.i20)],
+      ["−20 dB width", bandText(B.i20, P.li * 1e9)]
+    ]], ["Idler power budget at λ<sub>s</sub>", [
+      ["Generated", fmtP((SIM.fs - P.r0) * P.Fp0 * HB * P.wI)],
+      ["Leaving the fiber", fmtP(SIM.fi * P.Fp0 * HB * P.wI)],
+      ["Absorbed by the idler loss", fmtP(Math.max(0, (SIM.fs - P.r0 - SIM.fi)) * P.Fp0 * HB * P.wI * (P.lm === "none" ? 0 : 1))],
+      ["Signal −3 dB band (same Δν)", rangeText(B.sN || B.sA)]
+    ]]];
+    $("idlerReadouts").innerHTML = groupsHtml(rows);
+  }
+  var pGeom = null, drag = -1;
+  function editorWindow() {
+    var sp = SPEC; return [Math.min(sp.lamI[0], sp.lamI[sp.lamI.length - 1]), Math.max(sp.lamI[0], sp.lamI[sp.lamI.length - 1])];
+  }
+  function resampleCustom(nPts, fn) {
+    var w = editorWindow(), pts = [];
+    for (var k = 0; k < nPts; k++) { var x = w[0] + (w[1] - w[0]) * k / (nPts - 1); pts.push({ x: x, y: Math.max(0, Math.min(1, fn(x))) }); }
+    CUSTOM.pts = pts; CUSTOM.sel = -1; customChanged();
+  }
+  function drawEditor() {
+    if (!SPEC || $("editorBox").hidden) return;
+    var sp = SPEC, n = sp.num, xw = editorWindow();
+    var src = n && n.done ? { x: n.lamI, y: n.ig } : { x: sp.lamI, y: sp.igA };
+    var mx = Math.max.apply(null, src.y.filter(isFinite).concat([-Infinity]));
+    var guide = src.y.map(function (v) { return isFinite(v) ? 100 * Math.pow(10, (v - mx) / 10) : NaN; });
+    var prof = [], xs = [];
+    for (var k = 0; k <= 400; k++) { var x = xw[0] + (xw[1] - xw[0]) * k / 400; xs.push(x); prof.push(100 * lossT(P.prof, x)); }
+    var B = specBands(), b3 = B.sN || B.sA, bands = [];
+    if (b3 && b3.lo != null && b3.hi != null) {
+      var toI = function (l) { return 1 / (1 / (lamSum() * 1e9) - 1 / l); };
+      bands.push({ x0: Math.min(toI(b3.lo), toI(b3.hi)), x1: Math.max(toI(b3.lo), toI(b3.hi)), alpha: 0.15 });
+    }
+    var peak = P.lm === "cont" ? sig(P.alphaDb, 3) + " dB/m" : fmt(P.attDb, 1) + " dB per dump";
+    pGeom = drawPlot($("cp"), {
+      xlim: xw, ylim: [-4, 108], xlabel: "idler wavelength (nm) · 100 % = " + peak, ylabel: "loss (% of peak)", bands: bands,
+      series: [{ x: src.x, y: guide, color: css("--muted"), dash: [5, 4], width: 1.3 }, { x: xs, y: prof, color: css("--idler"), width: 2.4 }],
+      markers: CUSTOM.pts.map(function (p, i) { return { x: p.x, y: 100 * p.y, color: css("--idler"), sel: i === CUSTOM.sel }; }),
+      vlines: [{ x: P.li * 1e9, color: css("--accent"), width: 1, dash: [2, 3] }]
+    });
+    var outside = CUSTOM.pts.filter(function (p) { return p.x < xw[0] || p.x > xw[1]; }).length;
+    if (CUSTOM.sel >= 0 && CUSTOM.pts[CUSTOM.sel]) {
+      var sp2 = CUSTOM.pts[CUSTOM.sel];
+      $("hp").textContent = "Selected point: λi = " + fmt(sp2.x, 4) + " nm (λs = " + fmt(1 / (1 / (lamSum() * 1e9) - 1 / sp2.x), 3) + " nm) · loss " + fmt(100 * sp2.y, 1) + " % of peak" + (outside ? " · " + outside + " point(s) outside the window" : "");
+    } else $("hp").textContent = outside ? outside + " point(s) lie outside the current window. Use Resample to bring the curve into view." : "Click empty space to add a point · drag to move · double-click or Delete removes · arrow keys nudge the selected point (Shift for larger steps).";
+  }
+  function editorXY(ev) {
+    var rc = $("cp").getBoundingClientRect(), g = pGeom;
+    var px = ev.clientX - rc.left, py = ev.clientY - rc.top;
+    return { px: px, py: py, x: g.xlim[0] + (px - g.m.l) / g.pw * (g.xlim[1] - g.xlim[0]), y: (g.ylim[1] - (py - g.m.t) / g.ph * (g.ylim[1] - g.ylim[0])) / 100 };
+  }
+  function nearestPoint(e, rad) {
+    var g = pGeom, best = -1, bd = rad;
+    CUSTOM.pts.forEach(function (p, i) {
+      var px = g.m.l + (p.x - g.xlim[0]) / (g.xlim[1] - g.xlim[0]) * g.pw, py = g.m.t + (1 - (100 * p.y - g.ylim[0]) / (g.ylim[1] - g.ylim[0])) * g.ph;
+      var d = Math.hypot(px - e.px, py - e.py); if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+  var editRaf = 0;
+  function editorUpdate() { customChanged(); cancelAnimationFrame(editRaf); editRaf = requestAnimationFrame(compute); }
+  function clampPt(p) { var w = editorWindow(); p.x = Math.max(w[0], Math.min(w[1], p.x)); p.y = Math.max(0, Math.min(1, p.y)); }
+  $("cp").addEventListener("pointerdown", function (ev) {
+    if (!pGeom) return;
+    var e = editorXY(ev), i = nearestPoint(e, ev.pointerType === "touch" ? 22 : 12);
+    if (e.px < pGeom.m.l || e.px > pGeom.m.l + pGeom.pw) return;
+    if (i < 0) { var p = { x: e.x, y: e.y }; clampPt(p); CUSTOM.pts.push(p); i = CUSTOM.pts.length - 1; }
+    CUSTOM.sel = i; drag = i; this.setPointerCapture(ev.pointerId); this.focus(); editorUpdate();
+  });
+  $("cp").addEventListener("pointermove", function (ev) {
+    if (!pGeom) return;
+    var e = editorXY(ev);
+    if (drag < 0) { this.style.cursor = nearestPoint(e, 12) >= 0 ? "grab" : "crosshair"; return; }
+    var p = CUSTOM.pts[drag]; p.x = e.x; p.y = e.y; clampPt(p); this.style.cursor = "grabbing"; editorUpdate();
+  });
+  ["pointerup", "pointercancel"].forEach(function (t) { $("cp").addEventListener(t, function () { drag = -1; }); });
+  $("cp").addEventListener("dblclick", function (ev) {
+    var i = nearestPoint(editorXY(ev), 14);
+    if (i >= 0 && CUSTOM.pts.length > 2) { CUSTOM.pts.splice(i, 1); CUSTOM.sel = -1; editorUpdate(); }
+  });
+  $("cp").addEventListener("keydown", function (ev) {
+    var p = CUSTOM.pts[CUSTOM.sel]; if (!p) return;
+    var w = editorWindow(), big = ev.shiftKey ? 10 : 1, dx = (w[1] - w[0]) / 200 * big, dy = 0.01 * big, used = true;
+    if (ev.key === "ArrowLeft") p.x -= dx; else if (ev.key === "ArrowRight") p.x += dx;
+    else if (ev.key === "ArrowUp") p.y += dy; else if (ev.key === "ArrowDown") p.y -= dy;
+    else if ((ev.key === "Delete" || ev.key === "Backspace") && CUSTOM.pts.length > 2) { CUSTOM.pts.splice(CUSTOM.sel, 1); CUSTOM.sel = -1; }
+    else if (ev.key === "Tab") { used = false; }
+    else if (ev.key === "n" || ev.key === "]") { var o = CUSTOM.pts.slice().sort(function (a, b) { return a.x - b.x; }); CUSTOM.sel = CUSTOM.pts.indexOf(o[(o.indexOf(p) + 1) % o.length]); }
+    else used = false;
+    if (used) { ev.preventDefault(); if (CUSTOM.pts[CUSTOM.sel]) clampPt(CUSTOM.pts[CUSTOM.sel]); editorUpdate(); }
+  });
+  $("cpResample").addEventListener("click", function () { var f = customFn; resampleCustom(9, function (x) { return f(x); }); compute(); });
+  $("cpZero").addEventListener("click", function () { CUSTOM.pts.forEach(function (p) { p.y = 0; }); editorUpdate(); });
+  $("cpFull").addEventListener("click", function () { CUSTOM.pts.forEach(function (p) { p.y = 1; }); editorUpdate(); });
+  $("cpInvert").addEventListener("click", function () { CUSTOM.pts.forEach(function (p) { p.y = 1 - p.y; }); editorUpdate(); });
+  $("cpCopy").addEventListener("click", function () {
+    var pts = CUSTOM.pts.slice().sort(function (a, b) { return a.x - b.x; }), btn = this;
+    var lines = ["idler_nm,signal_nm,loss_fraction_of_peak,loss_" + (P.lm === "cont" ? "dB_per_m" : "dB_per_dump")];
+    pts.forEach(function (p) { lines.push([p.x.toFixed(6), (1 / (1 / (lamSum() * 1e9) - 1 / p.x)).toFixed(6), p.y.toFixed(4), ((P.lm === "cont" ? P.alphaDb : P.attDb) * p.y).toFixed(4)].join(",")); });
+    function done(msg) { btn.textContent = msg; setTimeout(function () { btn.textContent = "Copy points as CSV"; }, 1600); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(lines.join("\n")).then(function () { done("Copied"); }, function () { done("Copy blocked by browser"); });
+    else done("Copy not available");
+  });
+
+  function hoverSpec(lam, which) {
+    var sp = SPEC, arr = which === "s" ? sp.lam : sp.lamI, best = 0;
+    for (var k = 0; k < arr.length; k++) if (Math.abs(arr[k] - lam) < Math.abs(arr[best] - lam)) best = k;
+    var t = "λs = " + fmt(sp.lam[best], 3) + " nm · λi = " + fmt(sp.lamI[best], 3) + " nm · Δk = " + fmt(P.dk + DISP.dkRel(sp.O[best]), 2) + " rad/m · undepleted gain " + fmtdB(sp.ga[best]);
+    if (which === "i") t += " · idler generated " + fmt(sp.igA[best], 1) + " dBm";
+    $(which === "s" ? "hs" : "hi").textContent = t;
+  }
+
+
+  // ---------- fast fiber dispersion for optimisation loops ----------
+  // Quartic Lagrange interpolant of Δk_rel(Ω) through Ω = 0, ±1, ±2 THz·2π (error < 1e-4 rad/m out to ±4 THz)
+  function fastDisp(ls, a, dn) {
+    var wS = 2 * Math.PI * C0 / ls, wP = 2 * Math.PI * C0 / LPUMP, wSum = 2 * Math.PI * C0 / lamSum(), sg = SGN();
+    var kf = function (w) { return w / C0 * lp01(2 * Math.PI * C0 / w, a, dn).neff; };
+    var kp = (MODE === "chi3" ? 2 : 1) * kf(wP), dkD = function (O) { var ws = wS + O; return sg * (kp - kf(ws) - kf(wSum - ws)); };
+    var H = 2 * Math.PI * 1e12, xs = [-2 * H, -H, 0, H, 2 * H], d0 = dkD(0);
+    var ys = xs.map(function (x) { return x === 0 ? 0 : dkD(x) - d0; });
+    var dkRel = function (O) {
+      var sum = 0;
+      for (var i = 0; i < 5; i++) { var t = ys[i]; if (t === 0) continue; for (var j = 0; j < 5; j++) if (j !== i) t *= (O - xs[j]) / (xs[i] - xs[j]); sum += t; }
+      return sum;
+    };
+    var gvm = sg * (ys[3] - ys[1]) / (2 * H), curv = (ys[3] + ys[1]) / (H * H);
+    return { model: "fiber", dkRel: dkRel, gvm: gvm, b2: -sg * curv, dk0: d0, Vs: lp01(ls, a, dn).V };
+  }
+  function overlapTheta(wp, ws, wi) { return overlapFor(wp, ws, wi); }
+  function fiberModes(ls, li, a, dn) { return { wp: lp01(LPUMP, a, dn).w, ws: lp01(ls, a, dn).w, wi: lp01(li, a, dn).w }; }
+
+  // ---------- bandwidth optimiser (undepleted analytic spectra) ----------
+  function bandContig(x, y, drop) {
+    var k0 = -1, best = -Infinity, k;
+    for (k = 0; k < y.length; k++) if (isFinite(y[k]) && y[k] > best) { best = y[k]; k0 = k; }
+    if (k0 < 0) return null;
+    var thr = best - drop, lo = null, hi = null;
+    for (k = k0; k > 0; k--) if (y[k - 1] < thr) { lo = x[k - 1] + (x[k] - x[k - 1]) * (thr - y[k - 1]) / (y[k] - y[k - 1]); break; }
+    for (k = k0; k < y.length - 1; k++) if (y[k + 1] < thr) { hi = x[k] + (x[k + 1] - x[k]) * (y[k] - thr) / (y[k] - y[k + 1]); break; }
+    return { lo: lo, hi: hi, peak: best };
+  }
+  function derive(base, ov) {
+    var p = Object.assign({}, base);
+    if (ov.Pp != null) {
+      var f = ov.Pp / base.Pp; p.Pp = ov.Pp; p.Fp0 = base.Fp0 * f; p.r0 = base.Fs0 / p.Fp0;
+      if (base.chi3) { p.kappa = base.kappa * f; p.gP = base.gP * f; } else p.kappa = base.kappa * Math.sqrt(f);
+    }
+    if (ov.L != null) p.L = ov.L;
+    if (ov.dk != null) p.dk = ov.dk;
+    if (ov.a != null || ov.dn != null) {
+      p.a = ov.a != null ? ov.a : base.a; p.dn = ov.dn != null ? ov.dn : base.dn;
+      p.D = fastDisp(p.ls, p.a, p.dn);
+      if (ov.follow) {
+        var md = fiberModes(p.ls, p.li, p.a, p.dn), th = overlapTheta(md.wp, md.ws, md.wi);
+        p.wp = md.wp; p.ws = md.ws; p.wi = md.wi; p.kappa *= th / base.theta; p.gP *= th / base.theta; p.theta = th; p.Aeff = base.chi3 ? 1 / th : 1 / (th * th);
+      }
+    }
+    if (ov.lm) p.lm = ov.lm;
+    if (ov.loss != null) { if (p.lm === "lumped") p.attDb = ov.loss; else p.alphaDb = ov.loss; }
+    if (ov.prof) p.prof = ov.prof;
+    if (p.lm === "none") { p.alphaPk = 0; p.nf = 0; }
+    else { p.alphaPk = p.lm === "cont" ? p.alphaDb * Math.LN10 / 10 : 0; p.nf = p.lm === "lumped" ? base.nf || +$("nf").value : 0; }
+    p.T0 = lossT(p.prof, p.li * 1e9); p.alpha = p.alphaPk * p.T0; p.tAmp = Math.pow(10, -p.attDb * p.T0 / 20);
+    p.wl = waveLoss(p.prof, p.lm, p.alphaPk, p.attDb, p.ls, LPUMP);
+    return p;
+  }
+  // −3 dB band of a gain function g(Ω) (dB): expand the window until both edges are inside,
+  // then zoom onto the band once so narrow bands are resolved as well as wide ones
+  function bandOn(gfn, lo, hi) {
+    var N = 301, b = null, k, O, g;
+    function scan() { O = []; g = []; for (k = 0; k < N; k++) { var Om = lo + (hi - lo) * k / (N - 1); O.push(Om); g.push(gfn(Om)); } return bandContig(O, g, 3); }
+    for (var tries = 0; tries < 5; tries++) {
+      b = scan();
+      if (b.lo != null && b.hi != null) break;
+      var c = 0.5 * (lo + hi), h = hi - lo; lo = Math.max(-OM_MAX, c - h); hi = Math.min(OM_MAX, c + h);
+      if (lo === -OM_MAX && hi === OM_MAX) { b = scan(); break; }
+    }
+    if (b.lo != null && b.hi != null && (b.hi - b.lo) < 0.2 * (hi - lo)) {
+      var w = b.hi - b.lo, peak = b.peak; lo = b.lo - w; hi = b.hi + w;
+      var z = scan(); if (z.lo != null && z.hi != null) b = z; b.peak = Math.max(b.peak, peak);
+    }
+    return { peak: b.peak, lo: b.lo != null ? b.lo : lo, hi: b.hi != null ? b.hi : hi };
+  }
+  function evalCfg(p, D, refmode, rb) {
+    D = p.D || D;
+    rb = rb || { kappa: p.kappa, D: D };
+    var Rk = Math.max(6 * p.kappa, 8 * Math.PI / p.L, 1.5 * p.alphaPk, 1e-3);
+    var w1 = specWindow(D, p.dk, Rk), w2 = specWindow(rb.D, 0, Math.max(6 * rb.kappa, 8 * Math.PI / p.L));
+    var dB = function (a, q) { return a ? 10 * Math.log10(a.fs / q.r0) : 3000; };
+    var b = bandOn(function (Om) { var q = specParams(p, Om); return dB(analyticOut(q, p.dk + D.dkRel(Om)), q); }, w1[0], w1[1]);
+    var Lref = p.L;
+    if (refmode === "gain") Lref = Math.max(1e-3, Math.acosh(Math.sqrt(Math.max(1, Math.pow(10, b.peak / 10)))) / rb.kappa);
+    var br = bandOn(function (Om) { var q = refQ(p, Om, Lref, rb); return dB(analyticOut(q, rb.D.dkRel(Om)), q); }, w2[0], w2[1]);
+    var out = { G: b.peak, Gref: br.peak, Lref: Lref, b: b, br: br };
+    out.W = b.hi - b.lo; out.Wref = br.hi - br.lo; out.R = out.W / out.Wref;
+    return out;
+  }
+  function sigm(x) { return 1 / (1 + Math.exp(-x)); }
+  function logit(u) { u = Math.min(1 - 1e-6, Math.max(1e-6, u)); return Math.log(u / (1 - u)); }
+  function varLin(lo, hi) { return { get: function (x) { return lo + (hi - lo) * sigm(x); }, init: function (v) { return logit((v - lo) / (hi - lo)); } }; }
+  function varLog(lo, hi) { var a = Math.log(lo), b = Math.log(hi); return { get: function (x) { return Math.exp(a + (b - a) * sigm(x)); }, init: function (v) { return logit((Math.log(v) - a) / (b - a)); } }; }
+
+  async function nelderMead(f, x0, step, maxEval, ctl) {
+    var n = x0.length, S = [x0.slice()], F = [], i, j;
+    for (i = 0; i < n; i++) { var v = x0.slice(); v[i] += step; S.push(v); }
+    var evals = 0, t0 = performance.now();
+    async function fe(x) {
+      evals++; ctl.evals++;
+      if (performance.now() - t0 > 30) { ctl.progress(); await new Promise(function (r) { setTimeout(r, 0); }); t0 = performance.now(); }
+      return f(x);
+    }
+    for (i = 0; i <= n; i++) F.push(await fe(S[i]));
+    while (evals < maxEval && !ctl.stop) {
+      var idx = F.map(function (_, k) { return k; }).sort(function (a, b) { return F[a] - F[b]; });
+      S = idx.map(function (k) { return S[k]; }); F = idx.map(function (k) { return F[k]; });
+      if (Math.abs(F[n] - F[0]) < 1e-7 && evals > 4 * n) break;
+      var c = new Array(n).fill(0);
+      for (i = 0; i < n; i++) for (j = 0; j < n; j++) c[j] += S[i][j] / n;
+      var xr = c.map(function (cj, k) { return cj + (cj - S[n][k]); }), fr = await fe(xr);
+      if (fr < F[0]) {
+        var xe = c.map(function (cj, k) { return cj + 2 * (cj - S[n][k]); }), fe2 = await fe(xe);
+        if (fe2 < fr) { S[n] = xe; F[n] = fe2; } else { S[n] = xr; F[n] = fr; }
+      } else if (fr < F[n - 1]) { S[n] = xr; F[n] = fr; }
+      else {
+        var xc = fr < F[n] ? c.map(function (cj, k) { return cj + 0.5 * (xr[k] - cj); }) : c.map(function (cj, k) { return cj + 0.5 * (S[n][k] - cj); });
+        var fc = await fe(xc);
+        if (fc < Math.min(fr, F[n])) { S[n] = xc; F[n] = fc; }
+        else for (i = 1; i <= n; i++) { S[i] = S[i].map(function (v, k) { return S[0][k] + 0.5 * (v - S[0][k]); }); F[i] = await fe(S[i]); }
+      }
+    }
+    var bi = 0; for (i = 1; i <= n; i++) if (F[i] < F[bi]) bi = i;
+    return { x: S[bi], f: F[bi] };
+  }
+
+  var OPT = { running: false, ctl: null, snapshot: null };
+  function snapshotState() {
+    var st = { inputs: {}, dk: dkValue, ref: REFFIB, pts: CUSTOM.pts.map(function (p) { return { x: p.x, y: p.y }; }) };
+    document.querySelectorAll("#form input, #form select").forEach(function (el) { st.inputs[el.id || el.name + ":" + el.value] = el.type === "radio" ? el.checked : el.value; });
+    return st;
+  }
+  function restoreState(st) {
+    document.querySelectorAll("#form input, #form select").forEach(function (el) {
+      var key = el.id || el.name + ":" + el.value;
+      if (!(key in st.inputs)) return;
+      if (el.type === "radio") el.checked = st.inputs[key]; else el.value = st.inputs[key];
+    });
+    CUSTOM.pts = st.pts.map(function (p) { return { x: p.x, y: p.y }; }); CUSTOM.sel = -1; customChanged();
+    REFFIB = st.ref; refInfo();
+    setDk(st.dk); compute();
+  }
+
+  // Shared search: mode "target" (reach ratio, then maximise gain) or "max" (maximise ratio at G ≥ gmin)
+  async function optimiseCore(o, ctl) {
+    var base = P, D = DISP, use = o.use, small = o.small, target = o.target, gmin = o.gmin, refmode = o.refmode;
+    var lm = base.lm === "none" && (use.loss || use.prof) ? "cont" : base.lm;
+    var rb = REFFIB ? refBase(base) : { kappa: base.kappa, D: D };
+    if (!REFFIB && (use.a || use.dn || use.Pp)) {
+      REFFIB = { a: DISP.model === "fiber" ? base.a : null, dn: base.dn, kappa: base.kappa, gP: base.gP, ls: base.ls, D: DISP.model === "fiber" ? fastDisp(base.ls, base.a, base.dn) : null };
+      rb = refBase(base);
+    }
+    var r0 = evalCfg(derive(base, { lm: "none" }), D, refmode, rb), K = 9, xs = [];
+    var span = Math.min(2 * OM_MAX * 0.9, 2.5 * Math.min(target, 20) * r0.Wref);
+    for (var k = 0; k < K; k++) { var Om = (k / (K - 1) - 0.5) * span; xs.push(2 * Math.PI * C0 / (base.wSum - base.wS - Om) * 1e9); }
+    var vars = [], dkMax = Math.max(10 * base.kappa, 40 / base.L);
+    if (use.dk) vars.push({ name: "dk", v: varLin(-dkMax, dkMax), cur: base.dk });
+    if (use.loss) vars.push({ name: "loss", v: lm === "lumped" ? varLin(0, 60) : varLog(0.1, 1000), cur: lm === "lumped" ? base.attDb : base.alphaDb });
+    if (use.L) vars.push({ name: "L", v: varLog(0.5, 200), cur: base.L });
+    if (use.Pp) vars.push({ name: "Pp", v: varLog(0.01, 100), cur: base.Pp });
+    if (use.a) vars.push({ name: "a", v: varLog(1e-6, 8e-6), cur: base.a });
+    if (use.dn) vars.push({ name: "dn", v: varLog(0.002, 0.04), cur: base.dn });
+    if (use.prof) {
+      var curProf = base.lm === "none" ? { type: "flat" } : base.prof;
+      xs.forEach(function (x, i) { vars.push({ name: "y" + i, v: varLin(0, 1), cur: lossT(curProf, x) }); });
+    }
+    function decode(x) {
+      var ov = { lm: lm, follow: use.follow }, ys = [];
+      vars.forEach(function (vr, i) { var val = vr.v.get(x[i]); if (vr.name[0] === "y") ys.push(val); else ov[vr.name] = val; });
+      if (use.prof) { ov.prof = { type: "custom", pts: xs.map(function (x2, i) { return { x: x2, y: ys[i] }; }) }; ov.prof.fn = pchip(ov.prof.pts); }
+      return ov;
+    }
+    var bestEval = null;
+    function cost(x) {
+      var ov = decode(x), pd = derive(base, ov), r = evalCfg(pd, D, refmode, rb), gcap = small ? 10 * Math.log10(0.1 / pd.r0) : 100;
+      r.pd = pd;
+      // keep the signal LP01 well guided (Marcuse fit and weak-guidance model valid)
+      var vpen = pd.D ? 5 * Math.pow(Math.max(0, 1.4 - pd.D.Vs), 2) : 0;
+      r.gcap = gcap; r.small = small;
+      var Reff = o.tg && o.tg.unit !== "ratio" ? r.W / o.tg.Wref : r.R;
+      var lnR = Math.log(Math.max(1e-6, r.G >= 4.5 ? Reff : Math.min(Reff, 1)));
+      // a −3 dB band needs a peak well above 3 dB, otherwise the threshold sits below the 0 dB floor
+      var gfloor = Math.max(gmin, 5);
+      var c = (o.mode === "max" ? -lnR + 0.5 * Math.pow(Math.max(0, gfloor - r.G), 2)
+                                : 10 * Math.pow(Math.max(0, Math.log(target) - lnR), 2) + 0.05 * Math.pow(Math.max(0, gmin - r.G), 2) + 2 * Math.pow(Math.max(0, 5 - r.G), 2) - 0.01 * Math.min(r.G, gcap))
+        + 0.05 * Math.pow(Math.max(0, r.G - gcap), 2) + 0.05 * Math.pow(Math.max(0, r.Gref - gcap), 2) + vpen;
+      if (!bestEval || c < bestEval.c) bestEval = { c: c, r: r, ov: ov };
+      return c;
+    }
+    var restarts = 4, x0 = vars.map(function (vr) { return vr.v.init(vr.cur); }), best = null;
+    for (var rs = 0; rs < restarts && !ctl.stop; rs++) {
+      var start = rs === 0 ? x0 : rs === restarts - 1 && best ? best.x : vars.map(function () { return (Math.random() - 0.5) * 4; });
+      var res = await nelderMead(cost, start, rs === restarts - 1 ? 0.3 : 1.0, Math.floor(o.budget / restarts), ctl);
+      if (!best || res.f < best.f) best = res;
+    }
+    return { best: bestEval, vars: vars, lm: lm, K: K, baseGvm: (D.gvm || 0), baseKappa: base.kappa };
+  }
+  function wToNm(W, lam) { return W / (2 * Math.PI) * lam * lam / C0 * 1e9; }
+  function nmToW(nm, lam) { return 2 * Math.PI * C0 * nm * 1e-9 / (lam * lam); }
+  function idlerNm(W) { return wToNm(W, P.li); }
+  // reference −3 dB width (rad/s) of the current baseline, phase-matched and lossless
+  function currentRefW(refmode) {
+    var base = P, rb = REFFIB ? refBase(base) : { kappa: base.kappa, gP: base.gP, D: DISP };
+    var pr = derive(base, { lm: "none" }); pr.refmode = refmode;
+    return evalCfg(pr, DISP, refmode, rb).Wref;
+  }
+  // Target as a width in rad/s plus the equivalent ratio to the reference
+  function optTargetW(refmode) {
+    var v = +$("optTarget").value, u = $("optUnit").value, Wr = currentRefW(refmode);
+    if (!(v > 0)) v = u === "ratio" ? 5 : 1;
+    var W = u === "ratio" ? Math.max(1.05, v) * Wr : u === "nm" ? nmToW(v, P.ls) : 2 * Math.PI * v * 1e9;
+    return { W: W, ratio: W / Wr, Wref: Wr, unit: u, value: v };
+  }
+  function targetEqText() {
+    if (!P || DISP.model === "none") { $("optTargetEq").textContent = ""; return; }
+    var t = optTargetW($("optRef").value);
+    $("optTargetEq").textContent = "= " + sig(wToNm(t.W, P.ls), 3) + " nm · " + sig(t.W / 2 / Math.PI / 1e9, 3) + " GHz · " + fmt(t.ratio, 2) + "× the reference (" +
+      sig(wToNm(t.Wref, P.ls), 3) + " nm). Idler band: " + sig(idlerNm(t.W), 3) + " nm.";
+  }
+  function optSettings() {
+    var tg = optTargetW($("optRef").value);
+    return {
+      tg: tg, target: tg.ratio, gmin: +$("optGmin").value || 0, refmode: $("optRef").value,
+      small: $("optSmall").checked, budget: +$("optEffort").value,
+      use: { dk: $("optDk").checked, loss: $("optLoss").checked, prof: $("optProf").checked, L: $("optL").checked, Pp: $("optPp").checked,
+        a: $("optA").checked && DISP.model === "fiber", dn: $("optDn").checked && DISP.model === "fiber", follow: $("optFollow").checked }
+    };
+  }
+  function optCheck(o) {
+    var u = o.use;
+    if (($("optA").checked || $("optDn").checked) && DISP.model !== "fiber") { $("optStatus").textContent = "Core radius and index step can only vary with the step-index fiber dispersion model."; return false; }
+    if (!u.dk && !u.loss && !u.prof && !u.L && !u.Pp && !u.a && !u.dn) { $("optStatus").textContent = "Tick at least one parameter to vary."; return false; }
+    if (DISP.model === "none") { $("optStatus").textContent = "Choose a dispersion model first: without dispersion the bandwidth is unlimited."; return false; }
+    return true;
+  }
+  function optBusy(on) { OPT.running = on; $("optRun").disabled = $("optScan").disabled = on; $("optStop").disabled = !on; if (on) $("optRevert").disabled = true; else $("optRevert").disabled = !OPT.snapshot; }
+  function newCtl(total, label) {
+    var ctl = { stop: false, evals: 0, best: null, progress: function () {
+      $("optStatus").textContent = label() + " · " + ctl.evals + " / " + total + " evaluations";
+    } };
+    OPT.ctl = ctl; return ctl;
+  }
+  function paramRows(res) {
+    var lm = res.lm, ov = res.best.ov;
+    return res.vars.filter(function (v) { return v.name[0] !== "y"; }).map(function (v) {
+      var val = ov[v.name];
+      return v.name === "dk" ? ["Δk", fmt(v.cur, 2) + " → " + fmt(val, 2) + " rad/m"]
+        : v.name === "loss" ? ["Peak idler loss", sig(v.cur, 3) + " → " + sig(val, 3) + (lm === "lumped" ? " dB per dump" : " dB/m")]
+        : v.name === "L" ? ["Fiber length", fmt(v.cur, 2) + " → " + fmt(val, 2) + " m"]
+        : v.name === "a" ? ["Core radius", fmt(v.cur * 1e6, 2) + " → " + fmt(val * 1e6, 2) + " µm"]
+        : v.name === "dn" ? ["Core index step", fmt(v.cur, 4) + " → " + fmt(val, 4)]
+        : ["Pump power", fmtP(v.cur) + " → " + fmtP(val)];
+    }).concat(ov.prof ? [["Loss curve", res.K + " points, see the profile editor"]] : [])
+      .concat(res.best.r.pd && res.best.r.pd.D ? [["GVM", fmt(res.baseGvm * 1e12, 2) + " → " + fmt(res.best.r.pd.D.gvm * 1e12, 2) + " ps/m"],
+        ["Γ (mode overlap " + (ov.follow ? "follows geometry" : "fixed") + ")", sig(res.baseKappa, 3) + " → " + sig(res.best.r.pd.kappa, 3) + " m⁻¹"]] : []);
+  }
+  function shortParams(res) {
+    var ov = res.best.ov, t = [];
+    if (ov.loss != null) t.push(sig(ov.loss, 3) + (res.lm === "lumped" ? " dB/dump" : " dB/m"));
+    if (ov.dk != null) t.push("Δk " + fmt(ov.dk, 2));
+    if (ov.L != null) t.push(fmt(ov.L, 2) + " m");
+    if (ov.Pp != null) t.push(fmtP(ov.Pp));
+    if (ov.a != null) t.push("a " + fmt(ov.a * 1e6, 2) + " µm");
+    if (ov.dn != null) t.push("Δn " + fmt(ov.dn, 4));
+    if (ov.prof) t.push("custom curve");
+    return t.join(" · ");
+  }
+
+  // ---------- GVM map over (a, Δn) ----------
+  var MAP = { grid: null, q: "g", token: 0, NX: 44, NY: 34, A: [1e-6, 8e-6], N: [0.002, 0.04] };
+  function mapAxes() {
+    var xs = [], ys = [], i;
+    for (i = 0; i < MAP.NX; i++) xs.push(MAP.A[0] * Math.pow(MAP.A[1] / MAP.A[0], i / (MAP.NX - 1)));
+    for (i = 0; i < MAP.NY; i++) ys.push(MAP.N[0] * Math.pow(MAP.N[1] / MAP.N[0], i / (MAP.NY - 1)));
+    return { xs: xs, ys: ys };
+  }
+  function computeMap() {
+    var ax = mapAxes(), tok = ++MAP.token, ls = P.ls, li = P.li, i = 0, g = { ls: ls, xs: ax.xs, ys: ax.ys, v: [] };
+    MAP.grid = g;
+    function chunk() {
+      if (tok !== MAP.token) return;
+      var t0 = performance.now();
+      while (i < MAP.NX * MAP.NY && performance.now() - t0 < 16) {
+        var ix = i % MAP.NX, iy = Math.floor(i / MAP.NX), D = fastDisp(ls, ax.xs[ix], ax.ys[iy]);
+        var md = fiberModes(ls, li, ax.xs[ix], ax.ys[iy]);
+        g.v.push({ gvm: D.gvm, b2: D.b2, Vs: D.Vs, th: overlapTheta(md.wp, md.ws, md.wi) });
+        i++;
+      }
+      $("hm").textContent = "Computing… " + Math.round(100 * i / (MAP.NX * MAP.NY)) + " %";
+      drawMap();
+      if (i < MAP.NX * MAP.NY) setTimeout(chunk, 0);
+      else { g.done = true; $("hm").textContent = "Move over the map to read values; click to load that fiber. Ring = current fiber, cross = minimum |GVM| on the grid."; drawMap(); }
+    }
+    chunk();
+  }
+  function mapValue(c) {
+    if (MAP.q === "b") return c.b2 * 1e27;
+    if (MAP.q === "w") {
+      var kap = P.kappa * c.th / P.theta, est = 4 * Math.sqrt(kap * Math.LN2 / P.L) / Math.abs(c.gvm) / (2 * Math.PI);
+      return est * Math.pow(P.ls, 2) / C0 * 1e9;
+    }
+    return c.gvm * 1e12;
+  }
+  function mix(c1, c2, t) {
+    var h = function (c) { c = c.replace("#", ""); return [0, 2, 4].map(function (k) { return parseInt(c.substr(k, 2), 16); }); };
+    var a = h(c1), b = h(c2);
+    return "rgb(" + a.map(function (v, k) { return Math.round(v + (b[k] - v) * t); }).join(",") + ")";
+  }
+  var mGeom = null;
+  function drawMap() {
+    var cv = $("cm"); if (!cv) return;
+    var S = setupCanvas(cv), ctx = S.ctx, w = S.w, h = S.h, m = { l: 56, r: 92, t: 10, b: 40 }, pw = w - m.l - m.r, ph = h - m.t - m.b;
+    ctx.clearRect(0, 0, w, h);
+    var g = MAP.grid, cMuted = css("--muted"), cLine = css("--line"), lo = MAP.A, ny = MAP.N;
+    var X = function (a) { return m.l + Math.log(a / lo[0]) / Math.log(lo[1] / lo[0]) * pw; };
+    var Y = function (d) { return m.t + (1 - Math.log(d / ny[0]) / Math.log(ny[1] / ny[0])) * ph; };
+    mGeom = { m: m, pw: pw, ph: ph };
+    ctx.font = "11.5px " + css("--f-mono"); ctx.lineWidth = 1;
+    var vals = [], k;
+    if (g) for (k = 0; k < g.v.length; k++) if (g.v[k].Vs >= 1.4) vals.push(mapValue(g.v[k]));
+    var vmin = vals.length ? Math.min.apply(null, vals) : 0, vmax = vals.length ? Math.max.apply(null, vals) : 1;
+    var div = MAP.q === "b" && vmin < 0 && vmax > 0, amax = Math.max(Math.abs(vmin), Math.abs(vmax));
+    var col = function (v) {
+      if (div) return v < 0 ? mix(css("--panel"), css("--signal"), Math.min(1, -v / amax)) : mix(css("--panel"), css("--accent"), Math.min(1, v / amax));
+      var t = (v - vmin) / Math.max(1e-12, vmax - vmin);
+      if (MAP.q === "g") t = 1 - t;
+      return mix(css("--panel"), css("--accent"), 0.08 + 0.92 * Math.max(0, Math.min(1, t)));
+    };
+    if (g) {
+      var dx = pw / (MAP.NX - 1), dy = ph / (MAP.NY - 1), best = -1;
+      for (k = 0; k < g.v.length; k++) {
+        var ix = k % MAP.NX, iy = Math.floor(k / MAP.NX), c = g.v[k], x = X(g.xs[ix]), y = Y(g.ys[iy]);
+        ctx.fillStyle = c.Vs < 1.4 ? css("--grid") : col(mapValue(c)); ctx.fillRect(x - dx / 2, y - dy / 2, dx + 1, dy + 1);
+        if (c.Vs < 1.4) {
+          ctx.strokeStyle = cMuted; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(x - dx / 2, y + dy / 2); ctx.lineTo(x + dx / 2, y - dy / 2); ctx.stroke(); ctx.globalAlpha = 1;
+        } else if (best < 0 || Math.abs(c.gvm) < Math.abs(g.v[best].gvm)) best = k;
+      }
+      if (g.done && best >= 0) {
+        var bx = X(g.xs[best % MAP.NX]), by = Y(g.ys[Math.floor(best / MAP.NX)]);
+        ctx.strokeStyle = css("--signal"); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx - 6, by - 6); ctx.lineTo(bx + 6, by + 6); ctx.moveTo(bx + 6, by - 6); ctx.lineTo(bx - 6, by + 6); ctx.stroke(); ctx.lineWidth = 1;
+      }
+    } else {
+      ctx.fillStyle = cMuted; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("Press Compute map", m.l + pw / 2, m.t + ph / 2);
+    }
+    if (P) {
+      ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, pw, ph); ctx.clip();
+      ctx.strokeStyle = css("--ink"); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(P.a), Y(P.dn), 6, 0, 2 * Math.PI); ctx.stroke(); ctx.lineWidth = 1;
+      ctx.restore();
+    }
+    ctx.strokeStyle = cLine; ctx.strokeRect(m.l + 0.5, m.t + 0.5, pw - 1, ph - 1);
+    ctx.fillStyle = cMuted; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    [1, 1.5, 2, 3, 4, 5, 6, 8].forEach(function (a) { ctx.fillText(String(a), X(a * 1e-6), m.t + ph + 6); });
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    [0.002, 0.003, 0.005, 0.01, 0.02, 0.03, 0.04].forEach(function (d) { ctx.fillText(String(d), m.l - 6, Y(d)); });
+    ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText("core radius a (µm)", m.l + pw / 2, h - 2);
+    ctx.save(); ctx.translate(12, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "middle"; ctx.fillText("index step Δn", 0, 0); ctx.restore();
+    if (vals.length && vmax > vmin) {
+      var bx0 = m.l + pw + 14, bw = 12, unit = MAP.q === "b" ? "ps²/km" : MAP.q === "w" ? "nm" : "ps/m";
+      for (var j = 0; j < ph; j++) { var v = vmax - (vmax - vmin) * j / ph; ctx.fillStyle = col(v); ctx.fillRect(bx0, m.t + j, bw, 1.5); }
+      ctx.strokeStyle = cLine; ctx.strokeRect(bx0 + 0.5, m.t + 0.5, bw, ph - 1);
+      ctx.fillStyle = cMuted; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      var tk = ticks(vmin, vmax, 5);
+      tk.v.forEach(function (v) { ctx.fillText(tickLabel(v, tk.st), bx0 + bw + 4, m.t + (vmax - v) / (vmax - vmin) * ph); });
+      ctx.textBaseline = "top"; ctx.fillText(unit, bx0, m.t + ph + 6);
+    }
+  }
+  function mapPick(ev) {
+    if (!mGeom) return null;
+    var rc = $("cm").getBoundingClientRect(), x = ev.clientX - rc.left, y = ev.clientY - rc.top, g = mGeom;
+    if (x < g.m.l || x > g.m.l + g.pw || y < g.m.t || y > g.m.t + g.ph) return null;
+    return { a: MAP.A[0] * Math.pow(MAP.A[1] / MAP.A[0], (x - g.m.l) / g.pw), dn: MAP.N[0] * Math.pow(MAP.N[1] / MAP.N[0], 1 - (y - g.m.t) / g.ph) };
+  }
+  function applyFiber(a, dn, follow, quiet) {
+    $("disp").value = "fiber";
+    $("fa").value = Math.round(a * 1e8) / 100; $("fdn").value = Math.round(dn * 1e4) / 1e4;
+    if (follow) {
+      var ls = +$("ls").value * 1e-9, li = idlerOf(ls);
+      var md = fiberModes(ls, li, +$("fa").value * 1e-6, +$("fdn").value);
+      var cl = function (v) { return Math.max(1, Math.min(20, Math.round(v * 1e8) / 100)); };
+      $("wp").value = cl(md.wp); $("ws").value = cl(md.ws); $("wimode").value = "fiber";
+    }
+    if (!quiet) compute();
+  }
+  $("cm").addEventListener("pointermove", function (ev) {
+    var pk = mapPick(ev); if (!pk || !P) return;
+    var D = fastDisp(P.ls, pk.a, pk.dn), md = fiberModes(P.ls, P.li, pk.a, pk.dn), th = overlapTheta(md.wp, md.ws, md.wi);
+    var kap = P.kappa * th / P.theta, est = 4 * Math.sqrt(kap * Math.LN2 / P.L) / Math.abs(D.gvm) / (2 * Math.PI);
+    $("hm").textContent = "a = " + fmt(pk.a * 1e6, 2) + " µm · Δn = " + fmt(pk.dn, 4) + " · GVM " + fmt(D.gvm * 1e12, 2) + " ps/m · β₂,s+β₂,i " + fmt(D.b2 * 1e27, 1) + " ps²/km · V_s " + fmt(D.Vs, 2) +
+      " · Γ " + sig(kap, 3) + " m⁻¹ with LP01 modes · GVM-limited width ≈ " + sig(est * Math.pow(P.ls, 2) / C0 * 1e9, 3) + " nm";
+  });
+  $("cm").addEventListener("click", function (ev) {
+    var pk = mapPick(ev); if (!pk) return;
+    OPT.snapshot = snapshotState(); $("optRevert").disabled = false; freezeBaseline();
+    applyFiber(pk.a, pk.dn, $("optFollow").checked);
+    $("optStatus").textContent = "Loaded fiber a = " + fmt(pk.a * 1e6, 2) + " µm, Δn = " + fmt(pk.dn, 4) + ($("optFollow").checked ? " with LP01 mode sizes." : ".");
+  });
+  $("mapRun").addEventListener("click", computeMap);
+  function freezeBaseline() {
+    if (REFFIB || DISP.model !== "fiber") return;
+    REFFIB = { a: P.a, dn: P.dn, kappa: P.kappa, gP: P.gP, ls: P.ls, D: fastDisp(P.ls, P.a, P.dn) };
+    refInfo();
+  }
+  function refInfo() {
+    $("refInfo").innerHTML = REFFIB ? "Reference baseline: " + (REFFIB.a != null ? "a " + fmt(REFFIB.a * 1e6, 2) + " µm, Δn " + fmt(REFFIB.dn, 4) + ", " : "") + "Γ " + sig(REFFIB.kappa, 3) + " m⁻¹, phase-matched and lossless. Ratios compare new fibers with this one." : "Reference: the current fiber, phase-matched and lossless.";
+    $("refReset").disabled = !REFFIB;
+  }
+  $("refReset").addEventListener("click", function () { REFFIB = null; refInfo(); compute(); });
+  $("mapMin").addEventListener("click", async function () {
+    if (OPT.running) return;
+    var ls = P.ls, ctl = newCtl(300, function () { return "Minimising |GVM|"; }), va = varLog(1e-6, 8e-6), vd = varLog(0.002, 0.04), best = null;
+    OPT.snapshot = snapshotState(); optBusy(true); freezeBaseline();
+    var f = function (x) {
+      var D = fastDisp(ls, va.get(x[0]), vd.get(x[1]));
+      var c = Math.abs(D.gvm) * 1e12 + 50 * Math.pow(Math.max(0, 1.4 - D.Vs), 2);
+      if (!best || c < best.c) best = { c: c, a: va.get(x[0]), dn: vd.get(x[1]), D: D };
+      return c;
+    };
+    for (var rs = 0; rs < 3 && !ctl.stop; rs++)
+      await nelderMead(f, rs === 0 ? [va.init(P.a), vd.init(P.dn)] : [(Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4], 1, 100, ctl);
+    optBusy(false);
+    applyFiber(best.a, best.dn, $("optFollow").checked);
+    $("optStatus").innerHTML = "Minimum |GVM| found: <b>" + fmt(best.D.gvm * 1e12, 2) + " ps/m</b> at a = " + fmt(best.a * 1e6, 2) + " µm, Δn = " + fmt(best.dn, 4) +
+      " (V_s = " + fmt(best.D.Vs, 2) + ", β₂,s+β₂,i = " + fmt(best.D.b2 * 1e27, 1) + " ps²/km). Loaded into the controls" + ($("optFollow").checked ? " with LP01 mode sizes." : ".") +
+      (best.dn > 0.039 ? " The index step sits at the 0.04 limit: a higher-index core would reduce GVM further." : "");
+  });
+  ["g", "b", "w"].forEach(function (q) {
+    $("mapQ" + q).addEventListener("click", function () {
+      MAP.q = q; ["g", "b", "w"].forEach(function (r) { $("mapQ" + r).setAttribute("aria-pressed", String(r === q)); }); drawMap();
+    });
+  });
+
+  async function runOptimiser() {
+    if (OPT.running) return;
+    var o = optSettings(); o.mode = "target";
+    if (!optCheck(o)) return;
+    OPT.snapshot = snapshotState(); optBusy(true);
+    var ctl = newCtl(o.budget, function () { var b = ctl.lastBest; return "Running"; });
+    var res = await optimiseCore(o, ctl);
+    optBusy(false); refInfo();
+    if (!res.best) return;
+    applyOpt(res.best.ov, o.refmode);
+    var r = res.best.r, target = o.target, gmin = o.gmin, small = o.small;
+    var abs = o.tg.unit !== "ratio", nmW = wToNm(r.W, P.ls), nmT = wToNm(o.tg.W, P.ls);
+    var reached = abs ? r.W >= o.tg.W * 0.995 : r.R >= target * 0.995;
+    var okCap = !small || (r.G <= r.gcap + 0.5 && r.Gref <= r.gcap + 0.5), met = reached && r.G >= gmin - 0.05 && okCap;
+    var why = [];
+    if (!reached) why.push(abs ? "width " + sig(nmW, 3) + " nm < " + sig(nmT, 3) + " nm" : "ratio " + fmt(r.R, 2) + "× < " + fmt(target, 2) + "×");
+    if (r.G < gmin - 0.05) why.push("peak gain " + fmt(r.G, 1) + " dB < " + fmt(gmin, 1) + " dB");
+    if (!okCap) why.push("small-signal limit " + fmt(r.gcap, 1) + " dB exceeded");
+    $("optStatus").innerHTML = (met ? "<b>Target met.</b> " : '<b class="warn">Target not reached</b> (' + why.join("; ") + "). The constraints conflict for the parameters varied; relax one, vary more parameters, or run the trade-off scan. Best compromise: ") +
+      "signal −3 dB width " + sig(nmW, 3) + " nm (" + sig(r.W / 2 / Math.PI / 1e9, 3) + " GHz), " + fmt(r.R, 2) + "× the reference " + sig(wToNm(r.Wref, P.ls), 3) + " nm, at " + fmt(r.G, 1) + " dB peak gain (" + ctl.evals + " evaluations" + (ctl.stop ? ", stopped" : "") + "). Applied to the controls; the full numerical spectrum above re-checks it with pump depletion.";
+    var rows = [["Result (undepleted analytic)", [
+      ["Bandwidth ratio", fmt(r.R, 2) + "× (target " + fmt(target, 2) + "× = " + sig(nmT, 3) + " nm)"],
+      ["Signal −3 dB width", sig(r.W / (2 * Math.PI) / 1e9, 3) + " GHz · " + sig(r.W / (2 * Math.PI) * Math.pow(P.ls, 2) / C0 * 1e9, 3) + " nm"],
+      ["Reference −3 dB width", sig(r.Wref / (2 * Math.PI) / 1e9, 3) + " GHz · " + sig(r.Wref / (2 * Math.PI) * Math.pow(P.ls, 2) / C0 * 1e9, 3) + " nm"],
+      ["Width gained over the reference", "+" + sig(nmW - wToNm(r.Wref, P.ls), 3) + " nm"],
+      ["Idler −3 dB band (same Δν)", sig(idlerNm(r.W), 3) + " nm around " + fmt(P.li * 1e9, 1) + " nm"],
+      ["Peak gain / reference", fmt(r.G, 1) + " / " + fmt(r.Gref, 1) + " dB"],
+      ["Reference length", fmt(r.Lref, 2) + " m"],
+      ["Small-signal gain limit", small ? fmt(r.gcap, 1) + " dB" : "off"]
+    ]], ["Parameters found", paramRows(res)]];
+    $("optResult").innerHTML = groupsHtml(rows);
+  }
+
+  // Trade-off scan: widest ratio reachable for each minimum peak gain
+  async function runScan() {
+    if (OPT.running) return;
+    var o = optSettings(); o.mode = "max";
+    if (!optCheck(o)) return;
+    var levels = [5, 10, 15, 20, 25, 30], per = Math.max(200, Math.floor(o.budget / 3)), total = per * levels.length;
+    OPT.snapshot = snapshotState(); optBusy(true);
+    var lvl = 0, ctl = newCtl(total, function () { return "Trade-off scan: minimum gain " + levels[lvl] + " dB"; }), results = [];
+    for (lvl = 0; lvl < levels.length && !ctl.stop; lvl++) {
+      var oo = Object.assign({}, o, { gmin: levels[lvl], budget: per });
+      var res = await optimiseCore(oo, ctl);
+      if (res.best) results.push({ g: levels[lvl], res: res });
+      renderScan(results, o);
+    }
+    optBusy(false); refInfo();
+    $("optStatus").innerHTML = "Trade-off scan " + (ctl.stop ? "stopped" : "done") + " (" + ctl.evals + " evaluations, undepleted analytic). Each row is the widest −3 dB band found with peak gain ≥ the listed minimum. Rows that miss their minimum are greyed out. Press Apply to load a row into the controls.";
+    OPT.scan = results;
+  }
+  function renderScan(results, o) {
+    var html = '<div class="tablewrap"><table class="scan"><thead><tr><th>min gain</th><th>width ÷ ref</th><th>peak gain</th><th>signal −3 dB</th><th>reference</th><th>idler −3 dB</th><th>settings</th><th></th></tr></thead><tbody>';
+    results.forEach(function (row, i) {
+      var r = row.res.best.r, miss = r.G < row.g - 0.3 || (o.small && (r.G > r.gcap + 0.5 || r.Gref > r.gcap + 0.5));
+      html += '<tr' + (miss ? ' class="miss"' : "") + "><td>" + row.g + " dB</td><td><b>" + fmt(r.R, 2) + "×</b></td><td>" + fmt(r.G, 1) + " dB</td><td>" +
+        sig(r.W / (2 * Math.PI) * Math.pow(P.ls, 2) / C0 * 1e9, 3) + " nm · " + sig(r.W / 2 / Math.PI / 1e9, 3) + " GHz</td><td>" + sig(wToNm(r.Wref, P.ls), 3) + " nm</td><td>" + sig(idlerNm(r.W), 3) + " nm</td><td>" + shortParams(row.res) + '</td><td><button type="button" data-scan="' + i + '">Apply</button></td></tr>';
+    });
+    $("optResult").innerHTML = html + "</tbody></table></div>";
+    OPT.scan = results; OPT.scanRef = o.refmode;
+  }
+  function applyOpt(ov, refmode) {
+    if (ov.lm) document.querySelector('input[name="lossmode"][value="' + ov.lm + '"]').checked = true;
+    if (ov.loss != null) { if (ov.lm === "lumped") $("att").value = Math.round(ov.loss * 2) / 2; else setSlider($("alpha"), ov.loss); }
+    if (ov.L != null) setSlider($("L"), ov.L);
+    if (ov.Pp != null) setSlider($("Pp"), ov.Pp);
+    if (ov.a != null || ov.dn != null) applyFiber(ov.a != null ? ov.a : P.a, ov.dn != null ? ov.dn : P.dn, ov.follow, true);
+    if (ov.prof) { $("lprof").value = "custom"; CUSTOM.pts = ov.prof.pts.map(function (p) { return { x: p.x, y: p.y }; }); CUSTOM.sel = -1; customChanged(); }
+    $("refmode").value = refmode;
+    if (ov.dk != null) setDk(Math.round(ov.dk * 1000) / 1000);
+    compute();
+  }
+
+  // ---------- gain scan (chunked) ----------
+  function startScan() {
+    var p = P, token = ++scanToken;
+    var R = Math.max(3 * 2 * p.kappa, 4 * 2 * Math.PI / p.L, 1.25 * Math.abs(p.dk), p.lm === "cont" ? 1.5 * p.alpha : 0);
+    scan = { dk: [], gn: [], dka: [], ga: [], range: R };
+    var NA = 301, NN = 101, k;
+    for (k = 0; k < NA; k++) {
+      var d = -R + 2 * R * k / (NA - 1), a = analyticOut(p, d);
+      scan.dka.push(d); scan.ga.push(a ? 10 * Math.log10(a.fs / p.r0) : Infinity);
+    }
+    var order = [];
+    for (k = 0; k < NN; k++) order.push(k);
+    var idx = 0;
+    var gn = new Array(NN).fill(NaN), dks = order.map(function (k) { return -R + 2 * R * k / (NN - 1); });
+    scan.dk = dks; scan.gn = gn;
+    drawG();
+    function chunk() {
+      if (token !== scanToken) return;
+      var t0 = performance.now();
+      while (idx < NN && performance.now() - t0 < 14) {
+        var s = simulate(p, dks[idx], false, 20000, scatSpec(p));
+        gn[idx] = 10 * Math.log10(s.fs / p.r0); idx++;
+      }
+      drawG();
+      if (idx < NN) setTimeout(chunk, 0);
+    }
+    setTimeout(chunk, 0);
+  }
+
+  function drawG() {
+    if (!P) return;
+    var R = scan.range, vals = scan.ga.filter(isFinite).concat(scan.gn.filter(isFinite));
+    var top = vals.length ? Math.max.apply(null, vals) : 10, bot = vals.length ? Math.min.apply(null, vals) : 0;
+    top = Math.max(top, 1); bot = Math.min(bot, 0);
+    var pad = Math.max(1, 0.06 * (top - bot));
+    gGeom = drawPlot($("cg"), {
+      xlim: [-R, R], ylim: [bot - pad, top + pad], xlabel: MODE === "chi3" ? "κ (rad/m)" : "Δk (rad/m)", ylabel: "signal gain (dB)",
+      y2: { offset: dBm(P.Ps), label: "signal output power" },
+      series: [
+        { x: scan.dka, y: scan.ga, color: css("--muted"), dash: [6, 5], width: 1.5 },
+        { x: scan.dk, y: scan.gn, color: css("--signal"), width: 2.2 }
+      ],
+      vlines: [{ x: P.dk, color: css("--accent"), width: 1.5 }],
+      points: [{ x: P.dk, y: 10 * Math.log10(SIM.fs / P.r0), color: css("--accent") }]
+    });
+  }
+
+  // ---------- events ----------
+  function canvasX(ev, geom) {
+    var rc = ev.currentTarget.getBoundingClientRect(), x = ev.clientX - rc.left;
+    var f = (x - geom.m.l) / geom.pw; if (f < 0 || f > 1) return null;
+    return geom.xlim[0] + f * (geom.xlim[1] - geom.xlim[0]);
+  }
+  $("cz").addEventListener("pointermove", function (ev) { if (!zGeom) return; var z = canvasX(ev, zGeom); zCursor = z; if (z != null) hoverZ(z); drawZ(); });
+  $("cz").addEventListener("pointerleave", function () { zCursor = null; drawZ(); });
+  $("cg").addEventListener("pointermove", function (ev) {
+    if (!gGeom) return; var d = canvasX(ev, gGeom); if (d == null) return;
+    var a = analyticOut(P, d);
+    $("hg").textContent = "Δk = " + fmt(d, 2) + " rad/m · undepleted gain " + (a ? fmtdB(10 * Math.log10(a.fs / P.r0)) : "overflow") + " · click to set";
+  });
+  $("cg").addEventListener("click", function (ev) { if (!gGeom) return; var d = canvasX(ev, gGeom); if (d == null) return; setDk(Math.round(d * 100) / 100); compute(); });
+
+  $("cs").addEventListener("pointermove", function (ev) { if (!sGeom) return; var l = canvasX(ev, sGeom); if (l != null) hoverSpec(l, "s"); });
+  $("ci").addEventListener("pointermove", function (ev) { if (!iGeom) return; var l = canvasX(ev, iGeom); if (l != null) hoverSpec(l, "i"); });
+  $("showIdler").addEventListener("click", function () {
+    showIdler = !showIdler; this.setAttribute("aria-pressed", String(showIdler));
+    this.textContent = showIdler ? "Hide idler spectrum" : "Show idler spectrum";
+    $("idlerBox").hidden = !showIdler; drawSpec();
+  });
+  function fitBand() {
+    var p = P, D = DISP, sp = SPEC, gi = [];
+    for (var k = 0; k < sp.O.length; k++) {
+      var q = refParams(p, sp.O[k], p.L), a = analyticOut(q, p.dk + D.dkRel(sp.O[k]));
+      gi.push(a ? dBm(Math.max(1e-300, (a.fs - q.r0) * p.Fp0 * HB * q.wi)) : Infinity);
+    }
+    var b = bandEdges(sp.lamI.slice().reverse(), gi.reverse(), 3);
+    if (!b || b.lo == null || b.hi == null) return;
+    $("lbc").value = lbcSlider(0.5 * (b.lo + b.hi) - p.li * 1e9);
+    setSlider($("lbw"), Math.max(0.001, Math.min(100, b.hi - b.lo)));
+    setSlider($("lbe"), Math.max(0.0001, Math.min(0.5, 0.05 * (b.hi - b.lo))));
+    compute();
+  }
+  $("fitBand").addEventListener("click", fitBand);
+  $("useModes").addEventListener("click", function () {
+    var a = +$("fa").value * 1e-6, dn = +$("fdn").value, ls = +$("ls").value * 1e-9;
+    var cl = function (v) { return Math.max(1, Math.min(20, Math.round(v * 1e8) / 100)); };
+    $("wp").value = cl(lp01(LPUMP, a, dn).w); $("ws").value = cl(lp01(ls, a, dn).w); $("wimode").value = "fiber";
+    compute();
+  });
+  $("copySpec").addEventListener("click", function () {
+    var sp = SPEC, lines = ["signal_nm,idler_nm,dk_rad_per_m,idler_loss_fraction,gain_undepleted_dB,idler_generated_undepleted_dBm,idler_out_undepleted_dBm"];
+    for (var k = 0; k < sp.lam.length; k++) lines.push([sp.lam[k], sp.lamI[k], P.dk + DISP.dkRel(sp.O[k]), sp.prof[k], sp.ga[k], sp.igA[k], sp.ioA[k]].map(function (v) { return Number(v).toPrecision(8); }).join(","));
+    if (sp.num && sp.num.done) {
+      lines.push("", "signal_nm,idler_nm,gain_numerical_dB,idler_generated_dBm,idler_out_dBm");
+      for (k = 0; k < sp.num.lam.length; k++) lines.push([sp.num.lam[k], sp.num.lamI[k], sp.num.gn[k], sp.num.ig[k], sp.num.io[k]].map(function (v) { return Number(v).toPrecision(8); }).join(","));
+    }
+    var btn = this;
+    function done(msg) { btn.textContent = msg; setTimeout(function () { btn.textContent = "Copy spectrum as CSV"; }, 1600); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(lines.join("\n")).then(function () { done("Copied"); }, function () { done("Copy blocked by browser"); });
+    else done("Copy not available");
+  });
+
+  $("optRun").addEventListener("click", function () { runOptimiser(); });
+  $("optScan").addEventListener("click", function () { runScan(); });
+  ["optTarget", "optUnit", "optRef"].forEach(function (id) { $(id).addEventListener("input", targetEqText); $(id).addEventListener("change", targetEqText); });
+  $("optUnit").addEventListener("change", function () {
+    // convert the number so the target stays the same width when the unit changes
+    var prev = this.dataset.prev || "ratio", v = +$("optTarget").value, Wr = currentRefW($("optRef").value);
+    var W = prev === "ratio" ? v * Wr : prev === "nm" ? nmToW(v, P.ls) : 2 * Math.PI * v * 1e9;
+    var nv = this.value === "ratio" ? W / Wr : this.value === "nm" ? wToNm(W, P.ls) : W / 2 / Math.PI / 1e9;
+    $("optTarget").value = +nv.toPrecision(3); this.dataset.prev = this.value; targetEqText();
+  });
+  $("optResult").addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-scan]"); if (!b || !OPT.scan) return;
+    var row = OPT.scan[+b.dataset.scan]; applyOpt(row.res.best.ov, OPT.scanRef);
+    $("optStatus").textContent = "Applied the row for minimum gain " + row.g + " dB. The full numerical spectrum re-checks it.";
+  });
+  $("optStop").addEventListener("click", function () { if (OPT.ctl) OPT.ctl.stop = true; });
+  $("optRevert").addEventListener("click", function () { if (OPT.snapshot) { restoreState(OPT.snapshot); $("optStatus").textContent = "Previous settings restored."; this.disabled = true; } });
+
+  function setDk(v) { dkValue = v; $("dk").value = sliderFromDk(v); $("dkn").value = v; }
+  $("dk").addEventListener("input", function () { var v = dkFromSlider(+this.value); v = Math.abs(v) < 1 ? Math.round(v * 100) / 100 : Math.round(v * 10) / 10; dkValue = v; $("dkn").value = v; compute(); });
+  $("dkn").addEventListener("change", function () { var v = parseFloat(this.value); if (!isFinite(v)) v = 0; setDk(v); compute(); });
+  $("dk0").addEventListener("click", function () { setDk(0); compute(); });
+
+  var raf = 0;
+  $("form").addEventListener("input", function (ev) { if (ev.target.id === "dk" || ev.target.id === "dkn") return; cancelAnimationFrame(raf); raf = requestAnimationFrame(compute); });
+  $("form").addEventListener("change", function (ev) { if (ev.target.id === "lprof" && ev.target.value === "custom" && CUSTOM.pts.length === 0 && SPEC) {
+      var prev = Object.assign({}, P.prof, { type: P.prof.type === "custom" ? "flat" : P.prof.type });
+      resampleCustom(15, function (x) { return lossT(prev, x); });
+    }
+    if (ev.target.name === "lossmode" || ["wimode", "disp", "lprof", "refmode"].indexOf(ev.target.id) >= 0) compute(); });
+  $("form").addEventListener("submit", function (ev) { ev.preventDefault(); });
+
+  $("modeDbm").addEventListener("click", function () { yMode = "dbm"; this.setAttribute("aria-pressed", "true"); $("modeFlux").setAttribute("aria-pressed", "false"); drawZ(); });
+  $("modeFlux").addEventListener("click", function () { yMode = "flux"; this.setAttribute("aria-pressed", "true"); $("modeDbm").setAttribute("aria-pressed", "false"); drawZ(); });
+
+  var CHI3_DEFAULTS = { lp: 1064, n2: 2.6, Pp: 10, L: 30, fa: 1.8, fdn: 0.03, ls: 1550, Ps: 1e-5, disp: "fiber", lm: "none", lprof: "flat", refmode: "same", dk: 0, followModes: true };
+  function setProcess(mode) {
+    document.querySelector('input[name="proc"][value="' + mode + '"]').checked = true;
+    REFFIB = null; MAP.grid = null; OPT.scan = null; $("optResult").innerHTML = ""; refInfo();
+    $("optStatus").textContent = "Process changed: settings reset to the " + (mode === "chi3" ? "χ⁽³⁾" : "χ⁽²⁾") + " defaults.";
+    MODE = mode;
+    applyPreset(Object.assign({}, mode === "chi3" ? CHI3_DEFAULTS : DEFAULTS));
+  }
+  document.querySelectorAll('input[name="proc"]').forEach(function (r) { r.addEventListener("change", function () { setProcess(this.value); }); });
+  document.querySelectorAll("[data-lp]").forEach(function (b) { b.addEventListener("click", function () { $("lp").value = b.dataset.lp; compute(); }); });
+
+  var DEFAULTS = { lprof: "flat", refmode: "same", lbc: 0, lbw: 0.05, lbe: 0.003, disp: "fiber", fa: 4.1, fdn: 0.005, gvm: 15, b2: 13, ls: 1550, L: 5, deff: 0.08, wp: 2.5, ws: 5, Pp: 1, Ps: 1e-5, alpha: 10, att: 30, nf: 4, wimode: "lambda", lm: "none", dk: 0 };
+  function applyPreset(o) {
+    if (o.process) return setProcess(o.process === "reset" ? MODE : o.process);
+    if (MODE === "chi3" && o !== CHI3_DEFAULTS && "deff" in o) {
+      // χ2-tuned presets: keep ΓL and α/Γ, using the current χ3 gain coefficient
+      var G2 = 0.95 * o.deff / 0.08, k3 = P.kappa, L2 = o.L || 5;
+      o.L = L2 * G2 / k3;
+      if ("alpha" in o) o.alpha = o.alpha * k3 / G2;
+      delete o.deff;
+    }
+    if (o === CHI3_DEFAULTS || o.followModes) {
+      o = Object.assign({}, o);
+      ["fa", "fdn", "lp", "ls"].forEach(function (k) { if (k in o) $(k).value = o[k]; });
+      MODE = "chi3"; LPUMP = +$("lp").value * 1e-9;
+      var ls = +$("ls").value * 1e-9, md = fiberModes(ls, idlerOf(ls), +$("fa").value * 1e-6, +$("fdn").value);
+      o.wp = Math.round(md.wp * 1e8) / 100; o.ws = Math.round(md.ws * 1e8) / 100; o.wimode = "fiber";
+    }
+    ["ls", "wp", "ws", "att", "nf", "fa", "fdn", "gvm", "b2", "lp"].forEach(function (k) { if (k in o) $(k).value = o[k]; });
+    if ("lbc" in o) $("lbc").value = lbcSlider(o.lbc);
+    ["deff", "n2", "Pp", "Ps", "alpha", "lbw", "lbe", "L"].forEach(function (k) { if (k in o) setSlider($(k), o[k]); });
+    if ("wimode" in o) $("wimode").value = o.wimode;
+    if ("disp" in o) $("disp").value = o.disp;
+    if ("lprof" in o) $("lprof").value = o.lprof;
+    if ("refmode" in o) $("refmode").value = o.refmode;
+    if ("lm" in o) document.querySelector('input[name="lossmode"][value="' + o.lm + '"]').checked = true;
+    if ("dk" in o) setDk(o.dk);
+    compute();
+    if (o.fit) fitBand();
+  }
+  var PRESETS = {
+    reset: { process: "reset" },
+    lossless: { lm: "none", dk: 0 },
+    cont: { lm: "cont", alpha: 40, dk: 0, deff: 0.15, lprof: "flat" },
+    flatten: { lm: "cont", alpha: 3, L: 5, dk: 0, deff: 0.08, lprof: "pass", refmode: "gain", fit: true },
+    broad: { lm: "cont", alpha: 30, L: 10, dk: 0, deff: 0.08, lprof: "flat", refmode: "gain" },
+    lumped: { lm: "lumped", nf: 9, att: 30, dk: 0, deff: 0.15, lprof: "flat" }
+  };
+  document.querySelectorAll("[data-preset]").forEach(function (b) { b.addEventListener("click", function () { applyPreset(Object.assign({}, PRESETS[b.dataset.preset])); }); });
+
+  $("copy").addEventListener("click", function () {
+    var r = SIM.rec, p = P, lines = ["z_m,P_pump_W,P_signal_W,P_idler_W,P_signal_undepleted_W"];
+    for (var k = 0; k < r.z.length; k++) lines.push([r.z[k], r.fp[k] * p.Fp0 * HB * p.wP, r.fs[k] * p.Fp0 * HB * p.wS, r.fi[k] * p.Fp0 * HB * p.wI, AZ.fs[k] * p.Fp0 * HB * p.wS].map(function (v) { return Number(v).toPrecision(6); }).join(","));
+    var txt = lines.join("\n"), btn = this;
+    function done(msg) { btn.textContent = msg; setTimeout(function () { btn.textContent = "Copy z-data as CSV"; }, 1600); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { done("Copied " + r.z.length + " rows"); }, function () { done("Copy blocked by browser"); });
+    else done("Copy not available");
+  });
+
+  function redraw() { drawZ(); drawG(); drawSpec(); drawMap(); }
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw); } catch (e) { }
+  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (window.ResizeObserver) new ResizeObserver(function () { redraw(); }).observe(document.querySelector(".main"));
+  else window.addEventListener("resize", redraw);
+
+  applyPreset(Object.assign({}, DEFAULTS));
+})();
+</script>
+</html>

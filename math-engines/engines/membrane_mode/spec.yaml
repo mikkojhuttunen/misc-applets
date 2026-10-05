@@ -1,0 +1,38 @@
+engine: membrane_mode
+version: 1
+title: Membrane slab mode for evanescent sensing
+description: Effective and group index, evanescent absorption factor Γ, penetration depth and surface-field weight of a free-standing membrane slab mode; evanescent gas volume.
+references:
+  - "A. W. Snyder and J. D. Love, Optical Waveguide Theory (Chapman and Hall, 1983), ch. 11-12 (slab modes, power and absorption integrals)"
+  - "G. Stewart, B. Culshaw, Opt. Quantum Electron. 26, S249 (1994) (evanescent-wave absorption factor)"
+  - "F. P. Payne, J. P. R. Lacey, Opt. Quantum Electron. 26, 977 (1994) (sidewall-roughness scattering ∝ surface field)"
+functions:
+  evanescent_mode:
+    title: Evanescent absorption factor Γ
+    equations: ["TE: Γ = (n_c/n_eff) ∫_clad E² / ∫ E²", "TM: Γ = n_c ∫_clad (β²H² + H'²)/n_c⁴ / (k β ∫ H²/n²)", "α_mode = Γ α_gas", "z_p = 1/(2γ), γ = k sqrt(n_eff² - n_c²)", "n_g = n_eff - λ dn_eff/dλ"]
+    inputs:
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 200}
+      - {name: thickness, label: "Membrane thickness", ui_unit: nm, scale: 1.0e-9, default: 250, min: 1}
+      - {name: material, label: "Core material (constant: use n_core)", type: choice, choices: [constant, si, si3n4, sio2, aln_o, gaas, tio2_o, sapphire_o, ln_o, ln_e], default: si}
+      - {name: n_core, label: "Core index (material = constant)", ui_unit: "", scale: 1.0, default: 3.476, min: 1}
+      - {name: n_clad, label: "Cladding (gas) index", ui_unit: "", scale: 1.0, default: 1.0, min: 1}
+      - {name: polarization, label: "Polarisation", type: choice, choices: [TE, TM], default: TM}
+      - {name: order, label: "Mode order", ui_unit: "", scale: 1.0, default: 0, min: 0, step: 1}
+    outputs:
+      - {name: neff, label: "Effective index", ui_unit: "", scale: 1.0}
+      - {name: n_group, label: "Group index", ui_unit: "", scale: 1.0}
+      - {name: Gamma, label: "Absorption factor Γ", ui_unit: "", scale: 1.0}
+      - {name: f_clad, label: "Share of ∫f² in the cladding", ui_unit: "", scale: 1.0}
+      - {name: z_p, label: "1/e intensity penetration depth per side", ui_unit: nm, scale: 1.0e-9}
+      - {name: gamma_ev, label: "Field decay constant γ", ui_unit: 1/µm, scale: 1.0e+6}
+      - {name: E_edge2, label: "Surface-field weight (relative)", ui_unit: 1/µm, scale: 1.0e+6}
+  evanescent_volume:
+    title: Evanescent gas volume
+    equations: ["V = sides · A · z_p", "N/ppb = n_air V 10⁻⁹"]
+    inputs:
+      - {name: z_p, label: "Penetration depth z_p", ui_unit: nm, scale: 1.0e-9, default: 300, min: 0}
+      - {name: area, label: "Cell footprint", ui_unit: mm², scale: 1.0e-6, default: 78.54, min: 0}
+      - {name: sides, label: "Faces exposed (1 or 2)", ui_unit: "", scale: 1.0, default: 2, min: 1, max: 2, step: 1}
+    outputs:
+      - {name: V_ev, label: "Evanescent volume", ui_unit: mm³, scale: 1.0e-9}
+      - {name: molecules_per_ppb, label: "Molecules in it per ppb", ui_unit: "", scale: 1.0}

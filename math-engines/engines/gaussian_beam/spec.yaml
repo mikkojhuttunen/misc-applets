@@ -1,0 +1,51 @@
+engine: gaussian_beam
+version: 1
+title: Gaussian beam
+description: TEM00 beam radius, curvature, Gouy phase, Rayleigh range and thin-lens focusing.
+references:
+  - "A. E. Siegman, Lasers (University Science Books, 1986), ch. 17 and 20"
+common_inputs:
+  w0: {label: "Waist radius w0", ui_unit: mm, scale: 1.0e-3, default: 1.0, min: 1.0e-4}
+  wavelength: {label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 633, min: 1}
+  n: {label: "Refractive index n", ui_unit: "", scale: 1.0, default: 1.0, min: 1.0}
+functions:
+  beam_parameters:
+    title: Rayleigh range and divergence
+    equations: ["z_R = pi w0^2 n / (M2 lambda)", "theta = M2 lambda / (pi n w0)"]
+    inputs:
+      - w0
+      - wavelength
+      - n
+      - {name: M2, label: "Beam quality M²", ui_unit: "", scale: 1.0, default: 1.0, min: 1.0}
+    outputs:
+      - {name: z_R, label: "Rayleigh range", ui_unit: m, scale: 1.0}
+      - {name: theta, label: "Divergence half-angle", ui_unit: mrad, scale: 1.0e-3}
+      - {name: b, label: "Confocal parameter", ui_unit: m, scale: 1.0}
+  beam_at:
+    title: Beam at a position z
+    equations: ["w(z) = w0 sqrt(1 + ((z - z0)/z_R)^2)", "R(z) = (z - z0) (1 + (z_R/(z - z0))^2)"]
+    inputs:
+      - {name: z, label: "Position z", ui_unit: mm, scale: 1.0e-3, default: 1000}
+      - w0
+      - wavelength
+      - {name: z0, label: "Waist position z0", ui_unit: mm, scale: 1.0e-3, default: 0}
+      - n
+      - {name: M2, label: "Beam quality M²", ui_unit: "", scale: 1.0, default: 1.0, min: 1.0}
+    outputs:
+      - {name: w, label: "Beam radius w(z)", ui_unit: mm, scale: 1.0e-3}
+      - {name: R, label: "Wavefront radius R(z)", ui_unit: m, scale: 1.0}
+      - {name: gouy_phase, label: "Gouy phase", ui_unit: rad, scale: 1.0}
+      - {name: z_R, label: "Rayleigh range", ui_unit: m, scale: 1.0}
+  thin_lens_focus:
+    title: Focusing by a thin lens
+    equations: ["q' = (A q + B) / (C q + D)"]
+    inputs:
+      - w0
+      - {name: s, label: "Waist-to-lens distance", ui_unit: mm, scale: 1.0e-3, default: 500}
+      - {name: f, label: "Focal length", ui_unit: mm, scale: 1.0e-3, default: 100}
+      - wavelength
+      - n
+    outputs:
+      - {name: w0_out, label: "Output waist", ui_unit: µm, scale: 1.0e-6}
+      - {name: z_out, label: "Output waist after lens", ui_unit: mm, scale: 1.0e-3}
+      - {name: w_at_lens, label: "Beam radius at the lens", ui_unit: mm, scale: 1.0e-3}

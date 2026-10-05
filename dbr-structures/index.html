@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Waveguide DBR Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: instrument bench. Fixed control rack on the left, stacked readout and plot panels on the right; stacks to one column on phones. */
+:root {
+  --bg: #e9eef0; --panel: #f9fbfb; --ink: #12212a; --muted: #566872; --line: #cbd6db; --grid: #dfe6e9;
+  --accent: #0b6a88; --amber: #b0670a; --green: #1f7f47; --warn: #a3410e;
+  --sub: #c3d0d6; --core: #87afc1; --clad: #f3f6f7; --hatch: rgba(11,106,136,.16);
+  --f-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-label: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1417; --panel: #131c21; --ink: #d9e4e9; --muted: #8b9ca5; --line: #26353d; --grid: #1c282e;
+  --accent: #4fbfdc; --amber: #eea143; --green: #61cf8c; --warn: #ff8d5e;
+  --sub: #2a3b45; --core: #3a6a80; --clad: #162127; --hatch: rgba(79,191,220,.18); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d1417; --panel: #131c21; --ink: #d9e4e9; --muted: #8b9ca5; --line: #26353d; --grid: #1c282e;
+  --accent: #4fbfdc; --amber: #eea143; --green: #61cf8c; --warn: #ff8d5e;
+  --sub: #2a3b45; --core: #3a6a80; --clad: #162127; --hatch: rgba(79,191,220,.18); color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 14px; line-height: 1.45; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.app { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; padding-inline: 20px; padding-block: 18px 40px; max-width: 1320px; margin: 0 auto; }
+header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+h1 { font-family: var(--f-label); font-weight: 600; font-size: 26px; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 2px 0 0; max-width: 70ch; }
+.preset { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; max-width: 100%; }
+.preset label { font-family: var(--f-label); text-transform: uppercase; letter-spacing: .08em; font-size: 11.5px; color: var(--muted); }
+aside { min-width: 0; }
+.rack { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow-y: auto; display: grid; gap: 14px; padding-right: 4px; }
+fieldset { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; margin: 0; padding: 10px 12px 12px; display: grid; gap: 9px; min-width: 0; }
+legend { font-family: var(--f-label); font-weight: 600; text-transform: uppercase; letter-spacing: .09em; font-size: 12px; color: var(--accent); padding: 0 4px; }
+.row { display: grid; gap: 3px; }
+.row > label, .lbl { font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.numwrap { display: inline-flex; align-items: baseline; gap: 4px; }
+input[type="number"] { width: 78px; font-family: var(--f-num); font-size: 12.5px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+input[type="number"]:disabled { opacity: .55; }
+.unit { font-family: var(--f-num); font-size: 11.5px; color: var(--muted); min-width: 34px; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+input[type="range"]:disabled { opacity: .45; }
+select { font-family: var(--f-ui); font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); width: 100%; min-width: 0; }
+.preset select { width: auto; max-width: 100%; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ink); }
+.check input { accent-color: var(--accent); margin: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { font-family: var(--f-num); font-size: 12px; border: 0; background: var(--bg); color: var(--muted); padding: 4px 10px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.btns button { font-family: var(--f-num); font-size: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 3px 8px; border-radius: 4px; cursor: pointer; }
+.btns button:hover, .seg button:hover { border-color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.custom { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.custom input { width: 100%; }
+.mini { font-size: 11.5px; color: var(--muted); }
+main { display: grid; gap: 18px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px 16px; min-width: 0; }
+.panel h2 { font-family: var(--f-label); font-weight: 600; font-size: 15px; letter-spacing: .02em; margin: 0 0 2px; }
+.panel .cap { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; max-width: 80ch; }
+.phead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: 8px 16px; }
+.contrast { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
+.contrast > div { padding: 10px 14px; min-width: 0; }
+.contrast > div + div { border-left: 1px solid var(--line); }
+.contrast .k { font-family: var(--f-label); text-transform: uppercase; letter-spacing: .08em; font-size: 11.5px; color: var(--muted); }
+.contrast .v { font-family: var(--f-num); font-size: 24px; font-variant-numeric: tabular-nums; }
+.contrast .d { font-family: var(--f-num); font-size: 12px; color: var(--muted); }
+.contrast .delta { background: color-mix(in srgb, var(--accent) 9%, var(--panel)); }
+.contrast .delta .v { color: var(--accent); }
+.grid-ro { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0 18px; }
+.ro { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border-bottom: 1px dotted var(--line); padding: 5px 0; min-width: 0; }
+.ro .k { font-size: 12.5px; color: var(--muted); }
+.ro .v { font-family: var(--f-num); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+.warns { display: grid; gap: 4px; margin-top: 10px; }
+.warns div { font-size: 12.5px; color: var(--warn); padding-left: 10px; border-left: 2px solid var(--warn); }
+canvas { display: block; width: 100%; }
+.cv-wrap { position: relative; }
+.split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; }
+.tbl-wrap { overflow-x: auto; }
+tr.rec td { background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 500; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th { font-family: var(--f-label); text-transform: uppercase; letter-spacing: .06em; font-size: 11px; color: var(--muted); font-weight: 600; text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+td { font-family: var(--f-num); font-variant-numeric: tabular-nums; text-align: right; padding: 4px 6px; border-bottom: 1px dotted var(--line); white-space: nowrap; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.notes { columns: 2 320px; column-gap: 28px; font-size: 12.5px; color: var(--muted); margin: 0; padding-left: 18px; }
+.notes li { margin-bottom: 6px; break-inside: avoid; }
+.notes b { color: var(--ink); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+.legend span.dash::before { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+.schem { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px 10px; background: var(--bg); display: grid; gap: 4px; min-width: 0; }
+.card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--bg)); }
+.card h3 { font-family: var(--f-label); font-size: 13px; font-weight: 600; margin: 0; }
+.card p { font-size: 12px; color: var(--muted); margin: 0; }
+.card svg { width: 100%; height: auto; display: block; }
+.card .tag { font-family: var(--f-num); font-size: 10.5px; color: var(--accent); }
+.hover { font-family: var(--f-num); font-size: 12px; color: var(--muted); min-height: 1.4em; }
+@media (max-width: 960px) {
+  .app { grid-template-columns: minmax(0, 1fr); padding-inline: 16px; }
+  .rack { position: static; max-height: none; overflow: visible; padding-right: 0; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .contrast { grid-template-columns: minmax(0, 1fr); }
+  .contrast > div + div { border-left: 0; border-top: 1px solid var(--line); }
+  h1 { font-size: 22px; }
+}
+</style>
+<style>body { margin: 0; } img { max-width: 100%; }</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Waveguide DBR Calculator</h1>
+      <p class="sub">2D slab waveguide with a surface-etched Bragg grating. Local effective indices from the slab dispersion relation, reflection spectrum from a 1D transfer matrix, out-of-plane scattering from a volume-current estimate.</p>
+    </div>
+    <div class="preset">
+      <span class="lbl" style="font-family:var(--f-label);text-transform:uppercase;letter-spacing:.08em;font-size:11.5px">Device</span>
+      <div class="seg" role="group" aria-label="Device"><button type="button" id="devDBR" aria-pressed="true">Single DBR</button><button type="button" id="devCR" aria-pressed="false">CRIGF</button></div>
+      <label for="preset">Example stack</label>
+      <select id="preset">
+        <option value="tfln">Thin-film LiNbO₃, 1550 → SHG 775 nm</option>
+        <option value="sin">Si₃N₄ on SiO₂, 1550 nm</option>
+        <option value="soi">SOI 220 nm, 1550 nm</option>
+        <option value="semi">Semiconductor 2nd-order DBR, 1064 → 532 nm</option>
+        <option value="hp">High-power CRIGF: TFLN rib, poled 2 mm, Au mirror</option>
+        <option value="hplt">High-power CRIGF: TFLT rib, poled 2 mm, Au mirror</option>
+      </select>
+    </div>
+  </header>
+
+  <aside><div class="rack" id="rack">
+    <fieldset id="g-wg"><legend>Waveguide</legend>
+      <div class="row"><span class="lbl">Polarisation</span>
+        <div class="seg" role="group" aria-label="Polarisation"><button type="button" id="polTE" aria-pressed="true">TE</button><button type="button" id="polTM" aria-pressed="false">TM</button></div></div>
+    </fieldset>
+    <fieldset id="g-lat"><legend>Lateral geometry (width)</legend>
+      <div class="row"><label for="latMode">Model</label>
+        <select id="latMode"><option value="2d">Infinite width (2D slab)</option><option value="ridge">Ridge / strip of width W</option><option value="slab">Open slab, finite grating width, curved DBRs</option><option value="taper">Wide coupler, tapered to a rib</option></select></div>
+      <label class="check" id="flatRow"><input type="checkbox" id="flat"> Straight (flat) DBR lines</label>
+      <label class="check"><input type="checkbox" id="autoW" checked> SHG width from the lateral mode</label>
+      <div class="mini" id="latNote"></div>
+    </fieldset>
+    <fieldset id="g-gr"><legend>Bragg grating</legend>
+      <div class="two">
+        <div class="row"><label for="profile">Profile</label>
+          <select id="profile">
+            <option value="rect">Rectangular</option>
+            <option value="trap">Trapezoidal</option>
+            <option value="smooth">Rounded (RIE-like)</option>
+            <option value="sine">Sinusoidal</option>
+            <option value="tri">Triangular</option>
+            <option value="saw">Sawtooth (blazed)</option>
+          </select></div>
+        <div class="row"><label for="m">Bragg order m</label>
+          <select id="m"><option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option><option value="4">4th</option></select></div>
+      </div>
+      <label class="check"><input type="checkbox" id="lock" checked> Set period for Bragg at λ₀</label>
+    </fieldset>
+    <fieldset id="g-cr" hidden><legend>CRIGF: DBR | coupler | DBR</legend>
+      <p class="mini" style="margin:0">Both DBRs use the Bragg grating settings above (N = periods per DBR). The grating coupler (GC) sits between them with its own etch and fill.</p>
+      <label class="check"><input type="checkbox" id="lockG" checked> GC period couples at the incidence angle</label>
+      <label class="check"><input type="checkbox" id="matchY" checked> Match the lateral beam waist to the guided mode (elliptical beam)</label>
+      <div class="btns"><button type="button" id="tuneSp">Tune phase spacer to the brightest resonance</button></div>
+      <div class="mini" id="tuneStatus"></div>
+    </fieldset>
+    <fieldset id="g-qpm"><legend>Periodic poling (QPM)</legend>
+      <div class="row"><label for="poleMode">Poling inside the device</label>
+        <select id="poleMode"><option value="none">Off</option><option value="straight" selected>Straight sections only (CRIGF)</option><option value="all">Whole device</option></select></div>
+      <div class="row"><label for="qTarget">Bandwidth target for the poled section</label>
+        <select id="qTarget"><option value="0">Uniform poling</option><option value="1">1 nm</option><option value="5" selected>5 nm</option><option value="10">10 nm</option><option value="c">Custom</option></select></div>
+      <div class="btns"><button type="button" id="qRun">Run optimizer</button><button type="button" id="qReset">Back to uniform</button></div>
+      <div class="mini" id="qStatus"></div>
+    </fieldset>
+    <fieldset id="g-sp"><legend>Spectrum</legend>
+      <label class="check"><input type="checkbox" id="autospan" checked> Auto span around λ<sub>B</sub></label>
+      <label class="check"><input type="checkbox" id="showcmt" checked> Show coupled-mode estimate</label>
+    </fieldset>
+    <fieldset id="g-shg"><legend>SHG generation in the grating</legend>
+      <label class="check"><input type="checkbox" id="shgOn" checked> Calculate SHG from the pump standing wave</label>
+      <p class="mini" style="margin:0">Pump = field-map wavelength (click the spectrum to change it). SH at half that wavelength.</p>
+      <div class="row"><label for="sOrder">SH guided mode</label>
+        <select id="sOrder"><option value="0">fundamental (0)</option><option value="1">1st order</option><option value="2">2nd order</option><option value="3">3rd order</option></select></div>
+    </fieldset>
+    <fieldset id="g-pr"><legend>Probe wavelength (scattering)</legend>
+      <div class="btns" id="probeBtns">
+        <button type="button" data-div="1">λ₀</button><button type="button" data-div="2">λ₀/2 SHG</button><button type="button" data-div="3">λ₀/3 THG</button>
+      </div>
+      <div class="row"><label for="pOrder">Probe mode</label>
+        <select id="pOrder"><option value="0">fundamental (0)</option><option value="1">1st order</option><option value="2">2nd order</option><option value="3">3rd order</option></select></div>
+    </fieldset>
+  </div></aside>
+
+  <main>
+    <div id="errbar" class="warns" hidden></div>
+    <section class="panel" id="p-schem">
+      <div class="phead"><div><h2>Device configurations</h2><p class="cap">What the calculator can model. The highlighted cards match the current settings. Side views show layers (not to scale); top views show the lateral layout.</p></div></div>
+      <div class="schem" id="schemCards"></div>
+      <details style="margin-top:10px" open><summary class="mini" style="cursor:pointer;font-weight:600">Layouts that keep easy free-space pumping and high conversion</summary>
+        <div class="schem" id="ideaCards" style="margin-top:8px"></div></details>
+    </section>
+
+    <section class="panel" id="p-contrast">
+      <div class="phead"><div><h2>Effective index contrast</h2><p class="cap" id="capContrast">Fundamental mode at λ₀.</p></div></div>
+      <div class="contrast">
+        <div><div class="k">High n<sub>eff</sub> · tooth</div><div class="v" id="nHi">—</div><div class="d" id="nHiD">—</div></div>
+        <div><div class="k">Low n<sub>eff</sub> · etched</div><div class="v" id="nLo">—</div><div class="d" id="nLoD">—</div></div>
+        <div class="delta"><div class="k">Contrast Δn<sub>eff</sub></div><div class="v" id="dN">—</div><div class="d" id="dND">—</div></div>
+      </div>
+      <div class="grid-ro" id="ro"></div>
+      <div class="warns" id="warns"></div>
+    </section>
+
+    <section class="panel" id="p-cr" hidden>
+      <div class="phead"><div><h2>CRIGF pump response</h2><p class="cap" id="capC">Free-space Gaussian beam onto the grating coupler; the DBRs close the cavity. Click the plot to choose the field-map wavelength.</p></div>
+        <div class="btns"><button type="button" id="csvC">Copy CSV</button><label class="check"><input type="checkbox" id="zoomC"> Zoom to resonance</label></div></div>
+      <div class="cv-wrap" id="wrapT" hidden><canvas id="cvT" data-h="140" height="140" style="height:140px" aria-label="CRIGF top view"></canvas></div>
+      <div class="cv-wrap"><canvas id="cvD" data-h="84" height="84" style="height:84px" aria-label="CRIGF layout"></canvas></div>
+      <div class="cv-wrap"><canvas id="cvC" data-h="220" height="220" style="height:220px" aria-label="CRIGF reflectance spectrum"></canvas></div>
+      <div class="legend"><span style="--c:var(--accent)">R into the incident beam</span><span style="--c:var(--amber)">T into the substrate beam</span><span class="dash" style="--c:var(--green)">guided escape through the DBRs</span><span class="dash" style="--c:var(--muted)">bare slab R (no grating)</span><span class="dash" style="--c:var(--warn)">radiated outside the beam mode</span><span class="dash" style="--c:var(--ink)">lost laterally at curved/finite DBRs</span></div>
+      <div class="hover" id="hovC"></div>
+      <div class="grid-ro" id="roC"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Cross-section</h2>
+      <p class="cap">Three grating periods. Right strip: mode intensity |ψ(x)|² in the tooth and etched regions at λ₀, and the probe mode. Horizontal and vertical scales differ.</p>
+      <div class="cv-wrap"><canvas id="cvX" data-h="190" height="190" style="height:190px" aria-label="Grating cross-section and mode profiles"></canvas></div>
+      <div class="legend" id="lgX"></div>
+    </section>
+
+    <section class="panel">
+      <div class="phead"><div><h2 id="hS">Reflection spectrum</h2><p class="cap">Transfer matrix over every period, with wavelength-dependent local n<sub>eff</sub>. Click the plot to choose the wavelength shown in the field map.</p></div><div class="btns"><button type="button" id="csvS">Copy CSV</button></div></div>
+      <div class="cv-wrap"><canvas id="cvS" data-h="210" height="210" style="height:210px" aria-label="Reflection and transmission spectrum"></canvas></div>
+      <div class="legend" id="lgS"></div>
+      <div class="hover" id="hovS"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Field along the grating</h2>
+      <p class="cap" id="capF">|E|² normalised to the incident wave, times the unetched mode profile. Grating length is compressed horizontally.</p>
+      <div class="cv-wrap"><canvas id="cvF" data-h="160" height="160" style="height:160px" aria-label="Field intensity map along the grating"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <h2>Out-of-plane scattering at the probe wavelength</h2>
+      <p class="cap" id="capP">Guided probe mode diffracted by the grating harmonics into cladding and substrate.</p>
+      <div class="split">
+        <div class="cv-wrap"><canvas id="cvP" data-h="250" height="250" style="height:250px" aria-label="Far-field emission pattern"></canvas>
+          <div class="legend"><span style="--c:var(--green)">far-field intensity, dB (40 dB range)</span></div></div>
+        <div style="min-width:0">
+          <div class="grid-ro" id="roP" style="grid-template-columns:1fr"></div>
+          <div class="tbl-wrap" style="margin-top:10px"><table id="tblP"><thead><tr><th>Order</th><th>Into</th><th>Angle</th><th>FWHM</th><th>α (cm⁻¹)</th><th>Share</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-shg">
+      <h2>SHG generated inside the grating</h2>
+      <p class="cap" id="capSH">Nonlinear polarisation of the pump standing wave in the core, radiated out of plane and coupled into guided SH modes.</p>
+      <div id="shgOff" class="mini" hidden>SHG calculation is off. Turn it on under “SHG generation in the grating”.</div>
+      <div class="split" id="shgBody">
+        <div class="cv-wrap"><canvas id="cvH" data-h="250" height="250" style="height:250px" aria-label="SH far-field emission pattern"></canvas>
+          <div class="legend"><span style="--c:var(--amber)">SH far field, dB (40 dB range, both half-spaces on one scale)</span></div></div>
+        <div style="min-width:0">
+          <div class="grid-ro" id="roH" style="grid-template-columns:1fr"></div>
+          <div class="tbl-wrap" style="margin-top:10px"><table id="tblH"><thead><tr><th>Lobe</th><th>Into</th><th>Angle</th><th>FWHM</th><th>Power</th><th>Share</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-ls" hidden>
+      <div class="phead"><div><h2>Straight poled sections: efficiency against length</h2><p class="cap" id="capLs">For each straight-section length the phase spacer and the pump wavelength are tuned to the brightest cavity resonance near λ₀, then SHG is computed with the chosen poling.</p></div>
+        <div class="btns"><button type="button" id="runLs">Run length sweep</button><button type="button" id="csvLs">Copy CSV</button></div></div>
+      <div class="mini" id="lsStatus">Not run yet. The sweep takes about 10–20 s.</div>
+      <div class="cv-wrap"><canvas id="cvLs" data-h="230" height="230" style="height:230px" aria-label="SHG efficiency against straight-section length"></canvas></div>
+      <div class="legend"><span style="--c:var(--accent)">total SH / P²</span><span style="--c:var(--green)">guided SH (both ends)</span><span style="--c:var(--amber)">radiated SH</span><span class="dash" style="--c:var(--muted)">single pass, same poled length, all beam power guided</span></div>
+      <div class="tbl-wrap" style="margin-top:8px"><table id="tblLs"><thead><tr><th>L_s</th><th>Spacer</th><th>λ_res</th><th>FWHM</th><th>Q</th><th>Circ. power</th><th>R</th><th>η total</th><th>η guided</th><th>vs single pass</th></tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="panel" id="p-pw" hidden>
+      <div class="phead"><div><h2>Power scaling: pump depletion and photorefraction</h2><p class="cap" id="capPw">CRIGF with poled straight sections. SH conversion acts as a nonlinear loss inside the cavity, so the circulating pump clamps as power rises.</p></div>
+        <div class="btns"><button type="button" id="runPw">Run power sweep</button><button type="button" id="csvPw">Copy CSV</button></div></div>
+      <div class="split">
+        <div style="min-width:0"><canvas id="cvPw" data-h="240" height="240" style="height:240px" aria-label="SH power against pump power"></canvas>
+          <div class="legend"><span style="--c:var(--accent)">SH with depletion and cavity loading</span><span class="dash" style="--c:var(--muted)">undepleted (low-power law)</span><span class="dash" style="--c:var(--warn)">photorefraction onset, per material</span></div></div>
+        <div style="min-width:0"><div class="grid-ro" id="roPw" style="grid-template-columns:1fr"></div>
+          <div class="row" style="margin-top:8px"><span class="lbl">Photorefraction onset intensity at the SH (MW/cm², order of magnitude; edit to your data)</span>
+            <div class="custom" style="grid-template-columns:1fr 1fr 1fr"><label class="mini">undoped TFLN<input type="number" id="prLN" step="any" value="0.005"></label><label class="mini">MgO:TFLN<input type="number" id="prMg" step="any" value="1"></label><label class="mini">TFLT<input type="number" id="prLT" step="any" value="10"></label></div></div></div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-qpm">
+      <div class="phead"><div><h2>Quasi-phase-matching (periodically poled section)</h2><p class="cap" id="capQ">Guided SHG transfer function of a straight poled waveguide (unetched core), first-order QPM.</p></div>
+        <div class="btns"><button type="button" id="csvQ">Copy CSV</button></div></div>
+      <div class="split">
+        <div style="min-width:0"><canvas id="cvQ" data-h="210" height="210" style="height:210px" aria-label="QPM transfer function"></canvas>
+          <div class="legend"><span style="--c:var(--accent)">designed poling</span><span class="dash" style="--c:var(--muted)">uniform poling</span></div>
+          <canvas id="cvQz" data-h="110" height="110" style="height:110px;margin-top:8px" aria-label="Local poling period along the section"></canvas>
+          <div class="legend"><span style="--c:var(--amber)">local poling period Λ<sub>pp</sub>(z)</span><span class="dash" style="--c:var(--green)">duty-cycle amplitude sin(πD)</span></div></div>
+        <div style="min-width:0"><div class="grid-ro" id="roQ" style="grid-template-columns:1fr"></div>
+          <details style="margin-top:8px"><summary class="mini" style="cursor:pointer">Optimizer iterations</summary>
+            <div class="tbl-wrap"><table id="tblQ"><thead><tr><th>Apod.</th><th>Iter.</th><th>Chirp ×</th><th>FWHM</th><th>Ripple</th><th>Peak</th></tr></thead><tbody></tbody></table></div></details></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="phead"><div><h2>Parameter sweep</h2><p class="cap">Coupled-mode estimates at λ₀, other parameters held at their current values. Marker: current setting.</p></div>
+        <div class="row" style="min-width:180px"><label for="sweepVar">Sweep</label>
+          <select id="sweepVar"><option value="h">Etch depth h</option><option value="f">Filling ratio f</option><option value="N">Number of periods N</option></select></div></div>
+      <div class="cv-wrap"><canvas id="cvW" data-h="180" height="180" style="height:180px" aria-label="Parameter sweep chart"></canvas></div>
+      <div class="legend"><span style="--c:var(--accent)">peak R (left axis)</span><span style="--c:var(--amber)">bandwidth null-to-null, nm (right axis)</span><span class="dash" style="--c:var(--muted)">Δn<sub>eff</sub> (scaled, right axis)</span></div>
+    </section>
+
+    <section class="panel">
+      <h2>Model and limits</h2>
+      <ul class="notes">
+        <li><b>Effective-index method.</b> Each slice of a period is replaced by the fundamental slab mode of its local core thickness t − h(1 − g). Mode mismatch scattering at the tooth walls and radiation inside the stop band are not in the transfer matrix.</li>
+        <li><b>Coupling coefficient.</b> κ = 2π|N<sub>m</sub>|/λ, where N<sub>m</sub> is the m-th Fourier coefficient of n<sub>eff</sub>(z). For a rectangular profile this is 2Δn sin(πmf)/(mλ). Even orders vanish at f = 0.5.</li>
+        <li><b>Spectrum.</b> Abelès matrices for every slice, the period matrix raised to the power N. Input and output guides have the tooth index. Propagation loss, and radiation loss of higher-order gratings at λ₀, enter as an imaginary index.</li>
+        <li><b>Scattering.</b> The etched layer is a current sheet Δε = n<sub>core</sub>² − n<sub>clad</sub>² of thickness h at depth t − h/2, driven by the probe mode. α<sub>q</sub> = k⁴(Δε)²h²|G<sub>q</sub>|²φ²/(4βk<sub>x</sub>). Reflections from the slab interfaces are ignored, so up/down ratios are rough; expect agreement with FDTD within a factor of a few for shallow gratings.</li>
+        <li><b>Far field.</b> One period's emission times the array factor of N periods with exponential decay from radiation and loss. Lobe widths follow from min(L, 1/α).</li>
+        <li><b>SHG in the grating.</b> Pump amplitudes A<sub>p</sub>, B<sub>p</sub> (forward, backward) at every period boundary come from the transfer matrix; inside a period U = A e<sup>iβz</sup> + B e<sup>−iβz</sup>. P<sub>NL</sub> = ε₀d<sub>eff</sub>U²ψ² in the core only. Radiated SH treats the core as a sheet (no phase variation across the thickness, no slab Fresnel effects); guided SH uses the overlap ∫ψ<sub>SH</sub>ψ<sub>F</sub>² dx and coupled-mode theory, no pump depletion. The A·B term gives emission normal to the surface even without a grating harmonic. 2D powers per unit width are multiplied by the effective width w. Checked: with h = 0 the guided SH reproduces the sinc²(ΔkL/2) law exactly.</li>
+        <li><b>CRIGF.</b> Coupler by Kazarinov–Henry coupled-mode theory: forward and backward envelopes with radiative self- and cross-coupling (the two waves radiate coherently near the normal), 2nd-order guided Bragg coupling from the n<sub>eff</sub> modulation, and Gaussian-beam excitation through the local field at the grating, found from the bare slab. DBRs and spacers enter as exact transfer-matrix reflections at the coupler ends. Out-coupling into the reflected and transmitted beams follows by reciprocity from the same coupling constant, so the model conserves energy: with no loss, R + T + escape = 1 to 10⁻⁴ for the coupler alone. On resonance the remainder is light radiated into spatial modes other than the incident beam (mode mismatch), shown as its own curve; it is smallest when 2w₀ is close to the coupler length.</li>
+        <li><b>Straight poled sections.</b> Between the coupler and each DBR, length L<sub>s</sub> plus the phase spacer. The pump there is A e<sup>iβz</sup> + B e<sup>−iβz</sup> with loss, from the cavity solution. The SHG integral over periodic domains is a geometric series, so millimetre sections cost nothing extra. Guided SH accumulates phase region by region with each region's own SH index, and the straight sections use their own Δk and poling period. A·B (counter-propagating) terms emit near the normal, or at sin θ = mK<sub>pp</sub>/(k₂n) when poled. The resonance finder maximises circulating power over one free spectral range; the sweep also tunes the phase spacer, because at normal incidence the coupler can sit on a node of the radiating combination (a dark mode). No pump depletion or SH loading of the cavity: results above about 10 % conversion overestimate.</li>
+        <li><b>QPM.</b> Domain walls from the local poling wavevector K(z) = K₀ + c(z − L/2) and duty D(z) with sin(πD) following a raised-cosine taper. η(λ) = |gΩ∫s(z)e<sup>iΔk z</sup>dz|²/w with the same overlaps as the SHG model; Δk(λ) from the slab solver at every wavelength. The optimizer runs a secant search on the chirp for each taper length and keeps the design with the least in-band ripple at the target FWHM.</li>
+        <li><b>Lateral width.</b> Ridge, rib or strip-loaded guide: a second effective-index step across the width W for the unetched ridge (side regions are the slab of thickness t<sub>side</sub>, or the substrate for a strip); grating slices are added as perturbations weighted by the lateral confinement Γ<sub>lat</sub>, which stays valid for shallow strip loading where etched slots are thinner than the sides, so contrast, κ, Bragg wavelength, Δk and QPM period all follow W. The lateral mode sets the beam overlap (power overlap with the Gaussian beam) and the SHG width 1/∫φ⁴dy. Open slab: the grating lines are circular arcs of radius R<sub>c</sub> and width A; the lateral field is a Gaussian beam. A propagate–reflect–propagate (ABCD) round trip with clipping at the aperture gives the bounce efficiency η that scales the DBR amplitude reflection by √η in the CRIGF, with the lateral waist chosen to maximise η (it equals the resonator eigenmode when the cavity is stable). The mirror plane sits one DBR penetration depth tanh(κL)/2κ inside the grating.</li>
+        <li><b>Vertical stack.</b> Optional handle under the substrate layer (then a BOX of thickness t<sub>BOX</sub>): Si (light radiated downward continues into the Si) or a gold mirror (the downward channel is closed). Plane waves are solved through the whole stack, so BOX interference sets the coupler's up/down ratio and its strength. The guided mode is assumed not to leak into the handle (thick enough BOX).</li>
+        <li><b>Pump depletion.</b> From the undepleted solution, E<sub>NL</sub> = guided SH per direction / P<sub>c</sub>². Per pass a fraction tanh²(√(E<sub>NL</sub>P<sub>c</sub>)) converts; it enters the straight sections as extra loss, and P<sub>c</sub> is iterated with the full cavity solver until consistent. Radiated SH keeps its low-power ratio to the guided SH. Not included: Kerr and thermal detuning, photorefractive index drift, absorption of the SH (GRIIRA/BLIIRA), SH feedback by the DBRs.</li>
+        <li><b>Photorefraction.</b> Peak guided SH intensity = (SH per output) / (mode area), area = lateral SHG width/√2 × vertical 1/∫φ⁴. Onset thresholds are order-of-magnitude placeholders: undoped congruent LN shows index drift at kW/cm² visible, MgO:LN near MW/cm², LT about ten times above that. Measured TFLN/TFLT values depend on doping, stoichiometry, annealing and cladding, so edit them.</li>
+        <li><b>Materials.</b> Sellmeier fits, isotropic, absorption ignored. Si and most III-V cores absorb at visible SHG wavelengths. For custom layers, the index is a Cauchy curve through the values you give at λ₀ and at the probe wavelength.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="dbr-engine.js"></script>
+<script>
+(() => {
+'use strict';
+/* ---------- UI ---------- */
+const $ = id => document.getElementById(id);
+const MINUS = s => s.replace(/-/g, '−');
+const sig = (x, p = 4) => { if (!Number.isFinite(x)) return '—'; const a = Math.abs(x); if (a === 0) return '0'; const s = (a >= 1e5 || a < 1e-3) ? x.toExponential(p - 1) : x.toPrecision(p); return MINUS(s); };
+const fmtP = W => { if (!Number.isFinite(W)) return '—'; if (W === 0) return '0 W'; const u = [[1, 'W'], [1e-3, 'mW'], [1e-6, 'µW'], [1e-9, 'nW'], [1e-12, 'pW'], [1e-15, 'fW']]; for (const [s, n] of u) if (W >= s) return sig(W / s, 3) + ' ' + n; return sig(W, 3) + ' W'; };
+const fx = (x, d) => Number.isFinite(x) ? MINUS(x.toFixed(d)) : '—';
+const fmtLen = um => !Number.isFinite(um) ? '—' : um >= 1000 ? fx(um / 1000, um >= 1e4 ? 1 : 2) + ' mm' : um >= 10 ? fx(um, 1) + ' µm' : fx(um * 1000, 1) + ' nm';
+const fmtBW = um => { if (!Number.isFinite(um)) return '—'; const nm = um * 1000; return nm < 0.1 ? fx(nm * 1000, 1) + ' pm' : sig(nm, 3) + ' nm'; };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+const ctl = {};
+function addSlider(parent, id, label, min, max, step, val, unit, opt = {}) {
+  const row = document.createElement('div'); row.className = 'row'; row.id = 'row_' + id;
+  const lg = !!opt.log;
+  const rv = lg ? Math.log10(val) : val;
+  row.innerHTML = `<label for="${id}"><span id="${id}_lab">${label}</span></label>
+    <div class="pair"><input type="range" id="${id}" min="${lg ? Math.log10(min) : min}" max="${lg ? Math.log10(max) : max}" step="${lg ? 0.001 : step}" value="${rv}">
+    <span class="numwrap"><input type="number" id="${id}_n" min="${min}" max="${max}" step="${step}" value="${val}" aria-label="${label}"><span class="unit">${unit}</span></span></div>`;
+  (opt.before ? parent.insertBefore(row, opt.before) : parent.appendChild(row));
+  const r = row.querySelector('input[type=range]'), n = row.querySelector('input[type=number]');
+  const dec = (String(step).split('.')[1] || '').length;
+  const c = { r, n, lg, min, max, row, dec,
+    get() { const v = parseFloat(n.value); return Number.isFinite(v) ? Math.min(c.max, Math.max(c.min, v)) : c.min; },
+    set(v) { v = Math.min(c.max, Math.max(c.min, v)); n.value = (+v).toFixed(dec); r.value = lg ? Math.log10(v) : v; },
+    setMax(m) { c.max = m; n.max = m; r.max = lg ? Math.log10(m) : m; if (c.get() > m) c.set(m); } };
+  r.addEventListener('input', () => { const v = lg ? Math.pow(10, +r.value) : +r.value; n.value = v.toFixed(dec); onChange(id); });
+  n.addEventListener('change', () => { c.set(c.get()); onChange(id); });
+  ctl[id] = c; return c;
+}
+function layerRow(parent, key, label, def, before) {
+  const row = document.createElement('div'); row.className = 'row';
+  const opts = Object.entries(MATS).map(([k, m]) => `<option value="${k}">${m.label}</option>`).join('');
+  row.innerHTML = `<label for="mat_${key}"><span>${label}</span><span class="mini" id="nshow_${key}"></span></label>
+    <select id="mat_${key}">${opts}</select>
+    <div class="custom" id="cust_${key}" hidden>
+      <label class="mini">n at λ₀<input type="number" id="n1_${key}" step="0.001" value="${def.n1 || 1.5}"></label>
+      <label class="mini">n at probe<input type="number" id="n2_${key}" step="0.001" value="${def.n2 || 1.5}"></label></div>`;
+  before ? parent.insertBefore(row, before) : parent.appendChild(row);
+  $('mat_' + key).value = def.mat;
+  for (const id of ['mat_' + key, 'n1_' + key, 'n2_' + key]) $(id).addEventListener('change', () => onChange(id));
+}
+
+const gWG = $('g-wg'), gGR = $('g-gr'), gSP = $('g-sp'), gPR = $('g-pr');
+addSlider(gWG, 'lam0', 'Design wavelength λ₀', 400, 2500, 1, 1550, 'nm');
+addSlider(gWG, 't', 'Core thickness t', 50, 3000, 5, 600, 'nm');
+layerRow(gWG, 'clad', 'Cladding (top, fills etch)', { mat: 'air' });
+layerRow(gWG, 'core', 'Core', { mat: 'lne' });
+layerRow(gWG, 'sub', 'Substrate (BOX if a handle is set)', { mat: 'sio2' });
+{ const row = document.createElement('div'); row.className = 'row'; row.innerHTML = '<label for="under">Below the substrate layer</label><select id="under"><option value="none">Nothing (semi-infinite substrate)</option><option value="si">Si handle (TFLN on insulator)</option><option value="au">Gold mirror</option></select>'; gWG.appendChild(row); $('under').addEventListener('change', () => onChange('under')); }
+addSlider(gWG, 'tbox', 'BOX thickness', 0.2, 6, 0.01, 2, 'µm');
+addSlider(gGR, 'h', 'Etch depth h', 0, 600, 1, 40, 'nm');
+addSlider(gGR, 'f', 'Filling ratio f (tooth / period)', 0.05, 0.95, 0.01, 0.5, '');
+addSlider(gGR, 'sw', 'Sidewall angle', 30, 90, 1, 80, '°');
+addSlider(gGR, 'sig', 'Edge rounding σ', 0, 150, 1, 20, 'nm');
+addSlider(gGR, 'N', 'Number of periods N', 10, 20000, 1, 800, '', { log: true });
+addSlider(gGR, 'Lam', 'Period Λ', 80, 3000, 0.1, 380, 'nm');
+addSlider(gGR, 'loss', 'Propagation loss', 0, 50, 0.1, 0.5, 'dB/cm');
+addSlider(gSP, 'span', 'Span', 0.1, 600, 0.1, 20, 'nm', { log: true });
+const gSH = $('g-shg');
+addSlider(gSH, 'deff', 'Nonlinear coefficient d_eff', 0, 200, 0.5, 25, 'pm/V', { before: $('sOrder').closest('.row') });
+addSlider(gSH, 'Ppump', 'Pump power in the guide', 1, 5000, 1, 100, 'mW', { log: true, before: $('sOrder').closest('.row') });
+addSlider(gSH, 'wEff', 'Effective mode width w (lateral)', 0.3, 30, 0.1, 2, 'µm', { before: $('sOrder').closest('.row') });
+const gLat = $('g-lat');
+addSlider(gLat, 'W', 'Ridge width W', 0.3, 100, 0.01, 4, 'µm', { log: true, before: $('flatRow') });
+addSlider(gLat, 'WGC', 'Coupler width (wide section)', 2, 200, 0.1, 20, 'µm', { log: true, before: $('flatRow') });
+addSlider(gLat, 'tLoss', 'Taper loss per pass', 0, 2, 0.01, 0.1, 'dB', { before: $('flatRow') });
+addSlider(gLat, 'tSide', 'Side slab thickness t_side (0 = strip)', 0, 3000, 5, 300, 'nm', { before: $('flatRow') });
+addSlider(gLat, 'Rc', 'DBR arc radius R_c', 5, 100000, 1, 60, 'µm', { log: true, before: $('flatRow') });
+addSlider(gLat, 'Aper', 'Grating / DBR width A', 1, 2000, 0.1, 20, 'µm', { log: true, before: $('flatRow') });
+addSlider(gLat, 'wIn', 'Single DBR: input beam waist', 0.3, 200, 0.1, 3, 'µm', { log: true, before: $('flatRow') });
+addSlider(gLat, 'dSrc', 'Single DBR: source-to-DBR distance', 0, 5000, 1, 50, 'µm', { before: $('flatRow') });
+const gCR = $('g-cr'), gQ = $('g-qpm');
+addSlider(gCR, 'NG', 'GC periods', 3, 400, 1, 30, '', { log: true, before: $('lockG').closest('label') });
+addSlider(gCR, 'LamG', 'GC period Λ_G', 100, 4000, 0.1, 770, 'nm');
+addSlider(gCR, 'fG', 'GC filling ratio', 0.05, 0.95, 0.01, 0.5, '');
+addSlider(gCR, 'hG', 'GC etch depth', 0, 600, 1, 40, 'nm');
+addSlider(gCR, 'Ls', 'Straight section each side L_s (poled)', 0, 5000, 1, 0, 'µm');
+addSlider(gCR, 'sp', 'Phase spacer (fine tuning)', 0, 3000, 1, 100, 'nm');
+addSlider(gCR, 'theta', 'Incidence angle θ (from normal)', -30, 30, 0.1, 0, '°');
+addSlider(gCR, 'w0', 'Beam waist w₀ (along the guide)', 1, 300, 1, 8, 'µm', { log: true });
+addSlider(gCR, 'w0y', 'Beam waist across the guide w₀y', 0.3, 300, 0.1, 8, 'µm', { log: true });
+addSlider(gQ, 'Lpp', 'Poled section length', 100, 30000, 1, 4000, 'µm', { log: true, before: $('qTarget').closest('.row') });
+addSlider(gQ, 'qDuty', 'Poling duty cycle', 0.1, 0.9, 0.01, 0.5, '', { before: $('qTarget').closest('.row') });
+addSlider(gQ, 'qCustom', 'Custom bandwidth target', 0.1, 100, 0.1, 3, 'nm', { before: $('qRun').closest('.btns') });
+addSlider(gPR, 'lamP', 'Probe λ', 250, 3000, 1, 775, 'nm', { before: $('probeBtns') });
+
+let crBase = null, lsRows = null;
+let pol = 'TE', fieldLam = null, lastRes = null, mode = 'dbr', fieldLamC = null, qpmFixed = null, qpmMsg = '';
+function setMode(m) { mode = m; $('devDBR').setAttribute('aria-pressed', m === 'dbr'); $('devCR').setAttribute('aria-pressed', m === 'cr'); fieldLamC = null; onChange('mode'); }
+$('devDBR').onclick = () => setMode('dbr'); $('devCR').onclick = () => setMode('cr');
+$('qRun').onclick = () => {
+  $('qStatus').textContent = 'Optimizing…'; $('qRun').disabled = true;
+  setTimeout(() => {
+    try {
+      const st = readState(), tgt = st.qTarget;
+      const r = qpmDesign(st, { lamC: st.lam0, L: st.Lpp, sOrder: st.sOrder, duty: st.qDuty, w: st.wEff, d: st.deff || 1, target: tgt });
+      if (!r.ok) qpmMsg = 'The QPM modes are not guided; check the stack.';
+      else if (r.best === r.uniform) { qpmFixed = null; qpmMsg = tgt > 0 ? `Uniform poling already gives ${fmtBW(r.uniform.m.fwhm)}, which meets or exceeds the ${fmtBW(tgt)} target. Use a longer section to narrow it.` : 'Uniform poling.'; }
+      else { qpmFixed = { chirp: r.best.chirp, apod: r.best.apod, log: r.log, target: tgt }; qpmMsg = `Done: ${r.log.length} evaluations. Chirp ${sig(r.best.chirp * 1e6, 3)} µm⁻² (ΔK = ${sig(r.best.chirp * st.Lpp, 3)} µm⁻¹ over the section), taper ${fx(r.best.apod * 100, 0)} % per end.`; }
+    } catch (e) { qpmMsg = 'Optimizer failed: ' + e.message; }
+    $('qRun').disabled = false; onChange('qpm');
+  }, 30);
+};
+$('qReset').onclick = () => { qpmFixed = null; qpmMsg = 'Uniform poling.'; onChange('qpm'); };
+function copyText(text, btn) {
+  const done = ok => { const o = btn.textContent; btn.textContent = ok ? 'Copied' : 'Select and copy below'; setTimeout(() => btn.textContent = o, 1600); };
+  const fallback = () => { let ta = btn.parentNode.querySelector('textarea'); if (!ta) { ta = document.createElement('textarea'); ta.rows = 4; ta.style.width = '100%'; ta.style.fontFamily = 'var(--f-num)'; ta.style.fontSize = '11px'; btn.parentNode.appendChild(ta); } ta.value = text; ta.select(); done(false); };
+  try { navigator.clipboard.writeText(text).then(() => done(true), fallback); } catch (e) { fallback(); }
+}
+$('csvS').onclick = () => { const r = lastRes; if (!r) return; copyText('wavelength_nm,R,T,R_coupled_mode\n' + Array.from(r.lam, (l, i) => [(l * 1000).toFixed(5), r.R[i].toPrecision(7), r.T[i].toPrecision(7), r.Rc[i].toPrecision(7)].join(',')).join('\n'), $('csvS')); };
+$('csvC').onclick = () => { const r = lastRes && lastRes.cr; if (!r) return; copyText('wavelength_nm,R_beam,T_beam,guided_escape,R_bare_slab\n' + Array.from(r.lam, (l, i) => [(l * 1000).toFixed(5), r.R[i].toPrecision(7), r.T[i].toPrecision(7), r.E[i].toPrecision(7), r.Rd[i].toPrecision(7)].join(',')).join('\n'), $('csvC')); };
+$('csvQ').onclick = () => { const q = lastRes && lastRes.qpm; if (!q || !q.ok) return; copyText('pump_wavelength_nm,eta_designed_percent_per_W,eta_uniform_percent_per_W\n' + Array.from(q.lams, (l, i) => [(l * 1000).toFixed(5), (q.best.eta[i] * 100).toPrecision(6), (q.uniform.eta[i] * 100).toPrecision(6)].join(',')).join('\n'), $('csvQ')); };
+$('polTE').onclick = () => { pol = 'TE'; $('polTE').setAttribute('aria-pressed', 'true'); $('polTM').setAttribute('aria-pressed', 'false'); onChange('pol'); };
+$('polTM').onclick = () => { pol = 'TM'; $('polTM').setAttribute('aria-pressed', 'true'); $('polTE').setAttribute('aria-pressed', 'false'); onChange('pol'); };
+for (const b of document.querySelectorAll('#probeBtns button')) b.onclick = () => { ctl.lamP.set(ctl.lam0.get() / +b.dataset.div); onChange('lamP'); };
+for (const id of ['profile', 'm', 'lock', 'autospan', 'showcmt', 'pOrder', 'sweepVar', 'shgOn', 'sOrder', 'lockG', 'poleMode', 'qTarget', 'zoomC', 'latMode', 'flat', 'autoW', 'matchY']) $(id).addEventListener('change', () => onChange(id));
+
+const PRESETS = {
+  tfln: { pol: 'TE', lam0: 1550, t: 600, clad: { mat: 'air' }, core: { mat: 'lne' }, sub: { mat: 'sio2' }, profile: 'rect', m: 1, h: 40, f: 0.5, N: 800, loss: 0.5, lamP: 775, deff: 25 },
+  sin:  { pol: 'TE', lam0: 1550, t: 400, clad: { mat: 'sio2' }, core: { mat: 'si3n4' }, sub: { mat: 'sio2' }, profile: 'rect', m: 1, h: 20, f: 0.5, N: 2000, loss: 0.3, lamP: 775, deff: 0 },
+  soi:  { pol: 'TE', lam0: 1550, t: 220, clad: { mat: 'sio2' }, core: { mat: 'si' }, sub: { mat: 'sio2' }, profile: 'trap', sw: 85, m: 1, h: 70, f: 0.5, N: 150, loss: 2, lamP: 775, deff: 0 },
+  hp:   { pol: 'TE', lam0: 1550, t: 600, clad: { mat: 'air' }, core: { mat: 'lne' }, sub: { mat: 'sio2' }, profile: 'rect', m: 1, h: 40, f: 0.5, N: 300, loss: 0.5, lamP: 775, deff: 25, dev: 'cr', lat: 'taper', W: 2, tSide: 400, under: 'au', tbox: 1.5, Ls: 2000, hG: 80, NG: 30, P: 1000 },
+  hplt: { pol: 'TE', lam0: 1550, t: 600, clad: { mat: 'air' }, core: { mat: 'lte' }, sub: { mat: 'sio2' }, profile: 'rect', m: 1, h: 40, f: 0.5, N: 300, loss: 0.5, lamP: 775, deff: 13.8, dev: 'cr', lat: 'taper', W: 2, tSide: 400, under: 'au', tbox: 1.5, Ls: 2000, hG: 80, NG: 30, P: 1000 },
+  semi: { pol: 'TE', lam0: 1064, t: 900, clad: { mat: 'air' }, core: { mat: 'custom', n1: 3.45, n2: 3.75 }, sub: { mat: 'custom', n1: 3.25, n2: 3.45 }, profile: 'rect', m: 2, h: 100, f: 0.3, N: 1500, loss: 3, lamP: 532, deff: 90 }
+};
+function applyPreset(k) {
+  const p = PRESETS[k];
+  pol = p.pol; $('polTE').setAttribute('aria-pressed', pol === 'TE'); $('polTM').setAttribute('aria-pressed', pol === 'TM');
+  ctl.lam0.set(p.lam0); ctl.t.set(p.t); ctl.h.setMax(p.t);
+  for (const L of ['clad', 'core', 'sub']) { $('mat_' + L).value = p[L].mat; if (p[L].n1) { $('n1_' + L).value = p[L].n1; $('n2_' + L).value = p[L].n2; } }
+  $('profile').value = p.profile; $('m').value = p.m; $('lock').checked = true; $('autospan').checked = true;
+  ctl.h.set(p.h); ctl.f.set(p.f); ctl.N.set(p.N); ctl.loss.set(p.loss); ctl.lamP.set(p.lamP); if (p.sw) ctl.sw.set(p.sw); ctl.deff.set(p.deff);
+  ctl.hG.setMax(p.t); ctl.hG.set(p.hG || p.h);
+  $('latMode').value = p.lat || '2d'; $('under').value = p.under || 'none'; if (p.tbox) ctl.tbox.set(p.tbox);
+  if (p.W) ctl.W.set(p.W); if (p.tSide) { ctl.tSide.setMax(p.t); ctl.tSide.set(p.tSide); } ctl.Ls.set(p.Ls || 0); if (p.NG) ctl.NG.set(p.NG); if (p.P) ctl.Ppump.set(p.P);
+  if (p.dev) { mode = p.dev; $('devDBR').setAttribute('aria-pressed', mode === 'dbr'); $('devCR').setAttribute('aria-pressed', mode === 'cr'); }
+  pwRows = null; if (p.dev === 'cr') setTimeout(() => $('tuneSp').click(), 500); if (!p.tSide) { ctl.tSide.setMax(p.t); ctl.tSide.set(p.t / 2); } fieldLam = null; onChange('preset');
+}
+$('preset').addEventListener('change', () => applyPreset($('preset').value));
+
+function readState() {
+  const L = k => ({ mat: $('mat_' + k).value, n1: parseFloat($('n1_' + k).value) || 1, n2: parseFloat($('n2_' + k).value) || 1 });
+  return { lam0: ctl.lam0.get() / 1000, lamP: ctl.lamP.get() / 1000, pol, t: ctl.t.get() / 1000, h: Math.min(ctl.h.get(), ctl.t.get()) / 1000,
+    f: ctl.f.get(), N: Math.round(ctl.N.get()), m: +$('m').value, lock: $('lock').checked, Lam: ctl.Lam.get() / 1000,
+    profile: $('profile').value, sw: ctl.sw.get(), sig: ctl.sig.get() / 1000, loss: ctl.loss.get(), pOrder: +$('pOrder').value,
+    autospan: $('autospan').checked, span: ctl.span.get() / 1000, showcmt: $('showcmt').checked, sweepVar: $('sweepVar').value,
+    layers: { sub: L('sub'), core: L('core'), clad: L('clad') },
+    shgOn: $('shgOn').checked, deff: ctl.deff.get(), Ppump: ctl.Ppump.get() / 1000, wEff: ctl.wEff.get(), sOrder: +$('sOrder').value,
+    mode, NG: Math.round(ctl.NG.get()), LamG: ctl.LamG.get() / 1000, fG: ctl.fG.get(), hG: Math.min(ctl.hG.get(), ctl.t.get()) / 1000, sp: ctl.sp.get() / 1000,
+    theta: ctl.theta.get(), w0: ctl.w0.get(), w0y: ctl.w0y.get(), matchY: $('matchY').checked,  lockG: $('lockG').checked, zoomC: $('zoomC').checked,
+    poleMode: $('poleMode').value, poleDev: $('poleMode').value !== 'none', Ls: ctl.Ls.get(), Lpp: ctl.Lpp.get(), qDuty: ctl.qDuty.get(),
+    qTarget: $('qTarget').value === 'c' ? ctl.qCustom.get() / 1000 : +$('qTarget').value / 1000,
+    lat: { mode: $('latMode').value, WGC: ctl.WGC.get(), tLoss: ctl.tLoss.get(), W: ctl.W.get(), tSide: Math.min(ctl.tSide.get(), ctl.t.get()) / 1000, Rc: $('flat').checked ? Infinity : ctl.Rc.get(), A: ctl.Aper.get(), wIn: ctl.wIn.get(), dSrc: ctl.dSrc.get() },
+    autoW: $('autoW').checked, under: { mode: $('under').value, tbox: ctl.tbox.get() } };
+}
+
+let pending = false;
+function onChange(id) {
+  if (id === 't') { ctl.h.setMax(ctl.t.get()); ctl.hG.setMax(ctl.t.get()); ctl.tSide.setMax(ctl.t.get()); }
+  if (['lam0', 'Lam', 'm', 'lock', 'preset', 'profile', 't', 'h', 'f', 'pol', 'N', 'NG', 'LamG', 'fG', 'hG', 'sp', 'Ls', 'theta', 'w0', 'w0y', 'matchY', 'lockG', 'zoomC', 'latMode', 'W', 'tSide', 'Rc', 'Aper', 'flat', 'WGC', 'tLoss', 'under', 'tbox'].includes(id) || id.startsWith('mat_') || id.startsWith('n1_')) { fieldLam = null; fieldLamC = null; }
+  if (!/^pr/.test(id)) pwRows = null;
+  if (!pending) { pending = true; const run = () => { if (!pending) return; pending = false; safeCompute(); }; requestAnimationFrame(run); setTimeout(run, 60); }
+}
+
+/* lateral geometry: ridge mode or open-slab Gaussian with curved DBRs */
+function lateralInfo(st, c) {
+  const L = st.lat, out = { oy: 1, etaB: 1, rows: [] };
+  if (L.mode === '2d') return out;
+  const lam0 = st.lam0, tab = c.tab, ns = tab.ns, nf = tab.nf, nc = tab.nc;
+  const Lpen = Math.tanh(c.kap * c.L) / (2 * c.kap);
+  if (L.taper) {
+    const nV = slabNeff(lam0, ns, nf, nc, st.t, st.pol, 0);
+    const rl = ridgeLateral(st, lam0, nV, ns, nf, nc, 2);
+    const stW = { ...st, lat: { ...L, W: L.WGC, _cache: undefined } };
+    let rg = ridgeLateral(stW, lam0, nV, ns, nf, nc, st.w0y);
+    if (st.matchY) { for (let i = 0; i <= 40; i++) { const w = 0.3 * Math.pow(300, i / 40), t = ridgeLateral(stW, lam0, nV, ns, nf, nc, w); if (t.valid && (!rg.valid || t.Oy2 > rg.Oy2)) { rg = t; out.w0yBest = w; } } }
+    if (!rl.valid || !rg.valid) { out.warn = 'The rib or the wide coupler section is laterally cut off.'; return out; }
+    out.oy = Math.sqrt(rg.Oy2); out.etaB = Math.pow(10, -2 * L.tLoss / 10); out.wEff = rl.wEff; out.wLat = 0;
+    out.rows = [['Rib n_eff (slab → rib)', fx(nV, 4) + ' → ' + fx(tab.vals[tab.K], 4)], ['SHG width in the rib 1/∫φ⁴', fx(rl.wEff, 2) + ' µm'], ['Beam ↔ wide-coupler mode overlap', fx(rg.Oy2 * 100, 1) + ' %'], ['Taper round trip per DBR bounce', fx(out.etaB * 100, 2) + ' %']];
+    out.note = `Coupler ${fx(L.WGC, 1)} µm wide, tapered to a ${fx(L.W, 2)} µm rib; the grating periods use the rib index.`;
+    return out;
+  }
+  if (L.mode === 'ridge') {
+    const nV = slabNeff(lam0, ns, nf, nc, st.t, st.pol, 0);
+    let rl = ridgeLateral(st, lam0, nV, ns, nf, nc, st.w0y);
+    if (st.matchY && rl.valid) { let bw = st.w0y; for (let i = 0; i <= 40; i++) { const w = 0.3 * Math.pow(100, i / 40), t = ridgeLateral(st, lam0, nV, ns, nf, nc, w); if (t.valid && t.Oy2 > rl.Oy2) { rl = t; bw = w; } } out.w0yBest = bw; }
+    if (!rl.valid) { out.warn = 'The ridge is laterally below cut-off. Widen it or reduce the side slab thickness.'; return out; }
+    out.oy = Math.sqrt(rl.Oy2); out.wEff = rl.wEff;
+    const nm = (() => { let k = 0; while (k < 20 && Number.isFinite(slabNeff(lam0, rl.nSide, nV, rl.nSide, L.W, st.pol === 'TE' ? 'TM' : 'TE', k))) k++; return k; })();
+    out.rows = [['Ridge n_eff (slab → ridge)', fx(nV, 4) + ' → ' + fx(tab.vals[tab.K], 4)], ['Side-region index', fx(rl.nSide, 4)], ['Lateral modes in the ridge', String(nm)], ['SHG width 1/∫φ⁴', fx(rl.wEff, 2) + ' µm']];
+    if (st.mode === 'cr') out.rows.push(['Beam ↔ ridge-mode overlap', fx(rl.Oy2 * 100, 1) + ' %']);
+    out.note = `n_eff includes the lateral step: ${fx(nV, 4)} (slab) → ${fx(tab.vals[tab.K], 4)} (W = ${fx(L.W, 2)} µm).`;
+    if (nm > 1) out.warn = `The ridge supports ${nm} lateral modes at λ₀; only the fundamental is modelled.`;
+    return out;
+  }
+  /* open slab with curved DBRs */
+  const lamM = lam0 / c.N0, a = L.A / 2;
+  if (st.mode === 'cr') {
+    const stG = { ...st, h: st.hG, f: st.fG, profile: 'rect' };
+    const Lc = st.NG * st.LamG + 2 * (st.sp + (st.Ls || 0)) + 2 * Lpen, d = Lc / 2;
+    const bb = bestBounce(lamM, d, L.Rc, a);
+    const wy = st.matchY ? bb.w : st.w0y, Oy2 = 2 * bb.w * wy / (bb.w * bb.w + wy * wy); if (st.matchY) out.w0yBest = bb.w;
+    out.oy = Math.sqrt(Oy2); out.etaB = bb.eta; out.wEff = Math.sqrt(Math.PI) * bb.w; out.wLat = bb.w;
+    const g = 1 - Lc / L.Rc;
+    out.rows = [['Cavity length incl. penetration', fmtLen(Lc)], ['Resonator g = 1 − L/R_c', Number.isFinite(L.Rc) ? fx(g, 3) + (Math.abs(g) < 1 ? ' (stable)' : ' (unstable)') : '1 (flat)'],
+      ['Lateral waist w (centre) / at DBR', fx(bb.w, 2) + ' / ' + fx(bb.wm, 2) + ' µm'], ['Bounce: aperture clip × mode return', fx(bb.clip * 100, 2) + ' % × ' + fx(bb.ov * 100, 2) + ' %'],
+      ['Bounce efficiency η', fx(bb.eta * 100, 2) + ' %'], ['Beam ↔ lateral mode overlap', fx(Oy2 * 100, 1) + ' %'], ['SHG width √π·w', fx(out.wEff, 2) + ' µm']];
+    out.note = `Curved DBRs: η = ${fx(bb.eta * 100, 2)} % per bounce scales the mirror reflection in the CRIGF.`;
+    if (bb.eta < 0.9) out.warn = `Lateral diffraction and aperture clipping lose ${fx((1 - bb.eta) * 100, 1)} % per DBR bounce. Curve the DBRs (R_c ≈ L/2 to L) or widen them.`;
+  } else {
+    const d = L.dSrc + Lpen, b = bounce(lamM, L.wIn, d, L.Rc, a);
+    const zR = Math.PI * L.wIn * L.wIn / lamM, Ropt = d > 0 ? d * (1 + (zR / d) ** 2) : Infinity;
+    out.single = b; out.wEff = Math.sqrt(Math.PI) * L.wIn;
+    out.rows = [['Mirror plane distance (incl. penetration)', fmtLen(d)], ['Beam width at the DBR', fx(b.wm, 2) + ' µm'], ['Matched DBR radius R(z)', Number.isFinite(Ropt) ? fmtLen(Ropt) : '∞'],
+      ['Back-coupling η (clip × return)', fx(b.clip * 100, 1) + ' % × ' + fx(b.ov * 100, 1) + ' %']];
+    out.note = `Guided Gaussian beam (waist ${fx(L.wIn, 1)} µm) launched ${fmtLen(L.dSrc)} before the DBR; reflection back into the same mode.`;
+  }
+  return out;
+}
+$('tuneSp').onclick = () => {
+  if (!crBase) return; $('tuneStatus').textContent = 'Tuning…'; $('tuneSp').disabled = true;
+  setTimeout(() => { try { const { st, g, fsr, nSp } = crBase; const r = tunePhase(st, g, st.lam0, fsr, nSp); ctl.sp.set(r.sp * 1000); fieldLamC = r.lam;
+      $('tuneStatus').textContent = `Spacer ${fx(r.sp * 1000, 1)} nm: resonance ${fx(r.lam * 1000, 4)} nm, FWHM ${fmtBW(r.fwhm)}, circulating power ${sig(r.Umax, 3)}× the beam.`; }
+    catch (e) { $('tuneStatus').textContent = 'Tuning failed: ' + e.message; }
+    $('tuneSp').disabled = false; safeCompute(); }, 30);
+};
+$('runLs').onclick = () => {
+  if (!crBase) return;
+  const base = crBase, st0 = base.st, list = [0, 10, 30, 100, 300, 1000, 2000, 3000, 5000], rows = [];
+  $('runLs').disabled = true;
+  const stepLs = i => {
+    if (i >= list.length) { lsRows = rows; $('runLs').disabled = false; $('lsStatus').textContent = `Done: ${rows.length} lengths, pump ${fmtP(st0.Ppump)}, poling ${st0.poleMode}, loss ${fx(st0.loss, 1)} dB/cm.`; drawLs(); return; }
+    $('lsStatus').textContent = `Computing L_s = ${fmtLen(list[i])} (${i + 1}/${list.length})…`;
+    setTimeout(() => {
+      try {
+        const Ls = list[i], st = { ...st0, Ls };
+        const lat = lateralInfo(st, base.c), w = (lat.wEff && st.autoW) ? lat.wEff : st.wEff;
+        const g = { ...base.g, Ls, oy: lat.oy, etaB: lat.etaB };
+        const LpenD = Math.tanh(base.c.kap * base.c.L) / (2 * base.c.kap), Lc = g.NG * g.LamG + 2 * (g.sp + Ls) + 2 * LpenD, fsr = st.lam0 ** 2 / (2 * base.c.ng * Lc);
+        const r = tunePhase(st, g, st.lam0, fsr, base.nSp), g2 = { ...g, sp: r.sp }, crf = crigfAt(st, g2, r.lam, true);
+        const sh = shgSampled(st, r.lam, crf, g2, { P: st.Ppump, w, d: st.deff, sOrder: st.sOrder, poleMode: st.poleMode, duty: st.qDuty });
+        const Pg = (sh.Pf || 0) + (sh.Pb || 0), Pr = sh.up.P + sh.down.P, P2 = st.Ppump ** 2;
+        rows.push({ off: sh.offset, Ls, sp: r.sp, lam: r.lam, fwhm: r.fwhm, Q: r.lam / r.fwhm, U: r.Umax, R: crf.R, eta: (Pg + Pr) / P2, etaG: Pg / P2, etaR: Pr / P2, etaSP: (sh.Psp || 0) / P2 });
+      } catch (e) { rows.push({ Ls: list[i], err: e.message }); }
+      stepLs(i + 1);
+    }, 20);
+  };
+  stepLs(0);
+};
+$('csvLs').onclick = () => { if (!lsRows) return; copyText('Ls_um,spacer_nm,lambda_res_nm,fwhm_pm,Q,circ_power_rel,R,eta_total_percent_per_W,eta_guided_percent_per_W,eta_radiated_percent_per_W,eta_single_pass_percent_per_W\n' + lsRows.filter(r => !r.err).map(r => [r.Ls, (r.sp * 1000).toFixed(2), (r.lam * 1000).toFixed(5), (r.fwhm * 1e6).toFixed(3), r.Q.toPrecision(4), r.U.toPrecision(4), r.R.toFixed(4), (r.eta * 100).toPrecision(4), (r.etaG * 100).toPrecision(4), (r.etaR * 100).toPrecision(4), (r.etaSP * 100).toPrecision(4)].join(',')).join('\n'), $('csvLs')); };
+function drawLs() {
+  const rows = (lsRows || []).filter(r => !r.err);
+  const tb = $('tblLs').querySelector('tbody');
+  tb.innerHTML = rows.length ? rows.map(r => `<tr><td>${fmtLen(r.Ls)}</td><td>${fx(r.sp * 1000, 0)} nm</td><td>${fx(r.lam * 1000, 3)}</td><td>${fmtBW(r.fwhm)}</td><td>${sig(r.Q, 3)}</td><td>${sig(r.U, 3)}×</td><td>${fx(r.R * 100, 1)} %</td><td>${sig(r.eta * 100, 3)} %/W${r.eta * lastRes.st.Ppump > 0.1 ? ' ⚠' : ''}</td><td>${sig(r.etaG * 100, 3)} %/W</td><td>${r.Ls > 0 && r.etaSP > 0 ? sig(r.etaG / r.etaSP, 3) + '×' : '—'}</td></tr>`).join('')
+    : '<tr><td colspan="10" style="text-align:left;color:var(--muted)">Press “Run length sweep”.</td></tr>';
+  const P0 = prep($('cvLs')); if (!P0 || !rows.length) return; const { ctx, w, h } = P0;
+  const pl = 54, pr = 14, pt = 12, pb = 34, gw = w - pl - pr, gh = h - pt - pb;
+  const xv = r => Math.log10(Math.max(r.Ls, 3)), x0 = Math.log10(3), x1 = Math.log10(Math.max(...rows.map(r => r.Ls), 10));
+  const ys = rows.flatMap(r => [r.eta, r.etaG, r.etaR, r.etaSP]).filter(v => v > 0).map(v => Math.log10(v * 100));
+  let y0 = Math.floor(Math.min(...ys)), y1 = Math.ceil(Math.max(...ys)); if (y1 - y0 > 8) y0 = y1 - 8; if (y1 === y0) y1 = y0 + 1;
+  const X = v => pl + gw * (v - x0) / (x1 - x0), Y = v => pt + gh * (1 - (Math.max(v, y0) - y0) / (y1 - y0));
+  const sup = e => '10' + (e < 0 ? '⁻' : '') + String(Math.abs(e)).split('').map(d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[+d]).join('');
+  ctx.strokeStyle = css('--grid'); ctx.fillStyle = css('--muted'); ctx.lineWidth = 1; ctx.textAlign = 'right';
+  for (let e = y0; e <= y1; e++) { ctx.beginPath(); ctx.moveTo(pl, Y(e)); ctx.lineTo(pl + gw, Y(e)); ctx.stroke(); ctx.fillText(sup(e), pl - 6, Y(e)); }
+  ctx.textAlign = 'center';
+  for (const r of rows) { ctx.beginPath(); ctx.moveTo(X(xv(r)), pt); ctx.lineTo(X(xv(r)), pt + gh); ctx.stroke(); ctx.fillText(r.Ls === 0 ? '0' : (r.Ls >= 1000 ? fx(r.Ls / 1000, 0) + ' mm' : String(r.Ls)), X(xv(r)), h - pb + 13); }
+  ctx.fillText('straight section each side, L_s (µm);  η in %/W', pl + gw / 2, h - 7);
+  const ln = (key, col, wd, dash) => { ctx.beginPath(); let first = true; for (const r of rows) { if (!(r[key] > 0)) continue; const px = X(xv(r)), py = Y(Math.log10(r[key] * 100)); first ? ctx.moveTo(px, py) : ctx.lineTo(px, py); first = false; } ctx.setLineDash(dash || []); ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = col; for (const r of rows) if (r[key] > 0) { ctx.beginPath(); ctx.arc(X(xv(r)), Y(Math.log10(r[key] * 100)), 2.5, 0, TAU); ctx.fill(); } };
+  ln('etaSP', css('--muted'), 1.2, [5, 4]); ln('etaR', css('--amber'), 1.5); ln('etaG', css('--green'), 1.5); ln('eta', css('--accent'), 2.2);
+  let best = rows[0]; for (const r of rows) if (r.eta > best.eta) best = r;
+  $('capLs').textContent = `Best total efficiency ${sig(best.eta * 100, 3)} %/W at L_s = ${fmtLen(best.Ls)} (Q ${sig(best.Q, 3)}, circulating power ${sig(best.U, 3)}× the beam). Phase spacer, pump wavelength and right-section poling offset tuned per length; propagation loss ${fx(lastRes.st.loss, 1)} dB/cm. Guided SH counts both output ends. ⚠ marks rows above 10 % conversion at ${fmtP(lastRes.st.Ppump)}, where pump depletion (not modelled) matters; the %/W values there are the low-power limit.`;
+}
+
+/* ---------- schematics ---------- */
+const SV = (body, h = 92) => `<svg viewBox="0 0 220 ${h}" role="img" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+const sideBase = (o = {}) => {
+  const y0 = o.y0 || 50, t = 12;
+  let s = `<rect x="0" y="0" width="220" height="${y0}" fill="var(--clad)"/>`;
+  if (o.mirror) s += `<rect x="0" y="${y0 + t}" width="220" height="14" fill="var(--sub)"/><rect x="0" y="${y0 + t + 14}" width="220" height="5" fill="var(--amber)"/><rect x="0" y="${y0 + t + 19}" width="220" height="12" fill="var(--sub)" opacity=".6"/>`;
+  else s += `<rect x="0" y="${y0 + t}" width="220" height="30" fill="var(--sub)"/>`;
+  s += `<rect x="0" y="${y0}" width="220" height="${t}" fill="var(--core)"/>`;
+  return s;
+};
+const teeth = (x0, x1, p, y0, col) => { let s = ''; for (let x = x0; x < x1 - p / 2; x += p) s += `<rect x="${x.toFixed(1)}" y="${y0}" width="${(p / 2).toFixed(1)}" height="3" fill="var(--clad)"/>`; return s + `<line x1="${x0}" y1="${y0 - 2}" x2="${x1}" y2="${y0 - 2}" stroke="${col}" stroke-width="1.5"/>`; };
+const domains = (x0, x1, y0, n) => { let s = ''; const w = (x1 - x0) / n; for (let i = 0; i < n; i++) s += `<rect x="${(x0 + i * w).toFixed(1)}" y="${y0 + 3}" width="${(w / 2).toFixed(1)}" height="9" fill="var(--amber)" opacity=".45"/>`; return s; };
+const beam = (xc, y0, w) => `<path d="M${xc - w} 2 L${xc + w} 2 L${xc + w * 0.6} ${y0} L${xc - w * 0.6} ${y0} Z" fill="var(--amber)" opacity=".28"/><path d="M${xc} 4 L${xc} ${y0 - 6}" stroke="var(--amber)" stroke-width="1.4"/><path d="M${xc - 3} ${y0 - 10} L${xc} ${y0 - 5} L${xc + 3} ${y0 - 10}" fill="none" stroke="var(--amber)" stroke-width="1.4"/>`;
+const lbl = (x, y, t, a = 'middle') => `<text x="${x}" y="${y}" font-size="8.5" font-family="var(--f-num)" fill="var(--ink)" text-anchor="${a}">${t}</text>`;
+const SCHEM = [
+  { id: 'dbr', title: 'Single DBR', text: 'Guided pump hits one Bragg mirror. Reflection spectrum, field, scattering, SHG inside the grating.',
+    svg: () => SV(sideBase() + teeth(110, 215, 5, 50, 'var(--accent)') + `<path d="M8 56 L60 56" stroke="var(--ink)" stroke-width="1.4"/><path d="M56 53 L61 56 L56 59" fill="none" stroke="var(--ink)"/>` + lbl(160, 40, 'DBR') + lbl(35, 44, 'guided pump')),
+    on: s => s.mode === 'dbr' },
+  { id: 'cr', title: 'CRIGF', text: 'Free-space beam onto a 2nd-order grating coupler between two DBRs: a resonant cavity fed from above.',
+    svg: () => SV(sideBase() + teeth(5, 80, 4, 50, 'var(--accent)') + teeth(88, 132, 8, 50, 'var(--green)') + teeth(140, 215, 4, 50, 'var(--accent)') + beam(110, 46, 16) + lbl(42, 40, 'DBR') + lbl(178, 40, 'DBR') + lbl(110, 86, 'GC')),
+    on: s => s.mode === 'cr' && !(s.Ls > 0) },
+  { id: 'crpp', title: 'CRIGF + poled straight sections', text: 'Long periodically poled sections between coupler and DBRs add QPM length inside the resonant field.',
+    svg: () => SV(sideBase() + teeth(3, 38, 4, 50, 'var(--accent)') + domains(40, 98, 50, 7) + teeth(100, 120, 8, 50, 'var(--green)') + domains(122, 180, 50, 7) + teeth(182, 217, 4, 50, 'var(--accent)') + beam(110, 46, 10) + lbl(69, 40, 'PPLN') + lbl(151, 40, 'PPLN') + lbl(20, 40, 'DBR') + lbl(200, 40, 'DBR')),
+    on: s => s.mode === 'cr' && s.Ls > 0 },
+  { id: 'rib', title: 'Rib, ridge or strip-loaded guide', text: 'Lateral index step keeps pump and SH in a µm-wide mode over any length (cross-section).',
+    svg: () => SV(`<rect x="0" y="0" width="220" height="92" fill="var(--clad)"/><rect x="0" y="62" width="220" height="30" fill="var(--sub)"/><rect x="0" y="54" width="220" height="8" fill="var(--core)"/><rect x="88" y="42" width="44" height="12" fill="var(--core)"/><ellipse cx="110" cy="55" rx="26" ry="9" fill="none" stroke="var(--amber)" stroke-dasharray="3 2"/>` + lbl(110, 34, 'W') + lbl(30, 50, 't_side', 'start') + lbl(110, 84, 'cross-section')),
+    on: s => s.lat.mode === 'ridge' && !s.lat.taper },
+  { id: 'curved', title: 'Open slab, curved DBRs', text: 'No lateral guide; arc-shaped DBRs refocus the cavity mode. Mode width grows as √(λL/πn).',
+    svg: () => { let s = `<rect x="0" y="0" width="220" height="92" fill="var(--clad)"/>`; for (let i = 0; i < 9; i++) { const x = 10 + i * 5; s += `<path d="M${x} 10 Q${x + 12} 46 ${x} 82" fill="none" stroke="var(--accent)"/>`; const x2 = 210 - i * 5; s += `<path d="M${x2} 10 Q${x2 - 12} 46 ${x2} 82" fill="none" stroke="var(--accent)"/>`; }
+      for (let i = 0; i < 6; i++) s += `<line x1="${98 + i * 5}" y1="22" x2="${98 + i * 5}" y2="70" stroke="var(--green)"/>`;
+      s += `<path d="M58 30 Q110 40 162 30 M58 62 Q110 52 162 62" fill="none" stroke="var(--amber)" stroke-dasharray="3 2"/>`; return SV(s + lbl(110, 88, 'top view')); },
+    on: s => s.lat.mode === 'slab' },
+  { id: 'taper', title: 'Wide coupler, tapered to a rib', text: 'Coupler as wide as a round beam; adiabatic tapers narrow the cavity mode into poled ribs and DBRs.',
+    svg: () => { let s = `<rect x="0" y="0" width="220" height="92" fill="var(--clad)"/><path d="M0 42 L70 42 L95 16 L125 16 L150 42 L220 42 L220 50 L150 50 L125 76 L95 76 L70 50 L0 50 Z" fill="var(--core)"/>`;
+      for (let i = 0; i < 7; i++) s += `<line x1="${98 + i * 4}" y1="18" x2="${98 + i * 4}" y2="74" stroke="var(--green)"/>`; for (let x = 4; x < 40; x += 3) s += `<line x1="${x}" y1="42" x2="${x}" y2="50" stroke="var(--accent)"/>`; for (let x = 182; x < 218; x += 3) s += `<line x1="${x}" y1="42" x2="${x}" y2="50" stroke="var(--accent)"/>`;
+      s += domains(42, 68, 38, 4) + domains(152, 178, 38, 4); s += `<circle cx="110" cy="46" r="20" fill="var(--amber)" opacity=".22"/>`; return SV(s + lbl(110, 88, 'top view')); },
+    on: s => !!s.lat.taper },
+  { id: 'mirror', title: 'Mirror under the BOX', text: 'Gold (or Si) under a tuned BOX sends the coupler’s downward light back up: better input coupling.',
+    svg: () => SV(sideBase({ mirror: true, y0: 40 }) + teeth(70, 150, 8, 40, 'var(--green)') + beam(110, 36, 16) + `<path d="M110 70 L110 84" stroke="var(--amber)" stroke-width="1.2"/><path d="M105 76 L110 69 L115 76" fill="none" stroke="var(--amber)"/>` + lbl(186, 74, 'BOX') + lbl(190, 86, 'Au')),
+    on: s => s.under && s.under.mode !== 'none' }
+];
+const IDEAS = [
+  { title: '1 · Wide coupler + tapers', text: 'Keep the coupler 15–30 µm wide to match a round, easily aligned beam; taper adiabatically (≈100–300 µm, < 0.1 dB) to 1–2 µm poled ribs and rib DBRs. Model: Lateral → “Wide coupler, tapered to a rib”.', svg: () => SCHEM[5].svg() },
+  { title: '2 · Close the downward channel', text: 'A 2nd-order coupler radiates both up and down; only the upward share can be fed by the beam, which caps conversion at about that share. Au under the BOX, or a tuned BOX on Si, raises it from ~30 % to 50–100 %.', svg: () => SCHEM[6].svg() },
+  { title: '3 · Match coupling to the operating power', text: 'At watt level the SH conversion is the dominant cavity loss. Choose coupler etch and length so radiative coupling equals linear + nonlinear loss at the target power (impedance matching), not for maximum low-power Q.', svg: () => SV(`<rect width="220" height="92" fill="var(--clad)"/><path d="M15 75 Q60 72 90 40 Q110 18 130 40 Q160 72 205 75" fill="none" stroke="var(--accent)" stroke-width="1.6"/><line x1="110" y1="12" x2="110" y2="80" stroke="var(--muted)" stroke-dasharray="3 2"/>` + lbl(110, 88, 'optimum coupling') + lbl(30, 30, 'under', 'start') + lbl(190, 30, 'over', 'end')) },
+  { title: '4 · Focusing or elliptical input', text: 'With a narrow guide under the coupler, use a cylindrical lens (elliptical spot, ~2 µm across) or a focusing (curved) coupler confocal with curved DBRs, so the lateral overlap stays near 100 %.', svg: () => SCHEM[4].svg() },
+  { title: '5 · Get the SH out cleanly', text: 'First-order pump DBRs are almost transparent at λ/2 (f = 0.5). Put an SH grating or edge facet outside a DBR, or set f ≈ 0.25–0.3 so the DBRs also reflect the SH (doubly resonant, harder to tune).', svg: () => SCHEM[2].svg() },
+  { title: '6 · Watt-level material', text: 'Above ~10–100 mW of SH in a µm² mode, photorefraction in TFLN shifts the phase matching. MgO doping, larger mode areas or thin-film LiTaO₃ (lower d, ~10× higher threshold) keep the operating point stable.', svg: () => SCHEM[3].svg() }
+];
+function drawSchem(st) {
+  const sel = { ...st, lat: st.lat };
+  $('schemCards').innerHTML = SCHEM.map(c => `<div class="card${c.on(sel) ? ' on' : ''}"><h3>${c.title}</h3>${c.svg()}<p>${c.text}</p>${c.on(sel) ? '<span class="tag">current setting</span>' : ''}</div>`).join('');
+  if (!$('ideaCards').dataset.done) { $('ideaCards').innerHTML = IDEAS.map(c => `<div class="card"><h3>${c.title}</h3>${c.svg()}<p>${c.text}</p></div>`).join(''); $('ideaCards').dataset.done = '1'; }
+}
+
+/* ---------- power scaling, depletion and photorefraction ---------- */
+let pwRows = null;
+function prThresholds() { const v = id => Math.max(parseFloat($(id).value) || 0, 1e-9); return [['undoped TFLN', v('prLN')], ['MgO:TFLN', v('prMg')], ['TFLT', v('prLT')]]; }
+for (const id of ['prLN', 'prMg', 'prLT']) $(id).addEventListener('change', () => drawPw());
+$('runPw').onclick = () => {
+  const r = lastRes; if (!r || !r.pw) return;
+  $('runPw').disabled = true; $('capPw').textContent = 'Computing the power sweep…';
+  setTimeout(() => { try { const ps = []; for (let i = 0; i <= 14; i++) ps.push(1e-3 * Math.pow(3000, i / 14)); pwRows = depletionSweep(r.st, r.pw.g, r.pw.lam, r.shg, r.st.Ppump, ps); } catch (e) { pwRows = null; }
+    $('runPw').disabled = false; drawPw(); }, 20);
+};
+$('csvPw').onclick = () => { if (!pwRows) return; copyText('P_in_W,P_SH_depleted_W,P_SH_undepleted_W,conversion,P_circ_W,per_pass_fraction\n' + pwRows.map(q => [q.P.toPrecision(5), q.Psh.toPrecision(5), q.PshU.toPrecision(5), q.conv.toPrecision(4), q.Pc.toPrecision(5), q.f.toPrecision(4)].join(',')).join('\n'), $('csvPw')); };
+function drawPw() {
+  const r = lastRes; if (!r) return;
+  $('p-pw').hidden = !r.pw;
+  if (!r.pw) return;
+  const { op, A2, AF } = r.pw, P = r.st.Ppump;
+  const ISH = op.Pg / 2 / A2 * 100, IP = op.Pc / AF * 100;          /* MW/cm² (1 W/µm² = 100 MW/cm²) */
+  const thr = prThresholds();
+  const rows = [
+    ['Operating pump (beam) power', fmtP(P)], ['SH out, with depletion', fmtP(op.Psh) + ' (' + fx(op.conv * 100, 1) + ' %)'],
+    ['SH out, undepleted estimate', fmtP(op.PshU)], ['Circulating pump per direction', fmtP(op.Pc) + ' (undepleted ' + fmtP(op.Pc0) + ')'],
+    ['Single-pass conversion per direction', fx(op.f * 100, 2) + ' %'], ['SH / pump mode areas', fx(A2, 2) + ' / ' + fx(AF, 2) + ' µm²'],
+    ['Peak SH intensity (per end)', sig(ISH, 3) + ' MW/cm²'], ['Peak circulating pump intensity', sig(IP, 3) + ' MW/cm²'],
+    ...thr.map(([n, I]) => [`SH power at ${n} onset (${sig(I, 2)} MW/cm²)`, fmtP(2 * I / 100 * A2) + (ISH > I ? ' — exceeded' : ' — ok')])
+  ];
+  $('roPw').innerHTML = rows.map(([k, v]) => `<div class="ro"><span class="k">${k}</span><span class="v"${/exceeded/.test(v) ? ' style="color:var(--warn)"' : ''}>${v}</span></div>`).join('');
+  const P0 = prep($('cvPw')); if (!P0) return; const { ctx, w, h } = P0;
+  const pl = 52, pr = 12, pt = 10, pb = 32, gw = w - pl - pr, gh = h - pt - pb;
+  const data = pwRows || [op];
+  const x0 = -3, x1 = Math.log10(3), ys = data.flatMap(q => [q.Psh, q.PshU]).filter(v => v > 0).map(Math.log10);
+  thr.forEach(([, I]) => ys.push(Math.log10(2 * I / 100 * A2)));
+  let y1 = Math.min(Math.ceil(Math.max(...ys, Math.log10(op.Psh || 1e-9))), 1), y0 = Math.max(Math.floor(Math.min(...ys)), y1 - 9);
+  const X = v => pl + gw * (Math.log10(v) - x0) / (x1 - x0), Y = v => pt + gh * (1 - (Math.max(Math.log10(Math.max(v, 1e-30)), y0) - y0) / (y1 - y0));
+  const sup = e => '10' + (e < 0 ? '⁻' : '') + String(Math.abs(e)).split('').map(d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[+d]).join('');
+  ctx.strokeStyle = css('--grid'); ctx.fillStyle = css('--muted'); ctx.lineWidth = 1; ctx.textAlign = 'right';
+  for (let e = y0; e <= y1; e++) { ctx.beginPath(); ctx.moveTo(pl, Y(10 ** e)); ctx.lineTo(pl + gw, Y(10 ** e)); ctx.stroke(); ctx.fillText(sup(e), pl - 6, Y(10 ** e)); }
+  ctx.textAlign = 'center';
+  for (const v of [1e-3, 1e-2, 1e-1, 1, 3]) { ctx.beginPath(); ctx.moveTo(X(v), pt); ctx.lineTo(X(v), pt + gh); ctx.stroke(); ctx.fillText(v >= 1 ? v + ' W' : v * 1000 + ' mW', X(v), h - pb + 13); }
+  ctx.fillText('pump beam power;  SH power in W', pl + gw / 2, h - 5);
+  thr.forEach(([n, I], i) => { const yv = 2 * I / 100 * A2; if (Math.log10(yv) < y0 || Math.log10(yv) > y1) return; ctx.setLineDash([5, 3]); ctx.strokeStyle = css('--warn'); ctx.beginPath(); ctx.moveTo(pl, Y(yv)); ctx.lineTo(pl + gw, Y(yv)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = css('--warn'); ctx.textAlign = 'left'; ctx.fillText(n, pl + 4 + i * 0, Y(yv) - 6); });
+  if (pwRows) {
+    const ln = (key, col, wd, dash) => { ctx.beginPath(); pwRows.forEach((q, i) => { const px = X(q.P), py = Y(q[key]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.setLineDash(dash || []); ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.stroke(); ctx.setLineDash([]); };
+    ln('PshU', css('--muted'), 1.2, [5, 4]); ln('Psh', css('--accent'), 2.2);
+  }
+  ctx.fillStyle = css('--accent'); ctx.beginPath(); ctx.arc(X(Math.min(Math.max(P, 1e-3), 3)), Y(op.Psh), 4, 0, TAU); ctx.fill();
+  const firstEx = thr.map(([n, I]) => { const lim = 2 * I / 100 * A2; const q = (pwRows || []).find(q => q.Psh > lim); return q ? `${n} from ≈ ${fmtP(q.P)}` : null; }).filter(Boolean);
+  $('capPw').textContent = `Operating point (dot) at ${fmtP(P)}: ${fmtP(op.Psh)} SH, ${fx(op.conv * 100, 1)} % conversion with depletion and cavity loading. ` + (pwRows ? (firstEx.length ? 'Photorefraction onset reached: ' + firstEx.join('; ') + '.' : 'No onset threshold reached up to 3 W.') : 'Run the power sweep for the full curve.');
+}
+
+function safeCompute() { try { $('errbar').hidden = true; compute(); } catch (e) { showErr('the solver', e); } }
+/* ---------- main computation ---------- */
+function solveCore(st) {
+  const lam0 = st.lam0, dbPerUm = Math.LN10 / 10 / 1e4;
+  const alphaProp = st.loss * dbPerUm;
+  let Lam = st.lock ? st.m * lam0 / (2 * 2) : st.Lam;
+  let pf, gS, tab, nP, N0;
+  for (let it = 0; it < (st.lock ? 6 : 1); it++) {
+    pf = profileFn(st, Lam); gS = sampleProfile(pf);
+    tab = tableAt(st, lam0, 0, pf.rect); nP = neffProfile(tab, gS); N0 = mean(nP);
+    if (st.lock) Lam = st.m * lam0 / (2 * N0);
+  }
+  pf = profileFn(st, Lam); gS = sampleProfile(pf); tab = tableAt(st, lam0, 0, pf.rect); nP = neffProfile(tab, gS); N0 = mean(nP);
+  const slices = sliceList(pf, st);
+  const Nm = fourier(nP, st.m), kap = TAU * Nm / lam0, L = st.N * Lam;
+  const dl = 0.001, avgAt = l => mean(neffProfile(tableAt(st, l, 0, pf.rect), gS));
+  const Np = avgAt(lam0 + dl), Nn = avgAt(lam0 - dl), dNdl = (Np - Nn) / (2 * dl), ng = N0 - lam0 * dNdl;
+  let lamB = lam0; for (let i = 0; i < 6; i++) lamB = 2 * (N0 + dNdl * (lamB - lam0)) * Lam / st.m;
+  const bwNull = lamB * lamB / (Math.PI * ng * L) * Math.sqrt((kap * L) ** 2 + Math.PI ** 2);
+  return { Lam, pf, gS, tab, nP, N0, slices, Nm, kap, L, ng, dNdl, lamB, bwNull, alphaProp };
+}
+
+function compute() {
+  const st = readState();
+  ctl.Lam.r.disabled = ctl.Lam.n.disabled = st.lock;
+  ctl.span.r.disabled = ctl.span.n.disabled = st.autospan;
+  ctl.sw.row.hidden = st.profile !== 'trap';
+  ctl.sig.row.hidden = st.profile !== 'smooth';
+  $('f_lab').textContent = st.profile === 'saw' ? 'Apex position (blaze asymmetry)' : 'Filling ratio f (tooth / period)';
+  for (const k of ['sub', 'core', 'clad']) $('cust_' + k).hidden = st.layers[k].mat !== 'custom';
+
+  const lm = st.lat.mode;
+  for (const id of ['W', 'tSide']) ctl[id].row.hidden = lm !== 'ridge' && lm !== 'taper';
+  for (const id of ['WGC', 'tLoss']) ctl[id].row.hidden = lm !== 'taper';
+  ctl.tbox.row.hidden = st.under.mode === 'none';
+  if (lm === 'taper') st.lat = { ...st.lat, mode: 'ridge', taper: true };
+  if (st.lat.mode === 'ridge') st.lat = { ...st.lat };
+  for (const id of ['Rc', 'Aper']) ctl[id].row.hidden = lm !== 'slab';
+  for (const id of ['wIn', 'dSrc']) ctl[id].row.hidden = lm !== 'slab' || mode !== 'dbr';
+  $('flatRow').hidden = lm !== 'slab'; ctl.Rc.r.disabled = ctl.Rc.n.disabled = $('flat').checked;
+  $('autoW').closest('label').hidden = lm === '2d';
+  if (lm !== 'ridge' && lm !== 'taper') st.lat = { ...st.lat, mode: lm };
+  const c = solveCore(st);
+  if (st.lock) ctl.Lam.set(c.Lam * 1000);
+  const latInfo = lateralInfo(st, c);
+  if (latInfo.w0yBest && st.matchY) ctl.w0y.set(latInfo.w0yBest);
+  ctl.w0y.r.disabled = ctl.w0y.n.disabled = st.matchY && st.lat.mode !== '2d';
+  ctl.w0y.row.hidden = st.lat.mode === '2d' || mode !== 'cr'; $('matchY').closest('label').hidden = st.lat.mode === '2d' || mode !== 'cr';
+  if (latInfo.wEff && st.autoW) { st.wEff = latInfo.wEff; ctl.wEff.set(latInfo.wEff); }
+  ctl.wEff.r.disabled = ctl.wEff.n.disabled = !!(latInfo.wEff && st.autoW);
+  $('latNote').textContent = latInfo.note || '';
+  const { Lam, gS, tab, N0, slices, kap, L, ng, lamB, bwNull, alphaProp, pf } = c;
+
+  const ns0 = tab.ns, nf0 = tab.nf, nc0 = tab.nc;
+  for (const k of ['sub', 'core', 'clad']) $('nshow_' + k).textContent = 'n = ' + fx(nIdx(st.layers[k], st.lam0, st), 4) + ' · ' + fx(nIdx(st.layers[k], st.lamP, st), 4);
+
+  /* radiation at λ0 (higher-order gratings) */
+  const rad0 = radiation(st, st.lam0, 0, gS, Lam, st.N, pf.rect);
+  const alphaTMM = alphaProp + rad0.alphaTot;
+
+  /* spectrum */
+  let span = st.autospan ? Math.min(Math.max(3 * bwNull, 0.0005), 0.6 * st.lam0) : st.span;
+  if (st.autospan) ctl.span.set(span * 1000);
+  const NL = 480, lam = new Float64Array(NL), R = new Float64Array(NL), T = new Float64Array(NL), Rc = new Float64Array(NL);
+  for (let i = 0; i < NL; i++) {
+    const l = lamB - span / 2 + span * i / (NL - 1); lam[i] = l;
+    const r = tmmAt(st, l, slices, Lam, st.N, alphaTMM, pf.rect); R[i] = r.R; T[i] = r.T;
+    const Nl = N0 + c.dNdl * (l - st.lam0);
+    Rc[i] = cmtR(kap, TAU * Nl / l - st.m * Math.PI / Lam, L);
+  }
+  let ip = 0; for (let i = 1; i < NL; i++) if (R[i] > R[ip]) ip = i;
+  const half = R[ip] / 2; let lo = NaN, hi = NaN;
+  for (let i = ip; i > 0; i--) if (R[i - 1] < half) { lo = lam[i - 1] + (half - R[i - 1]) / (R[i] - R[i - 1]) * (lam[i] - lam[i - 1]); break; }
+  for (let i = ip; i < NL - 1; i++) if (R[i + 1] < half) { hi = lam[i] + (R[i] - half) / (R[i] - R[i + 1]) * (lam[i + 1] - lam[i]); break; }
+  const fwhm = hi - lo;
+
+  if (fieldLam === null || fieldLam < lam[0] || fieldLam > lam[NL - 1]) fieldLam = lam[ip];
+  const nb = 600, fld = fieldAlong(st, fieldLam, slices, Lam, st.N, alphaTMM, pf.rect, nb, st.shgOn);
+  let shg = null;
+  if (st.shgOn && mode === 'dbr') shg = shgCalc(st, fieldLam, fld, gS, Lam, st.N, pf.rect, { P: st.Ppump, w: st.wEff, d: st.deff, sOrder: st.sOrder, pole: st.poleMode !== 'none', duty: st.qDuty });
+  let fv = { I: fld.I, L: c.L, left: 1 + fld.R, right: fld.T, labL: 'incident →', labR: 'T = ' + fx(fld.T * 100, 1) + ' %', bands: [[0, c.L, st.h]],
+    cap: `|E|² at ${fx(fieldLam * 1000, 3)} nm, normalised to the incident guided wave, times the unetched mode profile.` };
+  let pumpLam = fieldLam, pumpR = fld.R;
+
+  /* CRIGF */
+  let cr = null, pwInfo = null;
+  $('g-cr').hidden = mode !== 'cr'; $('p-cr').hidden = mode !== 'cr'; $('p-ls').hidden = mode !== 'cr';
+  $('hS').textContent = mode === 'cr' ? 'In-plane reflection of one DBR mirror' : 'Reflection spectrum';
+  if (mode === 'cr') {
+    const stG = { ...st, h: st.hG, f: st.fG, profile: 'rect' };
+    const nc = nIdx(st.layers.clad, st.lam0, st);
+    let LamG = st.LamG, gG, N0G;
+    for (let it = 0; it < (st.lockG ? 3 : 1); it++) {
+      gG = sampleProfile(profileFn(stG, LamG)); N0G = mean(neffProfile(tableAt(stG, st.lam0, 0, true), gG));
+      if (st.lockG) LamG = st.lam0 / (N0G - nc * Math.sin(st.theta * Math.PI / 180));
+    }
+    if (st.lockG) ctl.LamG.set(LamG * 1000);
+    ctl.LamG.r.disabled = ctl.LamG.n.disabled = st.lockG;
+    const radG = radiation(stG, st.lam0, 0, gG, LamG, st.NG, true);
+    const g = { ND: st.N, LamD: Lam, NG: st.NG, LamG, hG: st.hG, fG: st.fG, sp: st.sp, Ls: st.Ls, theta: st.theta, w0: st.w0, alphaProp, alphaG: radG.alphaTot, oy: latInfo.oy, etaB: latInfo.etaB };
+    const LpenD = Math.tanh(c.kap * c.L) / (2 * c.kap), Lcav = st.NG * LamG + 2 * (st.sp + st.Ls) + 2 * LpenD, fsr = st.lam0 * st.lam0 / (2 * c.ng * Lcav);
+    crBase = { st, c, g, fsr, nSp: tableAt(st, st.lam0, 0, c.pf.rect).vals[c.tab.K] };
+    const runSpec = (a, b, n) => { const o = { lam: new Float64Array(n), R: new Float64Array(n), T: new Float64Array(n), E: new Float64Array(n), Rd: new Float64Array(n) };
+      for (let i = 0; i < n; i++) { const l = a + (b - a) * i / (n - 1), r = crigfAt(st, g, l, false); o.lam[i] = l; o.R[i] = r.R; o.T[i] = r.T; o.E[i] = r.escL + r.escR; o.LL = o.LL || new Float64Array(n); o.LL[i] = r.latLoss; o.Rd[i] = r.Rd; } return o; };
+    const spanC = st.autospan ? Math.min(Math.max(1.3 * bwNull, 0.002), 0.3 * st.lam0) : st.span;
+    let sp = runSpec(lamB - spanC / 2, lamB + spanC / 2, 260);
+    const peakOf = o => { let ip = 0; for (let i = 1; i < o.R.length; i++) if (o.R[i] > o.R[ip]) ip = i; const base = Array.from(o.R).sort((a, b) => a - b)[Math.floor(o.R.length / 2)];
+      const half = (o.R[ip] + base) / 2; let a = ip, b = ip; while (a > 0 && o.R[a] > half) a--; while (b < o.R.length - 1 && o.R[b] > half) b++;
+      return { ip, base, fwhm: (a > 0 && b < o.R.length - 1) ? o.lam[b] - o.lam[a] : NaN, lam: o.lam[ip] }; };
+    let pk = peakOf(sp);
+    const res = findResonance(st, g, st.lam0, Math.min(fsr, spanC), 40, false);
+    if (st.zoomC) { const wz = Math.max(4 * (Number.isFinite(res.fwhm) ? res.fwhm : pk.fwhm), 2e-6); sp = runSpec(res.lam - wz, res.lam + wz, 240); pk = peakOf(sp); }
+    if (fieldLamC === null || fieldLamC < sp.lam[0] || fieldLamC > sp.lam[sp.lam.length - 1]) fieldLamC = res.lam;
+    const crf = crigfAt(st, g, fieldLamC, true);
+    cr = { ...sp, g, pk, crf, radG, stG, N0G, LamG, res, fsr };
+    const nbn = 600, I = new Float64Array(nbn), cnt = new Float64Array(nbn);
+    for (const q of crf.field) { const b = Math.min(nbn - 1, Math.max(0, Math.floor(q[0] / crf.Ltot * nbn))); I[b] += q[1]; cnt[b]++; }
+    for (let b = 0; b < nbn; b++) I[b] = cnt[b] ? I[b] / cnt[b] : (b ? I[b - 1] : 0);
+    fv = { I, L: crf.Ltot, left: crf.escL, right: crf.escR, labL: '← escape ' + fx(crf.escL * 100, 1) + ' %', labR: 'escape ' + fx(crf.escR * 100, 1) + ' % →',
+      bands: [[0, g.ND * Lam, st.h], [crf.zGC[0], crf.zGC[1], st.hG], [crf.Ltot - g.ND * Lam, crf.Ltot, st.h]],
+      cap: `Guided power |U|² at ${fx(fieldLamC * 1000, 3)} nm per unit incident beam power, times the unetched mode profile. Beam on the coupler; R = ${fx(crf.R * 100, 1)} %, T = ${fx(crf.T * 100, 1)} %.` };
+    pumpLam = fieldLamC; pumpR = crf.R;
+    if (st.shgOn) shg = shgSampled(st, fieldLamC, crf, g, { P: st.Ppump, w: st.wEff, d: st.deff, sOrder: st.sOrder, poleMode: st.poleMode, duty: st.qDuty });
+    if (shg && st.Ls > 0 && shg.c0 > 0 && st.deff > 0) {
+      try { const op = depletionSweep(st, g, fieldLamC, shg, st.Ppump, [st.Ppump])[0];
+        pwInfo = { op, g, lam: fieldLamC, A2: modeArea(st, fieldLamC / 2, st.sOrder, st.wEff / Math.SQRT2), AF: modeArea(st, fieldLamC, 0, st.wEff) }; } catch (e) { pwInfo = null; }
+    }
+  }
+
+  /* QPM section */
+  let qpm = null;
+  try { qpm = qpmDesign(st, { lamC: st.lam0, L: st.Lpp, sOrder: st.sOrder, duty: st.qDuty, w: st.wEff, d: st.deff || 1, fixed: qpmFixed || { chirp: 0, apod: 0 } }); } catch (e) { qpm = { ok: false }; }
+
+  /* probe */
+  const radP = radiation(st, st.lamP, st.pOrder, gS, Lam, st.N, pf.rect);
+
+  /* readouts */
+  const nHi = tab.vals[tab.K], nLo = tab.vals[0], dn = nHi - nLo;
+  $('nHi').textContent = fx(nHi, 5); $('nLo').textContent = fx(nLo, 5); $('dN').textContent = sig(dn, 4);
+  $('nHiD').textContent = 'core ' + fmtLen(st.t);
+  $('nLoD').textContent = 'core ' + fmtLen(st.t - st.h);
+  $('dND').textContent = 'Δn/n̄ = ' + sig(100 * dn / N0, 3) + ' %';
+  $('capContrast').textContent = `${st.pol}${0} mode at λ₀ = ${fx(st.lam0 * 1000, 0)} nm. Materials: cladding ${fx(nc0, 4)}, core ${fx(nf0, 4)}, substrate ${fx(ns0, 4)}.`;
+  const kapCm = kap * 1e4;
+  const rows = [
+    ['Period-averaged n̄', fx(N0, 5)], ['Group index n_g', fx(ng, 4)],
+    ['Period Λ', fx(Lam * 1000, 2) + ' nm'], ['Bragg λ_B (order ' + st.m + ')', fx(lamB * 1000, 3) + ' nm'],
+    ['Coupling κ', sig(kapCm, 4) + ' cm⁻¹'], ['κL', sig(kap * L, 4)],
+    ['Grating length L', fmtLen(L)], ['Effective length tanh(κL)/2κ', fmtLen(Math.tanh(kap * L) / (2 * kap))],
+    ['Peak R, transfer matrix', fx(R[ip] * 100, 3) + ' %'], ['Peak R, tanh²(κL)', fx(Math.tanh(kap * L) ** 2 * 100, 3) + ' %'],
+    ['FWHM, transfer matrix', Number.isFinite(fwhm) ? fmtBW(fwhm) : 'beyond span'], ['Null-to-null, coupled mode', fmtBW(bwNull)],
+    ['Radiation loss at λ₀', rad0.alphaTot > 0 ? sig(rad0.alphaTot * 1e4, 3) + ' cm⁻¹' : 'none'], ['Peak at', fx(lam[ip] * 1000, 3) + ' nm'],
+    ...(latInfo.rows || []), ...(latInfo.single ? [['Mode-matched peak R (curved DBR)', fx(R[ip] * latInfo.single.eta * 100, 2) + ' %']] : [])
+  ];
+  $('ro').innerHTML = rows.map(([k, v]) => `<div class="ro"><span class="k">${k.replace('n_g', 'n<sub>g</sub>').replace('λ_B', 'λ<sub>B</sub>')}</span><span class="v">${v}</span></div>`).join('');
+
+  const W = [];
+  if (tab.hiCut) W.push('The unetched waveguide is below cut-off at λ₀. Increase the core thickness or index.');
+  else if (tab.cut) W.push('The etched region is below cut-off: the local mode does not exist there and the effective-index model is unreliable. Reduce the etch depth.');
+  const nm0 = countModes(st.lam0, ns0, nf0, nc0, st.t, st.pol);
+  if (nm0 > 1) W.push(`The unetched slab guides ${nm0} ${st.pol} modes at λ₀. The grating can couple the fundamental to higher modes; this is not modelled.`);
+  if (st.h >= st.t - 1e-9) W.push('Full etch: the low-index sections have no core.');
+  if (rad0.alphaTot > 0) W.push(`The grating radiates at λ₀ (order ${rad0.orders.map(o => o.q).filter((v, i, a) => a.indexOf(v) === i).join(', ')}). The ${sig(rad0.alphaTot * 1e4, 3)} cm⁻¹ radiation loss is included in the spectrum.`);
+  if (st.m % 2 === 0 && Math.abs(st.f - 0.5) < 0.02 && (pf.rect || st.profile === 'trap' || st.profile === 'smooth')) W.push('Even Bragg order with f ≈ 0.5: the m-th Fourier component nearly vanishes, so κ ≈ 0.');
+  if (['si'].includes(st.layers.core.mat) && st.lamP < 1.1) W.push('Silicon absorbs strongly below 1.1 µm; the probe results ignore absorption.');
+  if (radP.tab.hiCut) W.push(`The probe mode (order ${st.pOrder}) is not guided at ${fx(st.lamP * 1000, 0)} nm.`);
+  if (latInfo.warn) W.push(latInfo.warn);
+  $('warns').innerHTML = W.map(w => `<div>${w}</div>`).join('');
+
+  lastRes = { st, c, rad0, lam, R, T, Rc, ip, fwhm, fld, radP, alphaTMM, span, shg, cr, fv, pumpLam, pumpR, qpm, latInfo, pw: pwInfo };
+  drawSchem(st);
+  drawAll();
+}
+
+/* ---------- canvas helpers ---------- */
+function prep(cv) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = +cv.dataset.h;
+  if (w < 120) return null;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + 'px'; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  ctx.font = '11px ' + css('--f-num'); ctx.textBaseline = 'middle';
+  return { ctx, w, h };
+}
+function niceTicks(a, b, n) {
+  const span = b - a, raw = span / n, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
+  const st = (m < 1.5 ? 1 : m < 3 ? 2 : m < 7 ? 5 : 10) * p, out = [];
+  for (let v = Math.ceil(a / st) * st; v <= b + st * 1e-9; v += st) out.push(+v.toPrecision(12));
+  return out;
+}
+function tickLabel(v) { return MINUS(String(+v.toPrecision(10))); }
+
+function showErr(where, e) { const b = $('errbar'); b.hidden = false; b.innerHTML = `<div>Calculation error in ${where}: ${String(e && e.message || e)}. Change a parameter or reload the page.</div>`; }
+function drawAll() {
+  if (!lastRes) return;
+  for (const [n, f] of [['cross-section', drawCross], ['spectrum', drawSpectrum], ['field map', drawField], ['scattering', drawProbe], ['SHG', drawSHG], ['sweep', drawSweep], ['CRIGF', drawCR], ['QPM', drawQPM], ['length sweep', drawLs], ['power', drawPw]]) {
+    try { f(); } catch (e) { showErr(n, e); }
+  }
+}
+
+function drawCross() {
+  const { st, c, radP } = lastRes, P0 = prep($('cvX')); if (!P0) return; const { ctx, w, h } = P0;
+  const narrow = w < 560, side = narrow ? 110 : 170;
+  const pl = 48, pr = side + 16, pt = 12, pb = 28, gw = w - pl - pr, gh = h - pt - pb;
+  const tabS = c.tab, ns = tabS.ns, nf = tabS.nf, nc = tabS.nc;
+  const mHi = modeParams(st.lam0, ns, nf, nc, st.t, st.pol, 0), mLo = modeParams(st.lam0, ns, nf, nc, st.t - st.h, st.pol, 0);
+  const mP = radP.mode && radP.mode.valid ? modeParams(st.lamP, radP.ns, radP.nf, radP.nc, st.t - st.h + st.h * mean(c.gS), st.pol, st.pOrder) : null;
+  const dec = m => m && m.valid ? Math.max(1 / m.gs, 1 / m.gc) : 0;
+  const ext = Math.min(Math.max(2.2 * Math.max(dec(mHi), dec(mLo)), 0.25 * st.t, 0.15), 3);
+  const x0 = -ext, x1 = st.t + ext;
+  const Y = x => pt + gh * (1 - (x - x0) / (x1 - x0));
+  const P = 3, Z = z => pl + gw * z / (P * c.Lam);
+  ctx.fillStyle = css('--clad'); ctx.fillRect(pl, pt, gw, gh);
+  ctx.fillStyle = css('--sub'); ctx.fillRect(pl, Y(0), gw, Y(x0) - Y(0));
+  ctx.beginPath(); ctx.moveTo(Z(0), Y(0));
+  const S = 360; for (let i = 0; i <= S; i++) { const z = P * c.Lam * i / S, u = (z / c.Lam) % 1; ctx.lineTo(Z(z), Y(st.t - st.h + st.h * c.pf.g(i === S ? 0.999999 : u))); }
+  ctx.lineTo(Z(P * c.Lam), Y(0)); ctx.closePath(); ctx.fillStyle = css('--core'); ctx.fill();
+  ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1; ctx.stroke();
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = css('--muted');
+  for (const x of [st.t, st.t - st.h]) { ctx.beginPath(); ctx.moveTo(pl, Y(x)); ctx.lineTo(w - 8, Y(x)); ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.fillStyle = css('--ink'); ctx.textAlign = 'left';
+  ctx.fillText('cladding  n = ' + fx(nc, 4), pl + 8, pt + 10);
+  ctx.fillText('substrate  n = ' + fx(ns, 4), pl + 8, h - pb - 10);
+  ctx.fillStyle = css('--panel'); const cy = Y(st.t * 0.35);
+  ctx.fillText('core  n = ' + fx(nf, 4), pl + 8, cy);
+  ctx.fillStyle = css('--muted'); ctx.textAlign = 'right';
+  for (const v of niceTicks(x0 * 1000, x1 * 1000, 5)) { const y = Y(v / 1000); if (y < pt + 4 || y > h - pb - 2) continue; ctx.fillText(tickLabel(v), pl - 6, y); }
+  ctx.save(); ctx.translate(12, pt + gh / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText('x (nm)', 0, 0); ctx.restore();
+  ctx.textAlign = 'center';
+  for (let p = 0; p <= P; p++) { ctx.fillText(tickLabel(Math.round(p * c.Lam * 1000)), Z(p * c.Lam), h - pb + 12); }
+  ctx.fillText('z (nm)', pl + gw / 2, h - 6);
+  /* dimension marks */
+  ctx.strokeStyle = css('--accent'); ctx.fillStyle = css('--accent'); ctx.lineWidth = 1.2;
+  const zx = Z(P * c.Lam) - 14;
+  ctx.beginPath(); ctx.moveTo(zx, Y(st.t)); ctx.lineTo(zx, Y(st.t - st.h)); ctx.stroke();
+  ctx.textAlign = 'right'; if (st.h > 0) ctx.fillText('h = ' + fx(st.h * 1000, 0), zx - 4, (Y(st.t) + Y(st.t - st.h)) / 2 - (Y(st.t - st.h) - Y(st.t) < 14 ? 10 : 0));
+  /* side panel: mode intensities */
+  const sx0 = w - side, sw = side - 10;
+  ctx.strokeStyle = css('--line'); ctx.strokeRect(sx0, pt, sw, gh);
+  const curve = (m, color, dash) => {
+    if (!m || !m.valid) return;
+    let mx = 0; const n = 220, vals = [];
+    for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n, v = m.field(x) ** 2; vals.push([x, v]); mx = Math.max(mx, v); }
+    ctx.beginPath(); vals.forEach(([x, v], i) => { const px = sx0 + 4 + (sw - 8) * v / mx, py = Y(x); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+    ctx.setLineDash(dash || []); ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]);
+  };
+  curve(mHi, css('--accent')); curve(mLo, css('--accent'), [4, 3]); curve(mP, css('--green'));
+  ctx.fillStyle = css('--muted'); ctx.textAlign = 'center'; ctx.fillText('|ψ(x)|²', sx0 + sw / 2, h - pb + 12);
+  $('lgX').innerHTML = `<span style="--c:var(--accent)">tooth mode, n<sub>eff</sub> ${fx(c.tab.vals[c.tab.K], 4)}</span><span class="dash" style="--c:var(--accent)">etched mode, n<sub>eff</sub> ${fx(c.tab.vals[0], 4)}</span>` +
+    (mP ? `<span style="--c:var(--green)">probe ${fx(st.lamP * 1000, 0)} nm, ${st.pol}${st.pOrder}, n̄ ${fx(radP.N0, 4)}</span>` : '');
+}
+
+let specGeom = null;
+function drawSpectrum() {
+  const { st, c, lam, R, T, Rc, fld } = lastRes, P0 = prep($('cvS')); if (!P0) return; const { ctx, w, h } = P0;
+  const pl = 46, pr = 14, pt = 12, pb = 34, gw = w - pl - pr, gh = h - pt - pb;
+  const a = lam[0] * 1000, b = lam[lam.length - 1] * 1000;
+  const X = v => pl + gw * (v - a) / (b - a), Y = v => pt + gh * (1 - v);
+  specGeom = { pl, gw, a, b };
+  ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1; ctx.fillStyle = css('--muted');
+  ctx.textAlign = 'right';
+  for (const v of [0, 0.25, 0.5, 0.75, 1]) { ctx.beginPath(); ctx.moveTo(pl, Y(v)); ctx.lineTo(pl + gw, Y(v)); ctx.stroke(); ctx.fillText(fx(v, 2), pl - 6, Y(v)); }
+  ctx.textAlign = 'center';
+  for (const v of niceTicks(a, b, Math.max(3, Math.floor(gw / 90)))) { ctx.beginPath(); ctx.moveTo(X(v), pt); ctx.lineTo(X(v), pt + gh); ctx.stroke(); ctx.fillText(tickLabel(v), X(v), h - pb + 13); }
+  ctx.fillText('wavelength (nm)', pl + gw / 2, h - 7);
+  const line = (arr, color, width, dash) => { ctx.beginPath(); for (let i = 0; i < arr.length; i++) { const px = X(lam[i] * 1000), py = Y(arr[i]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.setLineDash(dash || []); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke(); ctx.setLineDash([]); };
+  ctx.beginPath(); ctx.moveTo(X(a), Y(0)); for (let i = 0; i < R.length; i++) ctx.lineTo(X(lam[i] * 1000), Y(R[i])); ctx.lineTo(X(b), Y(0)); ctx.closePath();
+  ctx.globalAlpha = 0.12; ctx.fillStyle = css('--accent'); ctx.fill(); ctx.globalAlpha = 1;
+  line(T, css('--amber'), 1.4);
+  if (st.showcmt) line(Rc, css('--muted'), 1.2, [5, 4]);
+  line(R, css('--accent'), 2);
+  const mark = (v, color, label, dash) => { if (v < a || v > b) return; ctx.beginPath(); ctx.moveTo(X(v), pt); ctx.lineTo(X(v), pt + gh); ctx.setLineDash(dash); ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.fillText(label, X(v) + 4, pt + 8); };
+  mark(st.lam0 * 1000, css('--muted'), 'λ₀', [2, 3]);
+  if (Math.abs(fieldLam - st.lam0) > 0.02 * (lam[lam.length - 1] - lam[0])) mark(fieldLam * 1000, css('--green'), 'field', [1, 0]); else mark(fieldLam * 1000, css('--green'), '', [1, 0]);
+  $('lgS').innerHTML = `<span style="--c:var(--accent)">R, transfer matrix</span><span style="--c:var(--amber)">T</span>${st.showcmt ? '<span class="dash" style="--c:var(--muted)">R, coupled mode</span>' : ''}<span style="--c:var(--green)">field-map wavelength</span>`;
+  if (!$('hovS').dataset.on) $('hovS').textContent = `Field map at ${fx(fieldLam * 1000, 3)} nm: R = ${fx(fld.R * 100, 2)} %, T = ${fx(fld.T * 100, 2)} %.`;
+}
+function specLam(ev) { const r = $('cvS').getBoundingClientRect(), g = specGeom; if (!g) return null; const v = g.a + (ev.clientX - r.left - g.pl) / g.gw * (g.b - g.a); return v < g.a || v > g.b ? null : v; }
+$('cvS').addEventListener('click', ev => { const v = specLam(ev); if (v !== null) { fieldLam = v / 1000; $('hovS').dataset.on = ''; delete $('hovS').dataset.on; compute(); } });
+$('cvS').addEventListener('mousemove', ev => {
+  const v = specLam(ev); if (v === null || !lastRes) return; const { lam, R, T } = lastRes;
+  let i = Math.round((v / 1000 - lam[0]) / (lam[lam.length - 1] - lam[0]) * (lam.length - 1)); i = Math.max(0, Math.min(lam.length - 1, i));
+  $('hovS').dataset.on = '1'; $('hovS').textContent = `${fx(lam[i] * 1000, 3)} nm   R = ${fx(R[i] * 100, 3)} %   T = ${fx(T[i] * 100, 3)} %   (click to show this field)`;
+});
+$('cvS').addEventListener('mouseleave', () => { delete $('hovS').dataset.on; drawSpectrum(); });
+$('cvS').style.cursor = 'crosshair';
+
+const CMAP = [[0, 0, 4], [40, 11, 84], [101, 21, 110], [159, 42, 99], [212, 72, 66], [245, 125, 21], [250, 193, 39], [252, 255, 164]];
+function cmap(v) { v = Math.min(1, Math.max(0, v)) * (CMAP.length - 1); const i = Math.min(CMAP.length - 2, Math.floor(v)), r = v - i; return CMAP[i].map((c, k) => c + (CMAP[i + 1][k] - c) * r); }
+
+function drawField() {
+  const { st, c, fv } = lastRes, P0 = prep($('cvF')); if (!P0) return; const { ctx, w, h } = P0;
+  const pl = 46, pr = 14, pt = 10, pb = 34, gw = Math.max(10, Math.floor(w - pl - pr)), gh = h - pt - pb;
+  const lamF = lastRes.pumpLam, tab = c.tab, m = modeParams(lamF, tab.ns, tab.nf, tab.nc, st.t, st.pol, 0);
+  const ext = m.valid ? Math.min(Math.max(2 * Math.max(1 / m.gs, 1 / m.gc), 0.2), 3) : 0.5;
+  const x0 = -ext, x1 = st.t + ext, L = fv.L, pad = 0.06 * L, z0 = -pad, z1 = L + pad;
+  const img = ctx.createImageData(gw, gh);
+  const prof = new Float64Array(gh); let pm = 0;
+  for (let j = 0; j < gh; j++) { const x = x1 - (x1 - x0) * (j + 0.5) / gh; prof[j] = m.valid ? m.field(x) ** 2 : 0; pm = Math.max(pm, prof[j]); }
+  const Iz = new Float64Array(gw); let im = 0;
+  for (let i = 0; i < gw; i++) {
+    const z = z0 + (z1 - z0) * (i + 0.5) / gw;
+    Iz[i] = z < 0 ? fv.left : z > L ? fv.right : fv.I[Math.min(fv.I.length - 1, Math.floor(z / L * fv.I.length))];
+    im = Math.max(im, Iz[i]);
+  }
+  if (!(im > 0)) im = 1;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const v = Math.sqrt(Iz[i] / im * prof[j] / pm), col = cmap(v), k = 4 * (j * gw + i);
+    img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = 255;
+  }
+  const off = document.createElement('canvas'); off.width = gw; off.height = gh; off.getContext('2d').putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(off, pl, pt, gw, gh);
+  const Z = z => pl + gw * (z - z0) / (z1 - z0), Y = x => pt + gh * (x1 - x) / (x1 - x0);
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1;
+  for (const x of [0, st.t]) { ctx.beginPath(); ctx.moveTo(pl, Y(x)); ctx.lineTo(pl + gw, Y(x)); ctx.stroke(); }
+  for (const [za, zb, hh] of fv.bands) {
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(Z(za), Y(st.t), Z(zb) - Z(za), Y(st.t - hh) - Y(st.t));
+    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.moveTo(Z(za), pt); ctx.lineTo(Z(za), pt + gh); ctx.moveTo(Z(zb), pt); ctx.lineTo(Z(zb), pt + gh); ctx.stroke();
+  }
+  ctx.beginPath(); for (let i = 0; i < gw; i++) { const py = pt + gh - 4 - (gh * 0.3) * Iz[i] / im; i ? ctx.lineTo(pl + i, py) : ctx.moveTo(pl, py); }
+  ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.3; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.textAlign = 'left'; ctx.font = '11px ' + css('--f-num');
+  ctx.fillText(fv.labL, pl + 6, pt + 10);
+  ctx.textAlign = 'right'; ctx.fillText(fv.labR, pl + gw - 6, pt + 10);
+  ctx.fillStyle = css('--muted'); ctx.textAlign = 'center';
+  for (const v of niceTicks(0, L * (L > 2000 ? 1e-3 : 1), Math.max(3, Math.floor(gw / 100)))) { const z = L > 2000 ? v * 1000 : v; ctx.fillText(tickLabel(v), Z(z), h - pb + 13); }
+  ctx.fillText('z (' + (L > 2000 ? 'mm' : 'µm') + '), device length ' + fmtLen(L), pl + gw / 2, h - 7);
+  ctx.textAlign = 'right'; ctx.fillText('core', pl - 6, Y(st.t / 2));
+  $('capF').textContent = fv.cap + ` White line: same quantity along z (peak ${sig(im, 3)}). Lengths compressed horizontally.`;
+}
+
+function drawProbe() {
+  const { st, c, radP } = lastRes, P0 = prep($('cvP')); const { ctx, w, h } = P0 || {};
+  const alphaP = radP.alphaTot + c.alphaProp;
+  if (P0) {
+  const cx = w / 2, cy = h / 2, rad = Math.min(w / 2 - 34, h / 2 - 22);
+  let thetas = [];
+  for (let t = -90; t <= 90; t += 0.1) thetas.push(t);
+  const Leff = Math.min(c.L, alphaP > 0 ? 1 / alphaP : c.L);
+  for (const o of radP.orders) {
+    const wdt = Math.max(radP.lam / (o.nj * Leff * Math.max(Math.cos(o.theta * Math.PI / 180), 0.05)) * 180 / Math.PI, 1e-4);
+    for (let i = -60; i <= 60; i++) { const t = o.theta + i * wdt / 15; if (t > -90 && t < 90) thetas.push(t); }
+  }
+  thetas.sort((a, b) => a - b);
+  const th = Float64Array.from(thetas);
+  let up = null, dn = null, mx = 0;
+  if (radP.valid && radP.orders.length) {
+    up = farField(radP, c.gS, c.Lam, st.N, alphaP, radP.nc, th);
+    dn = farField(radP, c.gS, c.Lam, st.N, alphaP, radP.ns, th);
+    for (let i = 0; i < th.length; i++) mx = Math.max(mx, up[i], dn[i]);
+  }
+  ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1; ctx.fillStyle = css('--muted'); ctx.textAlign = 'center';
+  for (const db of [0, -10, -20, -30]) { const r = rad * (1 + db / 40); ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke(); }
+  for (let a = -90; a <= 90; a += 30) for (const s of [-1, 1]) { const t = a * Math.PI / 180; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + rad * Math.sin(t), cy - s * rad * Math.cos(t)); ctx.stroke(); }
+  for (let a = -60; a <= 60; a += 30) { const t = a * Math.PI / 180; ctx.fillText(MINUS(a + '°'), cx + (rad + 14) * Math.sin(t), cy - (rad + 12) * Math.cos(t)); }
+  ctx.textAlign = 'left'; ctx.fillText('−10 dB', cx + 3, cy - rad * 0.75 + 7);
+  ctx.textAlign = 'left'; ctx.fillStyle = css('--ink');
+  ctx.fillText('cladding n = ' + fx(radP.nc, 3), 6, 12); ctx.fillText('substrate n = ' + fx(radP.ns, 3), 6, h - 10);
+  const lobe = (arr, s) => {
+    if (!arr) return;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    for (let i = 0; i < th.length; i++) { const db = 10 * Math.log10(arr[i] / mx + 1e-12), r = rad * Math.max(0, 1 + db / 40), t = th[i] * Math.PI / 180; ctx.lineTo(cx + r * Math.sin(t), cy - s * r * Math.cos(t)); }
+    ctx.closePath(); ctx.globalAlpha = 0.22; ctx.fillStyle = css('--green'); ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = css('--green'); ctx.lineWidth = 1.3; ctx.stroke();
+  };
+  lobe(up, 1); lobe(dn, -1);
+  ctx.fillStyle = css('--core'); ctx.fillRect(cx - rad, cy - 3, 2 * rad, 6);
+  ctx.strokeStyle = css('--ink'); ctx.fillStyle = css('--ink'); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(cx - rad + 6, cy); ctx.lineTo(cx - rad + 46, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - rad + 50, cy); ctx.lineTo(cx - rad + 42, cy - 4); ctx.lineTo(cx - rad + 42, cy + 4); ctx.closePath(); ctx.fill();
+  if (!radP.valid) { ctx.textAlign = 'center'; ctx.fillStyle = css('--warn'); ctx.fillText('probe mode not guided', cx, cy - 20); }
+  else if (!radP.orders.length) { ctx.textAlign = 'center'; ctx.fillStyle = css('--muted'); ctx.fillText('no radiating diffraction order', cx, cy - 20); }
+  }
+
+  const L = c.L, frac = 1 - Math.exp(-alphaP * L);
+  const bq = radP.bragg || {};
+  const rowsP = radP.valid ? [
+    ['Probe n̄ (period average)', fx(radP.N0, 5)],
+    ['Probe n_eff tooth / etched', fx(radP.hi, 4) + ' / ' + fx(radP.lo, 4)],
+    ['Total radiation α', radP.alphaTot > 0 ? sig(radP.alphaTot * 1e4, 3) + ' cm⁻¹ (' + sig(radP.alphaTot * 1e4 * 10 / Math.LN10, 3) + ' dB/cm)' : '0'],
+    ['Power scattered out over L', fx(100 * (alphaP > 0 ? radP.alphaTot / alphaP : 0) * frac, 1) + ' %'],
+    ['Decay length 1/α', radP.alphaTot > 0 ? fmtLen(1 / radP.alphaTot) : '∞'],
+    [`Guided back-reflection, order ${bq.q}`, `λ_B = ${fx(bq.lamB * 1000, 1)} nm, R ≈ ${bq.R < 1e-6 ? "0" : sig(bq.R * 100, 3)} %`]
+  ] : [['Probe', 'not guided']];
+  $('roP').innerHTML = rowsP.map(([k, v]) => `<div class="ro"><span class="k">${k.replace('n_eff', 'n<sub>eff</sub>')}</span><span class="v">${v.replace('λ_B', 'λ<sub>B</sub>')}</span></div>`).join('');
+  const tb = $('tblP').querySelector('tbody');
+  if (!radP.valid || !radP.orders.length) tb.innerHTML = `<tr><td colspan="6" style="text-align:left;color:var(--muted)">${radP.valid ? 'All diffraction orders are evanescent: the grating is sub-wavelength for this probe.' : '—'}</td></tr>`;
+  else tb.innerHTML = radP.orders.map(o => {
+    const cosT = Math.max(Math.cos(o.theta * Math.PI / 180), 1e-3);
+    const wL = 0.886 * radP.lam / (o.nj * L * cosT), wA = alphaP / (TAU / radP.lam * o.nj * cosT);
+    const fw = Math.sqrt(wL * wL + wA * wA) * 180 / Math.PI;
+    const share = alphaP > 0 ? o.alpha / alphaP * frac : 0;
+    return `<tr><td>q = ${o.q}</td><td>${o.med}</td><td>${fx(o.theta, 2)}°</td><td>${fw < 0.01 ? sig(fw * 1000, 2) + ' m°' : sig(fw, 2) + '°'}</td><td>${sig(o.alpha * 1e4, 3)}</td><td>${fx(share * 100, 1)} %</td></tr>`;
+  }).join('');
+  $('capP').textContent = `Guided ${st.pol}${st.pOrder} mode at ${fx(st.lamP * 1000, 1)} nm meets the ${fx(c.Lam * 1000, 1)} nm grating. Order q radiates at sin θ = (n̄ − qλ/Λ)/n; angles are from the surface normal, positive towards the propagation direction.`;
+}
+
+function drawSweep() {
+  const { st, c } = lastRes, P0 = prep($('cvW')); if (!P0) return; const { ctx, w, h } = P0;
+  const v = st.sweepVar, n = 50, xs = [], Rs = [], Bs = [], Ds = [];
+  let a, b, cur;
+  if (v === 'h') { a = 0; b = st.t * 1000; cur = st.h * 1000; }
+  else if (v === 'f') { a = 0.05; b = 0.95; cur = st.f; }
+  else { a = Math.log10(10); b = Math.log10(20000); cur = Math.log10(st.N); }
+  for (let i = 0; i < n; i++) {
+    const xv = a + (b - a) * i / (n - 1); xs.push(xv);
+    const s2 = { ...st };
+    if (v === 'h') s2.h = Math.max(xv, 0) / 1000; else if (v === 'f') s2.f = xv; else s2.N = Math.round(Math.pow(10, xv));
+    let Nm, N0, dn, Lam = c.Lam;
+    if (v === 'N') { Nm = c.Nm; N0 = c.N0; dn = c.tab.vals[c.tab.K] - c.tab.vals[0]; }
+    else { const pf = profileFn(s2, Lam), gS = sampleProfile(pf), tb = tableAt(s2, st.lam0, 0, pf.rect), nP = neffProfile(tb, gS); Nm = fourier(nP, st.m); N0 = mean(nP); dn = tb.vals[tb.K] - tb.vals[0]; }
+    const kap = TAU * Nm / st.lam0, L = s2.N * Lam, lB = 2 * N0 * Lam / st.m;
+    Rs.push(Math.tanh(kap * L) ** 2); Bs.push(lB * lB / (Math.PI * c.ng * L) * Math.sqrt((kap * L) ** 2 + Math.PI ** 2) * 1000); Ds.push(dn);
+  }
+  const pl = 44, pr = 56, pt = 12, pb = 34, gw = w - pl - pr, gh = h - pt - pb;
+  const X = x => pl + gw * (x - a) / (b - a), Y = r => pt + gh * (1 - r);
+  const bmax = Math.max(...Bs.filter(Number.isFinite)) * 1.08 || 1, dmax = Math.max(...Ds) || 1;
+  const Yb = bw => pt + gh * (1 - bw / bmax);
+  ctx.strokeStyle = css('--grid'); ctx.fillStyle = css('--muted'); ctx.lineWidth = 1;
+  ctx.textAlign = 'right';
+  for (const r of [0, 0.25, 0.5, 0.75, 1]) { ctx.beginPath(); ctx.moveTo(pl, Y(r)); ctx.lineTo(pl + gw, Y(r)); ctx.stroke(); ctx.fillText(fx(r, 2), pl - 6, Y(r)); }
+  ctx.textAlign = 'left';
+  for (const t of niceTicks(0, bmax, 4)) { if (Yb(t) < pt) continue; ctx.fillText(tickLabel(t), pl + gw + 6, Yb(t)); }
+  ctx.textAlign = 'center';
+  const xt = v === 'N' ? [1, 2, 3, 4].map(e => e).filter(e => e >= a && e <= b) : niceTicks(a, b, Math.max(3, Math.floor(gw / 80)));
+  for (const t of xt) { ctx.beginPath(); ctx.moveTo(X(t), pt); ctx.lineTo(X(t), pt + gh); ctx.stroke(); ctx.fillText(v === 'N' ? tickLabel(Math.pow(10, t)) : tickLabel(t), X(t), h - pb + 13); }
+  ctx.fillText(v === 'h' ? 'etch depth h (nm)' : v === 'f' ? (st.profile === 'saw' ? 'apex position' : 'filling ratio f') : 'number of periods N', pl + gw / 2, h - 7);
+  const ln = (ys, Yf, color, width, dash) => { ctx.beginPath(); ys.forEach((y, i) => { const px = X(xs[i]), py = Yf(y); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.setLineDash(dash || []); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke(); ctx.setLineDash([]); };
+  ln(Ds, d => pt + gh * (1 - d / dmax * 0.92), css('--muted'), 1.2, [5, 4]);
+  ln(Bs, Yb, css('--amber'), 1.8);
+  ln(Rs, Y, css('--accent'), 2.2);
+  ctx.strokeStyle = css('--ink'); ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(X(cur), pt); ctx.lineTo(X(cur), pt + gh); ctx.stroke(); ctx.setLineDash([]);
+  const Rcur = Math.tanh(c.kap * c.L) ** 2;
+  ctx.fillStyle = css('--accent'); ctx.beginPath(); ctx.arc(X(cur), Y(Rcur), 4, 0, TAU); ctx.fill();
+  ctx.fillStyle = css('--amber'); ctx.beginPath(); ctx.arc(X(cur), Yb(c.bwNull * 1000), 4, 0, TAU); ctx.fill();
+  ctx.fillStyle = css('--muted'); ctx.textAlign = 'right'; ctx.fillText('Δn max ' + sig(dmax, 3), pl + gw - 4, pt + 8);
+}
+
+let lastW = -1;
+function polarFrame(ctx, w, h, cx, cy, rad, nUp, nDn) {
+  ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1; ctx.fillStyle = css('--muted'); ctx.textAlign = 'center';
+  for (const db of [0, -10, -20, -30]) { ctx.beginPath(); ctx.arc(cx, cy, rad * (1 + db / 40), 0, TAU); ctx.stroke(); }
+  for (let a = -90; a <= 90; a += 30) for (const s of [-1, 1]) { const t = a * Math.PI / 180; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + rad * Math.sin(t), cy - s * rad * Math.cos(t)); ctx.stroke(); }
+  for (let a = -60; a <= 60; a += 30) { const t = a * Math.PI / 180; ctx.fillText(MINUS(a + '°'), cx + (rad + 14) * Math.sin(t), cy - (rad + 12) * Math.cos(t)); }
+  ctx.textAlign = 'left'; ctx.fillText('−10 dB', cx + 3, cy - rad * 0.75 + 7);
+  ctx.fillStyle = css('--ink'); ctx.fillText('cladding n = ' + fx(nUp, 3), 6, 12); ctx.fillText('substrate n = ' + fx(nDn, 3), 6, h - 10);
+}
+function drawSHG() {
+  const { st, c, shg, fld } = lastRes;
+  $('shgOff').hidden = !!shg; $('shgBody').hidden = !shg;
+  if (!shg) { $('capSH').textContent = 'Nonlinear polarisation of the pump standing wave in the core, radiated out of plane and coupled into guided SH modes.'; return; }
+  const P0 = prep($('cvH'));
+  const up = shg.up, dn = shg.down;
+  let mx = 0; for (const a of [up.I, dn.I]) for (const v of a) mx = Math.max(mx, v);
+  if (P0) {
+    const { ctx, w, h } = P0, cx = w / 2, cy = h / 2, rad = Math.min(w / 2 - 34, h / 2 - 22);
+    polarFrame(ctx, w, h, cx, cy, rad, up.nj, dn.nj);
+    const lobe = (F, s) => {
+      if (!(mx > 0)) return;
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      for (let i = 0; i < F.th.length; i++) { const db = 10 * Math.log10(F.I[i] / mx + 1e-12), r = rad * Math.max(0, 1 + db / 40), t = F.th[i] * Math.PI / 180; ctx.lineTo(cx + r * Math.sin(t), cy - s * r * Math.cos(t)); }
+      ctx.closePath(); ctx.globalAlpha = 0.22; ctx.fillStyle = css('--amber'); ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = css('--amber'); ctx.lineWidth = 1.3; ctx.stroke();
+    };
+    lobe(up, 1); lobe(dn, -1);
+    ctx.fillStyle = css('--core'); ctx.fillRect(cx - rad, cy - 3, 2 * rad, 6);
+    ctx.fillStyle = css('--ink'); ctx.textAlign = 'left'; ctx.fillText('pump →', cx - rad + 4, cy + 14);
+    if (!(mx > 0)) { ctx.textAlign = 'center'; ctx.fillStyle = css('--muted'); ctx.fillText('no SH (d_eff = 0?)', cx, cy - 20); }
+  }
+  const Ptot = (shg.Pf || 0) + (shg.Pb || 0) + up.P + dn.P, Pp = st.Ppump;
+  const effRad = (up.P + dn.P) / (Pp * Pp) * 100;
+  const rows = [
+    ['Pump / SH wavelength', fx(lastRes.pumpLam * 1000, 2) + ' / ' + fx(shg.lam2 * 1000, 2) + ' nm'],
+    [st.mode === 'cr' ? 'CRIGF beam R at this wavelength' : 'Pump R at this wavelength', fx(lastRes.pumpR * 100, 2) + ' %'],
+    ['SH radiated into cladding', fmtP(up.P)],
+    ['SH radiated into substrate', fmtP(dn.P)],
+    ['SH guided forward (TE' + st.sOrder + ')', shg.guided2 ? fmtP(shg.Pf) : 'mode not guided'],
+    ['SH guided backward', shg.guided2 ? fmtP(shg.Pb) : '—'],
+    ['Radiated efficiency', sig(effRad, 3) + ' %/W'],
+    ['Phase mismatch Δk = β₂ − 2β', sig(shg.dk / 100, 4) + ' cm⁻¹'],
+    ['Coherence length π/|Δk|', fmtLen(Math.PI / Math.abs(shg.dk) * 1e6)],
+    ['Grating QPM order Δk/K', sig(shg.dk / shg.Kg, 3)],
+    ['Ideal phase-matched guide, same L', shg.guided2 && Number.isFinite(shg.Pref) ? fmtP(shg.Pref) : '—'], ['QPM period: grating regions / straight', fmtLen(shg.Lpp) + ' / ' + (shg.LppS ? fmtLen(shg.LppS) : '—') + ' (' + st.poleMode + ')'], ...(shg.offset !== undefined ? [['Right-section poling offset (optimised)', fx(shg.offset * 100, 0) + ' % of Λpp']] : []),
+    ...(st.mode === 'cr' && st.Ls > 0 && shg.guided2 ? [['Guided SH from straight sections', fmtP(shg.PfStr + shg.PbStr)], ['Single pass, same poled length 2L_s', fmtP(shg.Psp)], ['Cavity gain over single pass', sig(((shg.Pf || 0) + (shg.Pb || 0)) / shg.Psp, 3) + '×']] : [])
+  ];
+  $('roH').innerHTML = rows.map(([k, v]) => `<div class="ro"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('') + (Ptot > 0.1 * Pp ? `<div class="warns"><div>Total SH is ${fx(100 * Ptot / Pp, 0)} % of the pump: pump depletion and the nonlinear loading of the cavity are not modelled, so this overestimates. Lower the pump power to stay in the valid regime.</div></div>` : '');
+  const lobes = [...up.peaks.map(p => ({ ...p, med: 'cladding' })), ...dn.peaks.map(p => ({ ...p, med: 'substrate' }))].sort((a, b) => b.P - a.P).slice(0, 8);
+  const radTot = up.P + dn.P;
+  $('tblH').querySelector('tbody').innerHTML = lobes.length ? lobes.map((p, i) => `<tr><td>${i + 1}</td><td>${p.med}</td><td>${fx(p.theta, 2)}°</td><td>${p.fwhm < 0.01 ? sig(p.fwhm * 1000, 2) + ' m°' : sig(p.fwhm, 2) + '°'}</td><td>${fmtP(p.P)}</td><td>${fx(radTot > 0 ? 100 * p.P / radTot : 0, 1)} %</td></tr>`).join('')
+    : '<tr><td colspan="6" style="text-align:left;color:var(--muted)">No radiated SH lobes.</td></tr>';
+  $('capSH').textContent = `${st.mode === 'cr' ? 'CRIGF: pump beam' : 'Pump'} ${fx(lastRes.pumpLam * 1000, 2)} nm, ${fmtP(st.Ppump)}${st.mode === 'cr' ? ' incident on' : ' in'} a ${fx(st.wEff, 1)} µm wide guide, d_eff = ${fx(st.deff, 1)} pm/V. Standing-wave A·B terms emit normal to the surface; A², B² terms need a grating harmonic or the guided phase match. Total SH ${fmtP(Ptot)}.`;
+}
+
+let crGeom = null;
+function drawCR() {
+  const r = lastRes, cr = r.cr; if (!cr) return; const st = r.st, g = cr.g, crf = cr.crf;
+  /* layout strip */
+  const D = prep($('cvD'));
+  if (D) {
+    const { ctx, w, h } = D, Ltot = crf.Ltot, pl = 10, gw = w - 20, Z = z => pl + gw * z / Ltot, y0 = h - 40, bh = 12;
+    ctx.fillStyle = css('--sub'); ctx.fillRect(pl, y0 + bh, gw, 6);
+    ctx.fillStyle = css('--core'); ctx.fillRect(pl, y0, gw, bh);
+    const reg = [[0, g.ND * g.LamD, 'DBR ' + g.ND + ' × ' + fx(g.LamD * 1000, 1) + ' nm', css('--accent')], [crf.zGC[0], crf.zGC[1], 'GC ' + g.NG + ' × ' + fx(g.LamG * 1000, 1) + ' nm', css('--green')], [Ltot - g.ND * g.LamD, Ltot, 'DBR', css('--accent')]];
+    ctx.font = '11px ' + css('--f-num'); ctx.textBaseline = 'middle';
+    for (const [a, b, lab, col] of reg) {
+      ctx.fillStyle = col; for (let x = Z(a); x < Z(b); x += 3) ctx.fillRect(x, y0, 1.2, 4);
+      ctx.strokeStyle = col; ctx.strokeRect(Z(a), y0, Z(b) - Z(a), bh);
+      ctx.fillStyle = css('--ink'); ctx.textAlign = 'center'; ctx.fillText(lab, Math.min(Math.max((Z(a) + Z(b)) / 2, 70), w - 70), y0 + bh + 20);
+    }
+    const zc = (crf.zGC[0] + crf.zGC[1]) / 2, wpx = Math.max(4, gw * 2 * g.w0 / Ltot), th = g.theta * Math.PI / 180, top = 6;
+    ctx.globalAlpha = 0.25; ctx.fillStyle = css('--amber');
+    ctx.beginPath(); ctx.moveTo(Z(zc) - wpx / 2 - (y0 - top) * Math.tan(th), top); ctx.lineTo(Z(zc) + wpx / 2 - (y0 - top) * Math.tan(th), top); ctx.lineTo(Z(zc) + wpx / 2, y0); ctx.lineTo(Z(zc) - wpx / 2, y0); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = css('--amber'); ctx.textAlign = 'left'; ctx.fillText('beam 2w₀ = ' + fx(2 * g.w0, 0) + ' µm, θ = ' + fx(g.theta, 1) + '°', Z(zc) + wpx / 2 + 6, top + 8);
+  }
+  /* top view */
+  const lat = st.lat; $('wrapT').hidden = lat.mode === '2d';
+  const T = lat.mode !== '2d' ? prep($('cvT')) : null;
+  if (T) {
+    const { ctx, w, h } = T, Ltot = crf.Ltot, pl = 10, gw = w - 20, Z = z => pl + gw * z / Ltot;
+    const li = r.latInfo || {}, wl = li.wLat || 0;
+    const half = Math.max(lat.taper ? lat.WGC * 0.6 : lat.mode === 'ridge' ? lat.W * 0.9 : lat.A * 0.6, 2.2 * wl, 1), cy = h / 2, Yy = y => cy - (h / 2 - 12) * y / half;
+    ctx.font = '11px ' + css('--f-num'); ctx.textBaseline = 'middle';
+    const zD = g.ND * g.LamD, zR0 = Ltot - zD;
+    if (lat.taper) {
+      const zg0 = crf.zGC[0], zg1 = crf.zGC[1], tl = Math.max((g.Ls + g.sp) * 0.35, (zg1 - zg0) * 0.6);
+      ctx.fillStyle = css('--core'); ctx.beginPath();
+      ctx.moveTo(Z(0), Yy(lat.W / 2)); ctx.lineTo(Z(zg0 - tl), Yy(lat.W / 2)); ctx.lineTo(Z(zg0), Yy(lat.WGC / 2)); ctx.lineTo(Z(zg1), Yy(lat.WGC / 2)); ctx.lineTo(Z(zg1 + tl), Yy(lat.W / 2)); ctx.lineTo(Z(Ltot), Yy(lat.W / 2));
+      ctx.lineTo(Z(Ltot), Yy(-lat.W / 2)); ctx.lineTo(Z(zg1 + tl), Yy(-lat.W / 2)); ctx.lineTo(Z(zg1), Yy(-lat.WGC / 2)); ctx.lineTo(Z(zg0), Yy(-lat.WGC / 2)); ctx.lineTo(Z(zg0 - tl), Yy(-lat.W / 2)); ctx.lineTo(Z(0), Yy(-lat.W / 2)); ctx.closePath(); ctx.fill();
+    } else if (lat.mode === 'ridge') {
+      ctx.fillStyle = css('--core'); ctx.fillRect(pl, Yy(lat.W / 2), gw, Yy(-lat.W / 2) - Yy(lat.W / 2));
+    } else { ctx.fillStyle = css('--clad'); ctx.fillRect(pl, Yy(lat.A / 2), gw, Yy(-lat.A / 2) - Yy(lat.A / 2)); }
+    const ya = lat.mode === 'ridge' ? lat.W / 2 : lat.A / 2, yaG = lat.taper ? lat.WGC / 2 : ya, Rc = lat.mode === 'slab' ? lat.Rc : Infinity;
+    const arc = (z0, sgn, col) => { ctx.beginPath(); for (let i = 0; i <= 30; i++) { const y = -ya + 2 * ya * i / 30, sag = Number.isFinite(Rc) ? Rc - Math.sqrt(Math.max(Rc * Rc - y * y, 0)) : 0; const px = Z(z0 + sgn * sag), py = Yy(y); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.stroke(); };
+    const nl = 14;
+    for (let i = 0; i < nl; i++) { arc(zD * (i + 0.5) / nl, +1, css('--accent')); arc(zR0 + zD * (i + 0.5) / nl, -1, css('--accent')); }
+    for (let i = 0; i < Math.min(g.NG, 24); i++) { const z = crf.zGC[0] + (crf.zGC[1] - crf.zGC[0]) * (i + 0.5) / Math.min(g.NG, 24); ctx.beginPath(); ctx.moveTo(Z(z), Yy(yaG)); ctx.lineTo(Z(z), Yy(-yaG)); ctx.strokeStyle = css('--green'); ctx.stroke(); }
+    if (wl > 0) {
+      const lamM = st.lam0 / crf.N0G, zR = Math.PI * wl * wl / lamM, zc = (crf.zGC[0] + crf.zGC[1]) / 2;
+      ctx.setLineDash([4, 3]); ctx.strokeStyle = css('--amber'); ctx.lineWidth = 1.4;
+      for (const s of [1, -1]) { ctx.beginPath(); for (let i = 0; i <= 200; i++) { const z = Ltot * i / 200, ww = wl * Math.sqrt(1 + ((z - zc) / zR) ** 2); const px = Z(z), py = Yy(s * Math.min(ww, half)); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke(); }
+      ctx.setLineDash([]);
+    }
+    ctx.fillStyle = css('--muted'); ctx.textAlign = 'left';
+    ctx.fillText(lat.taper ? `top view · coupler ${fx(lat.WGC, 1)} µm → rib ${fx(lat.W, 2)} µm` : lat.mode === 'ridge' ? `top view · ridge W = ${fx(lat.W, 2)} µm` : `top view · width A = ${fx(lat.A, 1)} µm, R_c = ${Number.isFinite(lat.Rc) ? fmtLen(lat.Rc) : '∞'}`, pl + 4, 9);
+    ctx.textAlign = 'right'; if (wl > 0) { ctx.fillStyle = css('--amber'); ctx.fillText('lateral mode ±w(z)', w - 12, 9); }
+  }
+  /* spectrum */
+  const P0 = prep($('cvC')); if (!P0) return; const { ctx, w, h } = P0;
+  const pl = 46, pr = 14, pt = 12, pb = 34, gw = w - pl - pr, gh = h - pt - pb;
+  const a = cr.lam[0] * 1000, b = cr.lam[cr.lam.length - 1] * 1000;
+  const X = v => pl + gw * (v - a) / (b - a), Y = v => pt + gh * (1 - Math.min(1.05, v));
+  crGeom = { pl, gw, a, b };
+  ctx.strokeStyle = css('--grid'); ctx.fillStyle = css('--muted'); ctx.lineWidth = 1; ctx.textAlign = 'right';
+  for (const v of [0, 0.25, 0.5, 0.75, 1]) { ctx.beginPath(); ctx.moveTo(pl, Y(v)); ctx.lineTo(pl + gw, Y(v)); ctx.stroke(); ctx.fillText(fx(v, 2), pl - 6, Y(v)); }
+  ctx.textAlign = 'center';
+  for (const v of niceTicks(a, b, Math.max(3, Math.floor(gw / 90)))) { ctx.beginPath(); ctx.moveTo(X(v), pt); ctx.lineTo(X(v), pt + gh); ctx.stroke(); ctx.fillText(tickLabel(v), X(v), h - pb + 13); }
+  ctx.fillText('pump wavelength (nm)', pl + gw / 2, h - 7);
+  const line = (arr, col, wd, dash) => { ctx.beginPath(); for (let i = 0; i < arr.length; i++) { const px = X(cr.lam[i] * 1000), py = Y(arr[i]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.setLineDash(dash || []); ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.stroke(); ctx.setLineDash([]); };
+  line(cr.Rd, css('--muted'), 1, [2, 3]); line(cr.E, css('--green'), 1.3, [5, 3]); line(Array.from(cr.R, (v, i) => Math.max(0, 1 - v - cr.T[i] - cr.E[i] - cr.LL[i])), css('--warn'), 1, [1, 2]); if (st.lat.mode === 'slab') line(cr.LL, css('--ink'), 1, [6, 2, 1, 2]); line(cr.T, css('--amber'), 1.5); line(cr.R, css('--accent'), 2);
+  const fl = fieldLamC * 1000; if (fl >= a && fl <= b) { ctx.strokeStyle = css('--green'); ctx.beginPath(); ctx.moveTo(X(fl), pt); ctx.lineTo(X(fl), pt + gh); ctx.stroke(); }
+  const pk = cr.pk, Q = pk.lam / pk.fwhm, sum = crf.R + crf.T + crf.escL + crf.escR + crf.latLoss;
+  const rows = [
+    ['Cavity resonance (locked)', fx(cr.res.lam * 1000, 4) + ' nm'], ['Resonance FWHM / FSR', fmtBW(cr.res.fwhm) + ' / ' + fmtBW(cr.fsr)],
+    ['Resonance (R peak)', fx(pk.lam * 1000, 3) + ' nm'], ['Peak R into beam', fx(cr.R[pk.ip] * 100, 2) + ' %'],
+    ['Resonance FWHM', Number.isFinite(pk.fwhm) ? fmtBW(pk.fwhm) : 'not resolved'], ['Q = λ/FWHM', Number.isFinite(Q) ? sig(Q, 3) : '—'],
+    ['Off-resonance R (median)', fx(pk.base * 100, 2) + ' %'], ['Bare-slab R', fx(cr.Rd[pk.ip] * 100, 2) + ' %'],
+    ['GC radiation loss α_G', sig(crf.alphaRad / 100, 3) + ' cm⁻¹'], ['GC length · α_G/2', sig(crf.alphaRad * 1e-6 * g.NG * g.LamG / 2, 3)],
+    ['GC period Λ_G', fx(g.LamG * 1000, 2) + ' nm'], ['Cavity length (GC + spacers + straight)', fmtLen(g.NG * g.LamG + 2 * (g.sp + (g.Ls || 0)))],
+    ['Peak guided power / beam power', sig(crf.Umax, 3)], ['DBR |r|² seen from the GC', fx(cabs2(crf.rR) * 100, 2) + ' %'], ['Radiated outside the beam mode', fx(Math.max(0, 1 - sum) * 100, 2) + ' %'], ['Escape through the DBRs', fx((crf.escL + crf.escR) * 100, 2) + ' %'], ['Beam ↔ lateral mode overlap', fx((g.oy ?? 1) ** 2 * 100, 1) + ' %'], ['DBR bounce efficiency (lateral)', fx((g.etaB ?? 1) * 100, 2) + ' %'], ['Lost laterally at the DBRs', fx(crf.latLoss * 100, 2) + ' %']
+  ];
+  $('roC').innerHTML = rows.map(([k, v]) => `<div class="ro"><span class="k">${k.replace('α_G', 'α<sub>G</sub>').replace('Λ_G', 'Λ<sub>G</sub>')}</span><span class="v">${v}</span></div>`).join('');
+  const under = cr.fsr < (cr.lam[cr.lam.length - 1] - cr.lam[0]) / 60 && !st.zoomC;
+  $('capC').textContent = 'Free-space Gaussian beam onto the grating coupler; the DBRs close the cavity. Click the plot to choose the field-map wavelength.' + (under ? ` Resonances every ${fmtBW(cr.fsr)} are narrower than the sampling here; tick “Zoom to resonance” to resolve the locked one.` : '');
+  if (!$('hovC').dataset.on) $('hovC').textContent = `Field map and SHG at ${fx(fieldLamC * 1000, 3)} nm: R = ${fx(crf.R * 100, 2)} %, T = ${fx(crf.T * 100, 2)} %, escape = ${fx((crf.escL + crf.escR) * 100, 2)} %.`;
+}
+function crLam(ev) { const r = $('cvC').getBoundingClientRect(), g = crGeom; if (!g) return null; const v = g.a + (ev.clientX - r.left - g.pl) / g.gw * (g.b - g.a); return v < g.a || v > g.b ? null : v; }
+$('cvC').addEventListener('click', ev => { const v = crLam(ev); if (v !== null) { fieldLamC = v / 1000; delete $('hovC').dataset.on; safeCompute(); } });
+$('cvC').addEventListener('mousemove', ev => { const v = crLam(ev), cr = lastRes && lastRes.cr; if (v === null || !cr) return;
+  let i = Math.round((v / 1000 - cr.lam[0]) / (cr.lam[cr.lam.length - 1] - cr.lam[0]) * (cr.lam.length - 1)); i = Math.max(0, Math.min(cr.lam.length - 1, i));
+  $('hovC').dataset.on = '1'; $('hovC').textContent = `${fx(cr.lam[i] * 1000, 4)} nm   R = ${fx(cr.R[i] * 100, 3)} %   T = ${fx(cr.T[i] * 100, 3)} %   escape = ${fx(cr.E[i] * 100, 3)} %   (click for field and SHG)`; });
+$('cvC').addEventListener('mouseleave', () => { delete $('hovC').dataset.on; drawCR(); });
+$('cvC').style.cursor = 'crosshair';
+
+function drawQPM() {
+  const q = lastRes.qpm, st = lastRes.st;
+  $('qStatus').textContent = qpmMsg;
+  if (!q || !q.ok) { $('roQ').innerHTML = '<div class="ro"><span class="k">QPM</span><span class="v">modes not guided</span></div>'; return; }
+  const P0 = prep($('cvQ'));
+  const lams = q.lams, eb = q.best.eta, eu = q.uniform.eta;
+  let mx = 0; for (let i = 0; i < lams.length; i++) mx = Math.max(mx, eb[i], eu[i]);
+  if (P0) {
+    const { ctx, w, h } = P0, pl = 50, pr = 12, pt = 12, pb = 34, gw = w - pl - pr, gh = h - pt - pb;
+    const a = lams[0] * 1000, b = lams[lams.length - 1] * 1000, X = v => pl + gw * (v - a) / (b - a), ymax = mx * 100 * 1.08 || 1, Y = v => pt + gh * (1 - v / ymax);
+    ctx.strokeStyle = css('--grid'); ctx.fillStyle = css('--muted'); ctx.lineWidth = 1; ctx.textAlign = 'right';
+    for (const v of niceTicks(0, ymax, 4)) { ctx.beginPath(); ctx.moveTo(pl, Y(v)); ctx.lineTo(pl + gw, Y(v)); ctx.stroke(); ctx.fillText(tickLabel(v), pl - 6, Y(v)); }
+    ctx.textAlign = 'center';
+    for (const v of niceTicks(a, b, Math.max(3, Math.floor(gw / 80)))) { ctx.beginPath(); ctx.moveTo(X(v), pt); ctx.lineTo(X(v), pt + gh); ctx.stroke(); ctx.fillText(tickLabel(v), X(v), h - pb + 13); }
+    ctx.fillText('pump wavelength (nm);  η in %/W', pl + gw / 2, h - 7);
+    if (qpmFixed && qpmFixed.target > 0) { const c0 = st.lam0 * 1000; ctx.fillStyle = css('--hatch'); ctx.fillRect(X(c0 - qpmFixed.target * 500), pt, X(c0 + qpmFixed.target * 500) - X(c0 - qpmFixed.target * 500), gh); }
+    const ln = (arr, col, wd, dash) => { ctx.beginPath(); for (let i = 0; i < arr.length; i++) { const px = X(lams[i] * 1000), py = Y(arr[i] * 100); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.setLineDash(dash || []); ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.stroke(); ctx.setLineDash([]); };
+    ln(eu, css('--muted'), 1.2, [5, 4]); ln(eb, css('--accent'), 2);
+  }
+  const Z0 = prep($('cvQz'));
+  const W = q.best.walls;
+  if (Z0) {
+    const { ctx, w, h } = Z0, pl = 50, pr = 12, pt = 8, pb = 26, gw = w - pl - pr, gh = h - pt - pb, L = st.Lpp;
+    const pts = [], amps = [];
+    for (let j = 0; j + 2 < W.length - 1; j += 2) { const P = W[j + 2] - W[j], D = (W[j + 1] - W[j]) / P; if (Math.abs(P / q.Lpp - 1) > 0.3) continue; pts.push([(W[j] + W[j + 2]) / 2, P]); amps.push([(W[j] + W[j + 2]) / 2, Math.sin(Math.PI * Math.min(D, 1 - D))]); }
+    let pmin = Infinity, pmax = 0; for (const [, P] of pts) { pmin = Math.min(pmin, P); pmax = Math.max(pmax, P); }
+    if (pmax - pmin < 1e-3 * pmax) { pmin *= 0.995; pmax *= 1.005; }
+    const X = z => pl + gw * z / L, Y = P => pt + gh * (1 - (P - pmin) / (pmax - pmin)), Ya = A => pt + gh * (1 - A);
+    ctx.strokeStyle = css('--grid'); ctx.fillStyle = css('--muted'); ctx.lineWidth = 1; ctx.textAlign = 'right';
+    for (const v of [pmin, (pmin + pmax) / 2, pmax]) { ctx.beginPath(); ctx.moveTo(pl, Y(v)); ctx.lineTo(pl + gw, Y(v)); ctx.stroke(); ctx.fillText(fx(v, 4), pl - 6, Y(v)); }
+    ctx.textAlign = 'center'; for (const v of niceTicks(0, L / 1000, 4)) ctx.fillText(tickLabel(v), X(v * 1000), h - pb + 12);
+    ctx.fillText('z (mm);  Λpp in µm', pl + gw / 2, h - 5);
+    const step = Math.max(1, Math.floor(pts.length / 800));
+    ctx.beginPath(); for (let i = 0; i < pts.length; i += step) { const px = X(pts[i][0]), py = Y(pts[i][1]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.strokeStyle = css('--amber'); ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.beginPath(); for (let i = 0; i < amps.length; i += step) { const px = X(amps[i][0]), py = Ya(amps[i][1]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.setLineDash([4, 3]); ctx.strokeStyle = css('--green'); ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]);
+  }
+  let minDom = Infinity; for (let j = 0; j + 1 < W.length; j++) minDom = Math.min(minDom, W[j + 1] - W[j]);
+  const mb = q.best.m, mu = q.uniform.m;
+  const rows = [
+    ['Section length', fmtLen(st.Lpp)], ['Centre poling period Λpp', fx(q.Lpp, 3) + ' µm'],
+    ['Δk at λ₀ (unpoled)', sig(q.dk0 * 1e4, 4) + ' cm⁻¹'], ['dΔk/dλ', sig(q.dkdl * 1e-3, 4) + ' µm⁻¹/nm'],
+    ['n_eff pump / SH', fx(q.neffF, 4) + ' / ' + fx(q.neffS, 4)],
+    ['Uniform: FWHM, peak η', fmtBW(mu.fwhm) + ', ' + sig(mu.peak * 100, 3) + ' %/W'],
+    ['Design: FWHM, peak η', fmtBW(mb.fwhm) + ', ' + sig(mb.peak * 100, 3) + ' %/W'],
+    ['Design: in-band ripple', fx(mb.ripple, 2) + ' dB'],
+    ['Peak η penalty vs uniform', fx(10 * Math.log10(mb.peak / mu.peak), 2) + ' dB'],
+    ['Band-integrated η ratio', fx(sumOf(q.best.eta) / sumOf(q.uniform.eta), 3)],
+    ['Domains / shortest domain', (W.length - 1) + ' / ' + fmtLen(minDom)]
+  ];
+  $('roQ').innerHTML = rows.map(([k, v]) => `<div class="ro"><span class="k">${k.replace('n_eff', 'n<sub>eff</sub>')}</span><span class="v">${v}</span></div>`).join('');
+  const log = (qpmFixed && qpmFixed.log) || [];
+  $('tblQ').querySelector('tbody').innerHTML = log.length ? log.map(e => `<tr><td>${fx(e.apod * 100, 0)} %</td><td>${e.it}</td><td>${fx(e.scale, 3)}</td><td>${fmtBW(e.fwhm)}</td><td>${fx(e.ripple, 2)} dB</td><td>${sig(e.peak * 100, 3)} %/W</td></tr>`).join('')
+    : '<tr><td colspan="6" style="text-align:left;color:var(--muted)">Run the optimizer to see its iterations.</td></tr>';
+  $('capQ').textContent = `Straight poled waveguide (core ${fmtLen(st.t)}, unetched), first-order QPM around λ₀ = ${fx(st.lam0 * 1000, 0)} nm, ${st.pol}0 pump → ${st.pol}${st.sOrder} SH, d_eff = ${fx(st.deff, 1)} pm/V, width ${fx(st.wEff, 1)} µm. ` + (qpmFixed ? 'Chirped and apodised design from the optimizer.' : 'Uniform poling.');
+}
+function sumOf(a) { let s = 0; for (const v of a) s += v; return s; }
+
+new ResizeObserver(() => { const w = document.querySelector('main').clientWidth; if (w !== lastW) { lastW = w; drawAll(); } }).observe(document.querySelector('main'));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawAll);
+new MutationObserver(drawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+applyPreset('tfln');
+setTimeout(() => { if (!lastRes) safeCompute(); }, 300);
+window.__dbr = { compute: safeCompute, state: () => lastRes };
+
+})();
+</script>
+</body>
+</html>

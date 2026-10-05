@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Er:Al₂O₃ strip-loaded waveguide amplifier: overlaps and gain spectra</title>
+<style>
+/* shared tokens and layout, inlined from physics-applets assets/css (base, photonics, applet) */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #0e0f13;
+  --panel: #17181e;
+  --panel-2: #1d1f27;
+  --border: #2a2c35;
+  --text: #eceef2;
+  --text-dim: #9296a3;
+  --text-faint: #5c5f6b;
+  --grid: rgba(255,255,255,0.07);
+  --violet: #7b5cfa;
+  --blue: #3e8ef7;
+  --cyan: #23c7d9;
+  --green: #3ecf6e;
+  --yellow: #e8d44d;
+  --orange: #f2914b;
+  --red: #f0553f;
+  --focus: #6db4ff;
+  --font-body: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f5f5f2;
+    --panel: #ffffff;
+    --panel-2: #eeeeea;
+    --border: #dcdcd5;
+    --text: #17181e;
+    --text-dim: #55575f;
+    --text-faint: #90929a;
+    --grid: rgba(0,0,0,0.08);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f5f5f2; --panel: #ffffff; --panel-2: #eeeeea; --border: #dcdcd5;
+  --text: #17181e; --text-dim: #55575f; --text-faint: #90929a; --grid: rgba(0,0,0,0.08);
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e0f13; --panel: #17181e; --panel-2: #1d1f27; --border: #2a2c35;
+  --text: #eceef2; --text-dim: #9296a3; --text-faint: #5c5f6b; --grid: rgba(255,255,255,0.07);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: var(--font-mono); }
+/*
+Photonics course palette. Loaded after base.css — only variables
+that should differ from the universal defaults need to appear here.
+Currently identical to base.css.
+*/
+/*
+Shared applet components. Load order: base.css, <course>.css, applet.css,
+then the applet's own <style> (layout and data-specific colours only).
+
+Everything here reads the tokens defined in base.css, so themes and course
+accents change in one place. Canonical class names are .card/.panel, .btn,
+.seg and .readout; the extra selectors in each list are legacy names still
+used by older applets so they pick up the same look without markup changes.
+*/
+
+:root {
+  --accent: var(--violet);
+  --accent-soft: color-mix(in srgb, var(--violet) 16%, transparent);
+  --radius-panel: 12px;
+  --radius-ctl: 8px;
+  --fs-title: 1.25rem;
+  --fs-body: 0.9rem;
+  --fs-label: 0.85rem;
+  --fs-small: 0.78rem;
+  --fs-tiny: 0.72rem;
+}
+
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+
+body {
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Titles and text --------------------------------------------------- */
+
+h1 {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 2px 0 4px;
+}
+
+h2,
+h3 {
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: var(--text-dim);
+  margin: 0 0 10px;
+}
+
+p.sub,
+.sub,
+header p {
+  color: var(--text-dim);
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.note,
+.disp-note,
+.caption,
+.legend-note {
+  color: var(--text-dim);
+  font-size: var(--fs-small);
+  line-height: 1.5;
+}
+
+.warn { color: var(--red); font-size: var(--fs-small); margin-top: 6px; }
+
+.mono,
+.val,
+.readout-val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+a.back,
+.back {
+  display: inline-block;
+  margin-bottom: 4px;
+  color: var(--text-dim);
+  font-size: var(--fs-label);
+  text-decoration: none;
+}
+.back:hover { text-decoration: underline; }
+
+/* Boxes: control panels, figure frames ------------------------------- */
+
+.card,
+.panel,
+.chart-card,
+.console {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  padding: 14px;
+}
+
+.figure-box,
+.canvas-wrap,
+.scope,
+.bench {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+
+/* Sliders ------------------------------------------------------------ */
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--border);
+}
+input[type=range]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+/* Slider row: label left, value right ----------------------------------- */
+
+.row .label-line,
+.ctrl label,
+.slider-label,
+.field-label,
+.row-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--fs-label);
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.row .label-line span,
+.ctrl label .val,
+.slider-label span.val,
+.field-label b,
+.row-label span.val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: var(--fs-label);
+  color: var(--accent);
+}
+
+/* Buttons ------------------------------------------------------------- */
+
+.btn,
+button.reset,
+button.pill,
+button.icon-btn,
+.preset-btn,
+.presets button,
+.small-btn,
+.rbtn,
+.chip,
+.tab-btn,
+.matbtn,
+.toggle-btn,
+.collapse-btn,
+.segbtns button,
+.view-toggle button {
+  font-family: inherit;
+  font-size: var(--fs-label);
+  font-weight: 500;
+  line-height: 1.25;
+  padding: 8px 12px;
+  border-radius: var(--radius-ctl);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.btn:hover,
+button.reset:hover,
+button.pill:hover,
+.preset-btn:hover,
+.presets button:hover,
+.small-btn:hover,
+.rbtn:hover,
+.chip:hover,
+.tab-btn:hover,
+.matbtn:hover,
+.toggle-btn:hover,
+.collapse-btn:hover,
+.segbtns button:hover,
+.view-toggle button:hover { border-color: var(--accent); }
+.btn:active,
+button.reset:active,
+button.pill:active,
+button.icon-btn:active { transform: translateY(1px); }
+.btn.small,
+button.pill.small,
+.small-btn,
+.collapse-btn,
+.rbtn { font-size: var(--fs-small); padding: 5px 9px; }
+.btn[disabled] { opacity: .4; cursor: not-allowed; }
+
+.btn.active,
+.btn[aria-pressed="true"],
+.preset-btn.active,
+.rbtn.active,
+.chip.active,
+.tab-btn.active,
+.matbtn.active,
+.toggle-btn.active,
+.icon-btn.active,
+.segbtns button[aria-pressed="true"],
+.view-toggle button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Segmented control -------------------------------------------------------- */
+
+.seg,
+.segmented,
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-ctl);
+  overflow: hidden;
+  background: var(--panel-2);
+}
+.seg button,
+.segmented button,
+.mode-toggle button {
+  flex: 1;
+  font-family: inherit;
+  font-size: var(--fs-label);
+  font-weight: 500;
+  padding: 8px 12px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.seg button:last-child,
+.segmented button:last-child,
+.mode-toggle button:last-child { border-right: none; }
+.seg button:hover,
+.segmented button:hover,
+.mode-toggle button:hover { color: var(--text); }
+.seg button.active,
+.segmented button.active,
+.mode-toggle button.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Checkbox / radio ------------------------------------------------------ */
+
+input[type=checkbox],
+input[type=radio] { accent-color: var(--accent); }
+label.chk,
+.toggle-row label { font-size: var(--fs-label); color: var(--text); }
+
+/* Number and select fields -------------------------------------------------- */
+
+input[type=number],
+select {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+/* Readouts and tables ------------------------------------------------------- */
+
+.readout dt,
+.readout .k { color: var(--text-dim); font-family: var(--font-body); }
+
+table.stats,
+table.info,
+table.orders {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-small);
+}
+table.stats th,
+table.stats td,
+table.info td,
+table.orders th,
+table.orders td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+table.stats th,
+table.orders th {
+  font-family: var(--font-body);
+  font-size: var(--fs-tiny);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.legend {
+  font-size: var(--fs-small);
+  color: var(--text-dim);
+}
+
+.eq {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  background: var(--accent-soft);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: var(--radius-ctl);
+  overflow-x: auto;
+}
+
+/* Focus and scrollbars -------------------------------------------------------- */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+</style>
+<style>
+:root{
+  --l-sub:color-mix(in srgb,var(--blue) 18%,transparent);
+  --l-film:color-mix(in srgb,var(--violet) 36%,transparent);
+  --l-strip:color-mix(in srgb,var(--green) 38%,transparent);
+  --l-sup:color-mix(in srgb,var(--text) 3%,transparent);
+  --c-pump:var(--orange);
+  --c-sig:var(--violet);
+  --c-inv:var(--green);
+}
+[hidden]{display:none!important}
+.wrap{max-width:1280px;margin:0 auto;padding:16px 16px 36px}
+.sub{margin:0 0 14px;max-width:90ch}
+.layout{display:grid;grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:920px){.layout{grid-template-columns:minmax(0,1fr)}}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.main{display:flex;flex-direction:column;gap:12px;min-width:0}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}}
+.card{min-width:0}
+.card h2{margin-bottom:8px}
+.seg{display:flex;width:100%;margin-bottom:10px}
+.seg button{padding:6px 6px;font-size:var(--fs-small);white-space:nowrap}
+.ctl{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:0 8px;align-items:center;margin-bottom:6px}
+.ctl label{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;font-size:var(--fs-small);color:var(--text-dim)}
+.ctl label .sym{font-family:var(--font-mono);color:var(--text-faint)}
+.ctl input[type=number]{width:100%;padding:4px 6px;font-size:var(--fs-small)}
+.grp{font-size:var(--fs-tiny);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);margin:10px 0 6px}
+.grp:first-of-type{margin-top:0}
+.hint{font-size:var(--fs-tiny);color:var(--text-faint);line-height:1.45;margin:2px 0 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-panel);padding:10px 12px;min-width:0}
+.tile .k{font-size:var(--fs-tiny);color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}
+.tile .v{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:1.25rem;font-weight:600;margin-top:2px;white-space:nowrap}
+.tile .s{font-size:var(--fs-tiny);color:var(--text-faint);margin-top:2px}
+.tile.pump .v{color:var(--c-pump)}
+.tile.sig .v{color:var(--c-sig)}
+.tile.good .v{color:var(--green)}
+.tile.bad .v{color:var(--red)}
+.status{font-size:var(--fs-small);color:var(--text-dim);display:flex;flex-wrap:wrap;gap:4px 16px}
+.status .busy{color:var(--accent)}
+.figure-box{padding:8px 8px 6px}
+canvas{display:block;width:100%}
+.maps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.maps{grid-template-columns:minmax(0,1fr)}}
+.maps figure{margin:0;min-width:0}
+.maps canvas{height:190px;border-radius:6px;border:1px solid var(--border)}
+.maps figcaption{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 8px;font-size:var(--fs-small);margin-top:4px}
+.maps figcaption .v{font-family:var(--font-mono);color:var(--text-dim)}
+#cSpec{height:330px;cursor:crosshair}
+#cZ,#cB{height:260px}
+.fig-title{font-size:var(--fs-small);color:var(--text-dim);margin:2px 4px 6px;display:flex;justify-content:space-between;align-items:center;gap:6px 14px;flex-wrap:wrap}
+.fig-title b{color:var(--text);font-weight:600}
+.fig-title .seg{width:auto;margin:0}
+.fig-note{font-size:var(--fs-small);color:var(--text-dim);margin:6px 6px 2px;line-height:1.5}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;margin:6px 6px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.legend i{display:inline-block;width:22px;height:0;border-top:2px solid var(--text-dim)}
+.legend i.dash{border-top-style:dashed}
+table.optv{width:100%;border-collapse:collapse;font-size:var(--fs-small);margin:4px 0 8px}
+table.optv th{font-size:var(--fs-tiny);color:var(--text-faint);font-weight:600;text-align:left;padding:2px 4px}
+table.optv td{padding:2px 4px;vertical-align:middle}
+table.optv td input[type=number]{width:62px;padding:3px 5px;font-size:var(--fs-tiny)}
+table.optv td.nm{color:var(--text-dim)}
+label.chk{display:flex;align-items:center;gap:8px;font-size:var(--fs-small);color:var(--text-dim);margin:0 0 8px}
+.optbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.optbar .hint{margin:0}
+table.optr{width:100%;border-collapse:collapse;font-size:var(--fs-small);margin:4px 0 8px;font-variant-numeric:tabular-nums}
+table.optr th,table.optr td{padding:3px 4px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
+table.optr th:first-child,table.optr td:first-child{text-align:left;color:var(--text-dim)}
+table.optr td{font-family:var(--font-mono)}
+table.optr td.up{color:var(--green)}
+.notes{font-size:var(--fs-small);color:var(--text-dim);line-height:1.6}
+.notes h3{color:var(--text);font-size:var(--fs-label);margin:12px 0 4px}
+.notes h3:first-child{margin-top:0}
+.notes p{margin:0 0 6px;max-width:95ch}
+.notes .eq{margin:4px 0 8px;font-size:var(--fs-small);line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Er:Al₂O₃ strip-loaded waveguide amplifier</h1>
+  <p class="sub">An erbium-doped Al₂O₃ strip loads a thin film of Al₂O₃, Si₃N₄, LiNbO₃ (TFLN) or LiTaO₃ (TFLT) on SiO₂, with a SiO₂ top cladding or air above. The pump and signal modes are solved for the cross-section, their overlaps with the doped strip feed steady-state erbium rate equations, and the pump and signal are propagated along the device to give the gain spectrum.</p>
+
+  <div class="layout">
+    <aside class="side">
+      <div class="card">
+        <h2>Platform (film under the strip)</h2>
+        <div class="seg" id="platSeg" role="group" aria-label="Film material">
+          <button type="button" data-v="al2o3">Al₂O₃</button>
+          <button type="button" data-v="sin">Si₃N₄</button>
+          <button type="button" data-v="tfln">TFLN</button>
+          <button type="button" data-v="tflt">TFLT</button>
+        </div>
+        <div class="grp">Top cladding (superstrate)</div>
+        <div class="seg" id="supSeg" role="group" aria-label="Top cladding">
+          <button type="button" data-v="sio2">SiO₂ cladding</button>
+          <button type="button" data-v="air">Air (uncladded)</button>
+        </div>
+        <div id="cGeo"></div>
+        <p class="hint">Choosing a platform loads typical dimensions. TFLN and TFLT are taken as x-cut: quasi-TE sees n<sub>e</sub>, quasi-TM sees n<sub>o</sub>.</p>
+      </div>
+
+      <div class="card">
+        <h2>Erbium and device</h2>
+        <div id="cEr"></div>
+        <div class="grp">Spectroscopy</div>
+        <div class="seg" id="cupSeg" role="group" aria-label="Upconversion model">
+          <button type="button" data-v="fixed">C<sub>up</sub> fixed</button>
+          <button type="button" data-v="lin">C<sub>up</sub> ∝ N<sub>Er</sub></button>
+        </div>
+        <div class="seg" id="qSeg" role="group" aria-label="Quenching model">
+          <button type="button" data-v="none">No quenching</button>
+          <button type="button" data-v="lin">f<sub>q</sub> ∝ N<sub>Er</sub></button>
+          <button type="button" data-v="const">Fixed f<sub>q</sub></button>
+        </div>
+        <div id="cSpecCtl"></div>
+        <p class="hint" id="concHint"></p>
+      </div>
+
+      <div class="card">
+        <h2>Pump and signal</h2>
+        <div class="seg" id="pumpSeg" role="group" aria-label="Pump wavelength">
+          <button type="button" data-v="980">Pump 980 nm</button>
+          <button type="button" data-v="1480">Pump 1480 nm</button>
+        </div>
+        <div id="cPS"></div>
+      </div>
+
+      <div class="card">
+        <h2>Modes</h2>
+        <div class="seg" id="polSeg" role="group" aria-label="Polarisation">
+          <button type="button" data-v="TE">Quasi-TE</button>
+          <button type="button" data-v="TM">Quasi-TM</button>
+        </div>
+        <div class="seg" id="solverSeg" role="group" aria-label="Mode solver">
+          <button type="button" data-v="eim">EIM (fast)</button>
+          <button type="button" data-v="fd">2D FD (reference)</button>
+        </div>
+        <p class="hint">Both pump and signal use the fundamental mode of the chosen polarisation.</p>
+      </div>
+
+      <div class="card">
+        <h2>Optimizer</h2>
+        <div class="seg" id="objSeg" role="group" aria-label="Objective">
+          <button type="button" data-v="dB">Max net gain (dB)</button>
+          <button type="button" data-v="dBcm">Max gain per cm</button>
+        </div>
+        <table class="optv">
+          <thead><tr><th></th><th>Free parameter</th><th>min</th><th>max</th></tr></thead>
+          <tbody id="optRows"></tbody>
+        </table>
+        <label class="chk"><input type="checkbox" id="optSM" checked> Keep the signal single-mode</label>
+        <div class="optbar"><button type="button" class="btn" id="optRun">Optimize</button><span id="optMsg" class="hint"></span></div>
+        <div id="optRes"></div>
+        <p class="hint">Uses the EIM with the platform, polarisation, pump and signal fixed. Length is found exactly from one long propagation run per candidate. With L free, gain per cm favours the shortest device, so fix L to compare cross-sections. Check the optimum with the 2D solver afterwards.</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="tiles" id="tiles"></div>
+      <div class="status" id="status"></div>
+
+      <div class="card figure-box">
+        <div class="fig-title"><span><b>Cross-section and mode intensities</b> (to scale, |E|² of the dominant component)</span><span id="xsInfo"></span></div>
+        <div class="maps">
+          <figure><canvas id="cXS" aria-label="Cross-section"></canvas><figcaption><span>Structure</span><span class="v" id="capXS"></span></figcaption></figure>
+          <figure><canvas id="cMP" aria-label="Pump mode intensity"></canvas><figcaption><span style="color:var(--c-pump);font-weight:600" id="capPn">Pump</span><span class="v" id="capP"></span></figcaption></figure>
+          <figure><canvas id="cMS" aria-label="Signal mode intensity"></canvas><figcaption><span style="color:var(--c-sig);font-weight:600" id="capSn">Signal</span><span class="v" id="capS"></span></figcaption></figure>
+        </div>
+      </div>
+
+      <div class="card figure-box">
+        <div class="fig-title">
+          <span><b id="specTitle">Net gain spectrum</b></span>
+          <div class="seg" id="tabSeg" role="group" aria-label="Spectrum view">
+            <button type="button" data-v="gain">Net gain</button>
+            <button type="button" data-v="sigma">Cross-sections</button>
+          </div>
+        </div>
+        <canvas id="cSpec" aria-label="Gain spectrum"></canvas>
+        <div class="legend fig-note" id="specLegend"></div>
+      </div>
+
+      <div class="two">
+        <div class="card figure-box">
+          <div class="fig-title"><span><b>Along the device</b>: pump power and inversion</span></div>
+          <canvas id="cZ" aria-label="Pump power and inversion along the device"></canvas>
+          <div class="legend fig-note"><span><i style="border-color:var(--c-pump)"></i>pump power (left)</span><span><i class="dash" style="border-color:var(--c-inv)"></i>inversion n₂/N<sub>Er</sub>, signal-weighted (right)</span></div>
+        </div>
+        <div class="card figure-box">
+          <div class="fig-title">
+            <span><b>Signal</b> at λ<sub>s</sub></span>
+            <div class="seg" id="tab2Seg" role="group" aria-label="Signal view">
+              <button type="button" data-v="z">Gain along z</button>
+              <button type="button" data-v="p">Gain vs pump</button>
+              <button type="button" data-v="n">Gain vs N<sub>Er</sub></button>
+              <button type="button" data-v="q">Gain vs quenching</button>
+            </div>
+          </div>
+          <canvas id="cB" aria-label="Signal gain"></canvas>
+          <div class="legend fig-note" id="bLegend"></div>
+        </div>
+      </div>
+
+      <div class="card notes">
+        <h3>Rate equations</h3>
+        <p>Er³⁺ is treated as an effective two-level system (⁴I<sub>15/2</sub> ground state with population N₁, ⁴I<sub>13/2</sub> metastable level with N₂ = N<sub>Er</sub> − N₁). At 980 nm the ⁴I<sub>11/2</sub> level empties fast into ⁴I<sub>13/2</sub>, so the pump only absorbs; at 1480 nm the pump also causes stimulated emission. Energy-transfer upconversion removes excitations at the rate C<sub>up</sub>N₂². In steady state, in every cell of the doped strip,</p>
+        <div class="eq">0 = (R<sub>p,a</sub> + R<sub>s,a</sub>) N₁ − (R<sub>p,e</sub> + R<sub>s,e</sub>) N₂ − N₂/τ − C<sub>up</sub>N₂²,   R = σ I/(hν),   I(x,y) = P |E(x,y)|² / ∫|E|² dA</div>
+        <h3>Propagation and overlaps</h3>
+        <div class="eq">dP<sub>p</sub>/dz = −[ ∫(σ<sub>a,p</sub>N₁ − σ<sub>e,p</sub>N₂)|E<sub>p</sub>|² dA / ∫|E<sub>p</sub>|² dA + α ] P<sub>p</sub><br>dP<sub>s</sub>/dz = [ ∫(σ<sub>e,s</sub>N₂ − σ<sub>a,s</sub>N₁)|E<sub>s</sub>|² dA / ∫|E<sub>s</sub>|² dA − α ] P<sub>s</sub></div>
+        <p>The integrals run over the doped strip only, so for uniform inversion they reduce to Γ(σ<sub>e</sub>N₂ − σ<sub>a</sub>N₁) with the overlap Γ = ∫<sub>strip</sub>|E|² dA / ∫|E|² dA. Here the inversion is computed locally, so the bright centre of the pump mode inverts more than the edges of the strip. The probe gain spectrum uses the inversion set up by the pump and the signal:</p>
+        <div class="eq">G(λ) [dB] = 4.343 [σ<sub>e</sub>(λ) ∫n̄₂ dz − σ<sub>a</sub>(λ) ∫n̄₁ dz] · Γ<sub>s</sub>(λ)/Γ<sub>s</sub>(λ<sub>s</sub>) − α L,   n̄ = ∫N|E<sub>s</sub>|² dA / ∫|E<sub>s</sub>|² dA</div>
+        <h3>Spectroscopy and limits of the model</h3>
+        <p>The absorption cross-section is a smooth model of the Er:Al₂O₃ band (peak at 1533 nm, adjustable height); the emission cross-section follows from McCumber theory, σ<sub>e</sub>(λ) = σ<sub>a</sub>(λ) exp[(hc/λ₀ − hc/λ)/kT] with λ₀ = 1532 nm and T = 295 K. Default values are typical of sputtered Al₂O₃:Er films (σ<sub>a</sub>(1533) ≈ 5.7×10⁻²¹ cm², σ<sub>a</sub>(980) ≈ 1.7×10⁻²¹ cm², τ ≈ 7.5 ms, C<sub>up</sub> a few 10⁻¹⁸ cm³/s); use measured data for your films where you have them. With concentration effects on, the upconversion coefficient grows in proportion to N<sub>Er</sub> (C<sub>up</sub> = C<sub>up</sub>(10²⁰)·N<sub>Er</sub>/10²⁰) and a fraction f<sub>q</sub> of the ions is quenched, either growing with concentration (f<sub>q</sub> = k<sub>q</sub>N<sub>Er</sub>, clustering) or fixed (set by the deposition process). Quenched ions decay too fast to be inverted (sub-µs instead of ms), so they stay in the ground state and only absorb pump and signal; the remaining ions follow the rate equation above. Quenching and concentration-dependent upconversion are what make an optimum concentration appear. The "Gain vs quenching" view sweeps the quenched share and, for each value, also searches the best N<sub>Er</sub> (0.1–10×10²⁰ cm⁻³) and length (up to 30 cm), which shows how much a lower-quenching film is worth once the design is adapted to it. Not included: amplified spontaneous emission (it limits gain above roughly 20–30 dB), excited-state absorption, partly inverted ion pairs, and Er in the film (only the strip is doped). The background loss α is taken equal at pump and signal. Modes come from the effective index method or the semi-vectorial 2D finite-difference solver of the <a href="https://mikkojhuttunen.github.io/physics-applets/photonics/waveguide-mode-explorer.html">waveguide mode explorer</a>; Γ<sub>s</sub>(λ) for the spectrum is evaluated with the EIM at 25 nm steps and scaled to the selected solver at λ<sub>s</sub>.</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="waveguide-core/waveguide-core.js"></script>
+<script>
+/* worker: 2D FD fundamental modes at the signal and pump wavelengths on one grid */
+function ERWORKER() {
+  onmessage = function (e) {
+    var d = e.data, t0 = Date.now(), pols = {};
+    pols[d.pol] = true;
+    try {
+      var es = C.solveEIM(d.G, d.lamS, pols);
+      if (!es.ok || !es.modes.length) throw new Error('No guided signal mode.');
+      var grid = C.buildGrid(d.G, es.ix, d.lamS, 'normal', es);
+      var fund = function (R) { for (var i = 0; i < R.modes.length; i++) if (R.modes[i].key === d.pol + '0_0') return R.modes[i]; return R.modes[0] || null; };
+      var s = fund(C.fdRun(d.G, d.lamS, pols, 'normal', grid)), p = fund(C.fdRun(d.G, d.lamP, pols, 'normal', grid));
+      if (!s) throw new Error('The 2D solver found no guided signal mode.');
+      if (!p) throw new Error('The 2D solver found no guided pump mode.');
+      postMessage({ type: 'ok', ms: Date.now() - t0, grid: { Nx: grid.Nx, Ny: grid.Ny, xc: grid.xc, yc: grid.yc, dx: grid.dx, dy: grid.dy, reg: grid.reg }, Ns: s.N, Np: p.N, Es: s.field, Ep: p.field }, [s.field.buffer, p.field.buffer]);
+    } catch (err) {
+      postMessage({ type: 'error', msg: String(err && err.message || err) });
+    }
+  };
+}
+
+(function () {
+'use strict';
+var C = WGCORE();
+var $ = function (id) { return document.getElementById(id); };
+var MINUS = '−';
+function fmt(v, d) { if (v === null || v === undefined || !isFinite(v)) return '—'; return v.toFixed(d).replace('-', MINUS); }
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+var H = 6.62607015e-34, CL = 2.99792458e8, HCK = 14387.77, TK = 295, LAM0 = 1.532;
+
+/* ---------- state ---------- */
+var PLAT = {
+  al2o3: { film: { TE: 'al2o3', TM: 'al2o3' }, t: 0.40, w: 2.0, h: 0.40 },
+  sin: { film: { TE: 'si3n4', TM: 'si3n4' }, t: 0.10, w: 2.0, h: 0.50 },
+  tfln: { film: { TE: 'ln_e', TM: 'ln_o' }, t: 0.30, w: 2.0, h: 0.40 },
+  tflt: { film: { TE: 'lt_e', TM: 'lt_o' }, t: 0.30, w: 2.0, h: 0.40 }
+};
+var S = {
+  plat: 'al2o3', t: 0.40, w: 2.0, h: 0.40, sup: 'sio2', pol: 'TE', solver: 'eim',
+  nEr: 1.5, L: 3.0, loss: 0.25, tau: 7.5, cup: 4.0, sigPk: 5.7, sig980: 1.7,
+  pump: 980, Pp: 50, lamS: 1532, PsdBm: -30, tab: 'gain', tab2: 'z', cupMode: 'lin', qMode: 'lin', qk: 5, qf: 10, obj: 'dB'
+};
+var SPECS = {
+  cGeo: [
+    { k: 't', lab: 'Core (film) thickness', sym: 't (µm)', min: 0.02, max: 1.5, step: 0.005, dec: 3, modes: true },
+    { k: 'w', lab: 'Strip width', sym: 'w (µm)', min: 0.3, max: 8, step: 0.05, dec: 2, modes: true },
+    { k: 'h', lab: 'Strip height', sym: 'h (µm)', min: 0.05, max: 1.5, step: 0.005, dec: 3, modes: true }
+  ],
+  cEr: [
+    { k: 'nEr', lab: 'Er concentration', sym: 'N_Er (10²⁰ cm⁻³)', min: 0.05, max: 10, dec: 2, log: true },
+    { k: 'L', lab: 'Device length', sym: 'L (cm)', min: 0.05, max: 30, dec: 2, log: true },
+    { k: 'loss', lab: 'Background loss', sym: 'α (dB/cm)', min: 0, max: 5, step: 0.01, dec: 2 }
+  ],
+  cSpecCtl: [
+    { k: 'tau', lab: '⁴I₁₃/₂ lifetime', sym: 'τ (ms)', min: 0.5, max: 12, step: 0.1, dec: 1 },
+    { k: 'cup', lab: 'Upconversion coefficient', sym: 'C_up (10⁻¹⁸ cm³/s)', min: 0, max: 20, step: 0.1, dec: 1 },
+    { k: 'qk', lab: 'Quenched share per 10²⁰ cm⁻³', sym: 'k_q (%)', min: 0, max: 30, step: 0.1, dec: 1 },
+    { k: 'qf', lab: 'Quenched share of the ions', sym: 'f_q (%)', min: 0, max: 80, step: 0.5, dec: 1 },
+    { k: 'sigPk', lab: 'Peak absorption, 1533 nm', sym: 'σ_a (10⁻²¹ cm²)', min: 1, max: 10, step: 0.05, dec: 2 },
+    { k: 'sig980', lab: 'Pump absorption, 980 nm', sym: 'σ_a (10⁻²¹ cm²)', min: 0.3, max: 5, step: 0.05, dec: 2 }
+  ],
+  cPS: [
+    { k: 'Pp', lab: 'Launched pump power', sym: 'P_p (mW)', min: 0.1, max: 1000, dec: 1, log: true, zero: true },
+    { k: 'lamS', lab: 'Signal wavelength', sym: 'λ_s (nm)', min: 1450, max: 1650, step: 0.5, dec: 1, modes: true },
+    { k: 'PsdBm', lab: 'Launched signal power', sym: 'P_s (dBm)', min: -40, max: 15, step: 0.5, dec: 1 }
+  ]
+};
+var CTL = {};
+Object.keys(SPECS).forEach(function (host) {
+  SPECS[host].forEach(function (sp) {
+    var d = document.createElement('div'); d.className = 'ctl';
+    d.innerHTML = '<label for="r-' + sp.k + '"><span>' + sp.lab + '</span><span class="sym">' + sp.sym + '</span></label>' +
+      '<input type="range" id="r-' + sp.k + '"><input type="number" id="n-' + sp.k + '" step="any" aria-label="' + sp.lab + '">';
+    $(host).appendChild(d);
+    var r = d.querySelector('input[type=range]'), nb = d.querySelector('input[type=number]');
+    if (sp.log) { r.min = 0; r.max = 1000; r.step = 1; } else { r.min = sp.min; r.max = sp.max; r.step = sp.step; }
+    nb.min = sp.zero ? 0 : sp.min; nb.max = sp.max;
+    r.addEventListener('input', function () {
+      var v = sp.log ? sp.min * Math.pow(sp.max / sp.min, +r.value / 1000) : +r.value;
+      set(sp.k, +v.toPrecision(4));
+    });
+    nb.addEventListener('change', function () { var v = parseFloat(nb.value); if (isFinite(v)) set(sp.k, v); else sync(); });
+    CTL[sp.k] = { r: r, nb: nb, sp: sp };
+  });
+});
+function set(k, v) {
+  var sp = CTL[k].sp;
+  S[k] = Math.max(sp.zero ? 0 : sp.min, Math.min(sp.max, v));
+  sync(); changed(!!sp.modes);
+}
+function sync() {
+  Object.keys(CTL).forEach(function (k) {
+    var c = CTL[k], sp = c.sp, v = S[k];
+    c.r.value = sp.log ? Math.round(1000 * Math.log(Math.max(v, sp.min) / sp.min) / Math.log(sp.max / sp.min)) : v;
+    if (document.activeElement !== c.nb) c.nb.value = v.toFixed(sp.dec);
+  });
+  CTL.sig980.r.closest('.ctl').hidden = S.pump !== 980;
+  CTL.qk.r.closest('.ctl').hidden = S.qMode !== 'lin';
+  CTL.qf.r.closest('.ctl').hidden = S.qMode !== 'const';
+  CTL.cup.r.closest('.ctl').querySelector('label span').textContent = S.cupMode === 'lin' ? 'Upconversion at 10²⁰ cm⁻³' : 'Upconversion coefficient';
+  var ce = concEff();
+  $('concHint').innerHTML = 'At ' + fmt(S.nEr, 2) + '×10²⁰ cm⁻³: C<sub>up</sub> = ' + fmt(ce.cup * 1e18, 2) + '×10⁻¹⁸ cm³/s, ' +
+    (ce.fq > 0 ? fmt(100 * ce.fq, 1) + ' % of the ions quenched (' + fmt(ce.fq * S.nEr, 2) + '×10²⁰ cm⁻³ that only absorb).' : 'no quenched ions.') +
+    (S.cupMode === 'fixed' && S.qMode === 'none' ? ' Without concentration effects, more erbium always looks better than it is.' : '');
+  Object.keys(SEGS).forEach(function (id) {
+    Array.prototype.forEach.call($(id).querySelectorAll('button'), function (b) {
+      var on = String(SEGS[id].get()) === b.dataset.v;
+      b.classList.toggle('active', on); b.setAttribute('aria-pressed', on);
+    });
+  });
+}
+var SEGS = {
+  platSeg: { modes: true, get: function () { return S.plat; }, set: function (v) { S.plat = v; S.t = PLAT[v].t; S.w = PLAT[v].w; S.h = PLAT[v].h; } },
+  supSeg: { modes: true, get: function () { return S.sup; }, set: function (v) { S.sup = v; } },
+  pumpSeg: { modes: true, get: function () { return S.pump; }, set: function (v) { S.pump = +v; } },
+  polSeg: { modes: true, get: function () { return S.pol; }, set: function (v) { S.pol = v; } },
+  solverSeg: { modes: true, get: function () { return S.solver; }, set: function (v) { S.solver = v; } },
+  tabSeg: { view: true, get: function () { return S.tab; }, set: function (v) { S.tab = v; } },
+  tab2Seg: { get: function () { return S.tab2; }, set: function (v) { S.tab2 = v; } },
+  cupSeg: { get: function () { return S.cupMode; }, set: function (v) { S.cupMode = v; } },
+  qSeg: { get: function () { return S.qMode; }, set: function (v) { S.qMode = v; } },
+  objSeg: { view: true, get: function () { return S.obj; }, set: function (v) { S.obj = v; } }
+};
+Object.keys(SEGS).forEach(function (id) {
+  Array.prototype.forEach.call($(id).querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () {
+      SEGS[id].set(b.dataset.v); sync();
+      if (SEGS[id].view) schedule(); else changed(!!SEGS[id].modes);
+    });
+  });
+});
+
+/* ---------- spectroscopy (λ in nm) ---------- */
+var GA = [[1533, 2.9, 11], [1512, 2.35, 58], [1553, 1.15, 30], [1588, 0.4, 50], [1468, 0.7, 40]];
+function rawA(l) { var s = 0; for (var i = 0; i < GA.length; i++) { var q = (l - GA[i][0]) / GA[i][2]; s += GA[i][1] * Math.exp(-4 * Math.LN2 * q * q); } return s; }
+var RAWMAX = (function () { var m = 0; for (var l = 1400; l <= 1700; l += 0.25) m = Math.max(m, rawA(l)); return m; })();
+function sigA(l) { return S.sigPk * 1e-21 * rawA(l) / RAWMAX; }
+function sigE(l) { return sigA(l) * Math.exp(HCK / TK * (1 / LAM0 - 1000 / l)); }
+function pumpSig() { return S.pump === 980 ? { a: S.sig980 * 1e-21, e: 0 } : { a: sigA(1480), e: sigE(1480) }; }
+
+/* ---------- geometry and modes ---------- */
+function mat(id, n) { return { id: id, n: n || 1.5, cust: [1, 0, 0, 0, 0, 0, 0] }; }
+function geom() {
+  return { geo: 'strip', t: S.t, w: S.w, h: S.h, tout: 0, d: 0,
+    mats: { sup: S.sup === 'air' ? mat('const', 1.0) : mat('sio2'), strip: mat('eral2o3'), film: mat(PLAT[S.plat].film[S.pol]), sub: mat('sio2') } };
+}
+function polsNow() { var p = {}; p[S.pol] = true; return p; }
+function fundEIM(R) {
+  if (!R.ok) return null;
+  for (var i = 0; i < R.modes.length; i++) if (R.modes[i].key === S.pol + '0_0') return R.modes[i];
+  return R.modes[0] || null;
+}
+function eimField(G, R, md, lam, grid) {
+  var V = C.eimVert(G, R.ix, md, lam, Array.from(grid.yc)), Lx = C.eimLat(G, md, lam, Array.from(grid.xc));
+  var f = new Float64Array(grid.Nx * grid.Ny);
+  for (var j = 0; j < grid.Ny; j++) for (var i = 0; i < grid.Nx; i++) f[i + grid.Nx * j] = V[j] * Lx[i];
+  return f;
+}
+function stripShare(grid, f) { return C.fractions(grid, function (i, j) { return f[i + grid.Nx * j]; }); }
+
+var MD = null;  /* current modes: {G, grid, Es, Ep, Ns, Np, src, gcurve, eimGs} */
+function computeModesEIM(fast) {
+  var G = geom(), pols = polsNow(), ls = S.lamS / 1000, lp = S.pump / 1000;
+  var Rs = C.solveEIM(G, ls, pols), Rp = C.solveEIM(G, lp, pols);
+  if (!Rs.ok || !Rp.ok) return { G: G, err: 'A layer has no valid refractive index at the pump or signal wavelength.' };
+  var ms = fundEIM(Rs), mp = fundEIM(Rp);
+  if (!ms) return { G: G, err: 'No guided signal mode at ' + fmt(S.lamS, 1) + ' nm. Make the strip wider or taller, or the film thicker.' };
+  if (!mp) return { G: G, err: 'No guided pump mode at ' + S.pump + ' nm.' };
+  var grid = C.buildGrid(G, Rs.ix, ls, 'normal', Rs);
+  var Es = eimField(G, Rs, ms, ls, grid), Ep = eimField(G, Rp, mp, lp, grid);
+  var nSig = Rs.modes.filter(function (m) { return !m.leaky; }).length;
+  if (fast) return { G: G, grid: grid, Es: Es, Ep: Ep, Ns: ms.N, Np: mp.N, src: 'eim', nSig: nSig };
+  var gcurve = [];
+  for (var l = 1450; l <= 1650.1; l += 25) {
+    var R = C.solveEIM(G, l / 1000, pols), m = fundEIM(R);
+    gcurve.push([l, m ? stripShare(grid, eimField(G, R, m, l / 1000, grid))[2] : 0]);
+  }
+  return { G: G, grid: grid, Es: Es, Ep: Ep, Ns: ms.N, Np: mp.N, src: 'eim', gcurve: gcurve, eimGs: stripShare(grid, Es)[2], ixS: Rs.ix, ixP: Rp.ix, nSig: nSig };
+}
+function gInterp(curve, l) {
+  if (l <= curve[0][0]) return curve[0][1];
+  for (var i = 1; i < curve.length; i++) if (l <= curve[i][0]) { var a = curve[i - 1], b = curve[i], t = (l - a[0]) / (b[0] - a[0]); return a[1] + t * (b[1] - a[1]); }
+  return curve[curve.length - 1][1];
+}
+
+/* ---------- 2D FD worker ---------- */
+var FD = { worker: null, timer: 0, busy: false, err: '', ms: 0 }, workerURL = null;
+function fdKill() { if (FD.worker) { FD.worker.terminate(); FD.worker = null; } FD.busy = false; }
+function fdKick() {
+  clearTimeout(FD.timer); fdKill(); FD.err = '';
+  if (S.solver !== 'fd' || !MD || MD.err) return;
+  FD.busy = true;
+  var G = MD.G, base = MD;
+  FD.timer = setTimeout(function () {
+    try {
+      if (!workerURL) workerURL = URL.createObjectURL(new Blob(['var C=(' + WGCORE.toString() + ')();\n(' + ERWORKER.toString() + ')();'], { type: 'text/javascript' }));
+      FD.worker = new Worker(workerURL);
+    } catch (e) { FD.busy = false; FD.err = 'This browser cannot start the background solver.'; schedule(); return; }
+    FD.worker.onmessage = function (ev) {
+      var d = ev.data; fdKill();
+      if (d.type === 'error') { FD.err = d.msg; schedule(); return; }
+      FD.ms = d.ms;
+      if (MD !== base) return;
+      var Gs = stripShare(d.grid, d.Es)[2];
+      MD = { G: base.G, grid: d.grid, Es: d.Es, Ep: d.Ep, Ns: d.Ns, Np: d.Np, src: 'fd', gcurve: base.gcurve, eimGs: base.eimGs, scale: base.eimGs > 0 ? Gs / base.eimGs : 1, ixS: base.ixS, ixP: base.ixP };
+      changed(false);
+    };
+    FD.worker.onerror = function () { fdKill(); FD.err = 'The 2D solver stopped with an error.'; schedule(); };
+    FD.worker.postMessage({ G: G, lamS: S.lamS / 1000, lamP: S.pump / 1000, pol: S.pol });
+  }, 250);
+}
+
+/* ---------- amplifier model ---------- */
+var CELLS = null, OV = null;
+function prepCells() {
+  var g = MD.grid, totP = 0, totS = 0, i, j, k;
+  for (j = 0; j < g.Ny; j++) for (i = 0; i < g.Nx; i++) { k = i + g.Nx * j; var a = g.dx[i] * g.dy[j]; totP += MD.Ep[k] * MD.Ep[k] * a; totS += MD.Es[k] * MD.Es[k] * a; }
+  var cells = [], Gp = 0, Gs = 0;
+  for (j = 0; j < g.Ny; j++) for (i = 0; i < g.Nx; i++) {
+    k = i + g.Nx * j; if (g.reg[k] !== 2) continue;
+    var dA = g.dx[i] * g.dy[j], wp = MD.Ep[k] * MD.Ep[k] * dA / totP, ws = MD.Es[k] * MD.Es[k] * dA / totS;
+    cells.push({ dA: dA * 1e-8, wp: wp, ws: ws }); Gp += wp; Gs += ws;
+  }
+  CELLS = cells;
+  OV = { Gp: Gp, Gs: Gs, fp: stripShare(g, MD.Ep), fs: stripShare(g, MD.Es) };
+}
+/* concentration effects: C_up grows linearly with N_Er, a fraction f_q of the ions is quenched */
+function concEff() {
+  var fq = S.qMode === 'lin' ? S.qk / 100 * S.nEr : S.qMode === 'const' ? S.qf / 100 : 0;
+  return { cup: S.cup * 1e-18 * (S.cupMode === 'lin' ? S.nEr : 1), fq: Math.min(0.95, fq) };
+}
+function run(PpW, PsW, L, nz) {
+  var ce0 = concEff(), Ntot = S.nEr * 1e20, Nq = Ntot * ce0.fq, N = Ntot - Nq;
+  var tau = S.tau * 1e-3, Cup = ce0.cup, ps = pumpSig(), sa = sigA(S.lamS), se = sigE(S.lamS);
+  var hvp = H * CL / (S.pump * 1e-9), hvs = H * CL / (S.lamS * 1e-9), al = S.loss / 4.3429448;
+  var nc = CELLS.length, Gs = OV.Gs;
+  function f(Pp, Ps) {
+    var gp = 0, gs = 0, S1 = 0, S2 = 0;
+    for (var c = 0; c < nc; c++) {
+      var ce = CELLS[c], Ip = Pp * ce.wp / ce.dA, Is = Ps * ce.ws / ce.dA;
+      var Ra = ps.a * Ip / hvp + sa * Is / hvs, Re = ps.e * Ip / hvp + se * Is / hvs, b = Ra + Re + 1 / tau;
+      var n2 = Ra > 0 ? 2 * Ra * N / (b + Math.sqrt(b * b + 4 * Cup * Ra * N)) : 0, n1 = N - n2 + Nq;
+      gp += (ps.a * n1 - ps.e * n2) * ce.wp; gs += (se * n2 - sa * n1) * ce.ws; S1 += n1 * ce.ws; S2 += n2 * ce.ws;
+    }
+    return { dp: -(gp + al) * Pp, ds: (gs - al) * Ps, S1: S1, S2: S2 };
+  }
+  var dz = L / nz, z = [0], Pp = [PpW], Ps = [PsW], inv = [], I1 = 0, I2 = 0, prev = f(PpW, PsW);
+  inv.push(Gs > 0 ? prev.S2 / (Ntot * Gs) : 0);
+  for (var s = 0; s < nz; s++) {
+    var p = Pp[s], q = Ps[s];
+    var k1 = prev, k2 = f(p + 0.5 * dz * k1.dp, q + 0.5 * dz * k1.ds), k3 = f(p + 0.5 * dz * k2.dp, q + 0.5 * dz * k2.ds), k4 = f(p + dz * k3.dp, q + dz * k3.ds);
+    var np = Math.max(0, p + dz / 6 * (k1.dp + 2 * k2.dp + 2 * k3.dp + k4.dp)), nq = Math.max(0, q + dz / 6 * (k1.ds + 2 * k2.ds + 2 * k3.ds + k4.ds));
+    var nx = f(np, nq);
+    I1 += 0.5 * dz * (prev.S1 + nx.S1); I2 += 0.5 * dz * (prev.S2 + nx.S2);
+    z.push((s + 1) * dz); Pp.push(np); Ps.push(nq); inv.push(Gs > 0 ? nx.S2 / (Ntot * Gs) : 0);
+    prev = nx;
+  }
+  return { z: z, Pp: Pp, Ps: Ps, inv: inv, I1: I1, I2: I2 };
+}
+var RES = null, LMIN = 0.05, LMAX = 30;
+function gainAtZ(R, PsW, z) {
+  var dz = R.z[1] - R.z[0], i = Math.min(R.z.length - 2, Math.max(0, Math.floor(z / dz))), t = (z - R.z[i]) / dz;
+  return 10 * Math.log10((R.Ps[i] * (1 - t) + R.Ps[i + 1] * t) / PsW);
+}
+/* best length on one long run: maximum gain (dB) or maximum gain per cm */
+function bestOverZ(R, PsW, perCm, zmin, zmax) {
+  zmin = zmin || LMIN; zmax = zmax || LMAX;
+  var b = { g: -Infinity, z: zmin, v: -Infinity, R: R };
+  for (var i = 1; i < R.z.length; i++) {
+    var z = R.z[i]; if (z < zmin - 1e-9 || z > zmax + 1e-9) continue;
+    var g = 10 * Math.log10(R.Ps[i] / PsW), v = perCm ? g / z : g;
+    if (v > b.v) b = { g: g, z: z, v: v, R: R };
+  }
+  return b;
+}
+/* gain against the quenching strength: current design, best length, best N_Er and length */
+function quenchSweep(PpW, PsW) {
+  var keep = { qMode: S.qMode, qk: S.qk, qf: S.qf, nEr: S.nEr }, mode = S.qMode === 'const' ? 'const' : 'lin', key = mode === 'const' ? 'qf' : 'qk';
+  var cur = S.qMode === 'none' ? 0 : S[key], xmax = Math.max(mode === 'const' ? 20 : 10, 2 * cur), out = [];
+  S.qMode = mode;
+  for (var i = 0; i <= 16; i++) {
+    var q = xmax * i / 16; S[key] = q; S.nEr = keep.nEr;
+    var R = run(PpW, PsW, LMAX, 100), bz = bestOverZ(R, PsW), best = { g: -Infinity, n: 0, z: 0 };
+    var evalN = function (u) { S.nEr = 0.1 * Math.pow(100, u); var r = bestOverZ(run(PpW, PsW, LMAX, 60), PsW); if (r.g > best.g) best = { g: r.g, n: S.nEr, z: r.z }; return r.g; };
+    var ju = 0, jg = -Infinity;
+    for (var j = 0; j <= 12; j++) { var gj = evalN(j / 12); if (gj > jg) { jg = gj; ju = j / 12; } }
+    var ga = Math.max(0, ju - 1 / 12), gb2 = Math.min(1, ju + 1 / 12), gr = 0.618034;
+    for (var it = 0; it < 6; it++) {
+      var u1 = gb2 - gr * (gb2 - ga), u2 = ga + gr * (gb2 - ga);
+      if (evalN(u1) > evalN(u2)) gb2 = u2; else ga = u1;
+    }
+    out.push({ q: q, gL: gainAtZ(R, PsW, S.L), gz: bz.g, zb: bz.z, gb: best.g, nb: best.n, lb: best.z });
+  }
+  Object.assign(S, keep);
+  return { pts: out, key: key, mode: mode, cur: cur, xmax: xmax };
+}
+function model() {
+  prepCells();
+  var PsW = 1e-3 * Math.pow(10, S.PsdBm / 10), PpW = S.Pp * 1e-3;
+  var main = run(PpW, PsW, S.L, 200), dark = run(0, PsW, S.L, 60);
+  var g0 = gInterp(MD.gcurve, S.lamS);
+  var spec = [], specDark = [], peak = { l: 0, g: -Infinity };
+  for (var l = 1450; l <= 1650; l += 1) {
+    var ratio = g0 > 0 ? gInterp(MD.gcurve, l) / g0 : 1, sa = sigA(l), se = sigE(l), a = S.loss * S.L;
+    var g = 4.3429448 * ratio * (se * main.I2 - sa * main.I1) - a, gd = 4.3429448 * ratio * (se * dark.I2 - sa * dark.I1) - a;
+    spec.push([l, g]); specDark.push([l, gd]);
+    if (g > peak.g) peak = { l: l, g: g };
+  }
+  var Pmax = Math.max(100, 2 * S.Pp), vsP = [];
+  for (var i = 0; i <= 40; i++) {
+    var P = Pmax * i / 40, R = run(P * 1e-3, PsW, S.L, 60);
+    vsP.push([P, 10 * Math.log10(R.Ps[R.Ps.length - 1] / PsW)]);
+  }
+  var thr = null;
+  for (i = 1; i < vsP.length; i++) if (vsP[i - 1][1] < 0 && vsP[i][1] >= 0) { thr = vsP[i - 1][0] + (vsP[i][0] - vsP[i - 1][0]) * (-vsP[i - 1][1]) / (vsP[i][1] - vsP[i - 1][1]); break; }
+  if (vsP[0][1] >= 0) thr = 0;
+  var Gnet = 10 * Math.log10(main.Ps[main.Ps.length - 1] / PsW);
+  var vsN = null, Nmax = Math.max(5, 2 * S.nEr);
+  if (S.tab2 === 'n') {
+    vsN = []; var keep = S.nEr;
+    for (i = 0; i <= 30; i++) {
+      S.nEr = 0.1 + (Nmax - 0.1) * i / 30;
+      var bz = bestOverZ(run(PpW, PsW, LMAX, 150), PsW);
+      vsN.push([S.nEr, gainAtZ(bz.R, PsW, S.L), bz.g, bz.z]);
+    }
+    S.nEr = keep;
+  }
+  var vsQ = null;
+  if (S.tab2 === 'q') vsQ = quenchSweep(PpW, PsW);
+  RES = { vsQ: vsQ, vsN: vsN, Nmax: Nmax, main: main, spec: spec, specDark: specDark, peak: peak, vsP: vsP, Pmax: Pmax, thr: thr, Gnet: Gnet, PsW: PsW, PpW: PpW };
+}
+
+/* ---------- canvas helpers ---------- */
+function prep(cv) {
+  var dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = Math.max(1, Math.round(w * dpr)); cv.height = Math.max(1, Math.round(h * dpr));
+  var c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h);
+  return { c: c, w: w, h: h };
+}
+function ticks(a, b, n) {
+  var span = b - a; if (!(span > 0)) return { t: [a], dec: 2 };
+  var st = Math.pow(10, Math.floor(Math.log10(span / n))), e = span / n / st;
+  if (e >= 7.5) st *= 10; else if (e >= 3.5) st *= 5; else if (e >= 1.5) st *= 2;
+  var t = [], s0 = Math.ceil(a / st - 1e-9) * st;
+  for (var v = s0; v <= b + st * 1e-6; v += st) t.push(+v.toFixed(12));
+  return { t: t, dec: Math.max(0, -Math.floor(Math.log10(st) + 1e-9)) };
+}
+function axes(G, box, xr, yr, xl, yl, yr2, yl2) {
+  var c = G.c; c.lineWidth = 1; c.font = '11px ' + css('--font-mono');
+  var X = function (x) { return box.x + (x - xr[0]) / (xr[1] - xr[0]) * box.w; };
+  var Y = function (y) { return box.y + box.h - (y - yr[0]) / (yr[1] - yr[0]) * box.h; };
+  var tx = ticks(xr[0], xr[1], Math.max(3, Math.floor(box.w / 70))), ty = ticks(yr[0], yr[1], Math.max(3, Math.floor(box.h / 38)));
+  c.strokeStyle = css('--grid'); c.fillStyle = css('--text-dim');
+  c.textAlign = 'center'; c.textBaseline = 'top';
+  tx.t.forEach(function (v) { c.beginPath(); c.moveTo(X(v), box.y); c.lineTo(X(v), box.y + box.h); c.stroke(); c.fillText(fmt(v, tx.dec), X(v), box.y + box.h + 5); });
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  ty.t.forEach(function (v) { c.beginPath(); c.moveTo(box.x, Y(v)); c.lineTo(box.x + box.w, Y(v)); c.stroke(); c.fillText(fmt(v, ty.dec), box.x - 6, Y(v)); });
+  var Y2 = null;
+  if (yr2) {
+    Y2 = function (y) { return box.y + box.h - (y - yr2[0]) / (yr2[1] - yr2[0]) * box.h; };
+    var t2 = ticks(yr2[0], yr2[1], Math.max(3, Math.floor(box.h / 38)));
+    c.textAlign = 'left';
+    t2.t.forEach(function (v) { c.fillText(fmt(v, t2.dec), box.x + box.w + 6, Y2(v)); });
+  }
+  c.strokeStyle = css('--border'); c.strokeRect(box.x, box.y, box.w, box.h);
+  c.fillStyle = css('--text-dim'); c.font = '12px ' + css('--font-body');
+  c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillText(xl, box.x + box.w / 2, G.h - 1);
+  c.save(); c.translate(11, box.y + box.h / 2); c.rotate(-Math.PI / 2); c.textBaseline = 'middle'; c.fillText(yl, 0, 0); c.restore();
+  if (yl2) { c.save(); c.translate(G.w - 9, box.y + box.h / 2); c.rotate(Math.PI / 2); c.textBaseline = 'middle'; c.fillText(yl2, 0, 0); c.restore(); }
+  return { X: X, Y: Y, Y2: Y2 };
+}
+function emptyMsg(G, box, txt) {
+  var c = G.c; c.fillStyle = css('--text-faint'); c.font = 'italic 13px ' + css('--font-body'); c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(txt, box.x + box.w / 2, box.y + box.h / 2);
+}
+function line(c, A, pts, Yf) { c.beginPath(); pts.forEach(function (p, i) { var x = A.X(p[0]), y = (Yf || A.Y)(p[1]); if (i) c.lineTo(x, y); else c.moveTo(x, y); }); c.stroke(); }
+function fitAspect(xr, yr, w, h) {
+  var sx = (xr[1] - xr[0]) / w, sy = (yr[1] - yr[0]) / h;
+  if (sx > sy) { var my = 0.5 * (yr[0] + yr[1]), hy = 0.5 * sx * h; return [xr, [my - hy, my + hy]]; }
+  var mx = 0.5 * (xr[0] + xr[1]), hx = 0.5 * sy * w; return [[mx - hx, mx + hx], yr];
+}
+function hexRgb(h) { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(function (x) { return x + x; }).join(''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+
+/* ---------- drawing ---------- */
+function view(Gw) {
+  var H0 = S.t + S.h, px = Math.max(0.8 * S.w, 1.2), py = Math.max(0.9 * H0, 0.8);
+  return { xr: [-S.w / 2 - px, S.w / 2 + px], yr: [-py, H0 + py] };
+}
+function outline(c, X, Y, xr) {
+  c.beginPath();
+  c.moveTo(X(xr[0]), Y(0)); c.lineTo(X(xr[1]), Y(0));
+  c.moveTo(X(xr[0]), Y(S.t)); c.lineTo(X(xr[1]), Y(S.t));
+  c.rect(X(-S.w / 2), Y(S.t + S.h), X(S.w / 2) - X(-S.w / 2), Y(S.t) - Y(S.t + S.h));
+  c.stroke();
+}
+function drawXS() {
+  var G = prep($('cXS')), c = G.c, v = view(), f = fitAspect(v.xr, v.yr, G.w, G.h), xr = f[0], yr = f[1];
+  var X = function (x) { return (x - xr[0]) / (xr[1] - xr[0]) * G.w; }, Y = function (y) { return (yr[1] - y) / (yr[1] - yr[0]) * G.h; };
+  function rect(x0, x1, y0, y1, col) { c.fillStyle = css(col); c.fillRect(X(x0), Y(y1), X(x1) - X(x0), Y(y0) - Y(y1)); }
+  c.fillStyle = css('--panel-2'); c.fillRect(0, 0, G.w, G.h);
+  rect(xr[0], xr[1], 0, yr[1], '--l-sup'); rect(xr[0], xr[1], yr[0], 0, '--l-sub'); rect(xr[0], xr[1], 0, S.t, '--l-film'); rect(-S.w / 2, S.w / 2, S.t, S.t + S.h, '--l-strip');
+  c.strokeStyle = css('--text-faint'); outline(c, X, Y, xr);
+  c.fillStyle = css('--text'); c.font = '11px ' + css('--font-mono'); c.textBaseline = 'middle'; c.textAlign = 'left';
+  var ix = MD && MD.ixS;
+  if (ix) {
+    c.fillText((S.sup === 'air' ? 'air ' : 'SiO₂ ') + fmt(ix.sup, 3), 6, 12);
+    c.fillText('SiO₂ ' + fmt(ix.sub, 3), 6, G.h - 12);
+    c.fillText('film ' + fmt(ix.film, 3), 6, Y(S.t / 2) + (Y(0) - Y(S.t) < 14 ? 12 : 0));
+    c.textAlign = 'center'; c.fillText('Er:Al₂O₃ ' + fmt(ix.strip, 3), X(0), Y(S.t + S.h) - 9);
+  }
+  /* scale bar */
+  var sb = S.w >= 2 ? 1 : 0.5;
+  c.strokeStyle = css('--text-dim'); c.lineWidth = 2; c.beginPath(); c.moveTo(G.w - 10 - (X(sb) - X(0)), G.h - 10); c.lineTo(G.w - 10, G.h - 10); c.stroke();
+  c.fillStyle = css('--text-dim'); c.textAlign = 'right'; c.textBaseline = 'bottom'; c.fillText(sb + ' µm', G.w - 10, G.h - 13);
+  $('capXS').textContent = 'w ' + fmt(S.w, 2) + ' · h ' + fmt(S.h, 3) + ' · t ' + fmt(S.t, 3) + ' µm';
+}
+function drawMap(id, field, colVar) {
+  var G = prep($(id)), c = G.c;
+  if (!field) { c.fillStyle = css('--panel-2'); c.fillRect(0, 0, G.w, G.h); emptyMsg(G, { x: 0, y: 0, w: G.w, h: G.h }, '—'); return; }
+  var v = view(), f = fitAspect(v.xr, v.yr, G.w, G.h), xr = f[0], yr = f[1], g = MD.grid;
+  var W = Math.max(40, Math.round(G.w / 2)), Hh = Math.max(30, Math.round(G.h / 2));
+  var bg = hexRgb(css('--panel-2')), c1 = hexRgb(css(colVar)), c2 = hexRgb(css('--yellow'));
+  function loc(arr, val) {
+    var n = arr.length; if (val <= arr[0]) return [0, 0, 0]; if (val >= arr[n - 1]) return [n - 1, n - 1, 0];
+    var lo = 0, hi = n - 1; while (hi - lo > 1) { var m = (lo + hi) >> 1; if (arr[m] <= val) lo = m; else hi = m; }
+    return [lo, hi, (val - arr[lo]) / (arr[hi] - arr[lo])];
+  }
+  var mx = 0; for (var q = 0; q < field.length; q++) mx = Math.max(mx, field[q] * field[q]);
+  var img = c.createImageData(W, Hh);
+  for (var j = 0; j < Hh; j++) {
+    var yv = yr[1] - (j + 0.5) / Hh * (yr[1] - yr[0]), b = loc(g.yc, yv);
+    for (var i = 0; i < W; i++) {
+      var xv = xr[0] + (i + 0.5) / W * (xr[1] - xr[0]), a = loc(g.xc, xv), Nx = g.Nx;
+      var e = (field[a[0] + Nx * b[0]] * (1 - a[2]) + field[a[1] + Nx * b[0]] * a[2]) * (1 - b[2]) + (field[a[0] + Nx * b[1]] * (1 - a[2]) + field[a[1] + Nx * b[1]] * a[2]) * b[2];
+      var I = e * e / (mx || 1), col = I < 0.5 ? mix(bg, c1, I * 2) : mix(c1, c2, (I - 0.5) * 2), o = 4 * (j * W + i);
+      img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 255;
+    }
+  }
+  var off = document.createElement('canvas'); off.width = W; off.height = Hh; off.getContext('2d').putImageData(img, 0, 0);
+  c.imageSmoothingEnabled = true; c.drawImage(off, 0, 0, G.w, G.h);
+  var X = function (x) { return (x - xr[0]) / (xr[1] - xr[0]) * G.w; }, Y = function (y) { return (yr[1] - y) / (yr[1] - yr[0]) * G.h; };
+  c.strokeStyle = css('--text-dim'); c.lineWidth = 1; c.setLineDash([3, 3]); outline(c, X, Y, xr); c.setLineDash([]);
+}
+function tile(k, v, s, cls) { return '<div class="tile ' + (cls || '') + '"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + (s || '&nbsp;') + '</div></div>'; }
+function drawTiles() {
+  if (!MD || MD.err) { $('tiles').innerHTML = tile('Status', '—', MD ? MD.err : ''); return; }
+  var r = RES, m = r.main, Pout = m.Ps[m.Ps.length - 1], PpOut = m.Pp[m.Pp.length - 1];
+  var Gs = r.Gnet, perCm = Gs / S.L;
+  $('tiles').innerHTML =
+    tile('Pump overlap Γ<sub>p</sub>', fmt(100 * OV.Gp, 1) + ' %', 'core ' + fmt(100 * OV.fp[1], 1) + ' % · sub ' + fmt(100 * OV.fp[0], 1) + ' %', 'pump') +
+    tile('Signal overlap Γ<sub>s</sub>', fmt(100 * OV.Gs, 1) + ' %', 'core ' + fmt(100 * OV.fs[1], 1) + ' % · sub ' + fmt(100 * OV.fs[0], 1) + ' %', 'sig') +
+    tile('Net gain at ' + fmt(S.lamS, 1) + ' nm', fmt(Gs, 2) + ' dB', fmt(perCm, 2) + ' dB/cm over ' + fmt(S.L, 2) + ' cm' + (r.peak.g > 20 ? '<br><span style="color:var(--orange)">above ~20 dB, ASE (not modelled) would reduce this</span>' : ''), Gs >= 0 ? 'good' : 'bad') +
+    tile('Output signal', fmt(10 * Math.log10(Pout * 1e3), 1) + ' dBm', 'input ' + fmt(S.PsdBm, 1) + ' dBm') +
+    tile('Peak net gain', fmt(r.peak.g, 2) + ' dB', 'at ' + r.peak.l + ' nm') +
+    tile('Pump absorbed', fmt(100 * (1 - (r.PpW > 0 ? PpOut / r.PpW : 1)), 1) + ' %', 'out ' + fmt(PpOut * 1e3, 1) + ' mW (incl. α)') +
+    tile('Transparency pump', r.thr === null ? '&gt; ' + fmt(r.Pmax, 0) + ' mW' : fmt(r.thr, 1) + ' mW', 'net gain = 0 dB at λ<sub>s</sub>');
+}
+function drawStatus() {
+  var st = [];
+  if (MD && !MD.err) st.push('Modes: ' + (MD.src === 'fd' ? '2D FD' : 'EIM') + ' · N<sub>eff</sub> pump ' + fmt(MD.Np, 4) + ', signal ' + fmt(MD.Ns, 4) + ' · ' + CELLS.length + ' doped cells');
+  if (S.solver === 'fd') {
+    if (FD.err) st.push('<span class="warn" style="margin:0">' + FD.err + '</span>');
+    else if (FD.busy) st.push('<span class="busy">2D solver running…</span>');
+    else if (MD && MD.src === 'fd') st.push('2D solve ' + (FD.ms / 1000).toFixed(1) + ' s');
+  }
+  $('status').innerHTML = st.map(function (x) { return '<span>' + x + '</span>'; }).join('');
+}
+var specMap = null;
+function drawSpec() {
+  var G = prep($('cSpec')), c = G.c, box = { x: 56, y: 10, w: G.w - 68, h: G.h - 44 }, xr = [1450, 1650];
+  specMap = { box: box, xr: xr };
+  if (S.tab === 'sigma') {
+    var pts = [], mx = 0;
+    for (var l = 1450; l <= 1650; l += 1) { var a = sigA(l) * 1e21, e = sigE(l) * 1e21; pts.push([l, a, e]); mx = Math.max(mx, a, e); }
+    var A = axes(G, box, xr, [0, mx * 1.08], 'λ (nm)', 'σ (10⁻²¹ cm²)');
+    c.save(); c.beginPath(); c.rect(box.x, box.y, box.w, box.h); c.clip();
+    c.lineWidth = 2; c.strokeStyle = css('--blue'); line(c, A, pts.map(function (p) { return [p[0], p[1]]; }));
+    c.strokeStyle = css('--red'); c.setLineDash([6, 4]); line(c, A, pts.map(function (p) { return [p[0], p[2]]; })); c.setLineDash([]);
+    c.strokeStyle = css('--c-sig'); c.globalAlpha = 0.7; c.beginPath(); c.moveTo(A.X(S.lamS), box.y); c.lineTo(A.X(S.lamS), box.y + box.h); c.stroke(); c.globalAlpha = 1;
+    c.restore();
+    var ps = pumpSig();
+    $('specTitle').textContent = 'Er:Al₂O₃ cross-sections';
+    $('specLegend').innerHTML = '<span><i style="border-color:var(--blue)"></i>absorption σ<sub>a</sub></span><span><i class="dash" style="border-color:var(--red)"></i>emission σ<sub>e</sub> (McCumber)</span><span>pump ' + S.pump + ' nm: σ<sub>a</sub> ' + fmt(ps.a * 1e21, 2) + ', σ<sub>e</sub> ' + fmt(ps.e * 1e21, 2) + ' ×10⁻²¹ cm²</span>';
+    return;
+  }
+  $('specTitle').textContent = 'Net gain spectrum (small-signal probe)';
+  if (!RES) { axes(G, box, xr, [-10, 10], 'λ (nm)', 'net gain (dB)'); emptyMsg(G, box, MD && MD.err ? MD.err : ''); $('specLegend').innerHTML = ''; return; }
+  var lo = Infinity, hi = -Infinity;
+  RES.spec.concat(RES.specDark).forEach(function (p) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); });
+  lo = Math.min(lo, 0); hi = Math.max(hi, 0); var pad = 0.06 * (hi - lo || 1);
+  var A2 = axes(G, box, xr, [lo - pad, hi + pad], 'λ (nm)', 'net gain over L (dB)');
+  c.save(); c.beginPath(); c.rect(box.x, box.y, box.w, box.h); c.clip();
+  c.strokeStyle = css('--text-faint'); c.lineWidth = 1; c.beginPath(); c.moveTo(box.x, A2.Y(0)); c.lineTo(box.x + box.w, A2.Y(0)); c.stroke();
+  c.lineWidth = 1.6; c.strokeStyle = css('--text-dim'); c.setLineDash([5, 4]); line(c, A2, RES.specDark); c.setLineDash([]);
+  c.lineWidth = 2.6; c.strokeStyle = css('--c-sig'); line(c, A2, RES.spec);
+  var gs = RES.Gnet;
+  c.strokeStyle = css('--text'); c.globalAlpha = 0.6; c.lineWidth = 1; c.beginPath(); c.moveTo(A2.X(S.lamS), box.y); c.lineTo(A2.X(S.lamS), box.y + box.h); c.stroke(); c.globalAlpha = 1;
+  c.fillStyle = css('--c-sig'); c.beginPath(); c.arc(A2.X(S.lamS), A2.Y(gs), 4, 0, 7); c.fill();
+  c.restore();
+  $('specLegend').innerHTML = '<span><i style="border-color:var(--c-sig)"></i>pumped, ' + fmt(S.Pp, 1) + ' mW at ' + S.pump + ' nm</span><span><i class="dash"></i>unpumped (Er absorption + background loss)</span><span>● launched signal at λ<sub>s</sub> (includes its own saturation)</span><span>click the plot to set λ<sub>s</sub></span>';
+}
+$('cSpec').addEventListener('click', function (e) {
+  if (!specMap) return;
+  var r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left, b = specMap.box;
+  if (x < b.x || x > b.x + b.w) return;
+  set('lamS', Math.round(2 * (specMap.xr[0] + (x - b.x) / b.w * (specMap.xr[1] - specMap.xr[0]))) / 2);
+});
+function drawZ() {
+  var G = prep($('cZ')), c = G.c, box = { x: 56, y: 10, w: G.w - 104, h: G.h - 44 };
+  if (!RES) { axes(G, box, [0, S.L], [0, 1], 'z (cm)', 'pump (mW)', [0, 1], 'n₂/N_Er'); return; }
+  var m = RES.main, pmx = Math.max(1e-6, m.Pp[0] * 1e3) * 1.05;
+  var A = axes(G, box, [0, S.L], [0, pmx], 'z (cm)', 'pump power (mW)', [0, 1], 'inversion n₂/N_Er');
+  c.save(); c.beginPath(); c.rect(box.x, box.y, box.w, box.h); c.clip();
+  c.lineWidth = 2.4; c.strokeStyle = css('--c-pump'); line(c, A, m.z.map(function (z, i) { return [z, m.Pp[i] * 1e3]; }));
+  c.strokeStyle = css('--c-inv'); c.setLineDash([6, 4]); line(c, A, m.z.map(function (z, i) { return [z, m.inv[i]]; }), A.Y2); c.setLineDash([]);
+  c.restore();
+}
+function drawB() {
+  var G = prep($('cB')), c = G.c, box = { x: 56, y: 10, w: G.w - 68, h: G.h - 44 };
+  if (!RES) { axes(G, box, [0, 1], [-1, 1], '', 'gain (dB)'); return; }
+  var pts, xl, xr;
+  if (S.tab2 === 'n') return drawVsN(G, box);
+  if (S.tab2 === 'q') return drawVsQ(G, box);
+  if (S.tab2 === 'z') { var m = RES.main; pts = m.z.map(function (z, i) { return [z, 10 * Math.log10(m.Ps[i] / RES.PsW)]; }); xl = 'z (cm)'; xr = [0, S.L]; }
+  else { pts = RES.vsP; xl = 'launched pump power (mW)'; xr = [0, RES.Pmax]; }
+  var lo = 0, hi = 0; pts.forEach(function (p) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); });
+  var pad = 0.08 * (hi - lo || 1);
+  var A = axes(G, box, xr, [lo - pad, hi + pad], xl, 'net signal gain (dB)');
+  c.save(); c.beginPath(); c.rect(box.x, box.y, box.w, box.h); c.clip();
+  c.strokeStyle = css('--text-faint'); c.lineWidth = 1; c.beginPath(); c.moveTo(box.x, A.Y(0)); c.lineTo(box.x + box.w, A.Y(0)); c.stroke();
+  c.lineWidth = 2.4; c.strokeStyle = css('--c-sig'); line(c, A, pts);
+  c.fillStyle = css('--c-sig');
+  if (S.tab2 === 'p') { c.beginPath(); c.arc(A.X(S.Pp), A.Y(RES.Gnet), 4, 0, 7); c.fill(); }
+  else { var zm = 0, gm = -Infinity; pts.forEach(function (p) { if (p[1] > gm) { gm = p[1]; zm = p[0]; } }); c.beginPath(); c.arc(A.X(zm), A.Y(gm), 4, 0, 7); c.fill(); }
+  c.restore();
+  if (S.tab2 === 'z') {
+    var zm2 = 0, gm2 = -Infinity; pts.forEach(function (p) { if (p[1] > gm2) { gm2 = p[1]; zm2 = p[0]; } });
+    $('bLegend').innerHTML = '<span><i style="border-color:var(--c-sig)"></i>signal gain from input to z</span><span>● maximum ' + fmt(gm2, 2) + ' dB at z = ' + fmt(zm2, 2) + ' cm' + (zm2 < S.L - 1e-9 ? ' (shorter device is better)' : '') + '</span>';
+  } else $('bLegend').innerHTML = '<span><i style="border-color:var(--c-sig)"></i>net gain at ' + fmt(S.lamS, 1) + ' nm for L = ' + fmt(S.L, 2) + ' cm</span><span>● current pump power</span>';
+}
+
+function drawVsQ(G, box) {
+  var c = G.c, Q = RES.vsQ, d = Q.pts; box.w = G.w - 112;
+  var lo = 0, hi = 0, nmx = 0;
+  d.forEach(function (p) { lo = Math.min(lo, p.gL, p.gz, p.gb); hi = Math.max(hi, p.gL, p.gz, p.gb); nmx = Math.max(nmx, p.nb); });
+  var pad = 0.08 * (hi - lo || 1);
+  var xl = Q.mode === 'const' ? 'quenched share f_q (%)' : 'quenched share per 10²⁰ cm⁻³, k_q (%)';
+  var A = axes(G, box, [0, Q.xmax], [lo - pad, hi + pad], xl, 'net signal gain (dB)', [0, Math.max(1, nmx * 1.1)], 'best N_Er (10²⁰ cm⁻³)');
+  c.save(); c.beginPath(); c.rect(box.x, box.y, box.w, box.h); c.clip();
+  c.strokeStyle = css('--text-faint'); c.lineWidth = 1; c.beginPath(); c.moveTo(box.x, A.Y(0)); c.lineTo(box.x + box.w, A.Y(0)); c.stroke();
+  c.lineWidth = 2.4; c.strokeStyle = css('--c-sig'); line(c, A, d.map(function (p) { return [p.q, p.gL]; }));
+  c.lineWidth = 2; c.strokeStyle = css('--cyan'); c.setLineDash([6, 4]); line(c, A, d.map(function (p) { return [p.q, p.gz]; }));
+  c.strokeStyle = css('--green'); c.setLineDash([]); line(c, A, d.map(function (p) { return [p.q, p.gb]; }));
+  c.lineWidth = 1.4; c.strokeStyle = css('--text-dim'); c.setLineDash([2, 3]); line(c, A, d.map(function (p) { return [p.q, p.nb]; }), A.Y2); c.setLineDash([]);
+  c.strokeStyle = css('--text'); c.globalAlpha = 0.6; c.lineWidth = 1; c.beginPath(); c.moveTo(A.X(Q.cur), box.y); c.lineTo(A.X(Q.cur), box.y + box.h); c.stroke(); c.globalAlpha = 1;
+  c.restore();
+  function at(q, k) { var i = Math.min(d.length - 2, Math.floor(q / Q.xmax * (d.length - 1))), t = (q - d[i].q) / (d[i + 1].q - d[i].q); return d[i][k] + t * (d[i + 1][k] - d[i][k]); }
+  var g0 = d[0], gc = at(Q.cur, 'gL'), gbc = at(Q.cur, 'gb'), half = at(Q.cur / 2, 'gL'), halfb = at(Q.cur / 2, 'gb');
+  $('bLegend').innerHTML = '<span><i style="border-color:var(--c-sig)"></i>this design (L = ' + fmt(S.L, 2) + ' cm)</span><span><i class="dash" style="border-color:var(--cyan)"></i>this cross-section and N<sub>Er</sub>, best L</span><span><i style="border-color:var(--green)"></i>best N<sub>Er</sub> and L</span><span><i style="border-top-style:dotted"></i>best N<sub>Er</sub> (right)</span>' +
+    (Q.cur > 0 ? '<span>Halving quenching: ' + signed(half - gc) + ' dB for this design, ' + signed(halfb - gbc) + ' dB with N<sub>Er</sub> and L re-optimised.</span>' : '') +
+    '<span>No quenching: ' + fmt(g0.gL, 1) + ' dB for this design; ' + fmt(g0.gb, 1) + ' dB at ' + fmt(g0.nb, 2) + '×10²⁰ cm⁻³ and L ' + fmt(g0.lb, 1) + ' cm' + (g0.lb >= LMAX - 0.5 ? ' (length limit)' : '') + ' (vs ' + fmt(gbc, 1) + ' dB now).</span>';
+}
+function signed(v) { return (v >= 0 ? '+' : MINUS) + fmt(Math.abs(v), 1); }
+function drawVsN(G, box) {
+  var c = G.c, d = RES.vsN; box.w = G.w - 112;
+  var lo = 0, hi = 0, zmx = 0; d.forEach(function (p) { lo = Math.min(lo, p[1], p[2]); hi = Math.max(hi, p[1], p[2]); zmx = Math.max(zmx, p[3]); });
+  var pad = 0.08 * (hi - lo || 1);
+  var A = axes(G, box, [0, RES.Nmax], [lo - pad, hi + pad], 'N_Er (10²⁰ cm⁻³)', 'net signal gain (dB)', [0, Math.max(1, zmx * 1.08)], 'optimum length (cm)');
+  c.save(); c.beginPath(); c.rect(box.x, box.y, box.w, box.h); c.clip();
+  c.strokeStyle = css('--text-faint'); c.lineWidth = 1; c.beginPath(); c.moveTo(box.x, A.Y(0)); c.lineTo(box.x + box.w, A.Y(0)); c.stroke();
+  c.lineWidth = 2.4; c.strokeStyle = css('--c-sig'); line(c, A, d.map(function (p) { return [p[0], p[1]]; }));
+  c.strokeStyle = css('--green'); c.setLineDash([6, 4]); line(c, A, d.map(function (p) { return [p[0], p[2]]; })); c.setLineDash([]);
+  c.lineWidth = 1.4; c.strokeStyle = css('--text-dim'); c.setLineDash([2, 3]); line(c, A, d.map(function (p) { return [p[0], p[3]]; }), A.Y2); c.setLineDash([]);
+  c.fillStyle = css('--c-sig'); c.beginPath(); c.arc(A.X(S.nEr), A.Y(RES.Gnet), 4, 0, 7); c.fill();
+  c.restore();
+  var best = d.reduce(function (a, p) { return p[2] > a[2] ? p : a; }, d[0]);
+  $('bLegend').innerHTML = '<span><i style="border-color:var(--c-sig)"></i>gain at L = ' + fmt(S.L, 2) + ' cm</span><span><i class="dash" style="border-color:var(--green)"></i>gain at the optimum length</span><span><i style="border-top-style:dotted"></i>optimum length (right)</span><span>best ' + fmt(best[2], 1) + ' dB at ' + fmt(best[0], 2) + '×10²⁰ cm⁻³, L ' + fmt(best[3], 1) + ' cm (pump ' + fmt(S.Pp, 0) + ' mW)</span>';
+}
+
+/* ---------- optimizer: random sampling + Nelder–Mead on the EIM model ---------- */
+var OVARS = [
+  { k: 'w', lab: 'Strip width w (µm)', min: 0.5, max: 6, on: true },
+  { k: 'h', lab: 'Strip height h (µm)', min: 0.1, max: 1.2, on: true },
+  { k: 't', lab: 'Film thickness t (µm)', min: 0.05, max: 1.0, on: true },
+  { k: 'nEr', lab: 'N_Er (10²⁰ cm⁻³)', min: 0.2, max: 8, on: false, log: true },
+  { k: 'L', lab: 'Length L (cm)', min: 0.1, max: 20, on: true }
+];
+OVARS.forEach(function (v) {
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td><input type="checkbox" id="ov-' + v.k + '"' + (v.on ? ' checked' : '') + ' aria-label="Optimize ' + v.lab + '"></td><td class="nm">' + v.lab + '</td>' +
+    '<td><input type="number" step="any" id="ovmin-' + v.k + '" value="' + v.min + '" aria-label="' + v.lab + ' minimum"></td><td><input type="number" step="any" id="ovmax-' + v.k + '" value="' + v.max + '" aria-label="' + v.lab + ' maximum"></td>';
+  $('optRows').appendChild(tr);
+  $('ov-' + v.k).addEventListener('change', function (e) { v.on = e.target.checked; });
+  $('ovmin-' + v.k).addEventListener('change', function (e) { var x = parseFloat(e.target.value); if (isFinite(x)) v.min = x; else e.target.value = v.min; });
+  $('ovmax-' + v.k).addEventListener('change', function (e) { var x = parseFloat(e.target.value); if (isFinite(x)) v.max = x; else e.target.value = v.max; });
+});
+var OPT = { running: false, stop: false };
+function optEval(p, vars, Lfree, Lb, noSM) {
+  var save = { S: Object.assign({}, S), MD: MD, CELLS: CELLS, OV: OV }, out;
+  Object.assign(S, p);
+  try {
+    var md = computeModesEIM(true);
+    if (md.err) out = { f: -1e6, why: 'not guided' };
+    else if (!noSM && $('optSM').checked && md.nSig > 1) out = { f: -1e6, why: 'multimode' };
+    else {
+      MD = md; prepCells();
+      var PsW = 1e-3 * Math.pow(10, S.PsdBm / 10), PpW = S.Pp * 1e-3, perCm = S.obj === 'dBcm', b;
+      if (Lfree) b = bestOverZ(run(PpW, PsW, Lb[1], 150), PsW, perCm, Lb[0], Lb[1]);
+      else { var R = run(PpW, PsW, S.L, 80), g = 10 * Math.log10(R.Ps[R.Ps.length - 1] / PsW); b = { g: g, z: S.L, v: perCm ? g / S.L : g }; }
+      out = { f: b.v, g: b.g, L: b.z, gamma: OV.Gs, gammaP: OV.Gp, nSig: md.nSig };
+    }
+  } catch (e) { out = { f: -1e6, why: 'error' }; }
+  Object.assign(S, save.S); MD = save.MD; CELLS = save.CELLS; OV = save.OV;
+  return out;
+}
+function* optimizer(vars, Lfree, Lb, rep) {
+  var n = vars.length, best = null, evals = 0;
+  function toP(x) {
+    var p = {};
+    vars.forEach(function (v, i) { var u = Math.max(0, Math.min(1, x[i])); p[v.k] = v.log ? v.min * Math.pow(v.max / v.min, u) : v.min + u * (v.max - v.min); });
+    return p;
+  }
+  function F(x) {
+    var p = toP(x), r = optEval(p, vars, Lfree, Lb); evals++;
+    if (r.f > -1e5 && (!best || r.f > best.r.f)) best = { p: p, r: r };
+    rep(evals, best);
+    return -r.f;
+  }
+  function fromS() { return vars.map(function (v) { var x = v.log ? Math.log(S[v.k] / v.min) / Math.log(v.max / v.min) : (S[v.k] - v.min) / (v.max - v.min); return Math.max(0, Math.min(1, x)); }); }
+  var start = fromS(), fs = F(start), seed = 2463534242;
+  function rnd() { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) / 4294967296; }
+  var pts = [[start, fs]];
+  for (var s = 0; s < 12 * n + 12; s++) { var x = vars.map(rnd); pts.push([x, F(x)]); yield; }
+  pts.sort(function (a, b) { return a[1] - b[1]; });
+  for (var round = 0; round < 3; round++) {
+    var x0 = round === 0 ? pts[0][0] : (best ? vars.map(function (v) { var val = best.p[v.k]; return v.log ? Math.log(val / v.min) / Math.log(v.max / v.min) : (val - v.min) / (v.max - v.min); }) : pts[round][0]);
+    var step = round === 0 ? 0.2 : round === 1 ? 0.08 : 0.03, simp = [x0.slice()], fv = [F(x0)];
+    for (var i = 0; i < n; i++) { var xi = x0.slice(); xi[i] = x0[i] + step <= 1 ? x0[i] + step : x0[i] - step; simp.push(xi); fv.push(F(xi)); yield; }
+    for (var it = 0; it < 60 * n; it++) {
+      var ord = fv.map(function (v, j) { return j; }).sort(function (a, b) { return fv[a] - fv[b]; });
+      simp = ord.map(function (j) { return simp[j]; }); fv = ord.map(function (j) { return fv[j]; });
+      var size = 0; for (i = 1; i <= n; i++) for (var d = 0; d < n; d++) size = Math.max(size, Math.abs(simp[i][d] - simp[0][d]));
+      if (size < 2e-3) break;
+      var cen = new Array(n).fill(0);
+      for (i = 0; i < n; i++) for (d = 0; d < n; d++) cen[d] += simp[i][d] / n;
+      var clip = function (x) { return x.map(function (q) { return Math.max(0, Math.min(1, q)); }); };
+      var xr = clip(cen.map(function (cv, d) { return cv + (cv - simp[n][d]); })), fr = F(xr);
+      if (fr < fv[0]) {
+        var xe = clip(cen.map(function (cv, d) { return cv + 2 * (cv - simp[n][d]); })), fe = F(xe);
+        if (fe < fr) { simp[n] = xe; fv[n] = fe; } else { simp[n] = xr; fv[n] = fr; }
+      } else if (fr < fv[n - 1]) { simp[n] = xr; fv[n] = fr; }
+      else {
+        var xc = cen.map(function (cv, d) { return cv + 0.5 * (simp[n][d] - cv); }), fc = F(xc);
+        if (fc < fv[n]) { simp[n] = xc; fv[n] = fc; }
+        else for (i = 1; i <= n; i++) { simp[i] = simp[i].map(function (q, d) { return simp[0][d] + 0.5 * (q - simp[0][d]); }); fv[i] = F(simp[i]); }
+      }
+      yield;
+    }
+  }
+  return best;
+}
+function optDescribe(p, r, Lfree) {
+  return { w: p.w !== undefined ? p.w : S.w, h: p.h !== undefined ? p.h : S.h, t: p.t !== undefined ? p.t : S.t, nEr: p.nEr !== undefined ? p.nEr : S.nEr, L: Lfree ? r.L : S.L, g: r.g, gcm: r.g / (Lfree ? r.L : S.L), gamma: r.gamma };
+}
+$('optRun').addEventListener('click', function () {
+  if (OPT.running) { OPT.stop = true; return; }
+  if (!MD || MD.err) { $('optMsg').textContent = 'Start from a guided design.'; return; }
+  var vars = OVARS.filter(function (v) { return v.on && v.k !== 'L' && v.max > v.min; });
+  var Lv = OVARS[4], Lfree = Lv.on, Lb = [Math.max(LMIN, Lv.min), Math.min(LMAX, Lv.max)];
+  if (!vars.length && !Lfree) { $('optMsg').textContent = 'Tick at least one parameter.'; return; }
+  var cur = optEval({}, [], Lfree, Lb, true);
+  var before = cur.f > -1e5 ? optDescribe({}, cur, Lfree) : null;
+  OPT.running = true; OPT.stop = false; $('optRun').textContent = 'Stop';
+  var unit = S.obj === 'dBcm' ? ' dB/cm' : ' dB', last = 0, bestNow = null;
+  var gen = optimizer(vars, Lfree, Lb, function (ev, b) {
+    bestNow = b;
+    var now = Date.now(); if (now - last < 120) return; last = now;
+    $('optMsg').textContent = ev + ' evaluations · best ' + (b ? fmt(b.r.f, 2) + unit : '—');
+  });
+  function finish(best) {
+    OPT.running = false; $('optRun').textContent = 'Optimize';
+    best = best || bestNow;
+    if (!best) { $('optMsg').textContent = 'No guided design found within the bounds.'; $('optRes').innerHTML = ''; return; }
+    var a = optDescribe(best.p, best.r, Lfree);
+    $('optMsg').textContent = (OPT.stop ? 'Stopped. ' : 'Done. ') + 'Best ' + fmt(best.r.f, 2) + unit + (before && cur.nSig > 1 && $('optSM').checked ? '. The current design guides ' + cur.nSig + ' signal modes.' : '');
+    var rows = [['w (µm)', 'w', 2], ['h (µm)', 'h', 3], ['t (µm)', 't', 3], ['N_Er (10²⁰)', 'nEr', 2], ['L (cm)', 'L', 2], ['Γ signal (%)', 'gamma', 1, 100], ['Net gain (dB)', 'g', 2], ['Gain (dB/cm)', 'gcm', 2]];
+    $('optRes').innerHTML = '<table class="optr"><thead><tr><th></th><th>' + (Lfree ? 'current, best L' : 'current') + '</th><th>optimum</th></tr></thead><tbody>' + rows.map(function (r) {
+      var k = r[3] || 1, b = before ? before[r[1]] * k : null, o = a[r[1]] * k;
+      return '<tr><td>' + r[0] + '</td><td>' + fmt(b, r[2]) + '</td><td' + (b !== null && Math.abs(o - b) > Math.pow(10, -r[2]) ? ' class="up"' : '') + '>' + fmt(o, r[2]) + '</td></tr>';
+    }).join('') + '</tbody></table><button type="button" class="btn" id="optApply">Apply optimum</button>';
+    $('optApply').addEventListener('click', function () { S.w = a.w; S.h = a.h; S.t = a.t; S.nEr = a.nEr; S.L = a.L; sync(); changed(true); });
+  }
+  (function tick() {
+    if (OPT.stop) return finish(null);
+    var t0 = Date.now(), r;
+    while (Date.now() - t0 < 40) { r = gen.next(); if (r.done) return finish(r.value); }
+    setTimeout(tick, 0);
+  })();
+});
+
+/* ---------- orchestration ---------- */
+var pend = 0, needModes = true, needModel = true;
+function changed(modes) { if (modes) needModes = true; needModel = true; schedule(); }
+function schedule() { if (!pend) pend = requestAnimationFrame(render); }
+function render() {
+  pend = 0;
+  if (needModes) { MD = computeModesEIM(); needModes = false; fdKick(); }
+  if (needModel) { if (MD && !MD.err) model(); else { RES = null; CELLS = []; } needModel = false; }
+  drawTiles(); drawStatus(); drawXS();
+  var ok = MD && !MD.err;
+  drawMap('cMP', ok ? MD.Ep : null, '--c-pump'); drawMap('cMS', ok ? MD.Es : null, '--c-sig');
+  $('capPn').textContent = 'Pump ' + S.pump + ' nm'; $('capSn').textContent = 'Signal ' + fmt(S.lamS, 1) + ' nm';
+  $('capP').textContent = ok ? 'N ' + fmt(MD.Np, 4) + ' · Γ ' + fmt(100 * OV.Gp, 1) + ' %' : '';
+  $('capS').textContent = ok ? 'N ' + fmt(MD.Ns, 4) + ' · Γ ' + fmt(100 * OV.Gs, 1) + ' %' : '';
+  $('xsInfo').textContent = ok ? (MD.src === 'fd' ? '2D FD fields' : 'EIM fields') : '';
+  drawSpec(); drawZ(); drawB();
+}
+sync(); render();
+if (window.ResizeObserver) new ResizeObserver(function () { schedule(); }).observe(document.querySelector('.main'));
+else window.addEventListener('resize', schedule);
+if (window.matchMedia) { var mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', schedule); }
+new MutationObserver(schedule).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+</script>
+</body>
+</html>

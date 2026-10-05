@@ -1,0 +1,53 @@
+engine: billiard_cell
+version: 1
+title: Multipass-cell billiard path statistics
+description: 2D ray tracing of stadium and segmented-polygon multipass cells with input and output ports; transmission, mean path and gas-equivalent path, Monte Carlo or ergodic mean field.
+references:
+  - "L. A. Bunimovich, Commun. Math. Phys. 65, 295 (1979) (stadium billiard)"
+  - "N. Chernov, J. Stat. Phys. 88, 1 (1997) (mean free path πA/P of planar billiards)"
+functions:
+  mean_field:
+    title: Ergodic (mean-field) estimate
+    equations: ["ℓ = π A / P", "η = w / P", "s = (1 - 2η) R e^{-α ℓ}", "T = η e^{-α ℓ} / (1 - s)", "⟨L⟩ = ℓ / (1 - s)", "S1 = Γ T ⟨L⟩"]
+    inputs:
+      - {name: shape, label: "Cell shape", type: choice, choices: [stadium, polygon], default: stadium}
+      - {name: radius, label: "Radius (half-disc or circumradius)", ui_unit: mm, scale: 1.0e-3, default: 5}
+      - {name: straight, label: "Stadium straight length a", ui_unit: mm, scale: 1.0e-3, default: 5, min: 0}
+      - {name: n_facets, label: "Polygon facets N", ui_unit: "", scale: 1.0, default: 24, min: 3, step: 1}
+      - {name: port_width, label: "Port width w", ui_unit: µm, scale: 1.0e-6, default: 150}
+      - {name: R_mean, label: "Mirror reflectance (angle average)", ui_unit: "", scale: 1.0, default: 0.999, min: 0, max: 1}
+      - {name: alpha_bg, label: "Background loss α_bg", ui_unit: 1/cm, scale: 100.0, default: 0, min: 0}
+      - {name: Gamma, label: "Evanescent factor Γ", ui_unit: "", scale: 1.0, default: 1, min: 0}
+    outputs:
+      - {name: T_det, label: "Transmission to the output port", ui_unit: "", scale: 1.0}
+      - {name: L_mean, label: "Mean path ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: L_eff_gas, label: "Gas-equivalent path Γ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: S1, label: "Signal yield Γ T ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: n_bounce, label: "Mean number of chords", ui_unit: "", scale: 1.0}
+      - {name: mean_chord, label: "Mean chord πA/P", ui_unit: mm, scale: 1.0e-3}
+  ray_statistics:
+    title: Monte-Carlo ray statistics
+    equations: ["W_i = Π R(χ_ij) · e^{-α L_i}", "T = Σ W_i / N_launched", "⟨L⟩ = Σ W_i L_i / Σ W_i"]
+    inputs:
+      - {name: shape, label: "Cell shape", type: choice, choices: [stadium, polygon], default: stadium}
+      - {name: radius, label: "Radius (half-disc or circumradius)", ui_unit: mm, scale: 1.0e-3, default: 5}
+      - {name: straight, label: "Stadium straight length a", ui_unit: mm, scale: 1.0e-3, default: 5, min: 0}
+      - {name: n_facets, label: "Polygon facets N", ui_unit: "", scale: 1.0, default: 24, min: 3, step: 1}
+      - {name: tilt_rms, label: "Polygon facet tilt (rms)", ui_unit: mrad, scale: 1.0e-3, default: 0, min: 0}
+      - {name: curvature, label: "Polygon facet curvature 1/ρ (+ convex into the cell)", ui_unit: 1/m, scale: 1.0, default: 0}
+      - {name: port_width, label: "Port width w", ui_unit: µm, scale: 1.0e-6, default: 150}
+      - {name: theta0, label: "Launch half-angle", ui_unit: mrad, scale: 1.0e-3, default: 349.066}
+      - {name: R_mean, label: "Mirror reflectance", ui_unit: "", scale: 1.0, default: 0.999, min: 0, max: 1}
+      - {name: alpha_bg, label: "Background loss α_bg", ui_unit: 1/cm, scale: 100.0, default: 0, min: 0}
+      - {name: Gamma, label: "Evanescent factor Γ", ui_unit: "", scale: 1.0, default: 1, min: 0}
+      - {name: n_rays, label: "Rays", ui_unit: "", scale: 1.0, default: 1000, min: 1, step: 1}
+      - {name: n_bounce, label: "Maximum reflections per ray", ui_unit: "", scale: 1.0, default: 1500, min: 1, step: 1}
+      - {name: seed, label: "Random seed", ui_unit: "", scale: 1.0, default: 1, min: 0, step: 1}
+    outputs:
+      - {name: T_det, label: "Transmission to the output port", ui_unit: "", scale: 1.0}
+      - {name: L_mean, label: "Mean path ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: L_mean_err, label: "Standard error of ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: L_eff_gas, label: "Gas-equivalent path Γ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: S1, label: "Signal yield Γ T ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: n_det, label: "Detected rays", ui_unit: "", scale: 1.0}
+      - {name: trapped_fraction, label: "Rays still trapped at the end", ui_unit: "", scale: 1.0}

@@ -8,9 +8,13 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [materials](engines/materials/) | Sellmeier phase index, group index and GVD: SiO₂, Si₃N₄, Si, LiNbO₃ (e, o, temperature-dependent), LiTaO₃, KTP, BBO, AlN, GaAs, TiO₂, sapphire | |
 | [slab_waveguide](engines/slab_waveguide/) | Three-layer and multilayer slab effective index, V, b, mode count | |
 | [anisotropic_slab](engines/anisotropic_slab/) | TE/TM modes of slabs with anisotropic layers (x-, y-, z-cut uniaxial films, biaxial stacks), orientation helpers | |
-| [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra | |
+| [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra; oblique incidence (s/p, TIR), etched-trench membrane DBRs, two-wavelength DBR orders | |
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
 | [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius | scipy |
+| [membrane_mode](engines/membrane_mode/) | Free-standing membrane slab mode for evanescent sensing: n_eff, n_g, absorption factor Γ, penetration depth, surface-field (roughness) weight, evanescent gas volume | |
+| [billiard_cell](engines/billiard_cell/) | 2D ray tracing of stadium and perturbed segmented-polygon multipass cells with ports; reusable ray tables re-weighted for any R(sin χ), loss and Γ; ergodic mean-field estimate, Poincaré sections, occupancy maps | |
+| [trace_gas](engines/trace_gas/) | Voigt line shapes and absorption spectra of CH₄, NH₃, CO₂, H₂O (illustrative lines or a HITRAN export), transmission through a path-length distribution, shot-noise absorbance | scipy |
+| [path_coherence](engines/path_coherence/) | Random-phase path model of speckle/etalon noise in multipass cells: contrast vs linewidth, spectral autocovariance, thermal decorrelation, simulated coherent spectra | |
 
 ## Use
 
@@ -46,6 +50,7 @@ test_vectors/vectors.json   reference outputs shared with the JavaScript ports
 tools/build_index.py        specs → web/engines_index.json
 tools/make_vectors.py       engines → test_vectors/vectors.json
 tools/check_js_ports.mjs    JS ports in the applets checked against vectors.json
+tools/fetch_hitran.py       HITRAN line lists (HAPI) → engines/trace_gas/hitran_lines.json
 web/index.html              Pyodide calculator
 ```
 

@@ -92,6 +92,8 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
         <div class="ctl"><div class="row"><label for="theta">Centre angle θ<sub>c</sub></label><output id="thetaOut"></output></div>
           <input id="theta" type="range" min="-89" max="89" step="0.05" value="37.5">
           <p class="hint">From the input-facet normal, counter-clockwise positive.</p></div>
+        <label class="check" for="steer"><input id="steer" type="checkbox" checked> Steer with the pointer in the cell view</label>
+        <p class="hint">Move inside the cell to preview the launch direction, click (or lift your finger) to set it. Leaving the cell without clicking keeps the old angle.</p>
         <div class="ctl"><div class="row"><label for="fan">Fan width</label><output id="fanOut"></output></div>
           <input id="fan" type="range" min="0" max="60" step="0.01" value="1"></div>
         <div class="ctl"><div class="row"><label for="bounces">Reflections per beam</label><output id="bouncesOut"></output></div>
@@ -123,7 +125,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
         <legend>Single facet</legend>
         <div class="ctl"><div class="row"><label for="selFacet">Facet</label><output id="selFacetOut"></output></div>
           <input id="selFacet" type="range" min="0" max="23" step="1" value="5">
-          <p class="hint">Or click a facet in the cell view.</p></div>
+          <p class="hint">Or click a facet near the cell rim.</p></div>
         <div class="ctl"><div class="row"><label for="selTilt">Extra tilt</label><output id="selTiltOut"></output></div>
           <input id="selTilt" type="range" min="-20" max="20" step="0.01" value="0"></div>
         <div class="ctl"><div class="row"><label for="selCurv">Extra curvature 1/ρ</label><output id="selCurvOut"></output></div>
@@ -353,7 +355,7 @@ const CellEngine = (() => {
     return [g, w, h];
   }
 
-  let view = null;
+  let view = null, aim = null;
   function drawCell() {
     const { p, cell, ports, beams } = state;
     const cv = $("cell"), [g, w, h] = fit(cv);
@@ -393,6 +395,20 @@ const CellEngine = (() => {
       const [x, y] = CellEngine.pointAt(cell, s0); g.fillStyle = col; g.beginPath(); g.arc(X(x), Y(y), 4, 0, 7); g.fill();
     };
     portMark(cell.h, css("--port-in"));
+    if (aim) {
+      const [x0, y0] = CellEngine.pointAt(cell, cell.h);
+      const seg = () => { g.beginPath(); g.moveTo(X(x0), Y(y0)); g.lineTo(X(aim[0]), Y(aim[1])); g.stroke(); };
+      g.strokeStyle = css("--surface"); g.lineWidth = 6; seg();
+      g.setLineDash([7, 5]); g.strokeStyle = css("--accent"); g.lineWidth = 2.2; seg(); g.setLineDash([]);
+      g.fillStyle = css("--accent"); g.beginPath(); g.arc(X(aim[0]), Y(aim[1]), 4.5, 0, 7); g.fill();
+      const txt = `θc = ${(+$("theta").value).toFixed(2)}°, click to set`;
+      g.font = `500 12px ${css("--font-data")}`;
+      const tw = g.measureText(txt).width, right = X(aim[0]) > w / 2;
+      const bx = right ? X(aim[0]) - 10 - tw - 8 : X(aim[0]) + 10, by = Y(aim[1]) - 28;
+      g.fillStyle = css("--surface"); g.strokeStyle = css("--accent"); g.lineWidth = 1;
+      g.fillRect(bx, by, tw + 8, 20); g.strokeRect(bx, by, tw + 8, 20);
+      g.fillStyle = css("--ink"); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(txt, bx + 4, by + 10);
+    }
     if (ports) portMark(ports.sOut, css("--port-out"));
     const bar = 1e-3 * (cell.r > 6e-3 ? 5 : 1);
     g.strokeStyle = css("--muted"); g.fillStyle = css("--muted"); g.lineWidth = 1.5;
@@ -521,14 +537,50 @@ const CellEngine = (() => {
     const N = +$("nFacets").value, mStar = Math.max(1, Math.min(+$("starM").value, Math.floor((N - 1) / 2)));
     $("starM").value = mStar; $("theta").value = (90 - 180 * mStar / N).toFixed(2); update();
   });
-  $("cell").addEventListener("click", e => {
-    if (!state || !view) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left - view.w / 2) / view.sc, y = -(e.clientY - rect.top - view.h / 2) / view.sc;
-    if (Math.hypot(x, y) < 0.6 * state.cell.r) return;
-    const N = state.cell.N, k = ((Math.round(Math.atan2(y, x) / (2 * Math.PI / N)) % N) + N) % N;
-    $("selFacet").value = k; loadSelected(); update();
+  /* pointer steering: inside the cell the centre beam aims at the pointer (preview); a click or touch release sets it,
+     leaving the canvas without one restores the previous angle. Near the rim a click selects the facet instead. */
+  const RIM = 0.85;
+  let committed = null;
+  const toWorld = e => {
+    const rect = $("cell").getBoundingClientRect();
+    return [(e.clientX - rect.left - view.w / 2) / view.sc, -(e.clientY - rect.top - view.h / 2) / view.sc];
+  };
+  function aimAt(x, y) {
+    const [x0, y0, nx, ny] = CellEngine.pointAt(state.cell, state.cell.h);
+    const dx = x - x0, dy = y - y0;
+    if (Math.hypot(dx, dy) < 0.05 * state.cell.r) return;
+    const ux = -nx, uy = -ny;
+    const th = Math.atan2(ux * dy - uy * dx, ux * dx + uy * dy) * 180 / Math.PI;
+    $("theta").value = Math.max(-89, Math.min(89, th)).toFixed(2);
+  }
+  function endPreview(keep) {
+    if (committed !== null && !keep) $("theta").value = committed;
+    committed = null; aim = null; update();
+  }
+  $("cell").addEventListener("pointermove", e => {
+    if (!state || !view || !$("steer").checked) return;
+    if (e.pointerType !== "mouse" && e.buttons === 0) return;
+    const [x, y] = toWorld(e);
+    if (Math.hypot(x, y) > RIM * state.cell.r) { if (committed !== null) endPreview(false); return; }
+    if (committed === null) committed = $("theta").value;
+    aimAt(x, y); aim = [x, y]; update();
   });
+  $("cell").addEventListener("pointerleave", () => { if (committed !== null || aim) endPreview(false); });
+  $("cell").addEventListener("pointerup", e => {
+    if (!state || !view) return;
+    const [x, y] = toWorld(e);
+    if (Math.hypot(x, y) > RIM * state.cell.r) {
+      const N = state.cell.N, k = ((Math.round(Math.atan2(y, x) / (2 * Math.PI / N)) % N) + N) % N;
+      $("selFacet").value = k; loadSelected(); update();
+      return;
+    }
+    if (!$("steer").checked) return;
+    if (committed === null) committed = $("theta").value;
+    aimAt(x, y);
+    endPreview(true);
+  });
+  $("steer").addEventListener("change", () => { $("cell").style.touchAction = $("steer").checked ? "none" : "auto"; endPreview(false); });
+  $("cell").style.touchAction = "none";
   new ResizeObserver(update).observe(document.querySelector(".views"));
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", update);
   new MutationObserver(update).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });

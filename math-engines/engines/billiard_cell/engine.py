@@ -122,6 +122,9 @@ class SegmentedCell:
       tilt_rms    rms random tilt of each facet about its midpoint [rad] (fixed pattern, set by lithography)
       offset_rms  rms radial displacement of each facet [m]
       curvature   1/ρ of every facet [1/m]; > 0 convex into the cell (dispersing, strongly mixing), < 0 concave
+      curvature_rms  rms random spread of 1/ρ between facets [1/m]
+      tilts, curvatures, offsets   optional explicit per-facet arrays (length N) ADDED to the above, e.g. to tilt
+                  one chosen facet, or to reproduce a perturbation pattern drawn elsewhere (the JS applet port)
     Corner gaps/overlaps are neglected: facets are extended by 15 % so rays cannot leak.
     s runs along the facets (length 2h each); s_in_default is the middle of facet 0.
     """
@@ -133,6 +136,10 @@ class SegmentedCell:
     offset_rms: float = 0.0
     seed: int = 0
     a: float = 0.0          # kept for interface compatibility with Stadium
+    curvature_rms: float = 0.0
+    tilts: object = None
+    curvatures: object = None
+    offsets: object = None
 
     def __post_init__(self):
         N = self.n_facets
@@ -142,6 +149,20 @@ class SegmentedCell:
         self.apothem = self.r * np.cos(np.pi / N)
         phi = th + self.tilt_rms * rng.standard_normal(N)
         dr = self.offset_rms * rng.standard_normal(N)
+        kap = np.full(N, float(self.curvature))
+        if self.curvature_rms:
+            kap = kap + self.curvature_rms * rng.standard_normal(N)
+        extra = {"tilts": self.tilts, "curvatures": self.curvatures, "offsets": self.offsets}
+        for name, v in extra.items():
+            if v is not None and np.shape(v) != (N,):
+                raise ValueError(f"{name} must have n_facets = {N} entries")
+        if self.tilts is not None:
+            phi = phi + np.asarray(self.tilts, float)
+        if self.offsets is not None:
+            dr = dr + np.asarray(self.offsets, float)
+        if self.curvatures is not None:
+            kap = kap + np.asarray(self.curvatures, float)
+        self.kappa = kap
         self.n_k = np.stack([np.cos(phi), np.sin(phi)], 1)
         self.t_k = np.stack([-np.sin(phi), np.cos(phi)], 1)
         self.p_k = (self.apothem + dr)[:, None] * np.stack([np.cos(th), np.sin(th)], 1)
@@ -162,16 +183,19 @@ class SegmentedCell:
     def _surface(self, k, u):
         """Point and outward normal on facet k at tangential offset u (arrays)."""
         nk, tk, pk = self.n_k[k], self.t_k[k], self.p_k[k]
-        if self.curvature == 0:
-            return pk[:, 0] + u * tk[:, 0], pk[:, 1] + u * tk[:, 1], nk[:, 0], nk[:, 1]
-        rho = 1 / self.curvature
-        R = abs(rho)
-        sag = R - np.sqrt(np.maximum(R * R - u * u, 0))
-        sg = np.sign(rho)
-        x = pk[:, 0] + u * tk[:, 0] + sg * sag * nk[:, 0]
-        y = pk[:, 1] + u * tk[:, 1] + sg * sag * nk[:, 1]
-        cx, cy = pk[:, 0] + rho * nk[:, 0], pk[:, 1] + rho * nk[:, 1]
-        return x, y, -sg * (x - cx) / R, -sg * (y - cy) / R
+        x, y = pk[:, 0] + u * tk[:, 0], pk[:, 1] + u * tk[:, 1]
+        nx, ny = nk[:, 0].copy(), nk[:, 1].copy()
+        kap = self.kappa[k]
+        c = kap != 0
+        if c.any():
+            rho = 1 / kap[c]
+            R, sg, uc = np.abs(rho), np.sign(rho), np.broadcast_to(u, kap.shape)[c]
+            sag = R - np.sqrt(np.maximum(R * R - uc * uc, 0))
+            x[c] += sg * sag * nk[c, 0]
+            y[c] += sg * sag * nk[c, 1]
+            cx, cy = pk[c, 0] + rho * nk[c, 0], pk[c, 1] + rho * nk[c, 1]
+            nx[c], ny[c] = -sg * (x[c] - cx) / R, -sg * (y[c] - cy) / R
+        return x, y, nx, ny
 
     def point_at(self, s):
         s = np.mod(np.asarray(s, float), self.perimeter)
@@ -202,9 +226,9 @@ class SegmentedCell:
         eps = 1e-9 * self.r
         hh = 1.15 * self.h
         bt, bnx, bny, bs = np.full(n, np.inf), np.zeros(n), np.zeros(n), np.zeros(n)
-        rho = 1 / self.curvature if self.curvature != 0 else None
         for k in range(self.n_facets):
             nk, tk, pk = self.n_k[k], self.t_k[k], self.p_k[k]
+            rho = 1 / self.kappa[k] if self.kappa[k] != 0 else None
             with np.errstate(divide="ignore", invalid="ignore"):
                 if rho is None:
                     dn = dx * nk[0] + dy * nk[1]
@@ -457,6 +481,17 @@ def mean_field_estimate(cell, port_w, R_mean, alpha_bg=0.0, Gamma=1.0):
     T = eta * np.exp(-alpha_bg * ell) / (1 - surv)
     L = ell / (1 - surv)
     return dict(T_det=T, L_mean=L, n_bounce=1 / (1 - surv), L_eff_gas=Gamma * L, S1=Gamma * T * L)
+
+
+def reflection_weighted_path(chords, R):
+    """Path and intensity of one ray with mirror power reflectance R (scalar or one value per reflection).
+    chords[j] is the j-th chord; a reflection separates consecutive chords, so chord j carries R^j (j = 0 before
+    the first mirror). Returns (L_geom, L_eff = Σ R^j ℓ_j, I_end = intensity after len(chords) reflections).
+    L_eff is the absorption-weighted path: a weak absorber α reduces the integrated signal by α L_eff."""
+    ch = np.asarray(chords, float)
+    Rj = np.broadcast_to(np.asarray(R, float), ch.shape)
+    I = np.concatenate([[1.0], np.cumprod(Rj)])
+    return float(ch.sum()), float((I[:-1] * ch).sum()), float(I[-1])
 
 
 def dB_per_cm_to_alpha(db_cm):

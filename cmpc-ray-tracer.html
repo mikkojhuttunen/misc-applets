@@ -1,0 +1,826 @@
+<title>CMPC Ray Tracer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument panel. Controls in a left rail, the cell as the main view, two diagnostics (phase space, chaos) beneath it. */
+:root {
+  --bg: #eef1f0;
+  --surface: #ffffff;
+  --ink: #142026;
+  --muted: #5a6a6f;
+  --line: #d3dcdc;
+  --mirror: #6d8188;
+  --sel: #b86e00;
+  --port-in: #1f8a4c;
+  --port-out: #c43d2a;
+  --accent: #1d5f86;
+  --beam-l: 42%;
+  --beam-s: 78%;
+  --font-display: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+    --mirror: #9db3ba; --sel: #ffb547; --port-in: #4fd18a; --port-out: #ff7a63; --accent: #6cb8e6;
+    --beam-l: 64%; --beam-s: 85%; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+  --mirror: #9db3ba; --sel: #ffb547; --port-in: #4fd18a; --port-out: #ff7a63; --accent: #6cb8e6;
+  --beam-l: 64%; --beam-s: 85%; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); padding-inline: 16px; padding-block: 16px 32px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+h1 { font: 700 22px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 75ch; }
+.main { display: grid; grid-template-columns: minmax(270px, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.rail { display: grid; gap: 12px; }
+fieldset { margin: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 10px 12px 12px; display: grid; gap: 10px; min-width: 0; }
+legend { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+.ctl { display: grid; gap: 3px; }
+.ctl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { font-weight: 500; }
+.ctl output, .mono { font-family: var(--font-data); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+input[type="number"] { width: 5.5em; font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button { font: 500 13px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; gap: 6px; align-items: center; }
+.check input { accent-color: var(--accent); }
+.views { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; display: grid; gap: 8px; }
+.panel h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.cellview { position: relative; width: 100%; max-width: 100%; aspect-ratio: 1 / 1; max-height: 78vh; margin: 0 auto; }
+canvas { display: block; width: 100%; height: 100%; }
+#cell { cursor: crosshair; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 640px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+.chart { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; }
+.chart.wide { aspect-ratio: 3 / 1; }
+@media (max-width: 640px) { .chart.wide { aspect-ratio: 3 / 2; } }
+.phasectl { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 18px; }
+.sub { display: grid; gap: 6px; min-width: 0; }
+.sub h3 { font: 500 12.5px var(--font-body); margin: 0; color: var(--ink); }
+select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; }
+.stat { display: grid; gap: 1px; }
+.stat span:first-child { color: var(--muted); font-size: 12px; }
+.stat span:last-child { font: 500 15px var(--font-data); font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.manual { font: 12px var(--font-data); color: var(--muted); min-height: 1.2em; overflow-wrap: anywhere; }
+footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>CMPC Ray Tracer</h1>
+    <p>Rays fanned out from the input port of a segmented circular multipass cell. Add facet tilt and curvature perturbations, or nudge a single facet, to see regular star orbits break into chaotic paths.</p>
+  </header>
+
+  <div class="main">
+    <div class="rail">
+      <fieldset>
+        <legend>Beams</legend>
+        <div class="ctl"><div class="row"><label for="nBeams">Number of beams</label><output id="nBeamsOut"></output></div>
+          <input id="nBeams" type="range" min="1" max="64" step="1" value="7"></div>
+        <div class="ctl"><div class="row"><label for="theta">Centre angle θ<sub>c</sub></label><output id="thetaOut"></output></div>
+          <input id="theta" type="range" min="-89" max="89" step="0.05" value="37.5">
+          <p class="hint">From the input-facet normal, counter-clockwise positive.</p></div>
+        <label class="check" for="steer"><input id="steer" type="checkbox" checked> Steer with the pointer in the cell view</label>
+        <p class="hint">Move inside the cell to preview the launch direction, click (or lift your finger) to set it. Leaving the cell without clicking keeps the old angle.</p>
+        <div class="ctl"><div class="row"><label for="fan">Fan width</label><output id="fanOut"></output></div>
+          <input id="fan" type="range" min="0" max="60" step="0.01" value="1"></div>
+        <div class="ctl"><div class="row"><label for="bounces">Reflections per beam</label><output id="bouncesOut"></output></div>
+          <input id="bounces" type="range" min="10" max="3000" step="10" value="150"></div>
+        <div class="btns"><label for="starM">Star orbit {N/m}, m =</label><input id="starM" type="number" min="1" max="35" step="1" value="7"><button id="aimStar" type="button">Aim θ<sub>c</sub></button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Cell</legend>
+        <div class="ctl"><div class="row"><label for="nFacets">Facets N</label><output id="nFacetsOut"></output></div>
+          <input id="nFacets" type="range" min="6" max="72" step="1" value="24"></div>
+        <div class="ctl"><div class="row"><label for="diam">Diameter</label><output id="diamOut"></output></div>
+          <input id="diam" type="range" min="2" max="40" step="0.5" value="10"></div>
+        <div class="ctl"><div class="row"><label for="curv">Facet curvature 1/ρ (all)</label><output id="curvOut"></output></div>
+          <input id="curv" type="range" min="-200" max="200" step="1" value="0">
+          <p class="hint">Positive bulges into the cell (dispersing); negative is concave.</p></div>
+        <div class="ctl"><div class="row"><label for="refl">Mirror reflectance R</label><output id="reflOut"></output></div>
+          <input id="refl" type="range" min="80" max="100" step="0.01" value="99.5">
+          <p class="hint">Power reflectance per bounce, the same for every facet and angle.</p></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Random perturbations</legend>
+        <div class="ctl"><div class="row"><label for="tiltRms">Tilt, rms</label><output id="tiltRmsOut"></output></div>
+          <input id="tiltRms" type="range" min="0" max="20" step="0.01" value="0"></div>
+        <div class="ctl"><div class="row"><label for="curvRms">Curvature 1/ρ, rms</label><output id="curvRmsOut"></output></div>
+          <input id="curvRms" type="range" min="0" max="100" step="0.1" value="0"></div>
+        <div class="btns"><label for="seed">Pattern</label><input id="seed" type="number" min="1" max="99999" step="1" value="1"><button id="reseed" type="button">New pattern</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Single facet</legend>
+        <div class="ctl"><div class="row"><label for="selFacet">Facet</label><output id="selFacetOut"></output></div>
+          <input id="selFacet" type="range" min="0" max="23" step="1" value="5">
+          <p class="hint">Or click a facet near the cell rim.</p></div>
+        <div class="ctl"><div class="row"><label for="selTilt">Extra tilt</label><output id="selTiltOut"></output></div>
+          <input id="selTilt" type="range" min="-20" max="20" step="0.01" value="0"></div>
+        <div class="ctl"><div class="row"><label for="selCurv">Extra curvature 1/ρ</label><output id="selCurvOut"></output></div>
+          <input id="selCurv" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="manual" id="manualList"></div>
+        <div class="btns"><button id="clearManual" type="button">Reset single-facet changes</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Ports and display</legend>
+        <label class="check" for="ports"><input id="ports" type="checkbox"> Open ports (rays leave through input or output)</label>
+        <div class="ctl"><div class="row"><label for="portW">Port width</label><output id="portWOut"></output></div>
+          <input id="portW" type="range" min="5" max="1000" step="5" value="100"></div>
+        <div class="ctl"><div class="row"><label for="outPos">Output port position</label><output id="outPosOut"></output></div>
+          <input id="outPos" type="range" min="1" max="23" step="1" value="9"></div>
+        <label class="check" for="shade"><input id="shade" type="checkbox" checked> Shade rays by intensity Rʲ</label>
+        <label class="check" for="fade"><input id="fade" type="checkbox"> Fade later reflections</label>
+        <label class="check" for="figure"><input id="figure" type="checkbox"> Figure view (no facet numbers, tight scale bar)</label>
+        <label class="check" for="dots"><input id="dots" type="checkbox"> Mark hit points</label>
+      </fieldset>
+    </div>
+
+    <div class="views">
+      <section class="panel">
+        <h2>Cell</h2>
+        <div class="cellview"><canvas id="cell" aria-label="Cell view with ray paths"></canvas></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--port-in)"></i>input port</span>
+          <span><i class="sw" style="background:var(--port-out)"></i>output port</span>
+          <span><i class="sw" style="background:var(--sel)"></i>selected facet</span>
+          <span><i class="sw" style="background:var(--mirror)"></i>mirror facets</span>
+        </div>
+        <div class="stats" id="stats"></div>
+      </section>
+      <section class="panel">
+        <h2>Intensity and effective path</h2>
+        <canvas class="chart wide" id="inten" aria-label="Intensity and effective path versus reflection number"></canvas>
+        <p class="hint">Centre beam. Intensity Rʲ after j reflections (left axis, log) and the absorption-weighted path L<sub>eff</sub>(j) = Σ Rⁱ ℓᵢ accumulated so far (right axis). L<sub>eff</sub> tends to ℓ̄ / (1 − R) for long traces; a weak absorber α reduces the integrated signal by α L<sub>eff</sub>.</p>
+      </section>
+      <div class="duo">
+        <section class="panel">
+          <h2>Phase space at the mirrors</h2>
+          <canvas class="chart" id="poincare" aria-label="Poincaré section"></canvas>
+          <p class="hint">Each hit plotted as boundary position s/P against sin χ. Regular orbits trace lines or points; chaotic ones fill areas.</p>
+        </section>
+        <section class="panel">
+          <h2>Twin-ray separation</h2>
+          <canvas class="chart" id="lyap" aria-label="Twin-ray separation versus reflection number"></canvas>
+          <p class="hint">The centre beam and a copy launched 1 nrad apart, ports closed. A straight rise on this log scale means exponential divergence (chaos); the dashed fit gives the Lyapunov exponent per reflection. Tilting flat facets only gives slow, linear growth: a polygon stays non-chaotic, so add facet curvature for true chaos.</p>
+        </section>
+      </div>
+      <section class="panel" id="phasePanel">
+        <h2>Phase vs launch angle, and angle dither</h2>
+        <div class="phasectl">
+          <div class="ctl"><div class="row"><label for="lam">Wavelength</label><output id="lamOut"></output></div>
+            <input id="lam" type="range" min="400" max="5000" step="1" value="1550"></div>
+          <div class="ctl"><div class="row"><label for="nIdx">Index n (n<sub>eff</sub> in a membrane)</label><output id="nIdxOut"></output></div>
+            <input id="nIdx" type="range" min="1" max="4" step="0.001" value="1"></div>
+          <div class="ctl"><div class="row"><label for="win">Angle window ±Δθ</label><output id="winOut"></output></div>
+            <input id="win" type="range" min="-1" max="4" step="0.01" value="2"></div>
+          <div class="ctl"><div class="row"><label for="pass">Pass shown p</label><output id="passOut"></output></div>
+            <input id="pass" type="range" min="1" max="400" step="1" value="24"></div>
+          <div class="ctl"><div class="row"><label for="dAmp">Dither amplitude A</label><output id="dAmpOut"></output></div>
+            <input id="dAmp" type="range" min="-2" max="4" step="0.01" value="1"></div>
+          <div class="ctl"><div class="row"><label for="dWave">Dither waveform</label></div>
+            <select id="dWave"><option value="sine" selected>sine</option><option value="triangle">triangle</option></select></div>
+        </div>
+        <div class="stats" id="phaseStats"></div>
+        <div class="duo">
+          <div class="sub"><h3>Relative phase Δφ<sub>p</sub>(θ) = k₀ n (L<sub>p</sub>(θ) − L<sub>p</sub>(θ<sub>c</sub>))</h3>
+            <canvas class="chart" id="phaseAngle" aria-label="Relative phase versus launch angle"></canvas></div>
+          <div class="sub"><h3>Fringe visibility V<sub>p</sub> under the dither</h3>
+            <canvas class="chart" id="phaseVis" aria-label="Fringe visibility versus pass number"></canvas></div>
+        </div>
+        <p class="hint">Rays leave the input point at θ<sub>c</sub> + δ and are traced through the current cell (perturbations included). The shaded band is the dither range ±A. V<sub>p</sub> = |time average of exp(iΔφ<sub>p</sub>)| over one dither period: the fraction of an interference term between pass-p light and light that does not follow the dither that survives averaging. V = 1 keeps fringes; V → 0 washes them out. Sine dither of a linear phase gives |J₀(aA)|, triangle dither |sinc(aA)|. Hollow markers: the phase jumps by more than π between dither samples, so that V is not resolved. Ray picture, reflection phases ignored. Engine: <span class="mono">math-engines/engines/ray_phase</span>.</p>
+      </section>
+    </div>
+  </div>
+  <footer>Geometry and reflection law are a JavaScript port of <span class="mono">SegmentedCell</span> in misc-applets <span class="mono">math-engines/engines/billiard_cell</span>, checked against the Python engine's test vectors. Flat or circular-arc facets, extended 15 % past the polygon corners; 2D ray optics with specular reflection.</footer>
+</div>
+
+<script>
+/* engine:begin  JS port of math-engines/engines/billiard_cell SegmentedCell; checked by math-engines/tools/check_js_ports.mjs */
+const CellEngine = (() => {
+  function makeCell(r, N, tilts, curvatures, offsets) {
+    const h = r * Math.sin(Math.PI / N), apothem = r * Math.cos(Math.PI / N);
+    const c = { r, N, h, apothem, perimeter: 2 * h * N,
+      nx: new Float64Array(N), ny: new Float64Array(N), tx: new Float64Array(N), ty: new Float64Array(N),
+      px: new Float64Array(N), py: new Float64Array(N), kappa: new Float64Array(N) };
+    for (let k = 0; k < N; k++) {
+      const th = 2 * Math.PI * k / N;
+      const phi = th + (tilts ? tilts[k] : 0);
+      const dr = offsets ? offsets[k] : 0;
+      c.nx[k] = Math.cos(phi); c.ny[k] = Math.sin(phi);
+      c.tx[k] = -Math.sin(phi); c.ty[k] = Math.cos(phi);
+      c.px[k] = (apothem + dr) * Math.cos(th); c.py[k] = (apothem + dr) * Math.sin(th);
+      c.kappa[k] = curvatures ? curvatures[k] : 0;
+    }
+    c.area = 0.5 * N * r * r * Math.sin(2 * Math.PI / N);
+    c.meanChord = Math.PI * c.area / c.perimeter;
+    return c;
+  }
+
+  function surface(c, k, u) {
+    const nkx = c.nx[k], nky = c.ny[k];
+    let x = c.px[k] + u * c.tx[k], y = c.py[k] + u * c.ty[k];
+    if (c.kappa[k] === 0) return [x, y, nkx, nky];
+    const rho = 1 / c.kappa[k], R = Math.abs(rho), sg = Math.sign(rho);
+    const sag = R - Math.sqrt(Math.max(R * R - u * u, 0));
+    x += sg * sag * nkx; y += sg * sag * nky;
+    const cx = c.px[k] + rho * nkx, cy = c.py[k] + rho * nky;
+    return [x, y, -sg * (x - cx) / R, -sg * (y - cy) / R];
+  }
+
+  function pointAt(c, s) {
+    const P = c.perimeter;
+    s = ((s % P) + P) % P;
+    const k = Math.min(Math.floor(s / (2 * c.h)), c.N - 1);
+    return surface(c, k, s - k * 2 * c.h - c.h);
+  }
+
+  function hit(c, px, py, dx, dy) {
+    const eps = 1e-9 * c.r, hh = 1.15 * c.h;
+    let bt = Infinity, bnx = 0, bny = 0, bs = 0, bk = -1;
+    for (let k = 0; k < c.N; k++) {
+      const nkx = c.nx[k], nky = c.ny[k], tkx = c.tx[k], tky = c.ty[k], pkx = c.px[k], pky = c.py[k];
+      let t, u, ok, nx_, ny_;
+      if (c.kappa[k] === 0) {
+        const dn = dx * nkx + dy * nky;
+        t = ((pkx - px) * nkx + (pky - py) * nky) / dn;
+        u = (px + t * dx - pkx) * tkx + (py + t * dy - pky) * tky;
+        ok = dn > 1e-12 && t > eps && Math.abs(u) <= hh;
+        nx_ = nkx; ny_ = nky;
+      } else {
+        const rho = 1 / c.kappa[k], R = Math.abs(rho), sg = Math.sign(rho);
+        const cx = pkx + rho * nkx, cy = pky + rho * nky;
+        const ox = px - cx, oy = py - cy;
+        const b = ox * dx + oy * dy;
+        const disc = b * b - (ox * ox + oy * oy - R * R);
+        const sq = Math.sqrt(Math.max(disc, 0));
+        t = sg > 0 ? -b - sq : -b + sq;
+        const hx = px + t * dx, hy = py + t * dy;
+        const side = ((hx - cx) * nkx + (hy - cy) * nky) * sg < 0;
+        u = (hx - pkx) * tkx + (hy - pky) * tky;
+        ok = disc >= 0 && t > eps && Math.abs(u) <= hh && side;
+        const nrm = Math.hypot(hx - cx, hy - cy);
+        nx_ = -sg * (hx - cx) / nrm; ny_ = -sg * (hy - cy) / nrm;
+      }
+      if (ok && t < bt) {
+        bt = t; bnx = nx_; bny = ny_; bk = k;
+        bs = k * 2 * c.h + Math.min(Math.max(u, -c.h), c.h) + c.h;
+      }
+    }
+    return { t: bt, nx: bnx, ny: bny, s: bs, k: bk };
+  }
+
+  function reflect(dx, dy, nx, ny) {
+    const dn = dx * nx + dy * ny;
+    const rx = dx - 2 * dn * nx, ry = dy - 2 * dn * ny, nn = Math.hypot(rx, ry);
+    return [rx / nn, ry / nn];
+  }
+
+  /* start point and direction for a ray leaving boundary coordinate s at angle theta from the inward normal */
+  function launch(c, s, theta) {
+    const [x, y, nx, ny] = pointAt(c, s);
+    const ux = -nx, uy = -ny;
+    return [x, y, ux * Math.cos(theta) - uy * Math.sin(theta), ux * Math.sin(theta) + uy * Math.cos(theta)];
+  }
+
+  function inWindow(s, s0, w, P) {
+    const d = (((s - s0 + P / 2) % P) + P) % P - P / 2;
+    return Math.abs(d) <= w / 2;
+  }
+
+  /* trace up to nHits reflections; ports = {sIn, sOut, w} or null.
+     exit: 1 output, 0 input, -1 still inside, -2 leaked through a corner */
+  function trace(c, start, nHits, ports) {
+    let [x, y, dx, dy] = start;
+    const xs = [x], ys = [y], S = [], SC = [], K = [];
+    let L = 0, exit = -1;
+    for (let j = 0; j < nHits; j++) {
+      const h = hit(c, x, y, dx, dy);
+      if (!Number.isFinite(h.t)) { exit = -2; break; }
+      x += h.t * dx; y += h.t * dy; L += h.t;
+      xs.push(x); ys.push(y); S.push(h.s); SC.push(dx * h.ny - dy * h.nx); K.push(h.k);
+      if (ports) {
+        if (inWindow(h.s, ports.sOut, ports.w, c.perimeter)) { exit = 1; break; }
+        if (inWindow(h.s, ports.sIn, ports.w, c.perimeter)) { exit = 0; break; }
+      }
+      [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+    }
+    return { xs, ys, s: S, sinchi: SC, facet: K, L, exit };
+  }
+
+  /* billiard_cell.reflection_weighted_path: chord j carries R^j; L_eff = Σ R^j ℓ_j, I_end = R^(number of chords) */
+  function reflectionWeightedPath(chords, R) {
+    let I = 1, L = 0, Leff = 0;
+    for (const c of chords) { L += c; Leff += I * c; I *= R; }
+    return { L, Leff, Iend: I };
+  }
+
+  /* ray_phase.path_lengths: cumulative path to each of the first nPass hits per launch angle (NaN after a leak) */
+  function pathLengths(c, thetas, nPass, sIn) {
+    return thetas.map(th => {
+      let [x, y, dx, dy] = launch(c, sIn === undefined ? c.h : sIn, th);
+      const L = new Float64Array(nPass);
+      let acc = 0;
+      for (let j = 0; j < nPass; j++) {
+        const h = hit(c, x, y, dx, dy);
+        if (!Number.isFinite(h.t) || !Number.isFinite(acc)) { acc = NaN; L[j] = NaN; continue; }
+        acc += h.t; L[j] = acc;
+        x += h.t * dx; y += h.t * dy;
+        [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+      }
+      return L;
+    });
+  }
+
+  /* ray_phase.dither_offsets: one dither period sampled uniformly in time */
+  function ditherOffsets(A, n, waveform) {
+    const d = new Float64Array(n);
+    for (let j = 0; j < n; j++) { const t = (j + 0.5) / n; d[j] = waveform === "sine" ? A * Math.sin(2 * Math.PI * t) : A * (2 * t - 1); }
+    return d;
+  }
+
+  /* ray_phase.visibility: |mean exp(iΔφ)| over the finite samples */
+  function visibility(dphi) {
+    let re = 0, im = 0, n = 0;
+    for (const v of dphi) if (Number.isFinite(v)) { re += Math.cos(v); im += Math.sin(v); n++; }
+    return n ? Math.hypot(re, im) / n : NaN;
+  }
+
+  /* ray_phase.dither_scan */
+  function ditherScan(c, thetaC, A, nPass, lam, nIdx, waveform, nSamples, sIn) {
+    const d = ditherOffsets(A, nSamples, waveform);
+    const L0 = pathLengths(c, [thetaC], nPass, sIn)[0];
+    const L = pathLengths(c, Array.from(d, x => thetaC + x), nPass, sIn);
+    const k = 2 * Math.PI * nIdx / lam;
+    const order = Array.from(d.keys()).sort((a, b) => d[a] - d[b]);
+    const V = new Float64Array(nPass), maxStep = new Float64Array(nPass);
+    for (let p = 0; p < nPass; p++) {
+      const ph = L.map(Lj => k * (Lj[p] - L0[p]));
+      V[p] = visibility(ph);
+      let m = 0;
+      for (let q = 1; q < order.length; q++) { const st = Math.abs(ph[order[q]] - ph[order[q - 1]]); if (st > m) m = st; }
+      maxStep[p] = m;
+    }
+    return { offsets: d, L0, L, V, maxStep };
+  }
+
+  return { makeCell, surface, pointAt, hit, reflect, launch, inWindow, trace, reflectionWeightedPath, pathLengths, ditherOffsets, visibility, ditherScan };
+})();
+/* engine:end */
+
+(() => {
+  const $ = id => document.getElementById(id);
+  const NMAX = 72;
+  const manual = new Map();          /* facet -> {tilt [rad], curv [1/m]} */
+  let normals = null;
+
+  function rng(seed) {               /* mulberry32 + Box-Muller: a repeatable pattern per seed */
+    let a = seed >>> 0;
+    const u = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    return () => { let s = 0, v = 0; while (s === 0) s = u(); v = u(); return Math.sqrt(-2 * Math.log(s)) * Math.cos(2 * Math.PI * v); };
+  }
+  function makeNormals() {
+    const g = rng(+$("seed").value || 1);
+    normals = { tilt: Float64Array.from({ length: NMAX }, g), curv: Float64Array.from({ length: NMAX }, g) };
+  }
+
+  const P = () => ({
+    nBeams: +$("nBeams").value, theta: +$("theta").value * Math.PI / 180, fan: +$("fan").value * Math.PI / 180,
+    bounces: +$("bounces").value, N: +$("nFacets").value, r: +$("diam").value * 0.5e-3, curv: +$("curv").value,
+    tiltRms: +$("tiltRms").value * 1e-3, curvRms: +$("curvRms").value,
+    ports: $("ports").checked, portW: +$("portW").value * 1e-6, outPos: +$("outPos").value,
+    fade: $("fade").checked, dots: $("dots").checked, sel: +$("selFacet").value,
+    R: +$("refl").value / 100, shade: $("shade").checked, figure: $("figure").checked,
+    lam: +$("lam").value * 1e-9, nIdx: +$("nIdx").value, win: 1e-6 * 10 ** +$("win").value,
+    pass: +$("pass").value, dAmp: 1e-6 * 10 ** +$("dAmp").value, dWave: $("dWave").value,
+  });
+
+  function buildCell(p) {
+    const tilts = new Float64Array(p.N), curvs = new Float64Array(p.N);
+    for (let k = 0; k < p.N; k++) {
+      const m = manual.get(k) || { tilt: 0, curv: 0 };
+      tilts[k] = p.tiltRms * normals.tilt[k] + m.tilt;
+      curvs[k] = p.curv + p.curvRms * normals.curv[k] + m.curv;
+    }
+    return CellEngine.makeCell(p.r, p.N, tilts, curvs, null);
+  }
+
+  let state = null;
+  function compute() {
+    const p = P();
+    const cell = buildCell(p);
+    const sIn = cell.h;
+    const ports = p.ports ? { sIn, sOut: sIn + p.outPos * 2 * cell.h, w: p.portW } : null;
+    const beams = [];
+    for (let i = 0; i < p.nBeams; i++) {
+      const a = p.nBeams === 1 ? p.theta : p.theta + p.fan * (i / (p.nBeams - 1) - 0.5);
+      beams.push(CellEngine.trace(cell, CellEngine.launch(cell, sIn, a), p.bounces, ports));
+    }
+    const nTwin = Math.min(p.bounces, 600);
+    const A = CellEngine.trace(cell, CellEngine.launch(cell, sIn, p.theta), nTwin, null);
+    const B = CellEngine.trace(cell, CellEngine.launch(cell, sIn, p.theta + 1e-9), nTwin, null);
+    const sep = [];
+    for (let j = 1; j < Math.min(A.xs.length, B.xs.length); j++) sep.push(Math.hypot(A.xs[j] - B.xs[j], A.ys[j] - B.ys[j]));
+    for (const b of beams) {
+      const chords = []; for (let j = 1; j < b.xs.length; j++) chords.push(Math.hypot(b.xs[j] - b.xs[j - 1], b.ys[j] - b.ys[j - 1]));
+      const nRefl = b.exit === 1 || b.exit === 0 ? chords.length - 1 : chords.length;     /* a port hit is not a reflection */
+      const w = CellEngine.reflectionWeightedPath(chords, p.R);
+      b.chords = chords; b.Leff = w.Leff; b.nRefl = nRefl; b.Iend = p.R ** nRefl;
+    }
+    state = { p, cell, ports, beams, sep };
+    computePhase();
+  }
+
+  function computePhase() {
+    const { p, cell } = state;
+    const nPass = Math.min(p.pass, 400);
+    const nA = 241, ang = Array.from({ length: nA }, (_, i) => p.theta + p.win * (2 * i / (nA - 1) - 1));
+    const L0 = CellEngine.pathLengths(cell, [p.theta], nPass)[0];
+    const L = CellEngine.pathLengths(cell, ang, nPass);
+    const k = 2 * Math.PI * p.nIdx / p.lam;
+    const passes = [...new Set([1, Math.max(1, Math.round(nPass / 2)), nPass])];
+    const curves = passes.map(q => ({ q, y: L.map(Lq => k * (Lq[q - 1] - L0[q - 1]) / (2 * Math.PI)) }));
+    const h = 1e-6;
+    const Ld = CellEngine.pathLengths(cell, [p.theta - h, p.theta + h], 1);
+    const dL1 = (Ld[1][0] - Ld[0][0]) / (2 * h);
+    const scan = CellEngine.ditherScan(cell, p.theta, p.dAmp, nPass, p.lam, p.nIdx, p.dWave, 401);
+    state.phase = { nPass, ang, curves, L1: L0[0], Lp: L0[nPass - 1], dL1, dphi1: k * dL1, scan };
+  }
+
+  /* ---------------------------------------------------------------- drawing */
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const beamColor = (i, n, a = 1) => `hsla(${(200 + 300 * (n > 1 ? i / (n - 1) : 0)) % 360}, ${css("--beam-s")}, ${css("--beam-l")}, ${a})`;
+  function fit(canvas) {
+    const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    const g = canvas.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    return [g, w, h];
+  }
+
+  let view = null, aim = null;
+  function drawCell() {
+    const { p, cell, ports, beams } = state;
+    const cv = $("cell"), [g, w, h] = fit(cv);
+    const sc = (0.5 * Math.min(w, h) - (p.figure ? 10 : 22)) / (cell.r * (p.figure ? 1.0 : 1.04)), X = x => w / 2 + x * sc, Y = y => h / 2 - y * sc;
+    view = { sc, w, h };
+    g.lineJoin = "round"; g.lineCap = "round";
+    const lw = Math.max(0.6, Math.min(1.4, 900 / (p.nBeams * Math.sqrt(p.bounces) + 200)));
+    beams.forEach((b, i) => {
+      const n = b.xs.length - 1;
+      for (let j = 0; j < n; j++) {
+        let a = p.fade ? Math.max(0.12, 1 - j / Math.max(n, 1)) : 1;
+        if (p.shade) a *= Math.max(0.04, p.R ** j);
+        g.strokeStyle = beamColor(i, beams.length, Math.min(1, a * Math.max(0.25, 2.5 / Math.sqrt(p.nBeams))));
+        g.lineWidth = lw;
+        g.beginPath(); g.moveTo(X(b.xs[j]), Y(b.ys[j])); g.lineTo(X(b.xs[j + 1]), Y(b.ys[j + 1])); g.stroke();
+      }
+      if (p.dots) { g.fillStyle = beamColor(i, beams.length, 0.9); for (let j = 1; j <= n; j++) { g.beginPath(); g.arc(X(b.xs[j]), Y(b.ys[j]), 1.6, 0, 7); g.fill(); } }
+    });
+    for (let k = 0; k < cell.N; k++) {
+      const pts = [];
+      for (let q = 0; q <= 24; q++) { const [x, y] = CellEngine.surface(cell, k, -cell.h + 2 * cell.h * q / 24); pts.push([X(x), Y(y)]); }
+      const selected = k === p.sel && !p.figure, touched = manual.has(k) && !p.figure;
+      g.strokeStyle = selected ? css("--sel") : css("--mirror");
+      g.lineWidth = selected ? 4 : touched ? 3.2 : 2.4;
+      g.beginPath(); pts.forEach(([x, y], q) => q ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
+      if (!p.figure && (selected || cell.N <= 36)) {
+        const [mx, my] = CellEngine.surface(cell, k, 0), rr = 1 + 16 / (cell.r * sc);
+        g.fillStyle = selected ? css("--sel") : css("--muted");
+        g.font = `${selected ? 600 : 400} 10.5px ${css("--font-data")}`; g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillText(String(k), X(mx * rr), Y(my * rr));
+      }
+    }
+    const portMark = (s0, col) => {
+      const wdt = ports ? ports.w : 0.06 * cell.h;
+      g.strokeStyle = col; g.lineWidth = 7; g.beginPath();
+      for (let q = 0; q <= 8; q++) { const [x, y] = CellEngine.pointAt(cell, s0 - wdt / 2 + wdt * q / 8); q ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)); }
+      g.stroke();
+      const [x, y] = CellEngine.pointAt(cell, s0); g.fillStyle = col; g.beginPath(); g.arc(X(x), Y(y), 4, 0, 7); g.fill();
+    };
+    portMark(cell.h, css("--port-in"));
+    if (aim && !p.figure) {
+      const [x0, y0] = CellEngine.pointAt(cell, cell.h);
+      const seg = () => { g.beginPath(); g.moveTo(X(x0), Y(y0)); g.lineTo(X(aim[0]), Y(aim[1])); g.stroke(); };
+      g.strokeStyle = css("--surface"); g.lineWidth = 6; seg();
+      g.setLineDash([7, 5]); g.strokeStyle = css("--accent"); g.lineWidth = 2.2; seg(); g.setLineDash([]);
+      g.fillStyle = css("--accent"); g.beginPath(); g.arc(X(aim[0]), Y(aim[1]), 4.5, 0, 7); g.fill();
+      const txt = `θc = ${(+$("theta").value).toFixed(2)}°, click to set`;
+      g.font = `500 12px ${css("--font-data")}`;
+      const tw = g.measureText(txt).width, right = X(aim[0]) > w / 2;
+      const bx = right ? X(aim[0]) - 10 - tw - 8 : X(aim[0]) + 10, by = Y(aim[1]) - 28;
+      g.fillStyle = css("--surface"); g.strokeStyle = css("--accent"); g.lineWidth = 1;
+      g.fillRect(bx, by, tw + 8, 20); g.strokeRect(bx, by, tw + 8, 20);
+      g.fillStyle = css("--ink"); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(txt, bx + 4, by + 10);
+    }
+    if (ports) portMark(ports.sOut, css("--port-out"));
+    /* scale bar in the lower-left corner of the cell's bounding square, close to the mirrors */
+    const nice = v => { const e = 10 ** Math.floor(Math.log10(v)), f = v / e; return (f >= 5 ? 5 : f >= 2 ? 2 : 1) * e; };
+    const bar = nice(0.4 * cell.r), bx = X(-cell.r), by = Y(-cell.r);
+    g.strokeStyle = css("--ink"); g.fillStyle = css("--ink"); g.lineWidth = 2; g.lineCap = "butt";
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + bar * sc, by);
+    g.moveTo(bx, by - 4); g.lineTo(bx, by + 4); g.moveTo(bx + bar * sc, by - 4); g.lineTo(bx + bar * sc, by + 4); g.stroke();
+    g.font = `500 11px ${css("--font-data")}`; g.textAlign = "center"; g.textBaseline = "bottom";
+    g.fillText(bar >= 1e-3 ? `${+(bar * 1e3).toPrecision(3)} mm` : `${+(bar * 1e6).toPrecision(3)} µm`, bx + bar * sc / 2, by - 5);
+  }
+
+  function axes(g, w, h, m, xl, yl, xt, yt, xr, yr) {
+    const ink = css("--muted"), line = css("--line");
+    g.font = `10.5px ${css("--font-data")}`; g.fillStyle = ink; g.strokeStyle = line; g.lineWidth = 1;
+    const X = v => m.l + (v - xr[0]) / (xr[1] - xr[0]) * (w - m.l - m.r), Y = v => h - m.b - (v - yr[0]) / (yr[1] - yr[0]) * (h - m.t - m.b);
+    g.textAlign = "center"; g.textBaseline = "top";
+    xt.forEach(([v, s]) => { g.beginPath(); g.moveTo(X(v), m.t); g.lineTo(X(v), h - m.b); g.stroke(); g.fillText(s, X(v), h - m.b + 4); });
+    g.textAlign = "right"; g.textBaseline = "middle";
+    yt.forEach(([v, s]) => { g.beginPath(); g.moveTo(m.l, Y(v)); g.lineTo(w - m.r, Y(v)); g.stroke(); g.fillText(s, m.l - 5, Y(v)); });
+    g.textAlign = "center"; g.textBaseline = "bottom"; g.fillText(xl, (m.l + w - m.r) / 2, h - 2);
+    g.save(); g.translate(11, (m.t + h - m.b) / 2); g.rotate(-Math.PI / 2); g.textBaseline = "middle"; g.fillText(yl, 0, 0); g.restore();
+    return [X, Y];
+  }
+
+  function drawPoincare() {
+    const { cell, beams } = state;
+    const [g, w, h] = fit($("poincare"));
+    const m = { l: 40, r: 8, t: 8, b: 34 };
+    const [X, Y] = axes(g, w, h, m, "boundary position s / P", "sin χ", [0, .25, .5, .75, 1].map(v => [v, String(v)]), [-1, -.5, 0, .5, 1].map(v => [v, String(v)]), [0, 1], [-1, 1]);
+    const r = beams.reduce((n, b) => n + b.s.length, 0) > 20000 ? 0.9 : 1.4;
+    beams.forEach((b, i) => {
+      g.fillStyle = beamColor(i, beams.length, 0.75);
+      for (let j = 0; j < b.s.length; j++) g.fillRect(X(b.s[j] / cell.perimeter) - r, Y(b.sinchi[j]) - r, 2 * r, 2 * r);
+    });
+  }
+
+  function lyapunovFit(sep, r) {
+    const lo = 1e-12 * r * 1e3, hi = 1e-2 * r;
+    const pts = sep.map((v, j) => [j + 1, v]).filter(([, v]) => v > lo && v < hi);
+    if (pts.length < 6) return null;
+    const n = pts.length, mx = pts.reduce((a, [x]) => a + x, 0) / n, my = pts.reduce((a, [, v]) => a + Math.log(v), 0) / n;
+    let sxy = 0, sxx = 0; pts.forEach(([x, v]) => { sxy += (x - mx) * (Math.log(v) - my); sxx += (x - mx) ** 2; });
+    return { lam: sxy / sxx, a: my - sxy / sxx * mx, x0: pts[0][0], x1: pts[n - 1][0] };
+  }
+
+  function drawLyap() {
+    const { sep, cell } = state;
+    const [g, w, h] = fit($("lyap"));
+    const m = { l: 46, r: 8, t: 8, b: 34 }, n = Math.max(sep.length, 2);
+    const floor = 1e-16, yr = [-16, 0], ticks = [-15, -12, -9, -6, -3, 0];
+    const step = n > 400 ? 200 : n > 150 ? 50 : n > 60 ? 20 : 10;
+    const xt = []; for (let v = 0; v <= n; v += step) xt.push([v, String(v)]);
+    const [X, Y] = axes(g, w, h, m, "reflection number", "separation / m (log₁₀)", xt, ticks.map(v => [v, String(v)]), [0, n], yr);
+    g.strokeStyle = css("--accent"); g.lineWidth = 1.6; g.beginPath();
+    sep.forEach((v, j) => { const y = Y(Math.log10(Math.max(v, floor))); j ? g.lineTo(X(j + 1), y) : g.moveTo(X(j + 1), y); }); g.stroke();
+    const f = lyapunovFit(sep, cell.r);
+    state.lam = f;
+    if (f && f.lam > 0.05) {
+      g.setLineDash([5, 4]); g.strokeStyle = css("--sel"); g.lineWidth = 1.2; g.beginPath();
+      g.moveTo(X(f.x0), Y((f.a + f.lam * f.x0) / Math.LN10)); g.lineTo(X(f.x1), Y((f.a + f.lam * f.x1) / Math.LN10)); g.stroke(); g.setLineDash([]);
+    }
+  }
+
+  function drawIntensity() {
+    const { p, beams, cell } = state;
+    const [g, w, h] = fit($("inten"));
+    const b = beams[Math.floor((beams.length - 1) / 2)];
+    const n = b.chords.length, m = { l: 46, r: 56, t: 10, b: 34 };
+    const Imin = Math.max(-12, Math.floor(Math.log10(Math.max(p.R ** n, 1e-300)) - 0.5));
+    const yt = []; const st = Math.max(1, Math.ceil(-Imin / 6)); for (let v = 0; v >= Imin; v -= st) yt.push([v, v === 0 ? "1" : `1e${v}`]);
+    const step = n > 1500 ? 500 : n > 600 ? 200 : n > 150 ? 50 : n > 60 ? 20 : 10;
+    const xt = []; for (let v = 0; v <= n; v += step) xt.push([v, String(v)]);
+    const [X, Y] = axes(g, w, h, m, "reflection number j", "intensity Rʲ", xt, yt, [0, Math.max(n, 1)], [Imin, 0]);
+    g.strokeStyle = css("--accent"); g.lineWidth = 1.8; g.beginPath();
+    for (let j = 0; j <= n; j++) { const y = Y(Math.max(j * Math.log10(p.R), Imin)); j ? g.lineTo(X(j), y) : g.moveTo(X(j), y); } g.stroke();
+    const cum = [0]; let I = 1, acc = 0; for (const c of b.chords) { acc += I * c; I *= p.R; cum.push(acc); }
+    const lim = p.R < 1 ? cell.meanChord / (1 - p.R) : NaN;
+    const top = Math.max(acc, Number.isFinite(lim) ? Math.min(lim, 3 * acc) : 0) * 1.05 || 1;
+    const Y2 = v => h - m.b - v / top * (h - m.t - m.b);
+    g.fillStyle = css("--muted"); g.font = `10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "middle";
+    for (let q = 0; q <= 4; q++) { const v = top * q / 4; g.fillText(`${(v * 100).toPrecision(3)}`, w - m.r + 5, Y2(v)); }
+    g.save(); g.translate(w - 8, (m.t + h - m.b) / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText("L_eff (cm)", 0, 0); g.restore();
+    g.strokeStyle = css("--sel"); g.lineWidth = 1.8; g.beginPath();
+    cum.forEach((v, j) => j ? g.lineTo(X(j), Y2(v)) : g.moveTo(X(j), Y2(v))); g.stroke();
+    if (Number.isFinite(lim) && lim <= top) {
+      g.setLineDash([5, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(m.l, Y2(lim)); g.lineTo(w - m.r, Y2(lim)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = css("--sel"); g.textAlign = "left"; g.textBaseline = "bottom"; g.fillText("ℓ̄ / (1 − R)", m.l + 4, Y2(lim) - 2);
+    }
+    g.textAlign = "right"; g.textBaseline = "bottom"; g.fillStyle = css("--accent"); g.fillText("— intensity Rʲ", w - m.r - 6, h - m.b - 20);
+    g.fillStyle = css("--sel"); g.fillText("— effective path L_eff(j)", w - m.r - 6, h - m.b - 6);
+  }
+
+  function drawPhase() {
+    const { p, phase } = state;
+    const { ang, curves, scan, nPass } = phase;
+    {
+      const [g, w, h] = fit($("phaseAngle"));
+      const m = { l: 52, r: 10, t: 10, b: 34 };
+      /* signed log axis: y = asinh(Δφ / 0.1 wave), so sub-wave detail and mm-scale path jumps both show */
+      const S = v => Math.asinh(v / 0.1), Sinv = u => 0.1 * Math.sinh(u);
+      let lo = Infinity, hi = -Infinity;
+      curves.forEach(c => c.y.forEach(v => { if (Number.isFinite(v)) { lo = Math.min(lo, S(v)); hi = Math.max(hi, S(v)); } }));
+      lo = Math.min(lo, S(-1)); hi = Math.max(hi, S(1));
+      const pad = 0.05 * (hi - lo); lo -= pad; hi += pad;
+      const yt = [[0, "0"]];
+      for (let e = 0; e <= 8; e++) { const v = 10 ** e, lab = e < 4 ? String(v) : `1e${e}`; if (S(v) <= hi) yt.push([S(v), lab]); if (S(-v) >= lo) yt.push([S(-v), "−" + lab]); }
+      void Sinv;
+      const ticks = (a, b, n) => { const s = 10 ** Math.floor(Math.log10((b - a) / n)), f = (b - a) / n / s, st = (f > 5 ? 10 : f > 2 ? 5 : f > 1 ? 2 : 1) * s; const t = []; for (let v = Math.ceil(a / st) * st; v <= b; v += st) t.push(+v.toPrecision(6)); return t; };
+      const wu = p.win * 1e6 >= 1000 ? [1e-3, "mrad"] : [1e-6, "µrad"];
+      const xs = ticks(-p.win, p.win, 4);
+      const [X, Y0] = axes(g, w, h, m, `launch angle offset δ (${wu[1]})`, "Δφ (waves, signed log)", xs.map(v => [v, String(+(v / wu[0]).toPrecision(4))]),
+        yt, [-p.win, p.win], [lo, hi]);
+      const Y = v => Y0(S(v));
+      const A = Math.min(p.dAmp, p.win);
+      g.fillStyle = css("--accent"); g.globalAlpha = 0.12; g.fillRect(X(-A), m.t, X(A) - X(-A), h - m.t - m.b); g.globalAlpha = 1;
+      const cols = [css("--accent"), css("--port-in"), css("--sel")];
+      curves.forEach((c, ci) => {
+        g.strokeStyle = cols[ci % 3]; g.lineWidth = 1.6; g.beginPath(); let pen = false;
+        c.y.forEach((v, i) => { if (!Number.isFinite(v)) { pen = false; return; } const x = X(ang[i] - p.theta); pen ? g.lineTo(x, Y(v)) : g.moveTo(x, Y(v)); pen = true; });
+        g.stroke();
+        g.fillStyle = cols[ci % 3]; g.font = `500 11px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "top";
+        g.fillText(`pass ${c.q}`, m.l + 6, m.t + 4 + 14 * ci);
+      });
+    }
+    {
+      const [g, w, h] = fit($("phaseVis"));
+      const m = { l: 40, r: 10, t: 10, b: 34 };
+      const step = nPass > 150 ? 50 : nPass > 60 ? 20 : nPass > 20 ? 5 : 1;
+      const xt = []; for (let v = 0; v <= nPass; v += step) xt.push([v, String(v)]);
+      const [X, Y] = axes(g, w, h, m, "pass (mirror hit) p", "visibility V", xt, [0, .25, .5, .75, 1].map(v => [v, String(v)]), [0, Math.max(nPass, 1)], [0, 1.02]);
+      g.strokeStyle = css("--accent"); g.lineWidth = 1.2; g.beginPath();
+      scan.V.forEach((v, i) => i ? g.lineTo(X(i + 1), Y(v)) : g.moveTo(X(i + 1), Y(v))); g.stroke();
+      const r = nPass > 120 ? 1.8 : 3;
+      scan.V.forEach((v, i) => {
+        const ok = scan.maxStep[i] <= Math.PI;
+        g.beginPath(); g.arc(X(i + 1), Y(v), r, 0, 7);
+        if (ok) { g.fillStyle = css("--accent"); g.fill(); } else { g.strokeStyle = css("--port-out"); g.lineWidth = 1.2; g.stroke(); }
+      });
+    }
+    const V = phase.scan.V, last = V[nPass - 1], resolved = phase.scan.maxStep[nPass - 1] <= Math.PI;
+    const firstBad = Array.from(V).findIndex(v => v < 0.5);
+    const items = [
+      ["Path to 1st mirror L₁", `${fmt(phase.L1 * 1e3, 3)} mm`],
+      ["dL₁/dθ", `${fmt(phase.dL1 * 1e3, 3)} µm/mrad`],
+      ["dφ₁/dθ", `${fmt(phase.dphi1 * 1e-6, 4)} rad/µrad`],
+      ["Δθ for 2π at pass 1", `${fmt(Math.abs(2 * Math.PI / phase.dphi1) * 1e6, 3)} µrad`],
+      [`Path to pass ${nPass}`, `${fmt(phase.Lp * 100, 2)} cm`],
+      ["V at pass 1", fmt(V[0], 3)],
+      [`V at pass ${nPass}`, `${fmt(last, 3)}${resolved ? "" : " (unresolved)"}`],
+      ["First pass with V < 0.5", firstBad < 0 ? `none up to ${nPass}` : String(firstBad + 1)],
+    ];
+    $("phaseStats").innerHTML = items.map(([a, b]) => `<div class="stat"><span>${a}</span><span>${b}</span></div>`).join("");
+  }
+
+  function fmt(v, d = 2) { return Number.isFinite(v) ? v.toFixed(d) : "–"; }
+  function fmtI(v) { return !Number.isFinite(v) ? "–" : v >= 1e-3 ? v.toFixed(4) : v.toExponential(2); }
+  function drawStats() {
+    const { p, cell, beams, lam } = state;
+    const L = beams.map(b => b.L), nb = beams.map(b => b.s.length);
+    const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+    const chords = beams.reduce((n, b) => n + b.s.length, 0);
+    const items = [
+      ["Mean path", `${fmt(mean(L) * 100, 1)} cm`],
+      ["Mean reflections", fmt(mean(nb), 0)],
+      ["Mean chord", `${fmt(mean(L) / Math.max(mean(nb), 1) * 1e3)} mm`],
+      ["Ergodic chord πA/P", `${fmt(cell.meanChord * 1e3)} mm`],
+      ["Mirror reflectance R", `${(p.R * 100).toFixed(2)} %`],
+      ["Intensity after the traced reflections", `${fmtI(mean(beams.map(b => b.Iend)))} (${fmt(10 * Math.log10(Math.max(mean(beams.map(b => b.Iend)), 1e-300)), 1)} dB)`],
+      ["Effective path Σ Rʲ ℓⱼ", `${fmt(mean(beams.map(b => b.Leff)) * 100, 2)} cm`],
+      ["Limit ℓ̄ / (1 − R)", p.R < 1 ? `${fmt(mean(L) / Math.max(mean(nb), 1) / (1 - p.R) * 100, 2)} cm` : "∞ (lossless)"],
+      ["1/e after", p.R < 1 ? `${fmt(-1 / Math.log(p.R), 1)} reflections` : "∞"],
+      ["Lyapunov λ", !lam ? "not measurable" : lam.lam > 0.05 ? `${fmt(lam.lam, 3)} /refl. (chaotic)` : `≈ 0 (${fmt(lam.lam, 3)}): no exponential growth`],
+    ];
+    if (p.ports) {
+      const cnt = e => beams.filter(b => b.exit === e).length;
+      items.push(["Exit output / input", `${cnt(1)} / ${cnt(0)}`], ["Still inside", String(cnt(-1) + cnt(-2))]);
+    }
+    if (chords === 0) items.push(["Note", "no reflections traced"]);
+    $("stats").innerHTML = items.map(([a, b]) => `<div class="stat"><span>${a}</span><span>${b}</span></div>`).join("");
+  }
+
+  /* ---------------------------------------------------------------- controls */
+  function syncOutputs() {
+    const p = P();
+    $("nBeamsOut").value = p.nBeams;
+    $("reflOut").value = `${(+$("refl").value).toFixed(2)} %`;
+    $("lamOut").value = `${$("lam").value} nm`;
+    $("nIdxOut").value = (+$("nIdx").value).toFixed(3);
+    const ur = v => v >= 1e-3 ? `${+(v * 1e3).toPrecision(3)} mrad` : v >= 1e-6 ? `${+(v * 1e6).toPrecision(3)} µrad` : `${+(v * 1e9).toPrecision(3)} nrad`;
+    $("winOut").value = `±${ur(p.win)}`;
+    $("dAmpOut").value = ur(p.dAmp);
+    $("pass").max = Math.max(1, Math.min(400, p.bounces));
+    $("passOut").value = `${Math.min(p.pass, 400)}`;
+    $("thetaOut").value = `${(+$("theta").value).toFixed(2)}°`;
+    $("fanOut").value = `${(+$("fan").value).toFixed(2)}°`;
+    $("bouncesOut").value = p.bounces;
+    $("nFacetsOut").value = p.N;
+    $("diamOut").value = `${(+$("diam").value).toFixed(1)} mm`;
+    $("curvOut").value = p.curv ? `${p.curv} /m (ρ = ${(100 / p.curv).toFixed(1)} cm)` : "0 (flat)";
+    $("tiltRmsOut").value = `${(+$("tiltRms").value).toFixed(2)} mrad`;
+    $("curvRmsOut").value = `${(+$("curvRms").value).toFixed(1)} /m`;
+    $("selFacetOut").value = `#${p.sel}`;
+    $("selTiltOut").value = `${(+$("selTilt").value).toFixed(2)} mrad`;
+    $("selCurvOut").value = `${$("selCurv").value} /m`;
+    $("portWOut").value = `${$("portW").value} µm`;
+    $("outPosOut").value = `${p.outPos} facets on`;
+    $("selFacet").max = p.N - 1; $("outPos").max = p.N - 1;
+    $("starM").max = Math.floor((p.N - 1) / 2);
+    const list = [...manual].filter(([k]) => k < p.N).sort((a, b) => a[0] - b[0])
+      .map(([k, v]) => `#${k}: ${(v.tilt * 1e3).toFixed(2)} mrad${v.curv ? `, ${v.curv} /m` : ""}`);
+    $("manualList").textContent = list.length ? `Changed: ${list.join(" · ")}` : "No single-facet changes.";
+  }
+  function loadSelected() {
+    const m = manual.get(+$("selFacet").value) || { tilt: 0, curv: 0 };
+    $("selTilt").value = (m.tilt * 1e3).toFixed(2); $("selCurv").value = m.curv;
+  }
+  function storeSelected() {
+    const k = +$("selFacet").value, tilt = +$("selTilt").value * 1e-3, curv = +$("selCurv").value;
+    if (tilt === 0 && curv === 0) manual.delete(k); else manual.set(k, { tilt, curv });
+  }
+
+  let pending = false;
+  function update() {
+    if (pending) return; pending = true;
+    requestAnimationFrame(() => { pending = false; syncOutputs(); compute(); drawCell(); drawPoincare(); drawLyap(); drawStats(); drawIntensity(); drawPhase(); });
+  }
+
+  ["nBeams", "theta", "fan", "bounces", "nFacets", "diam", "curv", "tiltRms", "curvRms", "ports", "portW", "outPos", "fade", "dots", "refl", "shade", "figure", "lam", "nIdx", "win", "pass", "dAmp", "dWave"].forEach(id => $(id).addEventListener("input", update));
+  $("selFacet").addEventListener("input", () => { loadSelected(); update(); });
+  ["selTilt", "selCurv"].forEach(id => $(id).addEventListener("input", () => { storeSelected(); update(); }));
+  $("seed").addEventListener("input", () => { makeNormals(); update(); });
+  $("reseed").addEventListener("click", () => { $("seed").value = 1 + Math.floor(Math.random() * 99999); makeNormals(); update(); });
+  $("clearManual").addEventListener("click", () => { manual.clear(); loadSelected(); update(); });
+  $("aimStar").addEventListener("click", () => {
+    const N = +$("nFacets").value, mStar = Math.max(1, Math.min(+$("starM").value, Math.floor((N - 1) / 2)));
+    $("starM").value = mStar; $("theta").value = (90 - 180 * mStar / N).toFixed(2); update();
+  });
+  /* pointer steering: inside the cell the centre beam aims at the pointer (preview); a click or touch release sets it,
+     leaving the canvas without one restores the previous angle. Near the rim a click selects the facet instead. */
+  const RIM = 0.85;
+  let committed = null;
+  const toWorld = e => {
+    const rect = $("cell").getBoundingClientRect();
+    return [(e.clientX - rect.left - view.w / 2) / view.sc, -(e.clientY - rect.top - view.h / 2) / view.sc];
+  };
+  function aimAt(x, y) {
+    const [x0, y0, nx, ny] = CellEngine.pointAt(state.cell, state.cell.h);
+    const dx = x - x0, dy = y - y0;
+    if (Math.hypot(dx, dy) < 0.05 * state.cell.r) return;
+    const ux = -nx, uy = -ny;
+    const th = Math.atan2(ux * dy - uy * dx, ux * dx + uy * dy) * 180 / Math.PI;
+    $("theta").value = Math.max(-89, Math.min(89, th)).toFixed(2);
+  }
+  function endPreview(keep) {
+    if (committed !== null && !keep) $("theta").value = committed;
+    committed = null; aim = null; update();
+  }
+  $("cell").addEventListener("pointermove", e => {
+    if (!state || !view || !$("steer").checked) return;
+    if (e.pointerType !== "mouse" && e.buttons === 0) return;
+    const [x, y] = toWorld(e);
+    if (Math.hypot(x, y) > RIM * state.cell.r) { if (committed !== null) endPreview(false); return; }
+    if (committed === null) committed = $("theta").value;
+    aimAt(x, y); aim = [x, y]; update();
+  });
+  $("cell").addEventListener("pointerleave", () => { if (committed !== null || aim) endPreview(false); });
+  $("cell").addEventListener("pointerup", e => {
+    if (!state || !view) return;
+    const [x, y] = toWorld(e);
+    if (Math.hypot(x, y) > RIM * state.cell.r) {
+      const N = state.cell.N, k = ((Math.round(Math.atan2(y, x) / (2 * Math.PI / N)) % N) + N) % N;
+      $("selFacet").value = k; loadSelected(); update();
+      return;
+    }
+    if (!$("steer").checked) return;
+    if (committed === null) committed = $("theta").value;
+    aimAt(x, y);
+    endPreview(true);
+  });
+  $("steer").addEventListener("change", () => { $("cell").style.touchAction = $("steer").checked ? "none" : "auto"; endPreview(false); });
+  $("cell").style.touchAction = "none";
+  new ResizeObserver(update).observe(document.querySelector(".views"));
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", update);
+  new MutationObserver(update).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  makeNormals();
+  manual.set(5, { tilt: 0.5e-3, curv: 0 });
+  loadSelected();
+  update();
+})();
+</script>

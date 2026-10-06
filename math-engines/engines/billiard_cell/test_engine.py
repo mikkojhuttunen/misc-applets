@@ -76,3 +76,35 @@ def test_result_front_ends():
     assert bc.dB_per_cm_to_alpha(1.0) == pytest.approx(100 * np.log(10) / 10)
     with pytest.raises(ValueError, match="shape"):
         bc.mean_field(shape="triangle")
+
+
+def test_per_facet_perturbations_hit_points_lie_on_their_facets():
+    N = 12
+    curv = np.array([0, 40, -40, 15, 0, -25, 60, 0, -10, 30, 5, -60], float)
+    tilts = np.zeros(N)
+    tilts[3] = 2e-3
+    cell = bc.SegmentedCell(5e-3, N, tilts=tilts, curvatures=curv, offsets=np.linspace(-1e-6, 1e-6, N))
+    assert np.allclose(cell.kappa, curv) and np.arctan2(cell.n_k[3, 1], cell.n_k[3, 0]) == pytest.approx(2 * np.pi * 3 / N + 2e-3)
+    x, y, nx, ny = cell.point_at(np.array([cell.h]))
+    d = np.array([-nx[0] * np.cos(0.4) + ny[0] * np.sin(0.4)]), np.array([-nx[0] * np.sin(0.4) - ny[0] * np.cos(0.4)])
+    px, py, dx, dy = x, y, d[0], d[1]
+    for _ in range(60):
+        t, hnx, hny, hs = cell.hit(px, py, dx, dy)
+        px, py = px + t * dx, py + t * dy
+        k = int(hs[0] // (2 * cell.h))
+        u = hs[0] - k * 2 * cell.h - cell.h
+        if abs(u) < 0.999 * cell.h:                       # away from the clipped corner overlap
+            qx, qy, qnx, qny = cell.point_at(hs)
+            assert np.hypot(qx - px, qy - py)[0] < 1e-12 and np.hypot(qnx - hnx, qny - hny)[0] < 1e-9
+        dx, dy = bc._reflect(dx, dy, hnx, hny)
+    with pytest.raises(ValueError, match="tilts"):
+        bc.SegmentedCell(5e-3, N, tilts=np.zeros(5))
+
+
+def test_reflection_weighted_path():
+    L, Leff, I = bc.reflection_weighted_path([1.0, 2.0, 3.0], 0.9)
+    assert (L, I) == (6.0, pytest.approx(0.9**3))
+    assert Leff == pytest.approx(1.0 + 0.9 * 2.0 + 0.81 * 3.0)
+    ch = np.full(5000, 7.8e-3)                      # many equal chords -> geometric-series limit ℓ / (1 - R)
+    assert bc.reflection_weighted_path(ch, 0.98)[1] == pytest.approx(7.8e-3 / 0.02, rel=1e-12)
+    assert bc.reflection_weighted_path(ch, 1.0)[1] == pytest.approx(5000 * 7.8e-3)

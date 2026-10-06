@@ -1,11 +1,11 @@
-"""CMPC simulator figures, v0.3 (physics in misc-applets/math-engines; this script only configures and plots).
+"""CMPC simulator figures, v0.2 (corrected polarisation mapping, segmented cells, gas spectra, coherence model).
 
     python run_figures.py            # all
     python run_figures.py 3 4        # selected
 
-Needs numpy, scipy, matplotlib; run from misc-applets/cmpc-sim (math-engines is found next to it, or via $MISC_APPLETS).
-Figures go to ./figs.
+Needs numpy, scipy, matplotlib and a clone of mikkojhuttunen/misc-applets (env MISC_APPLETS if not next to this file).
 """
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "cmpc"))  # core modules
 import sys
 from pathlib import Path
 
@@ -30,8 +30,8 @@ CFG = dict(
     n_rays=12000, n_bounce=2500, max_path=8.0, seed=5,
     laser_fwhm=1e6, dneff_dT=1.5e-4, nu_NH3=6528.76, nu_CH4=6057.10,
 )
-OUT = Path(__file__).parent / "figs"
-OUT.mkdir(exist_ok=True)
+OUT = Path("results/figs")
+OUT.mkdir(parents=True, exist_ok=True)
 COL = {"Si": "#1f4e79", "SiNx": "#c0504d", "Al2O3": "#4f9d4f"}
 plt.rcParams.update({"font.size": 10, "axes.grid": True, "grid.alpha": 0.25, "figure.dpi": 130,
                      "axes.spines.top": False, "axes.spines.right": False})

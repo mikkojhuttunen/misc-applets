@@ -71,5 +71,6 @@ The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out
 |---|---|---|
 | `dbr-structures/dbr-engine.js` | Sellmeier indices, three-layer slab, coupled-mode reflectance, transfer-matrix stack | `check_js_ports.mjs` |
 | `parametric-amplifier.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver | `check_js_ports.mjs` (functions extracted from the page) |
+| `cmpc-ray-tracer.html` (inline `engine:begin/end` block) | `billiard_cell.SegmentedCell` geometry, hit test, reflection, launch | `check_js_ports.mjs` (block extracted from the page) |
 
 Known deviation: the ports work in µm inside; the check converts SI to µm at the boundary.

@@ -57,5 +57,28 @@ const close = (label, got, want, rel, abs = 0) => {
   }
 }
 
+/* ---- cmpc-ray-tracer.html: segmented-cell engine block (billiard_cell.SegmentedCell port) ---- */
+{
+  const html = fs.readFileSync(path.join(repo, 'cmpc-ray-tracer.html'), 'utf8');
+  const a = html.indexOf('/* engine:begin'), b = html.indexOf('/* engine:end */');
+  if (a < 0 || b < 0) throw new Error('engine block markers not found in cmpc-ray-tracer.html');
+  const ctx = vm.createContext({ Math, Number, Float64Array, Infinity });
+  vm.runInContext(html.slice(a, b) + '\n;globalThis.__c = CellEngine;', ctx);
+  const E = ctx.__c;
+  for (const [i, r] of V.segmented_cell.entries()) {
+    const c = E.makeCell(r.radius, r.n_facets, r.tilts, r.curvatures, r.offsets);
+    close(`cell[${i}] mean chord`, c.meanChord, r.mean_chord, 1e-12);
+    const st = E.launch(c, c.h, r.theta);
+    st.forEach((v, j) => close(`cell[${i}] start[${j}]`, v, r.start[j], 1e-12, 1e-15));
+    const tr = E.trace(c, st, r.hits.length, null);
+    r.hits.forEach(([x, y, s, sc], j) => {
+      close(`cell[${i}] hit ${j} x`, tr.xs[j + 1], x, 0, 1e-9 * r.radius);
+      close(`cell[${i}] hit ${j} y`, tr.ys[j + 1], y, 0, 1e-9 * r.radius);
+      close(`cell[${i}] hit ${j} s`, tr.s[j], s, 0, 1e-9 * r.radius);
+      close(`cell[${i}] hit ${j} sinchi`, tr.sinchi[j], sc, 0, 1e-8);
+    });
+  }
+}
+
 console.log(`${checks - fails}/${checks} JS port checks passed`);
 process.exit(fails ? 1 : 0);

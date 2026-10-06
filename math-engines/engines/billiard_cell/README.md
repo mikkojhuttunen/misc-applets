@@ -1,6 +1,6 @@
 # billiard_cell
 
-2D ray tracing of planar multipass cells: stadium (circle at a = 0) and segmented N-gon cells with designed perturbations (random facet tilt, radial offset, facet curvature). Rays launch from an input port window, reflect specularly, and stop at the input (lost) or output (detected) port.
+2D ray tracing of planar multipass cells: stadium (circle at a = 0) and segmented N-gon cells with designed perturbations (random facet tilt, radial offset, facet curvature and its spread, or explicit per-facet arrays to change single facets). Rays launch from an input port window, reflect specularly, and stop at the input (lost) or output (detected) port.
 
 The tracer is geometry only (`trace_rays` → `RayTable`: every chord length, angle of incidence and a facet-itinerary hash). `evaluate` re-weights one table for any mirror R(sin χ), background loss α_bg and evanescent factor Γ, so mirror/loss/wavelength sweeps need no re-tracing. `mean_field_estimate` is the ergodic cross-check (mean chord πA/P); `poincare` and `occupancy_map` show phase-space filling and spatial coverage.
 

@@ -1,5 +1,5 @@
 engine: ray_phase
-version: 1
+version: 2
 title: Ray phase vs launch angle in a multipass cell
 description: Optical path and phase of rays launched at slightly different angles into a segmented cell, pass by pass, and the fringe visibility left under launch-angle dithering.
 references:
@@ -23,7 +23,7 @@ functions:
       - {name: dtheta_2pi, label: "Angle step for 2π", ui_unit: µrad, scale: 1.0e-6}
   dither_visibility:
     title: Fringe visibility under angle dither
-    equations: ["V_p = |⟨exp(i Δφ_p(θc + δ(t)))⟩_t|", "linear phase: sine dither V = |J₀(aA)|, triangle V = |sinc(aA)|"]
+    equations: ["V_p = |⟨exp(i Δφ_p(θc + δ(t)))⟩_t|", "Δφ_p ≈ a_p δ + ½ b_p δ², a_p = k₀ n dL_p/dθ", "x_p = a_p A: V ≈ |J₀(x_p)| (sine), |sinc(x_p)| (triangle)", "chirp q_p = ½ |b_p| A²", "noise floor √π / (2√N)"]
     inputs:
       - {name: radius, label: "Cell radius (circumradius)", ui_unit: mm, scale: 1.0e-3, default: 5}
       - {name: n_facets, label: "Facets N", ui_unit: "", scale: 1.0, default: 24, min: 3, step: 1}
@@ -37,5 +37,12 @@ functions:
     outputs:
       - {name: V_first, label: "Visibility at pass 1", ui_unit: "", scale: 1.0}
       - {name: V_last, label: "Visibility at the chosen pass", ui_unit: "", scale: 1.0}
-      - {name: phase_span_last, label: "Phase span at the chosen pass", ui_unit: rad, scale: 1.0}
+      - {name: V_model_last, label: "Linear-model V at the chosen pass", ui_unit: "", scale: 1.0}
+      - {name: x_last, label: "Dither depth x = a A", ui_unit: rad, scale: 1.0}
+      - {name: chirp_last, label: "Chirp ½|b|A²", ui_unit: rad, scale: 1.0}
+      - {name: same_path_last, label: "Share of rays on the centre ray's facet path", ui_unit: "", scale: 1.0}
+      - {name: A_half_last, label: "Amplitude for V = 0.5 (model)", ui_unit: µrad, scale: 1.0e-6}
+      - {name: A_zero_last, label: "Amplitude for V = 0 (model)", ui_unit: µrad, scale: 1.0e-6}
       - {name: L_last, label: "Path to the chosen pass", ui_unit: cm, scale: 1.0e-2}
+      - {name: noise_floor, label: "Random-phase floor √π/(2√N)", ui_unit: "", scale: 1.0}
+      - {name: n_samples, label: "Dither samples used", ui_unit: "", scale: 1.0}

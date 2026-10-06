@@ -15,6 +15,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [billiard_cell](engines/billiard_cell/) | 2D ray tracing of stadium and perturbed segmented-polygon multipass cells with ports; reusable ray tables re-weighted for any R(sin χ), loss and Γ; ergodic mean-field estimate, Poincaré sections, occupancy maps | |
 | [trace_gas](engines/trace_gas/) | Voigt line shapes and absorption spectra of CH₄, NH₃, CO₂, H₂O (illustrative lines or a HITRAN export), transmission through a path-length distribution, shot-noise absorbance | scipy |
 | [path_coherence](engines/path_coherence/) | Random-phase path model of speckle/etalon noise in multipass cells: contrast vs linewidth, spectral autocovariance, thermal decorrelation, simulated coherent spectra | |
+| [ray_phase](engines/ray_phase/) | Optical path and phase of rays vs launch angle in a segmented cell, pass by pass; fringe visibility under sine or triangle angle dither | |
 
 ## Use
 
@@ -71,5 +72,6 @@ The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out
 |---|---|---|
 | `dbr-structures/dbr-engine.js` | Sellmeier indices, three-layer slab, coupled-mode reflectance, transfer-matrix stack | `check_js_ports.mjs` |
 | `parametric-amplifier.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver | `check_js_ports.mjs` (functions extracted from the page) |
+| `cmpc-ray-tracer.html` (inline `engine:begin/end` block) | `billiard_cell.SegmentedCell` geometry, hit test, reflection, launch, `reflection_weighted_path`; `ray_phase` path lengths, dither offsets, visibility | `check_js_ports.mjs` (block extracted from the page) |
 
 Known deviation: the ports work in µm inside; the check converts SI to µm at the boundary.

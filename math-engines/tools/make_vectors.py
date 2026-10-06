@@ -67,6 +67,20 @@ def build() -> dict:
                                "n_pass": npass, "waveform": wf, "wavelength": 1.55e-6, "n_index": 1.0, "n_samples": 101,
                                "offsets": [float(x) for x in sc["offsets"]], "L0": [float(x) for x in sc["L0"]],
                                "V": [float(x) for x in sc["V"]]})
+    v["ray_phase_analysis"] = []
+    for (N, tilt5, thc, A, npass, wf, nmin, nmax) in ((24, 0.0, np.radians(37.5), 1e-5, 20, "sine", 201, 201),
+                                                     (24, 5e-4, np.radians(37.5), 1e-4, 40, "triangle", 101, 801),
+                                                     (16, 0.0, 0.3, 3e-6, 12, "sine", 51, 1601)):
+        tilts = [0.0] * N
+        tilts[5] = tilt5
+        cell = bc.SegmentedCell(5e-3, N, tilts=tilts)
+        r = rp.dither_analysis(cell, thc, A, npass, 1.55e-6, 1.0, wf, n_min=nmin, n_max=nmax)
+        f = lambda arr: [None if not np.isfinite(x) else float(x) for x in arr]
+        v["ray_phase_analysis"].append({"radius": 5e-3, "n_facets": N, "tilts": tilts, "theta_c": float(thc), "amplitude": A,
+                                        "n_pass": npass, "waveform": wf, "wavelength": 1.55e-6, "n_index": 1.0,
+                                        "n_min": nmin, "n_max": nmax, "n_used": r["n_used"], "V": f(r["V"]), "V_model": f(r["V_model"]),
+                                        "a": f(r["a"]), "b": f(r["b"]), "same_path": f(r["same_path"]),
+                                        "resolved": [bool(x) for x in r["resolved"]]})
     return v
 
 

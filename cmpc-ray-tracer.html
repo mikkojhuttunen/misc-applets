@@ -70,7 +70,15 @@ canvas { display: block; width: 100%; height: 100%; }
 .chart.wide { aspect-ratio: 3 / 1; }
 @media (max-width: 640px) { .chart.wide { aspect-ratio: 3 / 2; } }
 .phasectl { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 18px; }
-.sub { display: grid; gap: 6px; min-width: 0; }
+.sub { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.explain { border-left: 3px solid var(--accent); background: var(--bg); padding: 8px 12px; border-radius: 0 4px 4px 0; display: grid; gap: 4px; font-size: 13px; }
+.explain .eq { font-family: var(--font-data); font-size: 12.5px; overflow-wrap: anywhere; }
+.explain .note { color: var(--muted); }
+.explain .warn { color: var(--port-out); }
+.status { color: var(--muted); font: 12px var(--font-data); }
+details.how { border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; }
+details.how summary { cursor: pointer; font-weight: 600; }
+details.how ul { margin: 8px 0 4px; padding-left: 18px; display: grid; gap: 4px; max-width: 95ch; }
 .sub h3 { font: 500 12.5px var(--font-body); margin: 0; color: var(--ink); }
 select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; }
@@ -202,21 +210,43 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
           <div class="ctl"><div class="row"><label for="dWave">Dither waveform</label></div>
             <select id="dWave"><option value="sine" selected>sine</option><option value="triangle">triangle</option></select></div>
         </div>
+        <div class="explain" id="explain" aria-live="polite"></div>
         <div class="stats" id="phaseStats"></div>
         <div class="duo">
           <div class="sub"><h3>Relative phase Δφ<sub>p</sub>(θ) = k₀ n (L<sub>p</sub>(θ) − L<sub>p</sub>(θ<sub>c</sub>))</h3>
-            <canvas class="chart" id="phaseAngle" aria-label="Relative phase versus launch angle"></canvas></div>
-          <div class="sub"><h3>Fringe visibility V<sub>p</sub> under the dither</h3>
-            <canvas class="chart" id="phaseVis" aria-label="Fringe visibility versus pass number"></canvas></div>
+            <canvas class="chart" id="phaseAngle" aria-label="Relative phase versus launch angle"></canvas>
+            <p class="hint">Shaded band: the dither range ±A. Signed-log axis, so sub-wave slopes and mm-scale path jumps both show.</p></div>
+          <div class="sub"><h3>Visibility V<sub>p</sub> against pass number</h3>
+            <canvas class="chart" id="phaseVis" aria-label="Fringe visibility versus pass number"></canvas>
+            <p class="hint">Dots: computed V. Dashed: linear-model prediction from the dither depth x<sub>p</sub>. Grey: share of dithered rays still on the centre ray's facet path. Dotted: random-phase floor √π/(2√N).</p></div>
+          <div class="sub"><h3>Visibility against dither depth x = a<sub>p</sub>A (every pass)</h3>
+            <canvas class="chart" id="phaseX" aria-label="Visibility versus dither depth"></canvas>
+            <p class="hint">The curve is |J₀(x)| (sine) or |sinc(x)| (triangle). Passes whose dots sit on it are explained by x alone. Amber: some rays switched facet path. Hollow red: not resolved at the maximum sample count. Ringed: the pass shown.</p></div>
+          <div class="sub"><h3>Phase slope |a<sub>p</sub>| = k₀ n |dL<sub>p</sub>/dθ| against pass number</h3>
+            <canvas class="chart" id="phaseSlope" aria-label="Phase slope versus pass number"></canvas>
+            <p class="hint">Horizontal lines: the slope at which the current amplitude A gives model V = 0.9, 0.5 and 0. A pass is washed out where the curve is above the V = 0 line. Changing A moves these lines; changing λ, n or the cell moves the curve.</p></div>
         </div>
-        <p class="hint">Rays leave the input point at θ<sub>c</sub> + δ and are traced through the current cell (perturbations included). The shaded band is the dither range ±A. V<sub>p</sub> = |time average of exp(iΔφ<sub>p</sub>)| over one dither period: the fraction of an interference term between pass-p light and light that does not follow the dither that survives averaging. V = 1 keeps fringes; V → 0 washes them out. Sine dither of a linear phase gives |J₀(aA)|, triangle dither |sinc(aA)|. Hollow markers: the phase jumps by more than π between dither samples, so that V is not resolved. Ray picture, reflection phases ignored. Engine: <span class="mono">math-engines/engines/ray_phase</span>.</p>
+        <details class="how">
+          <summary>How each parameter changes the visibility</summary>
+          <ul>
+            <li><b>Dither amplitude A</b>: x ∝ A. Doubling A doubles x at every pass.</li>
+            <li><b>Wavelength and index</b>: x ∝ n/λ through k₀n. A membrane mode with n<sub>eff</sub> ≈ 2.8 washes out 2.8 times sooner than air.</li>
+            <li><b>Pass number</b>: dL<sub>p</sub>/dθ accumulates along the path. In a regular polygon it grows in proportion to p (fitted exponent γ ≈ 1), so the pass where V first reaches 0 moves as 1/A. In a chaotic (curved-facet) cell it grows exponentially, and washing out sets in abruptly after a few Lyapunov times.</li>
+            <li><b>Cell size and launch angle</b>: at fixed shape dL/dθ ∝ radius; θ<sub>c</sub> sets the chord geometry and the sign and size of the slope (near normal incidence the first-chord slope vanishes).</li>
+            <li><b>Waveform</b>: sine dither gives |J₀(x)| (V = 0.9 at x = 0.64, 0.5 at 1.52, first zero 2.40, then a slow 1/√x tail with revivals). Triangle dither gives |sinc(x)| (0.9 at 0.79, 0.5 at 1.90, zero at π, 1/x tail). A triangle suppresses more strongly at large x; a sine reaches its first zero sooner.</li>
+            <li><b>Chirp</b> ½|b<sub>p</sub>|A²: curvature of the phase across the dither. Once it nears 1 rad, V no longer follows the J₀/sinc curve.</li>
+            <li><b>Path switching</b> (perturbations, large A, late passes): dithered rays that take a different facet path differ by a chord or more, thousands of waves. Their contribution averages to nearly nothing. The rays that keep the path are those near δ = 0, so they behave like a smaller effective dither; V then depends on where along the dither the switching happens, not on x alone, and can lie above or below the J₀/sinc curve.</li>
+            <li><b>Sampling</b>: the dither is sampled until the phase step between neighbouring same-path samples is below π/2 at every pass, up to 12 801 samples. An unresolved V is only known to be about as small as the random-phase floor.</li>
+          </ul>
+        </details>
+        <p class="hint">V<sub>p</sub> = |time average of exp(iΔφ<sub>p</sub>)| over one dither period: the share of an interference term between pass-p light and light that does not follow the dither that survives averaging. V = 1 keeps fringes; V → 0 washes them out. Ray picture, reflection phases ignored. Engine: <span class="mono">math-engines/engines/ray_phase</span> (<span class="mono">dither_analysis</span>); runs in a background worker.</p>
       </section>
     </div>
   </div>
   <footer>Geometry and reflection law are a JavaScript port of <span class="mono">SegmentedCell</span> in misc-applets <span class="mono">math-engines/engines/billiard_cell</span>, checked against the Python engine's test vectors. Flat or circular-arc facets, extended 15 % past the polygon corners; 2D ray optics with specular reflection.</footer>
 </div>
 
-<script>
+<script id="app">
 /* engine:begin  JS port of math-engines/engines/billiard_cell SegmentedCell; checked by math-engines/tools/check_js_ports.mjs */
 const CellEngine = (() => {
   function makeCell(r, N, tilts, curvatures, offsets) {
@@ -336,21 +366,28 @@ const CellEngine = (() => {
     return { L, Leff, Iend: I };
   }
 
-  /* ray_phase.path_lengths: cumulative path to each of the first nPass hits per launch angle (NaN after a leak) */
-  function pathLengths(c, thetas, nPass, sIn) {
-    return thetas.map(th => {
+  /* ray_phase.path_lengths: cumulative path to each of the first nPass hits per launch angle (NaN after a leak);
+     withIds also returns a path id per hit (hash of the facet sequence so far, -1 once leaked) */
+  const HASH_M = 2147483647;
+  function pathLengths(c, thetas, nPass, sIn, withIds) {
+    const Ls = [], IDs = [];
+    for (const th of thetas) {
       let [x, y, dx, dy] = launch(c, sIn === undefined ? c.h : sIn, th);
-      const L = new Float64Array(nPass);
-      let acc = 0;
+      const L = new Float64Array(nPass), ids = new Float64Array(nPass);
+      let acc = 0, pid = 0;
       for (let j = 0; j < nPass; j++) {
+        if (pid < 0) { L[j] = NaN; ids[j] = -1; continue; }
         const h = hit(c, x, y, dx, dy);
-        if (!Number.isFinite(h.t) || !Number.isFinite(acc)) { acc = NaN; L[j] = NaN; continue; }
+        if (!Number.isFinite(h.t)) { pid = -1; L[j] = NaN; ids[j] = -1; continue; }
+        const fac = Math.min(Math.max(Math.floor(h.s / (2 * c.h)), 0), c.N - 1);
+        pid = (pid * 1000003 + fac + 1) % HASH_M; ids[j] = pid;
         acc += h.t; L[j] = acc;
         x += h.t * dx; y += h.t * dy;
         [dx, dy] = reflect(dx, dy, h.nx, h.ny);
       }
-      return L;
-    });
+      Ls.push(L); IDs.push(ids);
+    }
+    return withIds ? { L: Ls, ids: IDs } : Ls;
   }
 
   /* ray_phase.dither_offsets: one dither period sampled uniformly in time */
@@ -385,7 +422,75 @@ const CellEngine = (() => {
     return { offsets: d, L0, L, V, maxStep };
   }
 
-  return { makeCell, surface, pointAt, hit, reflect, launch, inWindow, trace, reflectionWeightedPath, pathLengths, ditherOffsets, visibility, ditherScan };
+  /* ray_phase.model_visibility: |J0(x)| (sine, same midpoint average as the dither) or |sinc(x)| (triangle) */
+  const X_V09 = { sine: 0.6406308771588489, triangle: 0.786683072049212 };
+  const X_V05 = { sine: 1.521144057668765, triangle: 1.8954942670340231 };
+  const X_V0 = { sine: 2.404825557695807, triangle: Math.PI };
+  function modelVisibility(x, waveform) {
+    if (!Number.isFinite(x)) return NaN;
+    if (waveform !== "sine") return x === 0 ? 1 : Math.abs(Math.sin(x) / x);
+    const n = Math.max(64, Math.ceil(Math.abs(x)) + 64);
+    let s = 0;
+    for (let j = 0; j < n; j++) s += Math.cos(x * Math.sin(2 * Math.PI * ((j + 0.5) / n)));
+    return Math.abs(s / n);
+  }
+
+  /* ray_phase.phase_derivatives: a = dφ/dθ (step h1), b = d²φ/dθ² (step h2); NaN when the ±h rays switch path */
+  function phaseDerivatives(c, thetaC, nPass, lam, nIdx, sIn, h1 = 1e-9, h2 = 1e-6) {
+    const k = 2 * Math.PI * nIdx / lam;
+    const { L, ids } = pathLengths(c, [thetaC - h2, thetaC - h1, thetaC, thetaC + h1, thetaC + h2], nPass, sIn, true);
+    const a = new Float64Array(nPass), b = new Float64Array(nPass);
+    for (let p = 0; p < nPass; p++) {
+      const s1 = ids[1][p] === ids[2][p] && ids[3][p] === ids[2][p], s2 = ids[0][p] === ids[2][p] && ids[4][p] === ids[2][p];
+      a[p] = s1 ? k * (L[3][p] - L[1][p]) / (2 * h1) : NaN;
+      b[p] = s2 ? k * (L[4][p] - 2 * L[2][p] + L[0][p]) / (h2 * h2) : NaN;
+    }
+    return { a, b };
+  }
+
+  /* ray_phase.dither_analysis: V per pass with dither depth, linear model, chirp, path switching, adaptive sampling.
+     onProgress(result, done) is called after every sampling round. */
+  function ditherAnalysis(c, thetaC, A, nPass, lam, nIdx, waveform, nMin = 401, nMax = 12801, stepTol = Math.PI / 2, sIn, onProgress) {
+    const k = 2 * Math.PI * nIdx / lam;
+    const c0 = pathLengths(c, [thetaC], nPass, sIn, true), L0 = c0.L[0], id0 = c0.ids[0];
+    const { a, b } = phaseDerivatives(c, thetaC, nPass, lam, nIdx, sIn);
+    const x = Array.from(a, v => Math.abs(v) * A);
+    const base = {
+      a, b, x, L0, Vmodel: x.map(v => modelVisibility(v, waveform)), q: Array.from(b, v => 0.5 * Math.abs(v) * A * A),
+      A09: Array.from(a, v => X_V09[waveform] / Math.abs(v)), A05: Array.from(a, v => X_V05[waveform] / Math.abs(v)),
+      A0: Array.from(a, v => X_V0[waveform] / Math.abs(v)),
+    };
+    let n = nMin, res;
+    for (;;) {
+      const d = ditherOffsets(A, n, waveform);
+      const { L, ids } = pathLengths(c, Array.from(d, v => thetaC + v), nPass, sIn, true);
+      const order = Array.from(d.keys()).sort((i, j) => d[i] - d[j]);
+      const V = new Float64Array(nPass), maxStep = new Float64Array(nPass), same = new Float64Array(nPass);
+      const ph = new Float64Array(n);
+      let worst = 0;
+      for (let p = 0; p < nPass; p++) {
+        let cnt = 0;
+        for (let i = 0; i < n; i++) { ph[i] = k * (L[i][p] - L0[p]); if (ids[i][p] === id0[p]) cnt++; }
+        V[p] = visibility(ph); same[p] = cnt / n;
+        let m = 0;
+        for (let q = 1; q < n; q++) {
+          const i = order[q], j = order[q - 1];
+          if (ids[i][p] === ids[j][p] && ids[i][p] >= 0) { const st = Math.abs(ph[i] - ph[j]); if (st > m) m = st; }
+        }
+        maxStep[p] = m; if (m > worst) worst = m;
+      }
+      res = Object.assign({}, base, { V, maxStep, same, resolved: Array.from(maxStep, v => v <= stepTol), nUsed: n,
+        noiseFloor: Math.sqrt(Math.PI) / (2 * Math.sqrt(n)) });
+      const done = worst <= stepTol || n >= nMax;
+      if (onProgress) onProgress(res, done);
+      if (done) return res;
+      n = Math.min(nMax, Math.max(2 * n - 1, Math.ceil(n * worst / stepTol * 1.25)));
+      n += 1 - n % 2;
+    }
+  }
+
+  return { makeCell, surface, pointAt, hit, reflect, launch, inWindow, trace, reflectionWeightedPath, pathLengths, ditherOffsets,
+    visibility, ditherScan, modelVisibility, phaseDerivatives, ditherAnalysis, X_V09, X_V05, X_V0 };
 })();
 /* engine:end */
 
@@ -423,7 +528,9 @@ const CellEngine = (() => {
       tilts[k] = p.tiltRms * normals.tilt[k] + m.tilt;
       curvs[k] = p.curv + p.curvRms * normals.curv[k] + m.curv;
     }
-    return CellEngine.makeCell(p.r, p.N, tilts, curvs, null);
+    const c = CellEngine.makeCell(p.r, p.N, tilts, curvs, null);
+    c.tilts = tilts; c.curvs = curvs;
+    return c;
   }
 
   let state = null;
@@ -464,8 +571,44 @@ const CellEngine = (() => {
     const h = 1e-6;
     const Ld = CellEngine.pathLengths(cell, [p.theta - h, p.theta + h], 1);
     const dL1 = (Ld[1][0] - Ld[0][0]) / (2 * h);
-    const scan = CellEngine.ditherScan(cell, p.theta, p.dAmp, nPass, p.lam, p.nIdx, p.dWave, 401);
-    state.phase = { nPass, ang, curves, L1: L0[0], Lp: L0[nPass - 1], dL1, dphi1: k * dL1, scan };
+    state.phase = { nPass, ang, curves, L1: L0[0], Lp: L0[nPass - 1], dL1, dphi1: k * dL1 };
+    requestAnalysis({ r: p.r, N: p.N, tilts: Array.from(cell.tilts), curvs: Array.from(cell.curvs), theta: p.theta, A: p.dAmp,
+      nPass, lam: p.lam, nIdx: p.nIdx, wave: p.dWave, nMax: 12801 });
+  }
+
+  /* ---------------------------------------------------------------- dither analysis in a background worker */
+  const appText = $("app").textContent;
+  const WORKER_SRC = appText.slice(appText.indexOf("/* engine:begin"), appText.indexOf("/* engine:end */")) + `
+onmessage = e => {
+  const j = e.data, c = CellEngine.makeCell(j.r, j.N, j.tilts, j.curvs, null);
+  CellEngine.ditherAnalysis(c, j.theta, j.A, j.nPass, j.lam, j.nIdx, j.wave, 401, j.nMax, Math.PI / 2, undefined,
+    (res, done) => postMessage({ id: j.id, res, done }));
+};`;
+  let worker = null, workerUrl = null, busy = false, jobId = 0, lastKey = "", ana = null, anaJob = null, pendingJob = null, useWorker = true;
+  function onResult(id, res, done) {
+    if (id !== jobId) return;
+    ana = res; ana.done = done; anaJob = pendingJob; busy = !done;
+    if (state && state.phase) drawPhase();
+  }
+  function requestAnalysis(job) {
+    const key = JSON.stringify(job);
+    if (key === lastKey) return;
+    lastKey = key; pendingJob = job; job.id = ++jobId;
+    if (useWorker) {
+      try {
+        if (worker && busy) { worker.terminate(); worker = null; }
+        if (!worker) {
+          workerUrl = workerUrl || URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+          worker = new Worker(workerUrl);
+          worker.onmessage = e => onResult(e.data.id, e.data.res, e.data.done);
+          worker.onerror = () => { useWorker = false; worker = null; lastKey = ""; update(); };
+        }
+        busy = true; worker.postMessage(job); return;
+      } catch (err) { useWorker = false; }
+    }
+    const c = CellEngine.makeCell(job.r, job.N, job.tilts, job.curvs, null);       /* fallback: main thread, fewer samples */
+    const res = CellEngine.ditherAnalysis(c, job.theta, job.A, job.nPass, job.lam, job.nIdx, job.wave, 401, 3201);
+    onResult(job.id, res, true);
   }
 
   /* ---------------------------------------------------------------- drawing */
@@ -627,7 +770,7 @@ const CellEngine = (() => {
 
   function drawPhase() {
     const { p, phase } = state;
-    const { ang, curves, scan, nPass } = phase;
+    const { ang, curves, nPass } = phase;
     {
       const [g, w, h] = fit($("phaseAngle"));
       const m = { l: 52, r: 10, t: 10, b: 34 };
@@ -657,36 +800,122 @@ const CellEngine = (() => {
         g.fillText(`pass ${c.q}`, m.l + 6, m.t + 4 + 14 * ci);
       });
     }
-    {
+    if (!ana) { $("explain").innerHTML = `<span class="status">Computing the dither analysis…</span>`; return; }
+    const R = ana, n = Math.min(nPass, R.V.length), i = n - 1;
+    const wf = anaJob ? anaJob.wave : p.dWave, A = anaJob ? anaJob.A : p.dAmp;
+    const finite = arr => Array.from(arr).filter(Number.isFinite);
+    const mech = j => !R.resolved[j] ? "unres" : R.same[j] < 0.999 ? "switch" : "ok";
+    const colOf = { ok: css("--accent"), switch: css("--sel"), unres: css("--port-out") };
+    const dot = (g, x, y, kind, r) => { g.beginPath(); g.arc(x, y, r, 0, 7); if (kind === "unres") { g.strokeStyle = colOf.unres; g.lineWidth = 1.3; g.stroke(); } else { g.fillStyle = colOf[kind]; g.fill(); } };
+    const passTicks = () => { const st = n > 150 ? 50 : n > 60 ? 20 : n > 20 ? 5 : n > 8 ? 2 : 1; const t = []; for (let v = 0; v <= n; v += st) t.push([v, String(v)]); return t; };
+    const label = (g, txt, x, y, col, align = "left", base = "bottom") => { g.fillStyle = col; g.font = `500 10.5px ${css("--font-data")}`; g.textAlign = align; g.textBaseline = base; g.fillText(txt, x, y); };
+
+    { /* V against pass */
       const [g, w, h] = fit($("phaseVis"));
       const m = { l: 40, r: 10, t: 10, b: 34 };
-      const step = nPass > 150 ? 50 : nPass > 60 ? 20 : nPass > 20 ? 5 : 1;
-      const xt = []; for (let v = 0; v <= nPass; v += step) xt.push([v, String(v)]);
-      const [X, Y] = axes(g, w, h, m, "pass (mirror hit) p", "visibility V", xt, [0, .25, .5, .75, 1].map(v => [v, String(v)]), [0, Math.max(nPass, 1)], [0, 1.02]);
-      g.strokeStyle = css("--accent"); g.lineWidth = 1.2; g.beginPath();
-      scan.V.forEach((v, i) => i ? g.lineTo(X(i + 1), Y(v)) : g.moveTo(X(i + 1), Y(v))); g.stroke();
-      const r = nPass > 120 ? 1.8 : 3;
-      scan.V.forEach((v, i) => {
-        const ok = scan.maxStep[i] <= Math.PI;
-        g.beginPath(); g.arc(X(i + 1), Y(v), r, 0, 7);
-        if (ok) { g.fillStyle = css("--accent"); g.fill(); } else { g.strokeStyle = css("--port-out"); g.lineWidth = 1.2; g.stroke(); }
-      });
+      const [X, Y] = axes(g, w, h, m, "pass (mirror hit) p", "visibility V", passTicks(), [0, .25, .5, .75, 1].map(v => [v, String(v)]), [0, Math.max(n, 1)], [0, 1.02]);
+      g.setLineDash([2, 3]); g.strokeStyle = css("--muted"); g.lineWidth = 1; g.beginPath(); g.moveTo(m.l, Y(R.noiseFloor)); g.lineTo(w - m.r, Y(R.noiseFloor)); g.stroke(); g.setLineDash([]);
+      label(g, `floor ${R.noiseFloor.toFixed(3)} (N = ${R.nUsed})`, w - m.r - 4, Y(R.noiseFloor) - 2, css("--muted"), "right");
+      g.strokeStyle = css("--muted"); g.lineWidth = 1.2; g.globalAlpha = 0.7; g.beginPath();
+      for (let j = 0; j < n; j++) { const y = Y(R.same[j]); j ? g.lineTo(X(j + 1), y) : g.moveTo(X(j + 1), y); } g.stroke(); g.globalAlpha = 1;
+      g.setLineDash([6, 4]); g.strokeStyle = css("--sel"); g.lineWidth = 1.4; g.beginPath(); let pen = false;
+      for (let j = 0; j < n; j++) { const v = R.Vmodel[j]; if (!Number.isFinite(v)) { pen = false; continue; } pen ? g.lineTo(X(j + 1), Y(v)) : g.moveTo(X(j + 1), Y(v)); pen = true; } g.stroke(); g.setLineDash([]);
+      const r = n > 120 ? 1.8 : 3;
+      for (let j = 0; j < n; j++) dot(g, X(j + 1), Y(R.V[j]), mech(j), r);
     }
-    const V = phase.scan.V, last = V[nPass - 1], resolved = phase.scan.maxStep[nPass - 1] <= Math.PI;
-    const firstBad = Array.from(V).findIndex(v => v < 0.5);
+
+    { /* V against dither depth */
+      const [g, w, h] = fit($("phaseX"));
+      const m = { l: 40, r: 10, t: 10, b: 34 };
+      const xs = finite(R.x).filter(v => v > 0);
+      const lo = -2, hi = Math.min(5, Math.max(1.5, Math.ceil(Math.log10(Math.max(...xs, 10) * 1.5))));
+      const xt = []; for (let e = lo; e <= hi; e++) xt.push([e, e === 0 ? "1" : e === 1 ? "10" : `1e${e}`]);
+      const [X, Y] = axes(g, w, h, m, "dither depth x = |a_p| A (rad, log)", "visibility V", xt, [0, .25, .5, .75, 1].map(v => [v, String(v)]), [lo, hi], [0, 1.02]);
+      [[CellEngine.X_V09[wf], "0.9"], [CellEngine.X_V05[wf], "0.5"], [CellEngine.X_V0[wf], "0"]].forEach(([xv, lab], q) => {
+        g.setLineDash([3, 3]); g.strokeStyle = css("--line"); g.lineWidth = 1; g.beginPath(); g.moveTo(X(Math.log10(xv)), m.t); g.lineTo(X(Math.log10(xv)), h - m.b); g.stroke(); g.setLineDash([]);
+        label(g, `V=${lab}`, X(Math.log10(xv)) + 3, m.t + 30 + 13 * q, css("--muted"), "left", "top");
+      });
+      g.setLineDash([2, 3]); g.strokeStyle = css("--muted"); g.beginPath(); g.moveTo(m.l, Y(R.noiseFloor)); g.lineTo(w - m.r, Y(R.noiseFloor)); g.stroke(); g.setLineDash([]);
+      g.strokeStyle = css("--ink"); g.lineWidth = 1.4; g.beginPath();
+      const nc = 260; for (let q = 0; q <= nc; q++) { const e = lo + (hi - lo) * q / nc, v = CellEngine.modelVisibility(10 ** e, wf); q ? g.lineTo(X(e), Y(v)) : g.moveTo(X(e), Y(v)); } g.stroke();
+      label(g, wf === "sine" ? "|J₀(x)|" : "|sinc(x)|", w - m.r - 4, m.t + 14, css("--ink"), "right", "top");
+      const r = n > 120 ? 2 : 3.2;
+      for (let j = 0; j < n; j++) { const xv = R.x[j]; if (!(xv > 0)) continue; const e = Math.min(Math.max(Math.log10(xv), lo), hi); dot(g, X(e), Y(R.V[j]), mech(j), r); }
+      if (R.x[i] > 0) { const e = Math.min(Math.max(Math.log10(R.x[i]), lo), hi); g.strokeStyle = css("--ink"); g.lineWidth = 1.2; g.beginPath(); g.arc(X(e), Y(R.V[i]), 7, 0, 7); g.stroke(); label(g, `p = ${n}`, X(e) + 9, Y(R.V[i]) - 4, css("--ink")); }
+    }
+
+    let gamma = null;
+    { /* phase slope against pass */
+      const [g, w, h] = fit($("phaseSlope"));
+      const m = { l: 52, r: 10, t: 10, b: 34 };
+      const aa = Array.from(R.a, v => Math.abs(v) * 1e-6);                 /* rad/µrad */
+      const th = [[CellEngine.X_V09[wf], "V = 0.9"], [CellEngine.X_V05[wf], "V = 0.5"], [CellEngine.X_V0[wf], "V = 0"]].map(([xv, lab]) => [xv / A * 1e-6, lab]);
+      const vals = finite(aa).filter(v => v > 0).concat(th.map(t => t[0]));
+      const lo = Math.floor(Math.log10(Math.min(...vals)) - 0.2), hi = Math.ceil(Math.log10(Math.max(...vals)) + 0.2);
+      const yt = []; for (let e = lo; e <= hi; e++) yt.push([e, `1e${e}`]);
+      const [X, Y] = axes(g, w, h, m, "pass (mirror hit) p", "|a_p| (rad/µrad, log)", passTicks(), yt, [0, Math.max(n, 1)], [lo, hi]);
+      th.forEach(([v, lab], q) => {
+        g.setLineDash([6, 4]); g.strokeStyle = [css("--port-in"), css("--sel"), css("--port-out")][q]; g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(m.l, Y(Math.log10(v))); g.lineTo(w - m.r, Y(Math.log10(v))); g.stroke(); g.setLineDash([]);
+        label(g, `${lab} at A`, w - m.r - 4 - 92 * (2 - q), Y(Math.log10(v)) - 2, [css("--port-in"), css("--sel"), css("--port-out")][q], "right");
+      });
+      g.strokeStyle = css("--accent"); g.lineWidth = 1.8; g.beginPath(); let pen = false;
+      aa.slice(0, n).forEach((v, j) => { if (!(v > 0)) { pen = false; return; } pen ? g.lineTo(X(j + 1), Y(Math.log10(v))) : g.moveTo(X(j + 1), Y(Math.log10(v))); pen = true; }); g.stroke();
+      /* fit ln|a| against ln p (power law) and against p (exponential); report the better one */
+      const raw = aa.slice(0, n).map((v, j) => [j + 1, Math.log(v)]).filter(([, v]) => Number.isFinite(v));
+      const linfit = pts => {
+        const k2 = pts.length, mx = pts.reduce((s2, q) => s2 + q[0], 0) / k2, my = pts.reduce((s2, q) => s2 + q[1], 0) / k2;
+        let sxy = 0, sxx = 0, syy = 0; pts.forEach(([xx, yy]) => { sxy += (xx - mx) * (yy - my); sxx += (xx - mx) ** 2; syy += (yy - my) ** 2; });
+        return { slope: sxy / sxx, r2: syy > 0 ? sxy * sxy / (sxx * syy) : 1 };
+      };
+      if (raw.length >= 4) {
+        const pw = linfit(raw.map(([q, v]) => [Math.log(q), v])), ex = linfit(raw);
+        gamma = pw.r2 >= ex.r2 ? { kind: "power", v: pw.slope } : { kind: "exp", v: ex.slope };
+        label(g, gamma.kind === "power" ? `|a_p| ∝ p^${gamma.v.toFixed(2)} (power law fits best)` : `|a_p| ∝ e^(${gamma.v.toFixed(2)} p): ×${Math.exp(gamma.v).toFixed(2)} per pass (exponential fits best)`, m.l + 6, m.t + 4, css("--accent"), "left", "top");
+      }
+      g.strokeStyle = css("--ink"); g.lineWidth = 1; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(X(n), m.t); g.lineTo(X(n), h - m.b); g.stroke(); g.setLineDash([]);
+    }
+
+    /* worked numbers for the pass shown */
+    const aI = R.a[i], dLdth = Math.abs(aI) / (2 * Math.PI * (anaJob ? anaJob.nIdx : p.nIdx) / (anaJob ? anaJob.lam : p.lam));
+    const fn = wf === "sine" ? "J₀" : "sinc";
+    const lamNm = (anaJob ? anaJob.lam : p.lam) * 1e9, nI = anaJob ? anaJob.nIdx : p.nIdx;
+    const lines = [];
+    if (Number.isFinite(aI)) {
+      lines.push(`<div><b>Pass ${n}:</b> x = k₀ n |dL<sub>p</sub>/dθ| A</div>`);
+      lines.push(`<div class="eq">= 2π / ${lamNm.toFixed(0)} nm × ${nI.toFixed(3)} × ${fmt(dLdth * 1e3, 2)} µm/mrad × ${fmtA(A)} = ${fmtX(R.x[i])} rad → model V = |${fn}(${fmtX(R.x[i])})| = ${fmt(R.Vmodel[i], 3)}; computed V = ${fmt(R.V[i], 3)}${R.resolved[i] ? "" : " (unresolved)"}</div>`);
+    } else {
+      let lastDef = -1; for (let j = 0; j < n; j++) if (Number.isFinite(R.a[j])) lastDef = j;
+      lines.push(`<div><b>Pass ${n}:</b> the local slope is undefined: rays only 1 nrad from θ<sub>c</sub> already take a different facet path${lastDef >= 0 ? ` (slope defined up to pass ${lastDef + 1})` : ""}. This happens on a switching edge, or everywhere once chaotic divergence has amplified 1 nrad to a facet width.</div>`);
+    }
+    const notes = [];
+    if (Number.isFinite(R.q[i])) notes.push(R.q[i] < 0.3 ? `Chirp ½|b|A² = ${fmtX(R.q[i])} rad: the phase is linear across the dither.` : `<span class="warn">Chirp ½|b|A² = ${fmtX(R.q[i])} rad: the phase curves across the dither, so V departs from the ${fn} curve.</span>`);
+    notes.push(R.same[i] >= 0.999 ? "All dithered rays keep the centre ray's facet path." : `<span class="warn">${fmt(100 * (1 - R.same[i]), 1)} % of dithered rays switch facet path by pass ${n}. Their phase differs by a chord or more, so their contribution averages out; the rest only span the part of the dither near δ = 0, so V is no longer set by x alone (it can sit above or below the ${fn} curve).</span>`);
+    if (!R.resolved[i]) notes.push(`<span class="warn">Not resolved with ${R.nUsed} samples: V is only known to be near the floor ${R.noiseFloor.toFixed(3)}.</span>`);
+    if (Number.isFinite(R.A05[i])) notes.push(`To keep V ≥ 0.9 at pass ${n}, use A ≤ ${fmtA(R.A09[i])}. V = 0.5 at A = ${fmtA(R.A05[i])}; first zero at A = ${fmtA(R.A0[i])}.`);
+    const status = R.done ? `${R.nUsed} dither samples` : `refining: ${R.nUsed} samples so far…`;
+    $("explain").innerHTML = lines.join("") + `<div class="note">${notes.join(" ")}</div><div class="status">${status}${busy && R.done ? " · updating…" : ""}</div>`;
+
+    const firstBad = Array.from(R.V).slice(0, n).findIndex(v => v < 0.5);
+    const firstZero = Array.from(R.x).slice(0, n).findIndex(v => v >= CellEngine.X_V0[wf]);
     const items = [
       ["Path to 1st mirror L₁", `${fmt(phase.L1 * 1e3, 3)} mm`],
-      ["dL₁/dθ", `${fmt(phase.dL1 * 1e3, 3)} µm/mrad`],
-      ["dφ₁/dθ", `${fmt(phase.dphi1 * 1e-6, 4)} rad/µrad`],
       ["Δθ for 2π at pass 1", `${fmt(Math.abs(2 * Math.PI / phase.dphi1) * 1e6, 3)} µrad`],
-      [`Path to pass ${nPass}`, `${fmt(phase.Lp * 100, 2)} cm`],
-      ["V at pass 1", fmt(V[0], 3)],
-      [`V at pass ${nPass}`, `${fmt(last, 3)}${resolved ? "" : " (unresolved)"}`],
-      ["First pass with V < 0.5", firstBad < 0 ? `none up to ${nPass}` : String(firstBad + 1)],
+      [`Path to pass ${n}`, `${fmt(phase.Lp * 100, 2)} cm`],
+      [`|a| at pass ${n}`, `${fmt(Math.abs(aI) * 1e-6, 4)} rad/µrad`],
+      ["Slope growth", !gamma ? "–" : gamma.kind === "power" ? `∝ p^${gamma.v.toFixed(2)} (regular)` : `×${Math.exp(gamma.v).toFixed(2)} per pass (chaotic)`],
+      [`x at pass ${n}`, `${fmtX(R.x[i])} rad`],
+      [`V at pass ${n} (model)`, `${fmt(R.V[i], 3)} (${fmt(R.Vmodel[i], 3)})`],
+      ["V at pass 1", fmt(R.V[0], 3)],
+      ["First pass with V < 0.5", firstBad < 0 ? `none up to ${n}` : String(firstBad + 1)],
+      ["First pass past the model zero", firstZero < 0 ? `none up to ${n}` : String(firstZero + 1)],
+      [`On centre path at pass ${n}`, `${fmt(100 * R.same[i], 1)} %`],
     ];
-    $("phaseStats").innerHTML = items.map(([a, b]) => `<div class="stat"><span>${a}</span><span>${b}</span></div>`).join("");
+    $("phaseStats").innerHTML = items.map(([a2, b2]) => `<div class="stat"><span>${a2}</span><span>${b2}</span></div>`).join("");
   }
 
+  function fmtA(v) { return !Number.isFinite(v) ? "–" : v >= 1e-3 ? `${+(v * 1e3).toPrecision(3)} mrad` : v >= 1e-6 ? `${+(v * 1e6).toPrecision(3)} µrad` : `${+(v * 1e9).toPrecision(3)} nrad`; }
+  function fmtX(v) { return !Number.isFinite(v) ? "–" : v >= 100 ? v.toFixed(0) : v >= 0.01 ? v.toPrecision(3) : v.toExponential(2); }
   function fmt(v, d = 2) { return Number.isFinite(v) ? v.toFixed(d) : "–"; }
   function fmtI(v) { return !Number.isFinite(v) ? "–" : v >= 1e-3 ? v.toFixed(4) : v.toExponential(2); }
   function drawStats() {

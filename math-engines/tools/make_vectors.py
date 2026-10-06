@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 
 from engines.billiard_cell import engine as bc  # noqa: E402
 from engines.bragg_grating import engine as bg  # noqa: E402
+from engines.ray_phase import engine as rp  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
@@ -52,6 +53,20 @@ def build() -> dict:
         r = sif.lp01(l, a, dn)
         v["lp01"].append({"wavelength": l, "core_radius": a, "delta_n": dn, "neff": float(r["neff"]), "V": float(r["V"]), "mode_radius": float(r["mode_radius"])})
     v["segmented_cell"] = [_cell_vector(*c) for c in _CELL_CASES]
+    v["reflection_path"] = []
+    for chords, R in (([1e-3, 2e-3, 3e-3], 0.95), (list(np.linspace(5e-3, 9e-3, 40)), 0.8), ([7.8e-3] * 200, 0.999)):
+        L, Leff, I = bc.reflection_weighted_path(chords, R)
+        v["reflection_path"].append({"chords": chords, "R": R, "L": L, "L_eff": Leff, "I_end": I})
+    v["ray_phase"] = []
+    for (r, N, curv, thc, A, npass, wf) in ((5e-3, 24, 0.0, np.radians(37.5), 2e-5, 12, "sine"),
+                                            (5e-3, 24, 20.0, np.radians(30.0), 5e-6, 10, "triangle"),
+                                            (4e-3, 16, 0.0, 0.3, 1e-4, 6, "sine")):
+        cell = bc.SegmentedCell(r, N, curvature=curv)
+        sc = rp.dither_scan(cell, thc, A, npass, 1.55e-6, 1.0, wf, n_samples=101)
+        v["ray_phase"].append({"radius": r, "n_facets": N, "curvature": curv, "theta_c": float(thc), "amplitude": A,
+                               "n_pass": npass, "waveform": wf, "wavelength": 1.55e-6, "n_index": 1.0, "n_samples": 101,
+                               "offsets": [float(x) for x in sc["offsets"]], "L0": [float(x) for x in sc["L0"]],
+                               "V": [float(x) for x in sc["V"]]})
     return v
 
 

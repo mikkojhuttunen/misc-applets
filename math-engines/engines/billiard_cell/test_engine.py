@@ -99,3 +99,12 @@ def test_per_facet_perturbations_hit_points_lie_on_their_facets():
         dx, dy = bc._reflect(dx, dy, hnx, hny)
     with pytest.raises(ValueError, match="tilts"):
         bc.SegmentedCell(5e-3, N, tilts=np.zeros(5))
+
+
+def test_reflection_weighted_path():
+    L, Leff, I = bc.reflection_weighted_path([1.0, 2.0, 3.0], 0.9)
+    assert (L, I) == (6.0, pytest.approx(0.9**3))
+    assert Leff == pytest.approx(1.0 + 0.9 * 2.0 + 0.81 * 3.0)
+    ch = np.full(5000, 7.8e-3)                      # many equal chords -> geometric-series limit ℓ / (1 - R)
+    assert bc.reflection_weighted_path(ch, 0.98)[1] == pytest.approx(7.8e-3 / 0.02, rel=1e-12)
+    assert bc.reflection_weighted_path(ch, 1.0)[1] == pytest.approx(5000 * 7.8e-3)

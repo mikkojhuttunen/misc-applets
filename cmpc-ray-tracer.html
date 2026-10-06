@@ -67,6 +67,12 @@ canvas { display: block; width: 100%; height: 100%; }
 .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 640px) { .duo { grid-template-columns: minmax(0, 1fr); } }
 .chart { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; }
+.chart.wide { aspect-ratio: 3 / 1; }
+@media (max-width: 640px) { .chart.wide { aspect-ratio: 3 / 2; } }
+.phasectl { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 18px; }
+.sub { display: grid; gap: 6px; min-width: 0; }
+.sub h3 { font: 500 12.5px var(--font-body); margin: 0; color: var(--ink); }
+select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; }
 .stat { display: grid; gap: 1px; }
 .stat span:first-child { color: var(--muted); font-size: 12px; }
@@ -110,6 +116,9 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
         <div class="ctl"><div class="row"><label for="curv">Facet curvature 1/ρ (all)</label><output id="curvOut"></output></div>
           <input id="curv" type="range" min="-200" max="200" step="1" value="0">
           <p class="hint">Positive bulges into the cell (dispersing); negative is concave.</p></div>
+        <div class="ctl"><div class="row"><label for="refl">Mirror reflectance R</label><output id="reflOut"></output></div>
+          <input id="refl" type="range" min="80" max="100" step="0.01" value="99.5">
+          <p class="hint">Power reflectance per bounce, the same for every facet and angle.</p></div>
       </fieldset>
 
       <fieldset>
@@ -141,7 +150,9 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
           <input id="portW" type="range" min="5" max="1000" step="5" value="100"></div>
         <div class="ctl"><div class="row"><label for="outPos">Output port position</label><output id="outPosOut"></output></div>
           <input id="outPos" type="range" min="1" max="23" step="1" value="9"></div>
-        <label class="check" for="fade"><input id="fade" type="checkbox" checked> Fade later reflections</label>
+        <label class="check" for="shade"><input id="shade" type="checkbox" checked> Shade rays by intensity Rʲ</label>
+        <label class="check" for="fade"><input id="fade" type="checkbox"> Fade later reflections</label>
+        <label class="check" for="figure"><input id="figure" type="checkbox"> Figure view (no facet numbers, tight scale bar)</label>
         <label class="check" for="dots"><input id="dots" type="checkbox"> Mark hit points</label>
       </fieldset>
     </div>
@@ -158,6 +169,11 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
         </div>
         <div class="stats" id="stats"></div>
       </section>
+      <section class="panel">
+        <h2>Intensity and effective path</h2>
+        <canvas class="chart wide" id="inten" aria-label="Intensity and effective path versus reflection number"></canvas>
+        <p class="hint">Centre beam. Intensity Rʲ after j reflections (left axis, log) and the absorption-weighted path L<sub>eff</sub>(j) = Σ Rⁱ ℓᵢ accumulated so far (right axis). L<sub>eff</sub> tends to ℓ̄ / (1 − R) for long traces; a weak absorber α reduces the integrated signal by α L<sub>eff</sub>.</p>
+      </section>
       <div class="duo">
         <section class="panel">
           <h2>Phase space at the mirrors</h2>
@@ -170,6 +186,31 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
           <p class="hint">The centre beam and a copy launched 1 nrad apart, ports closed. A straight rise on this log scale means exponential divergence (chaos); the dashed fit gives the Lyapunov exponent per reflection. Tilting flat facets only gives slow, linear growth: a polygon stays non-chaotic, so add facet curvature for true chaos.</p>
         </section>
       </div>
+      <section class="panel" id="phasePanel">
+        <h2>Phase vs launch angle, and angle dither</h2>
+        <div class="phasectl">
+          <div class="ctl"><div class="row"><label for="lam">Wavelength</label><output id="lamOut"></output></div>
+            <input id="lam" type="range" min="400" max="5000" step="1" value="1550"></div>
+          <div class="ctl"><div class="row"><label for="nIdx">Index n (n<sub>eff</sub> in a membrane)</label><output id="nIdxOut"></output></div>
+            <input id="nIdx" type="range" min="1" max="4" step="0.001" value="1"></div>
+          <div class="ctl"><div class="row"><label for="win">Angle window ±Δθ</label><output id="winOut"></output></div>
+            <input id="win" type="range" min="-1" max="4" step="0.01" value="2"></div>
+          <div class="ctl"><div class="row"><label for="pass">Pass shown p</label><output id="passOut"></output></div>
+            <input id="pass" type="range" min="1" max="400" step="1" value="24"></div>
+          <div class="ctl"><div class="row"><label for="dAmp">Dither amplitude A</label><output id="dAmpOut"></output></div>
+            <input id="dAmp" type="range" min="-2" max="4" step="0.01" value="1"></div>
+          <div class="ctl"><div class="row"><label for="dWave">Dither waveform</label></div>
+            <select id="dWave"><option value="sine" selected>sine</option><option value="triangle">triangle</option></select></div>
+        </div>
+        <div class="stats" id="phaseStats"></div>
+        <div class="duo">
+          <div class="sub"><h3>Relative phase Δφ<sub>p</sub>(θ) = k₀ n (L<sub>p</sub>(θ) − L<sub>p</sub>(θ<sub>c</sub>))</h3>
+            <canvas class="chart" id="phaseAngle" aria-label="Relative phase versus launch angle"></canvas></div>
+          <div class="sub"><h3>Fringe visibility V<sub>p</sub> under the dither</h3>
+            <canvas class="chart" id="phaseVis" aria-label="Fringe visibility versus pass number"></canvas></div>
+        </div>
+        <p class="hint">Rays leave the input point at θ<sub>c</sub> + δ and are traced through the current cell (perturbations included). The shaded band is the dither range ±A. V<sub>p</sub> = |time average of exp(iΔφ<sub>p</sub>)| over one dither period: the fraction of an interference term between pass-p light and light that does not follow the dither that survives averaging. V = 1 keeps fringes; V → 0 washes them out. Sine dither of a linear phase gives |J₀(aA)|, triangle dither |sinc(aA)|. Hollow markers: the phase jumps by more than π between dither samples, so that V is not resolved. Ray picture, reflection phases ignored. Engine: <span class="mono">math-engines/engines/ray_phase</span>.</p>
+      </section>
     </div>
   </div>
   <footer>Geometry and reflection law are a JavaScript port of <span class="mono">SegmentedCell</span> in misc-applets <span class="mono">math-engines/engines/billiard_cell</span>, checked against the Python engine's test vectors. Flat or circular-arc facets, extended 15 % past the polygon corners; 2D ray optics with specular reflection.</footer>
@@ -288,7 +329,63 @@ const CellEngine = (() => {
     return { xs, ys, s: S, sinchi: SC, facet: K, L, exit };
   }
 
-  return { makeCell, surface, pointAt, hit, reflect, launch, inWindow, trace };
+  /* billiard_cell.reflection_weighted_path: chord j carries R^j; L_eff = Σ R^j ℓ_j, I_end = R^(number of chords) */
+  function reflectionWeightedPath(chords, R) {
+    let I = 1, L = 0, Leff = 0;
+    for (const c of chords) { L += c; Leff += I * c; I *= R; }
+    return { L, Leff, Iend: I };
+  }
+
+  /* ray_phase.path_lengths: cumulative path to each of the first nPass hits per launch angle (NaN after a leak) */
+  function pathLengths(c, thetas, nPass, sIn) {
+    return thetas.map(th => {
+      let [x, y, dx, dy] = launch(c, sIn === undefined ? c.h : sIn, th);
+      const L = new Float64Array(nPass);
+      let acc = 0;
+      for (let j = 0; j < nPass; j++) {
+        const h = hit(c, x, y, dx, dy);
+        if (!Number.isFinite(h.t) || !Number.isFinite(acc)) { acc = NaN; L[j] = NaN; continue; }
+        acc += h.t; L[j] = acc;
+        x += h.t * dx; y += h.t * dy;
+        [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+      }
+      return L;
+    });
+  }
+
+  /* ray_phase.dither_offsets: one dither period sampled uniformly in time */
+  function ditherOffsets(A, n, waveform) {
+    const d = new Float64Array(n);
+    for (let j = 0; j < n; j++) { const t = (j + 0.5) / n; d[j] = waveform === "sine" ? A * Math.sin(2 * Math.PI * t) : A * (2 * t - 1); }
+    return d;
+  }
+
+  /* ray_phase.visibility: |mean exp(iΔφ)| over the finite samples */
+  function visibility(dphi) {
+    let re = 0, im = 0, n = 0;
+    for (const v of dphi) if (Number.isFinite(v)) { re += Math.cos(v); im += Math.sin(v); n++; }
+    return n ? Math.hypot(re, im) / n : NaN;
+  }
+
+  /* ray_phase.dither_scan */
+  function ditherScan(c, thetaC, A, nPass, lam, nIdx, waveform, nSamples, sIn) {
+    const d = ditherOffsets(A, nSamples, waveform);
+    const L0 = pathLengths(c, [thetaC], nPass, sIn)[0];
+    const L = pathLengths(c, Array.from(d, x => thetaC + x), nPass, sIn);
+    const k = 2 * Math.PI * nIdx / lam;
+    const order = Array.from(d.keys()).sort((a, b) => d[a] - d[b]);
+    const V = new Float64Array(nPass), maxStep = new Float64Array(nPass);
+    for (let p = 0; p < nPass; p++) {
+      const ph = L.map(Lj => k * (Lj[p] - L0[p]));
+      V[p] = visibility(ph);
+      let m = 0;
+      for (let q = 1; q < order.length; q++) { const st = Math.abs(ph[order[q]] - ph[order[q - 1]]); if (st > m) m = st; }
+      maxStep[p] = m;
+    }
+    return { offsets: d, L0, L, V, maxStep };
+  }
+
+  return { makeCell, surface, pointAt, hit, reflect, launch, inWindow, trace, reflectionWeightedPath, pathLengths, ditherOffsets, visibility, ditherScan };
 })();
 /* engine:end */
 
@@ -314,6 +411,9 @@ const CellEngine = (() => {
     tiltRms: +$("tiltRms").value * 1e-3, curvRms: +$("curvRms").value,
     ports: $("ports").checked, portW: +$("portW").value * 1e-6, outPos: +$("outPos").value,
     fade: $("fade").checked, dots: $("dots").checked, sel: +$("selFacet").value,
+    R: +$("refl").value / 100, shade: $("shade").checked, figure: $("figure").checked,
+    lam: +$("lam").value * 1e-9, nIdx: +$("nIdx").value, win: 1e-6 * 10 ** +$("win").value,
+    pass: +$("pass").value, dAmp: 1e-6 * 10 ** +$("dAmp").value, dWave: $("dWave").value,
   });
 
   function buildCell(p) {
@@ -342,7 +442,30 @@ const CellEngine = (() => {
     const B = CellEngine.trace(cell, CellEngine.launch(cell, sIn, p.theta + 1e-9), nTwin, null);
     const sep = [];
     for (let j = 1; j < Math.min(A.xs.length, B.xs.length); j++) sep.push(Math.hypot(A.xs[j] - B.xs[j], A.ys[j] - B.ys[j]));
+    for (const b of beams) {
+      const chords = []; for (let j = 1; j < b.xs.length; j++) chords.push(Math.hypot(b.xs[j] - b.xs[j - 1], b.ys[j] - b.ys[j - 1]));
+      const nRefl = b.exit === 1 || b.exit === 0 ? chords.length - 1 : chords.length;     /* a port hit is not a reflection */
+      const w = CellEngine.reflectionWeightedPath(chords, p.R);
+      b.chords = chords; b.Leff = w.Leff; b.nRefl = nRefl; b.Iend = p.R ** nRefl;
+    }
     state = { p, cell, ports, beams, sep };
+    computePhase();
+  }
+
+  function computePhase() {
+    const { p, cell } = state;
+    const nPass = Math.min(p.pass, 400);
+    const nA = 241, ang = Array.from({ length: nA }, (_, i) => p.theta + p.win * (2 * i / (nA - 1) - 1));
+    const L0 = CellEngine.pathLengths(cell, [p.theta], nPass)[0];
+    const L = CellEngine.pathLengths(cell, ang, nPass);
+    const k = 2 * Math.PI * p.nIdx / p.lam;
+    const passes = [...new Set([1, Math.max(1, Math.round(nPass / 2)), nPass])];
+    const curves = passes.map(q => ({ q, y: L.map(Lq => k * (Lq[q - 1] - L0[q - 1]) / (2 * Math.PI)) }));
+    const h = 1e-6;
+    const Ld = CellEngine.pathLengths(cell, [p.theta - h, p.theta + h], 1);
+    const dL1 = (Ld[1][0] - Ld[0][0]) / (2 * h);
+    const scan = CellEngine.ditherScan(cell, p.theta, p.dAmp, nPass, p.lam, p.nIdx, p.dWave, 401);
+    state.phase = { nPass, ang, curves, L1: L0[0], Lp: L0[nPass - 1], dL1, dphi1: k * dL1, scan };
   }
 
   /* ---------------------------------------------------------------- drawing */
@@ -359,14 +482,15 @@ const CellEngine = (() => {
   function drawCell() {
     const { p, cell, ports, beams } = state;
     const cv = $("cell"), [g, w, h] = fit(cv);
-    const sc = (0.5 * Math.min(w, h) - 22) / (cell.r * 1.04), X = x => w / 2 + x * sc, Y = y => h / 2 - y * sc;
+    const sc = (0.5 * Math.min(w, h) - (p.figure ? 10 : 22)) / (cell.r * (p.figure ? 1.0 : 1.04)), X = x => w / 2 + x * sc, Y = y => h / 2 - y * sc;
     view = { sc, w, h };
     g.lineJoin = "round"; g.lineCap = "round";
     const lw = Math.max(0.6, Math.min(1.4, 900 / (p.nBeams * Math.sqrt(p.bounces) + 200)));
     beams.forEach((b, i) => {
       const n = b.xs.length - 1;
       for (let j = 0; j < n; j++) {
-        const a = p.fade ? Math.max(0.12, 1 - j / Math.max(n, 1)) : 1;
+        let a = p.fade ? Math.max(0.12, 1 - j / Math.max(n, 1)) : 1;
+        if (p.shade) a *= Math.max(0.04, p.R ** j);
         g.strokeStyle = beamColor(i, beams.length, Math.min(1, a * Math.max(0.25, 2.5 / Math.sqrt(p.nBeams))));
         g.lineWidth = lw;
         g.beginPath(); g.moveTo(X(b.xs[j]), Y(b.ys[j])); g.lineTo(X(b.xs[j + 1]), Y(b.ys[j + 1])); g.stroke();
@@ -376,11 +500,11 @@ const CellEngine = (() => {
     for (let k = 0; k < cell.N; k++) {
       const pts = [];
       for (let q = 0; q <= 24; q++) { const [x, y] = CellEngine.surface(cell, k, -cell.h + 2 * cell.h * q / 24); pts.push([X(x), Y(y)]); }
-      const selected = k === p.sel, touched = manual.has(k);
+      const selected = k === p.sel && !p.figure, touched = manual.has(k) && !p.figure;
       g.strokeStyle = selected ? css("--sel") : css("--mirror");
       g.lineWidth = selected ? 4 : touched ? 3.2 : 2.4;
       g.beginPath(); pts.forEach(([x, y], q) => q ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
-      if (selected || cell.N <= 36) {
+      if (!p.figure && (selected || cell.N <= 36)) {
         const [mx, my] = CellEngine.surface(cell, k, 0), rr = 1 + 16 / (cell.r * sc);
         g.fillStyle = selected ? css("--sel") : css("--muted");
         g.font = `${selected ? 600 : 400} 10.5px ${css("--font-data")}`; g.textAlign = "center"; g.textBaseline = "middle";
@@ -395,7 +519,7 @@ const CellEngine = (() => {
       const [x, y] = CellEngine.pointAt(cell, s0); g.fillStyle = col; g.beginPath(); g.arc(X(x), Y(y), 4, 0, 7); g.fill();
     };
     portMark(cell.h, css("--port-in"));
-    if (aim) {
+    if (aim && !p.figure) {
       const [x0, y0] = CellEngine.pointAt(cell, cell.h);
       const seg = () => { g.beginPath(); g.moveTo(X(x0), Y(y0)); g.lineTo(X(aim[0]), Y(aim[1])); g.stroke(); };
       g.strokeStyle = css("--surface"); g.lineWidth = 6; seg();
@@ -410,10 +534,14 @@ const CellEngine = (() => {
       g.fillStyle = css("--ink"); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(txt, bx + 4, by + 10);
     }
     if (ports) portMark(ports.sOut, css("--port-out"));
-    const bar = 1e-3 * (cell.r > 6e-3 ? 5 : 1);
-    g.strokeStyle = css("--muted"); g.fillStyle = css("--muted"); g.lineWidth = 1.5;
-    g.beginPath(); g.moveTo(12, h - 14); g.lineTo(12 + bar * sc, h - 14); g.stroke();
-    g.font = `11px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "bottom"; g.fillText(`${bar * 1e3} mm`, 12, h - 18);
+    /* scale bar in the lower-left corner of the cell's bounding square, close to the mirrors */
+    const nice = v => { const e = 10 ** Math.floor(Math.log10(v)), f = v / e; return (f >= 5 ? 5 : f >= 2 ? 2 : 1) * e; };
+    const bar = nice(0.4 * cell.r), bx = X(-cell.r), by = Y(-cell.r);
+    g.strokeStyle = css("--ink"); g.fillStyle = css("--ink"); g.lineWidth = 2; g.lineCap = "butt";
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + bar * sc, by);
+    g.moveTo(bx, by - 4); g.lineTo(bx, by + 4); g.moveTo(bx + bar * sc, by - 4); g.lineTo(bx + bar * sc, by + 4); g.stroke();
+    g.font = `500 11px ${css("--font-data")}`; g.textAlign = "center"; g.textBaseline = "bottom";
+    g.fillText(bar >= 1e-3 ? `${+(bar * 1e3).toPrecision(3)} mm` : `${+(bar * 1e6).toPrecision(3)} µm`, bx + bar * sc / 2, by - 5);
   }
 
   function axes(g, w, h, m, xl, yl, xt, yt, xr, yr) {
@@ -468,7 +596,99 @@ const CellEngine = (() => {
     }
   }
 
+  function drawIntensity() {
+    const { p, beams, cell } = state;
+    const [g, w, h] = fit($("inten"));
+    const b = beams[Math.floor((beams.length - 1) / 2)];
+    const n = b.chords.length, m = { l: 46, r: 56, t: 10, b: 34 };
+    const Imin = Math.max(-12, Math.floor(Math.log10(Math.max(p.R ** n, 1e-300)) - 0.5));
+    const yt = []; const st = Math.max(1, Math.ceil(-Imin / 6)); for (let v = 0; v >= Imin; v -= st) yt.push([v, v === 0 ? "1" : `1e${v}`]);
+    const step = n > 1500 ? 500 : n > 600 ? 200 : n > 150 ? 50 : n > 60 ? 20 : 10;
+    const xt = []; for (let v = 0; v <= n; v += step) xt.push([v, String(v)]);
+    const [X, Y] = axes(g, w, h, m, "reflection number j", "intensity Rʲ", xt, yt, [0, Math.max(n, 1)], [Imin, 0]);
+    g.strokeStyle = css("--accent"); g.lineWidth = 1.8; g.beginPath();
+    for (let j = 0; j <= n; j++) { const y = Y(Math.max(j * Math.log10(p.R), Imin)); j ? g.lineTo(X(j), y) : g.moveTo(X(j), y); } g.stroke();
+    const cum = [0]; let I = 1, acc = 0; for (const c of b.chords) { acc += I * c; I *= p.R; cum.push(acc); }
+    const lim = p.R < 1 ? cell.meanChord / (1 - p.R) : NaN;
+    const top = Math.max(acc, Number.isFinite(lim) ? Math.min(lim, 3 * acc) : 0) * 1.05 || 1;
+    const Y2 = v => h - m.b - v / top * (h - m.t - m.b);
+    g.fillStyle = css("--muted"); g.font = `10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "middle";
+    for (let q = 0; q <= 4; q++) { const v = top * q / 4; g.fillText(`${(v * 100).toPrecision(3)}`, w - m.r + 5, Y2(v)); }
+    g.save(); g.translate(w - 8, (m.t + h - m.b) / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText("L_eff (cm)", 0, 0); g.restore();
+    g.strokeStyle = css("--sel"); g.lineWidth = 1.8; g.beginPath();
+    cum.forEach((v, j) => j ? g.lineTo(X(j), Y2(v)) : g.moveTo(X(j), Y2(v))); g.stroke();
+    if (Number.isFinite(lim) && lim <= top) {
+      g.setLineDash([5, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(m.l, Y2(lim)); g.lineTo(w - m.r, Y2(lim)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = css("--sel"); g.textAlign = "left"; g.textBaseline = "bottom"; g.fillText("ℓ̄ / (1 − R)", m.l + 4, Y2(lim) - 2);
+    }
+    g.textAlign = "right"; g.textBaseline = "bottom"; g.fillStyle = css("--accent"); g.fillText("— intensity Rʲ", w - m.r - 6, h - m.b - 20);
+    g.fillStyle = css("--sel"); g.fillText("— effective path L_eff(j)", w - m.r - 6, h - m.b - 6);
+  }
+
+  function drawPhase() {
+    const { p, phase } = state;
+    const { ang, curves, scan, nPass } = phase;
+    {
+      const [g, w, h] = fit($("phaseAngle"));
+      const m = { l: 52, r: 10, t: 10, b: 34 };
+      /* signed log axis: y = asinh(Δφ / 0.1 wave), so sub-wave detail and mm-scale path jumps both show */
+      const S = v => Math.asinh(v / 0.1), Sinv = u => 0.1 * Math.sinh(u);
+      let lo = Infinity, hi = -Infinity;
+      curves.forEach(c => c.y.forEach(v => { if (Number.isFinite(v)) { lo = Math.min(lo, S(v)); hi = Math.max(hi, S(v)); } }));
+      lo = Math.min(lo, S(-1)); hi = Math.max(hi, S(1));
+      const pad = 0.05 * (hi - lo); lo -= pad; hi += pad;
+      const yt = [[0, "0"]];
+      for (let e = 0; e <= 8; e++) { const v = 10 ** e, lab = e < 4 ? String(v) : `1e${e}`; if (S(v) <= hi) yt.push([S(v), lab]); if (S(-v) >= lo) yt.push([S(-v), "−" + lab]); }
+      void Sinv;
+      const ticks = (a, b, n) => { const s = 10 ** Math.floor(Math.log10((b - a) / n)), f = (b - a) / n / s, st = (f > 5 ? 10 : f > 2 ? 5 : f > 1 ? 2 : 1) * s; const t = []; for (let v = Math.ceil(a / st) * st; v <= b; v += st) t.push(+v.toPrecision(6)); return t; };
+      const wu = p.win * 1e6 >= 1000 ? [1e-3, "mrad"] : [1e-6, "µrad"];
+      const xs = ticks(-p.win, p.win, 4);
+      const [X, Y0] = axes(g, w, h, m, `launch angle offset δ (${wu[1]})`, "Δφ (waves, signed log)", xs.map(v => [v, String(+(v / wu[0]).toPrecision(4))]),
+        yt, [-p.win, p.win], [lo, hi]);
+      const Y = v => Y0(S(v));
+      const A = Math.min(p.dAmp, p.win);
+      g.fillStyle = css("--accent"); g.globalAlpha = 0.12; g.fillRect(X(-A), m.t, X(A) - X(-A), h - m.t - m.b); g.globalAlpha = 1;
+      const cols = [css("--accent"), css("--port-in"), css("--sel")];
+      curves.forEach((c, ci) => {
+        g.strokeStyle = cols[ci % 3]; g.lineWidth = 1.6; g.beginPath(); let pen = false;
+        c.y.forEach((v, i) => { if (!Number.isFinite(v)) { pen = false; return; } const x = X(ang[i] - p.theta); pen ? g.lineTo(x, Y(v)) : g.moveTo(x, Y(v)); pen = true; });
+        g.stroke();
+        g.fillStyle = cols[ci % 3]; g.font = `500 11px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "top";
+        g.fillText(`pass ${c.q}`, m.l + 6, m.t + 4 + 14 * ci);
+      });
+    }
+    {
+      const [g, w, h] = fit($("phaseVis"));
+      const m = { l: 40, r: 10, t: 10, b: 34 };
+      const step = nPass > 150 ? 50 : nPass > 60 ? 20 : nPass > 20 ? 5 : 1;
+      const xt = []; for (let v = 0; v <= nPass; v += step) xt.push([v, String(v)]);
+      const [X, Y] = axes(g, w, h, m, "pass (mirror hit) p", "visibility V", xt, [0, .25, .5, .75, 1].map(v => [v, String(v)]), [0, Math.max(nPass, 1)], [0, 1.02]);
+      g.strokeStyle = css("--accent"); g.lineWidth = 1.2; g.beginPath();
+      scan.V.forEach((v, i) => i ? g.lineTo(X(i + 1), Y(v)) : g.moveTo(X(i + 1), Y(v))); g.stroke();
+      const r = nPass > 120 ? 1.8 : 3;
+      scan.V.forEach((v, i) => {
+        const ok = scan.maxStep[i] <= Math.PI;
+        g.beginPath(); g.arc(X(i + 1), Y(v), r, 0, 7);
+        if (ok) { g.fillStyle = css("--accent"); g.fill(); } else { g.strokeStyle = css("--port-out"); g.lineWidth = 1.2; g.stroke(); }
+      });
+    }
+    const V = phase.scan.V, last = V[nPass - 1], resolved = phase.scan.maxStep[nPass - 1] <= Math.PI;
+    const firstBad = Array.from(V).findIndex(v => v < 0.5);
+    const items = [
+      ["Path to 1st mirror L₁", `${fmt(phase.L1 * 1e3, 3)} mm`],
+      ["dL₁/dθ", `${fmt(phase.dL1 * 1e3, 3)} µm/mrad`],
+      ["dφ₁/dθ", `${fmt(phase.dphi1 * 1e-6, 4)} rad/µrad`],
+      ["Δθ for 2π at pass 1", `${fmt(Math.abs(2 * Math.PI / phase.dphi1) * 1e6, 3)} µrad`],
+      [`Path to pass ${nPass}`, `${fmt(phase.Lp * 100, 2)} cm`],
+      ["V at pass 1", fmt(V[0], 3)],
+      [`V at pass ${nPass}`, `${fmt(last, 3)}${resolved ? "" : " (unresolved)"}`],
+      ["First pass with V < 0.5", firstBad < 0 ? `none up to ${nPass}` : String(firstBad + 1)],
+    ];
+    $("phaseStats").innerHTML = items.map(([a, b]) => `<div class="stat"><span>${a}</span><span>${b}</span></div>`).join("");
+  }
+
   function fmt(v, d = 2) { return Number.isFinite(v) ? v.toFixed(d) : "–"; }
+  function fmtI(v) { return !Number.isFinite(v) ? "–" : v >= 1e-3 ? v.toFixed(4) : v.toExponential(2); }
   function drawStats() {
     const { p, cell, beams, lam } = state;
     const L = beams.map(b => b.L), nb = beams.map(b => b.s.length);
@@ -479,6 +699,11 @@ const CellEngine = (() => {
       ["Mean reflections", fmt(mean(nb), 0)],
       ["Mean chord", `${fmt(mean(L) / Math.max(mean(nb), 1) * 1e3)} mm`],
       ["Ergodic chord πA/P", `${fmt(cell.meanChord * 1e3)} mm`],
+      ["Mirror reflectance R", `${(p.R * 100).toFixed(2)} %`],
+      ["Intensity after the traced reflections", `${fmtI(mean(beams.map(b => b.Iend)))} (${fmt(10 * Math.log10(Math.max(mean(beams.map(b => b.Iend)), 1e-300)), 1)} dB)`],
+      ["Effective path Σ Rʲ ℓⱼ", `${fmt(mean(beams.map(b => b.Leff)) * 100, 2)} cm`],
+      ["Limit ℓ̄ / (1 − R)", p.R < 1 ? `${fmt(mean(L) / Math.max(mean(nb), 1) / (1 - p.R) * 100, 2)} cm` : "∞ (lossless)"],
+      ["1/e after", p.R < 1 ? `${fmt(-1 / Math.log(p.R), 1)} reflections` : "∞"],
       ["Lyapunov λ", !lam ? "not measurable" : lam.lam > 0.05 ? `${fmt(lam.lam, 3)} /refl. (chaotic)` : `≈ 0 (${fmt(lam.lam, 3)}): no exponential growth`],
     ];
     if (p.ports) {
@@ -493,6 +718,14 @@ const CellEngine = (() => {
   function syncOutputs() {
     const p = P();
     $("nBeamsOut").value = p.nBeams;
+    $("reflOut").value = `${(+$("refl").value).toFixed(2)} %`;
+    $("lamOut").value = `${$("lam").value} nm`;
+    $("nIdxOut").value = (+$("nIdx").value).toFixed(3);
+    const ur = v => v >= 1e-3 ? `${+(v * 1e3).toPrecision(3)} mrad` : v >= 1e-6 ? `${+(v * 1e6).toPrecision(3)} µrad` : `${+(v * 1e9).toPrecision(3)} nrad`;
+    $("winOut").value = `±${ur(p.win)}`;
+    $("dAmpOut").value = ur(p.dAmp);
+    $("pass").max = Math.max(1, Math.min(400, p.bounces));
+    $("passOut").value = `${Math.min(p.pass, 400)}`;
     $("thetaOut").value = `${(+$("theta").value).toFixed(2)}°`;
     $("fanOut").value = `${(+$("fan").value).toFixed(2)}°`;
     $("bouncesOut").value = p.bounces;
@@ -524,10 +757,10 @@ const CellEngine = (() => {
   let pending = false;
   function update() {
     if (pending) return; pending = true;
-    requestAnimationFrame(() => { pending = false; syncOutputs(); compute(); drawCell(); drawPoincare(); drawLyap(); drawStats(); });
+    requestAnimationFrame(() => { pending = false; syncOutputs(); compute(); drawCell(); drawPoincare(); drawLyap(); drawStats(); drawIntensity(); drawPhase(); });
   }
 
-  ["nBeams", "theta", "fan", "bounces", "nFacets", "diam", "curv", "tiltRms", "curvRms", "ports", "portW", "outPos", "fade", "dots"].forEach(id => $(id).addEventListener("input", update));
+  ["nBeams", "theta", "fan", "bounces", "nFacets", "diam", "curv", "tiltRms", "curvRms", "ports", "portW", "outPos", "fade", "dots", "refl", "shade", "figure", "lam", "nIdx", "win", "pass", "dAmp", "dWave"].forEach(id => $(id).addEventListener("input", update));
   $("selFacet").addEventListener("input", () => { loadSelected(); update(); });
   ["selTilt", "selCurv"].forEach(id => $(id).addEventListener("input", () => { storeSelected(); update(); }));
   $("seed").addEventListener("input", () => { makeNormals(); update(); });

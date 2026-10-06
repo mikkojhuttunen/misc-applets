@@ -483,6 +483,17 @@ def mean_field_estimate(cell, port_w, R_mean, alpha_bg=0.0, Gamma=1.0):
     return dict(T_det=T, L_mean=L, n_bounce=1 / (1 - surv), L_eff_gas=Gamma * L, S1=Gamma * T * L)
 
 
+def reflection_weighted_path(chords, R):
+    """Path and intensity of one ray with mirror power reflectance R (scalar or one value per reflection).
+    chords[j] is the j-th chord; a reflection separates consecutive chords, so chord j carries R^j (j = 0 before
+    the first mirror). Returns (L_geom, L_eff = Σ R^j ℓ_j, I_end = intensity after len(chords) reflections).
+    L_eff is the absorption-weighted path: a weak absorber α reduces the integrated signal by α L_eff."""
+    ch = np.asarray(chords, float)
+    Rj = np.broadcast_to(np.asarray(R, float), ch.shape)
+    I = np.concatenate([[1.0], np.cumprod(Rj)])
+    return float(ch.sum()), float((I[:-1] * ch).sum()), float(I[-1])
+
+
 def dB_per_cm_to_alpha(db_cm):
     """dB/cm power loss -> power attenuation coefficient α [1/m]."""
     return np.asarray(db_cm) * 100 * np.log(10) / 10

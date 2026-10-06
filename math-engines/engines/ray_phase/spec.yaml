@@ -1,0 +1,41 @@
+engine: ray_phase
+version: 1
+title: Ray phase vs launch angle in a multipass cell
+description: Optical path and phase of rays launched at slightly different angles into a segmented cell, pass by pass, and the fringe visibility left under launch-angle dithering.
+references:
+  - "J. W. Goodman, Statistical Optics, 2nd ed. (Wiley, 2015), ch. 5 (time-averaged interference, fringe visibility)"
+  - "J. Reid, M. El-Sherbiny, B. K. Garside, E. A. Ballik, Appl. Opt. 19, 3349 (1980) (fringe suppression by modulation in tunable-diode-laser absorption)"
+functions:
+  first_mirror_phase:
+    title: Phase to the first mirror vs angle
+    equations: ["Δφ₁(θ) = k₀ n (L₁(θ) - L₁(θc))", "dφ/dθ = k₀ n dL₁/dθ", "Δθ_2π = 2π / |dφ/dθ|"]
+    inputs:
+      - {name: radius, label: "Cell radius (circumradius)", ui_unit: mm, scale: 1.0e-3, default: 5}
+      - {name: n_facets, label: "Facets N", ui_unit: "", scale: 1.0, default: 24, min: 3, step: 1}
+      - {name: theta_c, label: "Launch angle θc", ui_unit: mrad, scale: 1.0e-3, default: 654.5}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550}
+      - {name: n_index, label: "Index of the medium (n_eff)", ui_unit: "", scale: 1.0, default: 1.0, min: 1}
+      - {name: curvature, label: "Facet curvature 1/ρ", ui_unit: 1/m, scale: 1.0, default: 0}
+    outputs:
+      - {name: L1, label: "Path to the first mirror", ui_unit: mm, scale: 1.0e-3}
+      - {name: dL_dtheta, label: "dL₁/dθ", ui_unit: µm/mrad, scale: 1.0e-3}
+      - {name: dphi_dtheta, label: "dφ₁/dθ", ui_unit: rad/mrad, scale: 1.0e+3}
+      - {name: dtheta_2pi, label: "Angle step for 2π", ui_unit: µrad, scale: 1.0e-6}
+  dither_visibility:
+    title: Fringe visibility under angle dither
+    equations: ["V_p = |⟨exp(i Δφ_p(θc + δ(t)))⟩_t|", "linear phase: sine dither V = |J₀(aA)|, triangle V = |sinc(aA)|"]
+    inputs:
+      - {name: radius, label: "Cell radius (circumradius)", ui_unit: mm, scale: 1.0e-3, default: 5}
+      - {name: n_facets, label: "Facets N", ui_unit: "", scale: 1.0, default: 24, min: 3, step: 1}
+      - {name: theta_c, label: "Launch angle θc", ui_unit: mrad, scale: 1.0e-3, default: 654.5}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550}
+      - {name: n_index, label: "Index of the medium (n_eff)", ui_unit: "", scale: 1.0, default: 1.0, min: 1}
+      - {name: amplitude, label: "Dither amplitude A", ui_unit: µrad, scale: 1.0e-6, default: 100}
+      - {name: n_pass, label: "Pass (mirror hit) number", ui_unit: "", scale: 1.0, default: 24, min: 1, step: 1}
+      - {name: waveform, label: "Dither waveform", type: choice, choices: [sine, triangle], default: sine}
+      - {name: curvature, label: "Facet curvature 1/ρ", ui_unit: 1/m, scale: 1.0, default: 0}
+    outputs:
+      - {name: V_first, label: "Visibility at pass 1", ui_unit: "", scale: 1.0}
+      - {name: V_last, label: "Visibility at the chosen pass", ui_unit: "", scale: 1.0}
+      - {name: phase_span_last, label: "Phase span at the chosen pass", ui_unit: rad, scale: 1.0}
+      - {name: L_last, label: "Path to the chosen pass", ui_unit: cm, scale: 1.0e-2}

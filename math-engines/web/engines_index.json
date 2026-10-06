@@ -1024,6 +1024,259 @@
    }
   },
   {
+   "engine": "fringe_averaging",
+   "version": 1,
+   "title": "Fringe washout by dithering and averaging",
+   "description": "Residual interference-fringe visibility of a stray path after angle dithering, laser-frequency dithering, slow drifts, finite laser linewidth and averaging over a measurement time, from an exact harmonic expansion.",
+   "requires": [],
+   "references": [
+    "J. Reid, M. El-Sherbiny, B. K. Garside, E. A. Ballik, Appl. Opt. 19, 3349 (1980) (fringe reduction by modulation)",
+    "C. R. Webster, J. Opt. Soc. Am. B 2, 1464 (1985) (etalon fringe reduction in tunable-diode-laser spectroscopy)",
+    "M. Abramowitz, I. A. Stegun, Handbook of Mathematical Functions §9.12 (Bessel recurrences), Jacobi-Anger expansion"
+   ],
+   "files": [
+    "engines/fringe_averaging/__init__.py",
+    "engines/fringe_averaging/engine.py"
+   ],
+   "functions": {
+    "fringe_residual": {
+     "title": "Residual fringe after dithering and averaging",
+     "equations": [
+      "φ(t) = x_θ w(f_θ t) + x_ν w(f_ν t + ψ) + ω_d t",
+      "x_θ = (dφ/dθ) A_θ, x_ν = 2π n_g ΔL Δν / c",
+      "e^{i x sin} = Σ J_m(x) e^{i m ω t}",
+      "V_rms(T) = |g| sqrt(Σ |C_Ω|² H(Ω, T)²), H = |sinc(ΩT/2)| or (1 + Ω²T²)^-½",
+      "g = exp(-π Δν_L n_g ΔL / c)",
+      "fringe amplitude = 2 √ε V"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "n_phase",
+       "label": "Phase index n",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1
+      },
+      {
+       "name": "n_group",
+       "label": "Group index n_g",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1
+      },
+      {
+       "name": "opd",
+       "label": "Path difference ΔL (geometric)",
+       "ui_unit": "cm",
+       "scale": 0.01,
+       "default": 10,
+       "min": 0
+      },
+      {
+       "name": "dphi_dtheta",
+       "label": "Fringe phase slope dφ/dθ",
+       "ui_unit": "rad/µrad",
+       "scale": 1000000.0,
+       "default": 0.245
+      },
+      {
+       "name": "angle_amp",
+       "label": "Angle-dither amplitude",
+       "ui_unit": "µrad",
+       "scale": 1e-06,
+       "default": 10,
+       "min": 0
+      },
+      {
+       "name": "angle_freq",
+       "label": "Angle-dither frequency",
+       "ui_unit": "Hz",
+       "scale": 1.0,
+       "default": 1000,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "angle_wave",
+       "label": "Angle-dither waveform",
+       "type": "choice",
+       "choices": [
+        "sine",
+        "triangle"
+       ],
+       "default": "sine"
+      },
+      {
+       "name": "freq_dev",
+       "label": "Laser frequency deviation ±Δν",
+       "ui_unit": "MHz",
+       "scale": 1000000.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "freq_freq",
+       "label": "Frequency-dither rate",
+       "ui_unit": "Hz",
+       "scale": 1.0,
+       "default": 1300,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "freq_wave",
+       "label": "Frequency-dither waveform",
+       "type": "choice",
+       "choices": [
+        "triangle",
+        "sine"
+       ],
+       "default": "triangle"
+      },
+      {
+       "name": "freq_phase",
+       "label": "Frequency-dither phase",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "linewidth",
+       "label": "Laser linewidth (Lorentzian FWHM)",
+       "ui_unit": "MHz",
+       "scale": 1000000.0,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "dn_dT",
+       "label": "dn/dT of the medium",
+       "ui_unit": "1/K",
+       "scale": 1.0,
+       "default": 0.00015
+      },
+      {
+       "name": "temp_rate",
+       "label": "Temperature drift",
+       "ui_unit": "mK/s",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "freq_drift",
+       "label": "Laser frequency drift",
+       "ui_unit": "MHz/s",
+       "scale": 1000000.0,
+       "default": 0
+      },
+      {
+       "name": "avg_time",
+       "label": "Averaging time T",
+       "ui_unit": "s",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "filter_kind",
+       "label": "Averaging filter",
+       "type": "choice",
+       "choices": [
+        "boxcar",
+        "rc"
+       ],
+       "default": "boxcar"
+      },
+      {
+       "name": "stray_db",
+       "label": "Stray / main power ratio",
+       "ui_unit": "dB",
+       "scale": 1.0,
+       "default": -40,
+       "max": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "x_angle",
+       "label": "Angle-dither depth x_θ",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "x_freq",
+       "label": "Spectral-dither depth x_ν",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "coherence",
+       "label": "Linewidth factor |g|",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "drift_hz",
+       "label": "Drift (fringe frequency)",
+       "ui_unit": "Hz",
+       "scale": 1.0
+      },
+      {
+       "name": "V_static",
+       "label": "Static floor (never averages away)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V_c0c0",
+       "label": "c₀c₀ part of the floor (no intermodulation)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "coincidence_m_angle",
+       "label": "Lowest coinciding order, angle",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "coincidence_m_freq",
+       "label": "Lowest coinciding order, spectral",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V_rms",
+       "label": "Residual visibility after T",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "fringe_amplitude",
+       "label": "Residual fringe amplitude 2√ε V",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "fringe_undithered",
+       "label": "Fringe amplitude without dithering",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "gaussian_beam",
    "version": 1,
    "title": "Gaussian beam",
@@ -1585,7 +1838,7 @@
   },
   {
    "engine": "path_coherence",
-   "version": 1,
+   "version": 2,
    "title": "Multipath interference (speckle) noise",
    "description": "Random-phase path model of interference noise in multipass cells; thermal pattern shift, two-path coherence and equal-path contrast as calculator functions (the full model works on billiard_cell ray tables).",
    "requires": [],
@@ -1655,8 +1908,10 @@
     "pair_coherence": {
      "title": "Two-path visibility (Lorentzian source)",
      "equations": [
-      "V = exp(-2π Δν n_g ΔL / c)",
-      "L_c = c / (π Δν n_g)"
+      "|g(τ)| = exp(-π Δν τ), τ = n_g ΔL / c",
+      "V = |g| = exp(-ΔL / L_c)",
+      "L_c = c / (π Δν n_g)",
+      "variance factor |g|²"
      ],
      "inputs": [
       {
@@ -1687,7 +1942,13 @@
      "outputs": [
       {
        "name": "visibility",
-       "label": "Pair visibility factor",
+       "label": "Fringe visibility |g(τ)|",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "variance_factor",
+       "label": "Variance factor |g|²",
        "ui_unit": "",
        "scale": 1.0
       },

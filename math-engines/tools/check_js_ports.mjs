@@ -137,5 +137,26 @@ const close = (label, got, want, rel, abs = 0) => {
   }
 }
 
+/* ---- fringe-washout.html: fringe_averaging engine block ---- */
+{
+  const html = fs.readFileSync(path.join(repo, 'fringe-washout.html'), 'utf8');
+  const a = html.indexOf('/* engine:begin'), b = html.indexOf('/* engine:end */');
+  if (a < 0 || b < 0) throw new Error('engine block markers not found in fringe-washout.html');
+  const ctx = vm.createContext({ Math, Number, Float64Array, Uint8Array, Infinity, NaN, Array, Map, Error });
+  vm.runInContext(html.slice(a, b) + '\n;globalThis.__f = FringeEngine;', ctx);
+  const F = ctx.__f;
+  for (const r of V.bessel) {
+    const J = F.besselJAll(r.x, 40);
+    r.J.forEach((v, k) => close(`bessel J${k}(${r.x})`, J[k], v, 1e-12, 1e-15));
+  }
+  for (const [i, r] of V.fringe.entries()) {
+    const c = F.fringeComponents(r.x_angle, r.f_angle, r.wave_angle, r.x_freq, r.f_freq, r.wave_freq, r.phase);
+    close(`fringe[${i}] groups`, c.f.length, r.n_groups, 0, 0);
+    const Vs = F.residualVisibility(c, r.T, r.drift, r.coherence, r.filter, false);
+    r.V.forEach((v, k) => close(`fringe[${i}] V(T=${r.T[k]})`, Vs[k], v, 1e-9, 1e-14));
+    close(`fringe[${i}] floor`, F.staticFloor(c, r.drift, r.coherence), r.floor, 1e-9, 1e-15);
+  }
+}
+
 console.log(`${checks - fails}/${checks} JS port checks passed`);
 process.exit(fails ? 1 : 0);

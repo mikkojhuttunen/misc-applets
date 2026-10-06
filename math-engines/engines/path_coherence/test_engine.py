@@ -68,4 +68,6 @@ def test_result_front_ends():
     t = pc.thermal_shift(1.55e-6, 1.5e-4, 0.01, 3.5)
     assert t["delta_nu"] == pytest.approx(C / 1.55e-6 * 1.5e-4 * 0.01 / 3.5)
     v = pc.pair_coherence(1e6, 0.1, 3.5)
-    assert v["visibility"] == pytest.approx(np.exp(-2 * 0.1 / v["coherence_length"]))
+    assert v["visibility"] == pytest.approx(np.exp(-0.1 / v["coherence_length"]))
+    assert v["visibility"] == pytest.approx(np.exp(-np.pi * 1e6 * 3.5 * 0.1 / C))
+    assert v["variance_factor"] == pytest.approx(v["visibility"] ** 2)

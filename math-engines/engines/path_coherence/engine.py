@@ -189,16 +189,18 @@ def thermal_shift(wavelength=1.5317e-6, dneff_dT=1.5e-4, delta_T=0.01, n_group=3
 
 
 def pair_coherence(laser_fwhm=1e6, path_difference=0.1, n_group=3.5) -> Result:
-    """Interference visibility factor of two paths for a Lorentzian source, and the coherence length."""
+    """Fringe visibility of two paths for a Lorentzian source (|g(τ)|, τ = n_g ΔL / c), its square (the factor on the
+    pair term of an intensity variance, as used in contrast()), and the coherence length."""
     require_nonnegative(laser_fwhm=laser_fwhm, path_difference=path_difference)
     require_positive(n_group=n_group)
-    vis = float(np.exp(-2 * np.pi * laser_fwhm * n_group * path_difference / C))
+    vis = float(np.exp(-np.pi * laser_fwhm * n_group * path_difference / C))
     Lc = C / (np.pi * laser_fwhm * n_group) if laser_fwhm > 0 else np.inf
     return Result(
-        values={"visibility": vis, "coherence_length": Lc},
-        units={"visibility": "", "coherence_length": "m"},
-        assumptions=["Lorentzian line shape (white frequency noise)", "Lengths are geometric; n_group converts to optical delay",
-                     "visibility = exp(-2π Δν n_g ΔL / c) = exp(-2 ΔL / L_c)"],
+        values={"visibility": vis, "variance_factor": vis**2, "coherence_length": Lc},
+        units={"visibility": "", "variance_factor": "", "coherence_length": "m"},
+        assumptions=["Lorentzian line shape (white frequency noise): |g(τ)| = exp(-π Δν τ)",
+                     "Lengths are geometric; n_group converts to optical delay",
+                     "visibility = exp(-π Δν n_g ΔL / c) = exp(-ΔL / L_c); variance_factor = visibility²"],
     )
 
 

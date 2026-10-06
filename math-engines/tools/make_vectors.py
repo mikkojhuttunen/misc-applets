@@ -19,6 +19,7 @@ from engines.billiard_cell import engine as bc  # noqa: E402
 from engines.bragg_grating import engine as bg  # noqa: E402
 from engines.ray_phase import engine as rp  # noqa: E402
 from engines.cell_mirror import engine as cmir  # noqa: E402
+from engines.fringe_averaging import engine as fav  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
@@ -110,6 +111,18 @@ def build() -> dict:
                                  **{k: float(st[k]) for k in ("R_mean", "R_eff", "I_end", "L_eff", "L_geom", "chi_50", "chi_95",
                                                               "chi_max", "R_design", "R_uniform")},
                                  "hist": [float(x) for x in st["hist"]]})
+    v["bessel"] = [{"x": x, "J": [float(j) for j in fav.bessel_j_all(x, 40)]} for x in (0.0, 0.7, 5.5, 33.0, -12.0)]
+    v["fringe"] = []
+    for (x1, f1, w1, x2, f2, w2, psi, drift, coh, kind) in ((2.4, 1000, "sine", 0.0, 1300, "triangle", 0.0, 0.0, 1.0, "boxcar"),
+                                                           (5.0, 1000, "sine", 3.0, 2000, "triangle", 0.6, 0.0, 0.9, "boxcar"),
+                                                           (12.0, 700, "triangle", 1.5, 1300, "sine", 0.0, 0.3, 1.0, "rc"),
+                                                           (40.0, 50, "sine", 8.0, 37, "sine", 1.1, 0.0, 1.0, "boxcar")):
+        f, A = fav.fringe_components(x1, f1, w1, x2, f2, w2, psi)
+        Ts = [1e-5, 3e-4, 2e-3, 0.0123, 0.5, 3.0]
+        v["fringe"].append({"x_angle": x1, "f_angle": f1, "wave_angle": w1, "x_freq": x2, "f_freq": f2, "wave_freq": w2,
+                            "phase": psi, "drift": drift, "coherence": coh, "filter": kind, "T": Ts,
+                            "V": [float(x) for x in fav.residual_visibility(f, A, np.array(Ts), drift, coh, kind)],
+                            "floor": fav.static_floor(f, A, drift, coh), "n_groups": int(f.size)})
     return v
 
 

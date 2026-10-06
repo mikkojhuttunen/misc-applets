@@ -17,6 +17,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [path_coherence](engines/path_coherence/) | Random-phase path model of speckle/etalon noise in multipass cells: contrast vs linewidth, spectral autocovariance, thermal decorrelation, simulated coherent spectra | |
 | [ray_phase](engines/ray_phase/) | Optical path and phase of rays vs launch angle in a segmented cell, pass by pass; fringe visibility under sine or triangle angle dither | |
 | [cell_mirror](engines/cell_mirror/) | Etched-trench DBR reflectance averaged self-consistently over the angles of incidence in a (perturbed) segmented cell, vs the unperturbed cell; effective path and angle percentiles | |
+| [fringe_averaging](engines/fringe_averaging/) | Residual interference-fringe visibility after angle and laser-frequency dithering, drifts, linewidth and averaging over seconds (exact harmonic expansion) | scipy (tests) |
 
 ## Use
 
@@ -73,6 +74,7 @@ The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out
 |---|---|---|
 | `dbr-structures/dbr-engine.js` | Sellmeier indices, three-layer slab, coupled-mode reflectance, transfer-matrix stack | `check_js_ports.mjs` |
 | `parametric-amplifier.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver | `check_js_ports.mjs` (functions extracted from the page) |
+| `fringe-washout.html` (inline `engine:begin/end` block) | `fringe_averaging` harmonics, components, filters, residual visibility | `check_js_ports.mjs` (block extracted from the page) |
 | `cmpc-ray-tracer.html` (inline `engine:begin/end` block) | `billiard_cell.SegmentedCell` geometry, hit test, reflection, launch, `reflection_weighted_path`; `ray_phase` path lengths, dither offsets, visibility, `dither_analysis`; `bragg_grating.stack_R_oblique`, `TrenchDBR`; `cell_mirror` statistics | `check_js_ports.mjs` (block extracted from the page) |
 
 Known deviation: the ports work in µm inside; the check converts SI to µm at the boundary.

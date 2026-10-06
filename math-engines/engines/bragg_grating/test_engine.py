@@ -97,3 +97,22 @@ def test_double_resonant_orders_are_consistent():
 def test_oblique_result():
     r = bg.oblique_reflectance(1.55e-6, 0.0, 2.83, 1.0, 387.5e-9, 2.83, 1.55e-6 / (4 * 2.83), 10, 1.0)
     assert r["R"] > 0.9999 and r["sin_tir"] == pytest.approx(1 / 2.83)
+
+
+def test_trench_dbr_design_angle_moves_the_stop_band():
+    n_t = 2.479
+    normal = bg.TrenchDBR(n_tooth=n_t, N=6, m_tooth=1, slab_pol="TM", bounce_loss=0)
+    tilted = bg.TrenchDBR(n_tooth=n_t, N=6, m_tooth=1, slab_pol="TM", bounce_loss=0, sin_design=0.3)
+    assert tilted.d_gap == pytest.approx(1.55e-6 / (4 * np.sqrt(1 - (n_t * 0.3) ** 2)))
+    assert tilted.d_tooth == pytest.approx(1.55e-6 / (4 * n_t * np.sqrt(1 - 0.09)))
+    # quarter-wave at its own design angle: each tilted design beats the other one at that angle
+    assert tilted.R(1.55e-6, 0.3) > normal.R(1.55e-6, 0.3)
+    assert normal.R(1.55e-6, 0.0) > tilted.R(1.55e-6, 0.0)
+    # at the design angle every layer is a quarter wave: R = ((Y - 1)/(Y + 1))^2, Y = (η_t/η_g)^(2N+1), η = n cos θ (s)
+    for pol, adm in (("TM", lambda n, c: n * c), ("TE", lambda n, c: n / c)):
+        d = bg.TrenchDBR(n_tooth=n_t, N=6, m_tooth=1, slab_pol=pol, bounce_loss=0, sin_design=0.3)
+        eta_t, eta_g = adm(n_t, np.sqrt(1 - 0.09)), adm(1.0, np.sqrt(1 - (n_t * 0.3) ** 2))
+        Y = (eta_t / eta_g) ** 13
+        assert d.R(1.55e-6, 0.3) == pytest.approx(((Y - 1) / (Y + 1)) ** 2, rel=1e-9)
+    with pytest.raises(ValueError, match="sin_design"):
+        bg.TrenchDBR(n_tooth=n_t, sin_design=0.5)

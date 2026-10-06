@@ -117,6 +117,24 @@ const close = (label, got, want, rel, abs = 0) => {
     }
     void nan;
   }
+  for (const [i, r] of V.oblique_stack.entries())
+    close(`oblique[${i}] R`, E.stackROblique(r.wavelength, r.sin_in, r.n_in, r.layers, r.n_out, r.polarization), r.R, 1e-9, 1e-14);
+  const dbrOf = r => E.trenchDBR({ nTooth: r.n_tooth, lam: r.wavelength || 1.55e-6, N: r.periods, mGap: r.m_gap || 1, mTooth: r.m_tooth || 1,
+    loss: r.bounce_loss || 0, slabPol: r.slab_pol, sinDesign: r.sin_design });
+  for (const [i, r] of V.trench_dbr.entries()) {
+    const d = dbrOf(r);
+    close(`trench[${i}] d_gap`, d.dGap, r.d_gap, 1e-12);
+    close(`trench[${i}] d_tooth`, d.dTooth, r.d_tooth, 1e-12);
+    r.sin.forEach((sv, j) => close(`trench[${i}] R(${sv})`, d.R(r.wavelength, sv), r.R[j], 1e-9, 1e-14));
+  }
+  for (const [i, r] of V.cell_mirror.entries()) {
+    const c = E.makeCell(5e-3, r.n_facets, r.tilts, Array(r.n_facets).fill(r.curvature), null);
+    const st = E.cellMirrorStats(c, r.theta_c, r.fan, r.n_beams, r.n_hits, dbrOf(r), 1.55e-6);
+    for (const k of ["R_mean", "R_eff", "I_end", "L_eff", "L_geom", "R_design", "R_uniform"]) close(`cellmirror[${i}] ${k}`, st[k], r[k], 1e-9, 1e-14);
+    /* case 1 is a chaotic (curved-facet) cell: rounding grows ~e^0.6 per bounce, hence 1e-6 on angles and histogram */
+    for (const k of ["chi_50", "chi_95", "chi_max"]) close(`cellmirror[${i}] ${k}`, st[k], r[k], 0, 1e-6);
+    r.hist.forEach((hv, j) => close(`cellmirror[${i}] hist ${j}`, st.hist[j], hv, 1e-6, 1e-14));
+  }
 }
 
 console.log(`${checks - fails}/${checks} JS port checks passed`);

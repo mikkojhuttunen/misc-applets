@@ -773,6 +773,257 @@
    }
   },
   {
+   "engine": "cell_mirror",
+   "version": 1,
+   "title": "Mirror reflectance over a cell's angles",
+   "description": "Etched-trench DBR reflectance averaged self-consistently over the angles of incidence the light actually meets in a perturbed segmented multipass cell, compared with the unperturbed cell; effective path and angle percentiles.",
+   "requires": [],
+   "references": [
+    "H. A. Macleod, Thin-Film Optical Filters, 4th ed. (CRC, 2010), ch. 2 (tilted admittances, quarter-wave stacks at oblique incidence)",
+    "L. A. Bunimovich, Commun. Math. Phys. 65, 295 (1979) (invariant billiard measure, uniform in sin χ)"
+   ],
+   "files": [
+    "engines/billiard_cell/__init__.py",
+    "engines/billiard_cell/engine.py",
+    "engines/bragg_grating/__init__.py",
+    "engines/bragg_grating/engine.py",
+    "engines/cell_mirror/__init__.py",
+    "engines/cell_mirror/engine.py",
+    "engines/ray_phase/__init__.py",
+    "engines/ray_phase/engine.py"
+   ],
+   "functions": {
+    "cell_mirror_reflectance": {
+     "title": "Reflectance the cell's light actually sees",
+     "equations": [
+      "I_j = Π_{i<j} R(χ_i)",
+      "R_mean = Σ I_j R(χ_j) / Σ I_j",
+      "R_eff = (mean_rays Π_j R(χ_j))^(1/n)",
+      "L_eff = Σ I_j ℓ_j",
+      "DBR: d = m λ / (4 n cos θ_layer) at the design angle"
+     ],
+     "inputs": [
+      {
+       "name": "radius",
+       "label": "Cell radius (circumradius)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 5
+      },
+      {
+       "name": "n_facets",
+       "label": "Facets N",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 24,
+       "min": 3,
+       "step": 1
+      },
+      {
+       "name": "theta_c",
+       "label": "Launch angle θc",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 392.7
+      },
+      {
+       "name": "fan",
+       "label": "Fan width",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 17.45,
+       "min": 0
+      },
+      {
+       "name": "n_beams",
+       "label": "Beams",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 7,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "n_hits",
+       "label": "Reflections per beam",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 150,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "tilt_rms",
+       "label": "Facet tilt rms",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "curvature",
+       "label": "Facet curvature 1/ρ",
+       "ui_unit": "1/m",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "seed",
+       "label": "Perturbation pattern",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "n_eff",
+       "label": "Slab-mode effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.479,
+       "min": 1
+      },
+      {
+       "name": "polarization",
+       "label": "Slab mode (TE → p, TM → s on the trench walls)",
+       "type": "choice",
+       "choices": [
+        "TM",
+        "TE"
+       ],
+       "default": "TM"
+      },
+      {
+       "name": "periods",
+       "label": "DBR periods",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 6,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "m_gap",
+       "label": "Gap order (odd)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "m_tooth",
+       "label": "Tooth order (odd)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "sin_design",
+       "label": "sin of the design angle",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 0.99
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "bounce_loss",
+       "label": "Extra loss per bounce",
+       "ui_unit": "ppm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "R_mean",
+       "label": "Power-weighted mean R",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_eff",
+       "label": "R per bounce from the power decay",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "loss_per_bounce",
+       "label": "Loss per bounce 1 − R_eff",
+       "ui_unit": "ppm",
+       "scale": 1e-06
+      },
+      {
+       "name": "I_end",
+       "label": "Intensity after the traced reflections",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_eff",
+       "label": "Effective path Σ I_j ℓ_j",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "chi_50",
+       "label": "|χ| median (power-weighted)",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "chi_95",
+       "label": "|χ| 95th percentile",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "chi_max",
+       "label": "|χ| maximum",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "R_eff_regular",
+       "label": "R per bounce, unperturbed cell",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_eff_regular",
+       "label": "Effective path, unperturbed cell",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "R_design",
+       "label": "R at the design angle",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_uniform",
+       "label": "⟨R⟩ over uniform sin χ (fully chaotic cell)",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "gaussian_beam",
    "version": 1,
    "title": "Gaussian beam",

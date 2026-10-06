@@ -69,8 +69,17 @@ canvas { display: block; width: 100%; height: 100%; }
 .chart { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; }
 .chart.wide { aspect-ratio: 3 / 1; }
 @media (max-width: 640px) { .chart.wide { aspect-ratio: 3 / 2; } }
-.phasectl { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 18px; }
+.phasectl { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 18px; }
+.phasectl select { max-width: 100%; }
+.phasectl .ctl > select { width: 100%; }
 .sub { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.tablewrap { overflow-x: auto; }
+#mirTable { border-collapse: collapse; font-size: 12.5px; min-width: 520px; width: 100%; }
+#mirTable th, #mirTable td { padding: 4px 10px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+#mirTable th:first-child, #mirTable td:first-child { text-align: left; font-family: var(--font-body); }
+#mirTable thead th { color: var(--muted); font-weight: 500; font-family: var(--font-body); }
+#mirTable td.bad { color: var(--port-out); }
+#mirTable td.good { color: var(--port-in); }
 .explain { border-left: 3px solid var(--accent); background: var(--bg); padding: 8px 12px; border-radius: 0 4px 4px 0; display: grid; gap: 4px; font-size: 13px; }
 .explain .eq { font-family: var(--font-data); font-size: 12.5px; overflow-wrap: anywhere; }
 .explain .note { color: var(--muted); }
@@ -181,6 +190,42 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
         <h2>Intensity and effective path</h2>
         <canvas class="chart wide" id="inten" aria-label="Intensity and effective path versus reflection number"></canvas>
         <p class="hint">Centre beam. Intensity Rʲ after j reflections (left axis, log) and the absorption-weighted path L<sub>eff</sub>(j) = Σ Rⁱ ℓᵢ accumulated so far (right axis). L<sub>eff</sub> tends to ℓ̄ / (1 − R) for long traces; a weak absorber α reduces the integrated signal by α L<sub>eff</sub>.</p>
+      </section>
+      <section class="panel" id="mirrorPanel">
+        <h2>Mirror reflectance over the cell's angles</h2>
+        <div class="phasectl">
+          <div class="ctl"><div class="row"><label for="mirMode">Mirror model used by the rays</label></div>
+            <select id="mirMode"><option value="const">constant R (Cell panel slider)</option><option value="dbr" selected>etched-trench DBR, R(χ)</option></select></div>
+          <div class="ctl"><div class="row"><label for="mirPreset">Membrane slab mode</label></div>
+            <select id="mirPreset">
+              <option value="2.8138|TE">Si 220 nm, TE0 (n_eff 2.814)</option>
+              <option value="2.011|TM">Si 250 nm, TM0 (n_eff 2.011)</option>
+              <option value="2.4792|TM" selected>Si 300 nm, TM0 (n_eff 2.479)</option>
+              <option value="2.9321|TM">Si 400 nm, TM0 (n_eff 2.932)</option>
+              <option value="1.6706|TE">Si₃N₄ 400 nm, TE0 (n_eff 1.671)</option>
+              <option value="1.7928|TM">Si₃N₄ 800 nm, TM0 (n_eff 1.793)</option>
+              <option value="custom">custom (sliders below)</option>
+            </select></div>
+          <div class="ctl"><div class="row"><label for="mirN">n_eff of the slab mode</label><output id="mirNOut"></output></div>
+            <input id="mirN" type="range" min="1.3" max="3.6" step="0.001" value="2.4792"></div>
+          <div class="ctl"><div class="row"><label for="mirPol">Slab polarisation</label></div>
+            <select id="mirPol"><option value="TM" selected>TM: s-pol on the walls</option><option value="TE">TE: p-pol on the walls (Brewster dip)</option></select></div>
+          <div class="ctl"><div class="row"><label for="mirNp">DBR periods</label><output id="mirNpOut"></output></div>
+            <input id="mirNp" type="range" min="1" max="30" step="1" value="4"></div>
+          <div class="ctl"><div class="row"><label for="mirMg">Gap / tooth quarter-wave orders</label></div>
+            <div class="btns"><select id="mirMg" aria-label="Gap order"><option>1</option><option>3</option><option>5</option></select>
+              <select id="mirMt" aria-label="Tooth order"><option>1</option><option>3</option><option>5</option></select></div></div>
+          <div class="ctl"><div class="row"><label for="mirDes">Design angle χ_d</label><output id="mirDesOut"></output></div>
+            <input id="mirDes" type="range" min="0" max="23" step="0.05" value="0">
+            <div class="btns"><button id="mirDesMedian" type="button">Design for the median |χ|</button></div></div>
+          <div class="ctl"><div class="row"><label for="mirLoss">Extra loss per bounce</label><output id="mirLossOut"></output></div>
+            <input id="mirLoss" type="range" min="0" max="5000" step="10" value="0"></div>
+        </div>
+        <div class="explain" id="mirNotes"></div>
+        <canvas class="chart wide" id="mirChart" aria-label="Distribution of incidence angles and mirror loss"></canvas>
+        <p class="hint">Bars: share of the light's power arriving at the mirrors per 1° of |χ| (each hit weighted by the intensity it still carries), this cell. Grey outline: the same launch in the unperturbed cell. Line, right axis: mirror loss 1 − R(χ) of the DBR. Above the critical angle the first air gap reflects totally (only frustrated TIR through the gap leaks).</p>
+        <div class="tablewrap"><table id="mirTable"></table></div>
+        <p class="hint">Every reflection uses the exact transfer-matrix R(χ) at the angle that ray meets, so a ray's intensity is the product of the reflectances it met. R per bounce is I_end^(1/n), the decay of the total power (a geometric mean over hits would count hits of rays already killed); ⟨R⟩ is weighted by the power arriving at each hit. Closed cell: the beams and reflections set in the Beams panel, ports ignored. Mirror: <span class="mono">bragg_grating.TrenchDBR</span>, membrane | [air gap, tooth] × N | air, 1D effective index, λ from the phase panel. Engine: <span class="mono">math-engines/engines/cell_mirror</span>.</p>
       </section>
       <div class="duo">
         <section class="panel">
@@ -489,8 +534,140 @@ const CellEngine = (() => {
     }
   }
 
+  /* bragg_grating.stack_R_oblique for real indices: tilted admittances (s: n cos θ, p: n / cos θ), Im(cos θ) >= 0 */
+  const cx = (re, im) => ({ re, im });
+  const cmul = (a, b) => cx(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+  const cadd = (a, b) => cx(a.re + b.re, a.im + b.im);
+  const csub = (a, b) => cx(a.re - b.re, a.im - b.im);
+  const cdiv = (a, b) => { const d = b.re * b.re + b.im * b.im; return cx((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d); };
+  function stackROblique(lam, sinIn, nIn, layers, nOut, pol) {
+    const s = nIn * Math.min(Math.abs(sinIn), 1 - 1e-9), k = 2 * Math.PI / lam;
+    const cosOf = n => { const q = 1 - (s / n) ** 2; return q >= 0 ? cx(Math.sqrt(q), 0) : cx(0, Math.sqrt(-q)); };
+    const adm = n => { const c = cosOf(n); return pol === "s" ? cx(n * c.re, n * c.im) : cdiv(cx(n, 0), c); };
+    let A = cx(1, 0), B = cx(0, 0), C = cx(0, 0), D = cx(1, 0);
+    for (const [n, d] of layers) {
+      const c = cosOf(n), q = adm(n);
+      const dr = k * n * d * c.re, di = k * n * d * c.im;                                  /* δ = dr + i di */
+      const cs = cx(Math.cos(dr) * Math.cosh(di), -Math.sin(dr) * Math.sinh(di));
+      const sn = cx(Math.sin(dr) * Math.cosh(di), Math.cos(dr) * Math.sinh(di));
+      const isn = cx(sn.im, -sn.re);                                                         /* -i sin δ */
+      const L01 = cdiv(isn, q), L10 = cmul(isn, q);
+      const nA = cadd(cmul(A, cs), cmul(B, L10)), nB = cadd(cmul(A, L01), cmul(B, cs));
+      const nC = cadd(cmul(C, cs), cmul(D, L10)), nD = cadd(cmul(C, L01), cmul(D, cs));
+      const m = Math.max(Math.hypot(nA.re, nA.im), Math.hypot(nB.re, nB.im), Math.hypot(nC.re, nC.im), Math.hypot(nD.re, nD.im)) || 1;
+      A = cx(nA.re / m, nA.im / m); B = cx(nB.re / m, nB.im / m); C = cx(nC.re / m, nC.im / m); D = cx(nD.re / m, nD.im / m);
+    }
+    const qi = adm(nIn), qo = adm(nOut);
+    const x = cmul(qi, cadd(A, cmul(B, qo))), y = cadd(C, cmul(D, qo));
+    const r = cdiv(csub(x, y), cadd(x, y));
+    return r.re * r.re + r.im * r.im;
+  }
+
+  /* bragg_grating.TrenchDBR: membrane | [gap, tooth] x N | gap, quarter-wave orders at the design angle */
+  const LATERAL_POL = { TE: "p", TM: "s" };
+  function trenchDBR({ nTooth, lam, N, mGap = 1, mTooth = 1, nGap = 1, loss = 0, slabPol = "TM", sinDesign = 0 }) {
+    const sCrit = nGap / nTooth;
+    if (!(sinDesign >= 0 && sinDesign < sCrit)) throw new Error(`design angle beyond the critical angle (sin < ${sCrit.toFixed(4)})`);
+    const dGap = mGap * lam / (4 * nGap * Math.sqrt(1 - (nTooth * sinDesign / nGap) ** 2));
+    const dTooth = mTooth * lam / (4 * nTooth * Math.sqrt(1 - sinDesign * sinDesign));
+    const layers = []; for (let i = 0; i < N; i++) layers.push([nGap, dGap], [nTooth, dTooth]);
+    const pol = LATERAL_POL[slabPol];
+    return { dGap, dTooth, sCrit, sinDesign, R: (l, s) => stackROblique(l, s, nTooth, layers, nGap, pol) * (1 - loss) };
+  }
+
+  /* cell_mirror.hit_angles: |sin χ| and chord per hit, NaN after a leak */
+  function hitAngles(c, thetas, nHits, sIn) {
+    const S = [], C = [];
+    for (const th of thetas) {
+      let [x, y, dx, dy] = launch(c, sIn === undefined ? c.h : sIn, th);
+      const s = new Float64Array(nHits).fill(NaN), ch = new Float64Array(nHits).fill(NaN);
+      for (let j = 0; j < nHits; j++) {
+        const h = hit(c, x, y, dx, dy);
+        if (!Number.isFinite(h.t)) break;
+        s[j] = Math.abs(dx * h.ny - dy * h.nx); ch[j] = h.t;
+        x += h.t * dx; y += h.t * dy;
+        [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+      }
+      S.push(s); C.push(ch);
+    }
+    return { S, C };
+  }
+
+  function weightedQuantile(values, weights, q) {
+    const o = Array.from(values.keys()).sort((i, j) => values[i] - values[j]);
+    let tot = 0; for (const w of weights) tot += w;
+    let cw = 0;
+    for (const i of o) { cw += weights[i]; if (cw >= q * tot) return values[i]; }
+    return values[o[o.length - 1]];
+  }
+
+  /* cell_mirror.weighted_stats: exact R at every hit; I_j = product of the R met before hit j */
+  function weightedStats(S, C, Rf, binDeg = 1) {
+    const nb = Math.round(90 / binDeg), hist = new Float64Array(nb);
+    const chis = [], ws = [], perRay = [];
+    let W = 0, WR = 0, nHit = 0, sumIend = 0, sumLeff = 0, sumL = 0, chiMax = -Infinity;
+    for (let r = 0; r < S.length; r++) {
+      let cum = 0, Leff = 0, L = 0;
+      const Iray = [];
+      for (let j = 0; j < S[r].length; j++) {
+        const s = S[r][j];
+        if (!Number.isFinite(s)) continue;
+        const R = Rf(s), lr = Math.log(Math.min(Math.max(R, 1e-300), 1));
+        const I = Math.exp(cum);                            /* intensity arriving at this hit */
+        W += I; WR += I * Math.exp(lr); nHit++;
+        Leff += I * C[r][j]; L += C[r][j];
+        const chi = Math.asin(Math.min(Math.max(s, 0), 1)) * 180 / Math.PI;
+        chis.push(chi); ws.push(I); if (chi > chiMax) chiMax = chi;
+        hist[Math.min(Math.floor(chi / binDeg), nb - 1)] += I;
+        Iray.push(I);
+        cum += lr;
+      }
+      sumIend += Math.exp(cum); sumLeff += Leff; sumL += L;
+      perRay.push({ I: Iray, Iend: Math.exp(cum) });
+    }
+    const nR = S.length;
+    return { R_mean: WR / W, R_eff: S[0] && S[0].length ? (sumIend / nR) ** (nR / Math.max(nHit, 1)) : 1, I_end: sumIend / nR, L_eff: sumLeff / nR, L_geom: sumL / nR,
+      chi_50: weightedQuantile(chis, ws, 0.5), chi_95: weightedQuantile(chis, ws, 0.95), chi_max: chiMax,
+      hist: Array.from(hist, v => v / W), n_hits: nHit, perRay };
+  }
+
+  function uniformAverage(Rf, n = 4097) {
+    let acc = 0, prev = Rf(0);
+    for (let i = 1; i < n; i++) { const s = i / (n - 1), R = Rf(s); acc += 0.5 * (R + prev) / (n - 1); prev = R; }
+    return acc;
+  }
+
+  function launchAngles(thetaC, fan, nBeams) {
+    return nBeams === 1 ? [thetaC] : Array.from({ length: nBeams }, (_, i) => thetaC + fan * (i / (nBeams - 1) - 0.5));
+  }
+
+  /* cell_mirror.cell_mirror_stats */
+  function cellMirrorStats(c, thetaC, fan, nBeams, nHits, dbr, lam, withUniform = true) {
+    const Rf = s => dbr.R(lam, s);
+    const { S, C } = hitAngles(c, launchAngles(thetaC, fan, nBeams), nHits);
+    const out = weightedStats(S, C, Rf);
+    out.R_design = dbr.R(lam, dbr.sinDesign);
+    out.R_uniform = withUniform ? uniformAverage(Rf) : NaN;
+    return out;
+  }
+
+  /* cell_mirror.cell_mirror_reflectance: the perturbed cell and the same launch in the unperturbed cell */
+  function cellMirrorCompare(j) {
+    const dbr = trenchDBR(j.dbr);
+    const cP = makeCell(j.r, j.N, j.tilts, j.curvs, null), cR = makeCell(j.r, j.N, null, new Array(j.N).fill(j.curvBase), null);
+    const a = cellMirrorStats(cP, j.theta, j.fan, j.nBeams, j.nHits, dbr, j.lam);
+    const b = cellMirrorStats(cR, j.theta, j.fan, j.nBeams, j.nHits, dbr, j.lam, false);
+    b.R_uniform = a.R_uniform;
+    const mid = Math.floor((j.nBeams - 1) / 2);
+    const { C } = hitAngles(cP, [launchAngles(j.theta, j.fan, j.nBeams)[mid]], j.nHits);
+    const centre = { I: a.perRay[mid].I, Iend: a.perRay[mid].Iend, C: Array.from(C[0]).filter(Number.isFinite) };
+    delete a.perRay; delete b.perRay;
+    return { a, b, centre, sCrit: dbr.sCrit };
+  }
+
   return { makeCell, surface, pointAt, hit, reflect, launch, inWindow, trace, reflectionWeightedPath, pathLengths, ditherOffsets,
-    visibility, ditherScan, modelVisibility, phaseDerivatives, ditherAnalysis, X_V09, X_V05, X_V0 };
+    visibility, ditherScan, modelVisibility, phaseDerivatives, ditherAnalysis, X_V09, X_V05, X_V0,
+    stackROblique, trenchDBR, hitAngles, weightedQuantile, weightedStats, uniformAverage, launchAngles, cellMirrorStats, cellMirrorCompare };
 })();
 /* engine:end */
 
@@ -517,6 +694,8 @@ const CellEngine = (() => {
     ports: $("ports").checked, portW: +$("portW").value * 1e-6, outPos: +$("outPos").value,
     fade: $("fade").checked, dots: $("dots").checked, sel: +$("selFacet").value,
     R: +$("refl").value / 100, shade: $("shade").checked, figure: $("figure").checked,
+    mirMode: $("mirMode").value, mirN: +$("mirN").value, mirPol: $("mirPol").value, mirNp: +$("mirNp").value,
+    mirMg: +$("mirMg").value, mirMt: +$("mirMt").value, mirDes: +$("mirDes").value * Math.PI / 180, mirLoss: +$("mirLoss").value * 1e-6,
     lam: +$("lam").value * 1e-9, nIdx: +$("nIdx").value, win: 1e-6 * 10 ** +$("win").value,
     pass: +$("pass").value, dAmp: 1e-6 * 10 ** +$("dAmp").value, dWave: $("dWave").value,
   });
@@ -555,7 +734,23 @@ const CellEngine = (() => {
       const w = CellEngine.reflectionWeightedPath(chords, p.R);
       b.chords = chords; b.Leff = w.Leff; b.nRefl = nRefl; b.Iend = p.R ** nRefl;
     }
-    state = { p, cell, ports, beams, sep };
+    const sCrit = 1 / p.mirN, sDes = Math.min(Math.sin(p.mirDes), 0.999 * sCrit);
+    const dbrPar = { nTooth: p.mirN, lam: p.lam, N: p.mirNp, mGap: p.mirMg, mTooth: p.mirMt, loss: p.mirLoss, slabPol: p.mirPol, sinDesign: sDes };
+    const dbrKey = JSON.stringify(dbrPar);
+    if (!state || state.dbrKey !== dbrKey) {
+      const dbr = CellEngine.trenchDBR(dbrPar), nT = 2049, tab = new Float64Array(nT);
+      for (let i = 0; i < nT; i++) tab[i] = dbr.R(p.lam, i / (nT - 1));
+      state = Object.assign(state || {}, { dbrKey, dbr, Rtab: tab });
+    }
+    const Rtab = state.Rtab, Rshade = sv => { const u = Math.min(Math.abs(sv), 1) * (Rtab.length - 1), i = Math.min(Math.floor(u), Rtab.length - 2); return Rtab[i] + (Rtab[i + 1] - Rtab[i]) * (u - i); };
+    for (const b of beams) {
+      const I = [1]; let acc = 1;
+      for (let j = 0; j < b.sinchi.length; j++) { acc *= p.mirMode === "dbr" ? Rshade(b.sinchi[j]) : p.R; I.push(acc); }
+      b.Ishade = I;
+    }
+    state = { p, cell, ports, beams, sep, dbrKey: state.dbrKey, dbr: state.dbr, Rtab, dbrPar, sCrit };
+    mirrorRunner.request({ type: "mirror", r: p.r, N: p.N, tilts: Array.from(cell.tilts), curvs: Array.from(cell.curvs), curvBase: p.curv,
+      theta: p.theta, fan: p.fan, nBeams: p.nBeams, nHits: p.bounces, lam: p.lam, dbr: dbrPar });
     computePhase();
   }
 
@@ -576,40 +771,49 @@ const CellEngine = (() => {
       nPass, lam: p.lam, nIdx: p.nIdx, wave: p.dWave, nMax: 12801 });
   }
 
-  /* ---------------------------------------------------------------- dither analysis in a background worker */
+  /* ---------------------------------------------------------------- background workers (dither and mirror analyses) */
   const appText = $("app").textContent;
   const WORKER_SRC = appText.slice(appText.indexOf("/* engine:begin"), appText.indexOf("/* engine:end */")) + `
 onmessage = e => {
-  const j = e.data, c = CellEngine.makeCell(j.r, j.N, j.tilts, j.curvs, null);
+  const j = e.data;
+  if (j.type === "mirror") { postMessage({ id: j.id, res: CellEngine.cellMirrorCompare(j), done: true }); return; }
+  const c = CellEngine.makeCell(j.r, j.N, j.tilts, j.curvs, null);
   CellEngine.ditherAnalysis(c, j.theta, j.A, j.nPass, j.lam, j.nIdx, j.wave, 401, j.nMax, Math.PI / 2, undefined,
     (res, done) => postMessage({ id: j.id, res, done }));
 };`;
-  let worker = null, workerUrl = null, busy = false, jobId = 0, lastKey = "", ana = null, anaJob = null, pendingJob = null, useWorker = true;
-  function onResult(id, res, done) {
-    if (id !== jobId) return;
-    ana = res; ana.done = done; anaJob = pendingJob; busy = !done;
-    if (state && state.phase) drawPhase();
-  }
-  function requestAnalysis(job) {
-    const key = JSON.stringify(job);
-    if (key === lastKey) return;
-    lastKey = key; pendingJob = job; job.id = ++jobId;
-    if (useWorker) {
-      try {
-        if (worker && busy) { worker.terminate(); worker = null; }
-        if (!worker) {
-          workerUrl = workerUrl || URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
-          worker = new Worker(workerUrl);
-          worker.onmessage = e => onResult(e.data.id, e.data.res, e.data.done);
-          worker.onerror = () => { useWorker = false; worker = null; lastKey = ""; update(); };
+  let workerUrl = null, useWorker = true;
+  /* one worker per analysis; a new job terminates an unfinished one; falls back to the main thread */
+  function makeRunner(onDone, fallback) {
+    let worker = null, busy = false, id = 0, lastKey = "", job = null;
+    const deliver = (jid, res, done) => { if (jid !== id) return; busy = !done; onDone(res, done, job); };
+    return {
+      busy: () => busy,
+      request(j) {
+        const key = JSON.stringify(j);
+        if (key === lastKey) return;
+        lastKey = key; job = j; j.id = ++id;
+        if (useWorker) {
+          try {
+            if (worker && busy) { worker.terminate(); worker = null; }
+            if (!worker) {
+              workerUrl = workerUrl || URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+              worker = new Worker(workerUrl);
+              worker.onmessage = e => deliver(e.data.id, e.data.res, e.data.done);
+              worker.onerror = () => { useWorker = false; worker = null; lastKey = ""; update(); };
+            }
+            busy = true; worker.postMessage(j); return;
+          } catch (err) { useWorker = false; }
         }
-        busy = true; worker.postMessage(job); return;
-      } catch (err) { useWorker = false; }
-    }
-    const c = CellEngine.makeCell(job.r, job.N, job.tilts, job.curvs, null);       /* fallback: main thread, fewer samples */
-    const res = CellEngine.ditherAnalysis(c, job.theta, job.A, job.nPass, job.lam, job.nIdx, job.wave, 401, 3201);
-    onResult(job.id, res, true);
+        deliver(j.id, fallback(j), true);
+      },
+    };
   }
+  let ana = null, anaJob = null, mir = null, mirJob = null;
+  const ditherRunner = makeRunner((res, done, job) => { ana = res; ana.done = done; anaJob = job; if (state && state.phase) drawPhase(); },
+    j => CellEngine.ditherAnalysis(CellEngine.makeCell(j.r, j.N, j.tilts, j.curvs, null), j.theta, j.A, j.nPass, j.lam, j.nIdx, j.wave, 401, 3201));
+  const mirrorRunner = makeRunner((res, done, job) => { mir = res; mirJob = job; if (state) { drawMirror(); drawStats(); drawIntensity(); } },
+    j => CellEngine.cellMirrorCompare(Object.assign({}, j, { nHits: Math.min(j.nHits, 400) })));
+  const requestAnalysis = job => ditherRunner.request(job);
 
   /* ---------------------------------------------------------------- drawing */
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -633,7 +837,7 @@ onmessage = e => {
       const n = b.xs.length - 1;
       for (let j = 0; j < n; j++) {
         let a = p.fade ? Math.max(0.12, 1 - j / Math.max(n, 1)) : 1;
-        if (p.shade) a *= Math.max(0.04, p.R ** j);
+        if (p.shade) a *= Math.max(0.04, b.Ishade[j]);
         g.strokeStyle = beamColor(i, beams.length, Math.min(1, a * Math.max(0.25, 2.5 / Math.sqrt(p.nBeams))));
         g.lineWidth = lw;
         g.beginPath(); g.moveTo(X(b.xs[j]), Y(b.ys[j])); g.lineTo(X(b.xs[j + 1]), Y(b.ys[j + 1])); g.stroke();
@@ -739,20 +943,76 @@ onmessage = e => {
     }
   }
 
+  function drawMirror() {
+    const { p, dbr } = state;
+    const sCrit = 1 / p.mirN, chiCrit = Math.asin(sCrit) * 180 / Math.PI;
+    if (!mir) { $("mirNotes").innerHTML = `<span class="status">Computing the mirror analysis…</span>`; return; }
+    const { a, b } = mir;
+    const [g, w, h] = fit($("mirChart"));
+    const m = { l: 62, r: 56, t: 10, b: 34 };
+    const hmax = Math.max(...a.hist, ...b.hist, 1e-6) * 1.1;
+    const [X, Y] = axes(g, w, h, m, "angle of incidence |χ| (degrees)", "power share per 1°",
+      [0, 10, 20, 30, 40, 50, 60, 70, 80, 90].map(v => [v, String(v)]), [0, 0.25, 0.5, 0.75, 1].map(f => [f * hmax, (f * hmax * 100).toFixed(f ? 1 : 0) + " %"]), [0, 90], [0, hmax]);
+    g.fillStyle = css("--accent"); g.globalAlpha = 0.75;
+    a.hist.forEach((v, i) => { if (v > 0) g.fillRect(X(i) + 0.5, Y(v), Math.max(1, X(i + 1) - X(i) - 1), Y(0) - Y(v)); });
+    g.globalAlpha = 1; g.strokeStyle = css("--ink"); g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(0), Y(0));
+    b.hist.forEach((v, i) => { g.lineTo(X(i), Y(v)); g.lineTo(X(i + 1), Y(v)); }); g.lineTo(X(90), Y(0)); g.stroke();
+    /* mirror loss on the right axis, log10(1 - R) from -8 to 0 */
+    const lo = -8, Y2 = v => h - m.b - (Math.max(v, lo) - lo) / (0 - lo) * (h - m.t - m.b);
+    g.fillStyle = css("--sel"); g.font = `10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "middle";
+    for (let e = lo; e <= 0; e += 2) g.fillText(e === 0 ? "1" : `1e${e}`, w - m.r + 5, Y2(e));
+    g.save(); g.translate(w - 8, (m.t + h - m.b) / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText("mirror loss 1 − R", 0, 0); g.restore();
+    g.strokeStyle = css("--sel"); g.lineWidth = 1.6; g.beginPath();
+    for (let q = 0; q <= 900; q++) { const chi = q / 10, R = dbr.R(p.lam, Math.sin(chi * Math.PI / 180)), y = Y2(Math.log10(Math.max(1 - R, 1e-12))); q ? g.lineTo(X(chi), y) : g.moveTo(X(chi), y); }
+    g.stroke();
+    const vline = (deg, col, txt, dy) => { g.setLineDash([5, 4]); g.strokeStyle = col; g.lineWidth = 1.2; g.beginPath(); g.moveTo(X(deg), m.t); g.lineTo(X(deg), h - m.b); g.stroke(); g.setLineDash([]);
+      g.fillStyle = col; g.font = `500 10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "top"; g.fillText(txt, X(deg) + 4, m.t + dy); };
+    vline(chiCrit, css("--port-out"), `critical ${chiCrit.toFixed(1)}° (TIR above)`, 2);
+    vline(Math.asin(dbr.sinDesign) * 180 / Math.PI, css("--port-in"), "design", 16);
+
+    const below = hist => hist.reduce((acc, v, i) => acc + (i + 1 <= chiCrit ? v : i < chiCrit ? v * (chiCrit - i) : 0), 0);
+    const ppm = v => `${fmt((1 - v) * 1e6, 0)} ppm`;
+    const rows = [
+      ["R per bounce from the power decay, I_end^(1/n)", a.R_eff.toFixed(6), b.R_eff.toFixed(6), a.R_eff < b.R_eff - 1e-7 ? "bad" : "good"],
+      ["Loss per bounce", ppm(a.R_eff), ppm(b.R_eff), ""],
+      ["⟨R⟩ weighted by arriving power", a.R_mean.toFixed(6), b.R_mean.toFixed(6), ""],
+      [`Intensity after ${p.bounces} reflections`, fmtI(a.I_end), fmtI(b.I_end), ""],
+      ["Effective path Σ Iⱼ ℓⱼ", `${fmt(a.L_eff * 100, 1)} cm`, `${fmt(b.L_eff * 100, 1)} cm`, a.L_eff < b.L_eff * 0.999 ? "bad" : "good"],
+      ["Geometric path", `${fmt(a.L_geom * 100, 1)} cm`, `${fmt(b.L_geom * 100, 1)} cm`, ""],
+      ["|χ| median / 95 % / max", `${fmt(a.chi_50, 1)}° / ${fmt(a.chi_95, 1)}° / ${fmt(a.chi_max, 1)}°`, `${fmt(b.chi_50, 1)}° / ${fmt(b.chi_95, 1)}° / ${fmt(b.chi_max, 1)}°`, ""],
+      ["Power arriving below the critical angle", `${fmt(100 * below(a.hist), 1)} %`, `${fmt(100 * below(b.hist), 1)} %`, ""],
+    ];
+    $("mirTable").innerHTML = `<thead><tr><th>Quantity</th><th>This cell</th><th>Unperturbed cell, same launch</th></tr></thead><tbody>` +
+      rows.map(([q, x, y, cls]) => `<tr><td>${q}</td><td class="${cls}">${x}</td><td>${y}</td></tr>`).join("") + `</tbody>`;
+
+    const notes = [];
+    const dLoss = (b.R_eff - a.R_eff) * 1e6, dL = 100 * (1 - a.L_eff / b.L_eff);
+    if (Math.abs(dLoss) < 1 && Math.abs(dL) < 0.5) notes.push("<div>The perturbation does not change the mirror loss or the effective path measurably.</div>");
+    else notes.push(`<div><b>Effect of the perturbation:</b> ${dLoss >= 0 ? "+" : ""}${fmt(dLoss, 0)} ppm loss per bounce, effective path ${dL >= 0 ? "−" : "+"}${fmt(Math.abs(dL), 1)} % (${fmt(b.L_eff * 100, 1)} → ${fmt(a.L_eff * 100, 1)} cm).</div>`);
+    notes.push(`<div class="note">95 % of the power meets the mirrors at |χ| ≤ ${fmt(a.chi_95, 1)}° (unperturbed: ${fmt(b.chi_95, 1)}°). Critical angle ${fmt(chiCrit, 1)}° for n_eff = ${p.mirN.toFixed(3)}: ${fmt(100 * below(a.hist), 0)} % of the power arrives below it, where the DBR periods have to do the work.</div>`);
+    notes.push(`<div class="note">References: R at the design angle ${a.R_design.toFixed(6)} (best case, every hit on design); ⟨R⟩ over uniform sin χ ${a.R_uniform.toFixed(5)} (a fully chaotic cell).${p.mirPol === "TE" ? " TE slab mode is p-polarised on the trench walls: R has a Brewster dip below the critical angle, so stray angles cost far more than with TM." : ""}</div>`);
+    if (mirJob && mirJob.nHits > 400 && !useWorker) notes.push(`<div class="note">Main-thread fallback: limited to 400 reflections.</div>`);
+    $("mirNotes").innerHTML = notes.join("") + (mirrorRunner.busy() ? `<div class="status">updating…</div>` : "");
+  }
+
   function drawIntensity() {
     const { p, beams, cell } = state;
     const [g, w, h] = fit($("inten"));
     const b = beams[Math.floor((beams.length - 1) / 2)];
-    const n = b.chords.length, m = { l: 46, r: 56, t: 10, b: 34 };
-    const Imin = Math.max(-12, Math.floor(Math.log10(Math.max(p.R ** n, 1e-300)) - 0.5));
+    const dbrMode = p.mirMode === "dbr" && mir;
+    const chords = dbrMode ? mir.centre.C : b.chords;
+    const Ij = dbrMode ? mir.centre.I.concat([mir.centre.Iend]) : chords.map((_, j) => p.R ** j).concat([p.R ** chords.length]);
+    const Rb = dbrMode ? mir.a.R_eff : p.R;
+    const n = chords.length, m = { l: 46, r: 56, t: 10, b: 34 };
+    const Imin = Math.max(-12, Math.floor(Math.log10(Math.max(Ij[n] || 1e-300, 1e-300)) - 0.5));
     const yt = []; const st = Math.max(1, Math.ceil(-Imin / 6)); for (let v = 0; v >= Imin; v -= st) yt.push([v, v === 0 ? "1" : `1e${v}`]);
     const step = n > 1500 ? 500 : n > 600 ? 200 : n > 150 ? 50 : n > 60 ? 20 : 10;
     const xt = []; for (let v = 0; v <= n; v += step) xt.push([v, String(v)]);
-    const [X, Y] = axes(g, w, h, m, "reflection number j", "intensity Rʲ", xt, yt, [0, Math.max(n, 1)], [Imin, 0]);
+    const [X, Y] = axes(g, w, h, m, "reflection number j", dbrMode ? "intensity Iⱼ (DBR)" : "intensity Rʲ", xt, yt, [0, Math.max(n, 1)], [Imin, 0]);
     g.strokeStyle = css("--accent"); g.lineWidth = 1.8; g.beginPath();
-    for (let j = 0; j <= n; j++) { const y = Y(Math.max(j * Math.log10(p.R), Imin)); j ? g.lineTo(X(j), y) : g.moveTo(X(j), y); } g.stroke();
-    const cum = [0]; let I = 1, acc = 0; for (const c of b.chords) { acc += I * c; I *= p.R; cum.push(acc); }
-    const lim = p.R < 1 ? cell.meanChord / (1 - p.R) : NaN;
+    for (let j = 0; j <= n; j++) { const y = Y(Math.max(Math.log10(Math.max(Ij[j], 1e-300)), Imin)); j ? g.lineTo(X(j), y) : g.moveTo(X(j), y); } g.stroke();
+    const cum = [0]; let acc = 0; chords.forEach((c, j) => { acc += Ij[j] * c; cum.push(acc); });
+    const lim = !dbrMode && Rb < 1 ? cell.meanChord / (1 - Rb) : NaN;     /* R(χ) differs per ray: no single-exponential limit */
     const top = Math.max(acc, Number.isFinite(lim) ? Math.min(lim, 3 * acc) : 0) * 1.05 || 1;
     const Y2 = v => h - m.b - v / top * (h - m.t - m.b);
     g.fillStyle = css("--muted"); g.font = `10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "middle";
@@ -762,9 +1022,9 @@ onmessage = e => {
     cum.forEach((v, j) => j ? g.lineTo(X(j), Y2(v)) : g.moveTo(X(j), Y2(v))); g.stroke();
     if (Number.isFinite(lim) && lim <= top) {
       g.setLineDash([5, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(m.l, Y2(lim)); g.lineTo(w - m.r, Y2(lim)); g.stroke(); g.setLineDash([]);
-      g.fillStyle = css("--sel"); g.textAlign = "left"; g.textBaseline = "bottom"; g.fillText("ℓ̄ / (1 − R)", m.l + 4, Y2(lim) - 2);
+      g.fillStyle = css("--sel"); g.textAlign = "left"; g.textBaseline = "bottom"; g.fillText(dbrMode ? "ℓ̄ / (1 − R_eff)" : "ℓ̄ / (1 − R)", m.l + 4, Y2(lim) - 2);
     }
-    g.textAlign = "right"; g.textBaseline = "bottom"; g.fillStyle = css("--accent"); g.fillText("— intensity Rʲ", w - m.r - 6, h - m.b - 20);
+    g.textAlign = "right"; g.textBaseline = "bottom"; g.fillStyle = css("--accent"); g.fillText(dbrMode ? "— intensity Iⱼ, DBR R(χ) at each hit" : "— intensity Rʲ", w - m.r - 6, h - m.b - 20);
     g.fillStyle = css("--sel"); g.fillText("— effective path L_eff(j)", w - m.r - 6, h - m.b - 6);
   }
 
@@ -894,7 +1154,7 @@ onmessage = e => {
     if (!R.resolved[i]) notes.push(`<span class="warn">Not resolved with ${R.nUsed} samples: V is only known to be near the floor ${R.noiseFloor.toFixed(3)}.</span>`);
     if (Number.isFinite(R.A05[i])) notes.push(`To keep V ≥ 0.9 at pass ${n}, use A ≤ ${fmtA(R.A09[i])}. V = 0.5 at A = ${fmtA(R.A05[i])}; first zero at A = ${fmtA(R.A0[i])}.`);
     const status = R.done ? `${R.nUsed} dither samples` : `refining: ${R.nUsed} samples so far…`;
-    $("explain").innerHTML = lines.join("") + `<div class="note">${notes.join(" ")}</div><div class="status">${status}${busy && R.done ? " · updating…" : ""}</div>`;
+    $("explain").innerHTML = lines.join("") + `<div class="note">${notes.join(" ")}</div><div class="status">${status}${ditherRunner.busy() && R.done ? " · updating…" : ""}</div>`;
 
     const firstBad = Array.from(R.V).slice(0, n).findIndex(v => v < 0.5);
     const firstZero = Array.from(R.x).slice(0, n).findIndex(v => v >= CellEngine.X_V0[wf]);
@@ -928,11 +1188,18 @@ onmessage = e => {
       ["Mean reflections", fmt(mean(nb), 0)],
       ["Mean chord", `${fmt(mean(L) / Math.max(mean(nb), 1) * 1e3)} mm`],
       ["Ergodic chord πA/P", `${fmt(cell.meanChord * 1e3)} mm`],
-      ["Mirror reflectance R", `${(p.R * 100).toFixed(2)} %`],
-      ["Intensity after the traced reflections", `${fmtI(mean(beams.map(b => b.Iend)))} (${fmt(10 * Math.log10(Math.max(mean(beams.map(b => b.Iend)), 1e-300)), 1)} dB)`],
-      ["Effective path Σ Rʲ ℓⱼ", `${fmt(mean(beams.map(b => b.Leff)) * 100, 2)} cm`],
-      ["Limit ℓ̄ / (1 − R)", p.R < 1 ? `${fmt(mean(L) / Math.max(mean(nb), 1) / (1 - p.R) * 100, 2)} cm` : "∞ (lossless)"],
-      ["1/e after", p.R < 1 ? `${fmt(-1 / Math.log(p.R), 1)} reflections` : "∞"],
+      ...(p.mirMode === "dbr" ? (mir ? [
+        ["Mirror (trench DBR), R per bounce", mir.a.R_eff.toFixed(6)],
+        ["Intensity after the traced reflections", `${fmtI(mir.a.I_end)} (${fmt(10 * Math.log10(Math.max(mir.a.I_end, 1e-300)), 1)} dB)`],
+        ["Effective path Σ Iⱼ ℓⱼ", `${fmt(mir.a.L_eff * 100, 2)} cm`],
+        ["⟨R⟩ weighted by arriving power", mir.a.R_mean.toFixed(6)],
+      ] : [["Mirror (trench DBR)", "computing…"]]) : [
+        ["Mirror reflectance R", `${(p.R * 100).toFixed(2)} %`],
+        ["Intensity after the traced reflections", `${fmtI(mean(beams.map(b => b.Iend)))} (${fmt(10 * Math.log10(Math.max(mean(beams.map(b => b.Iend)), 1e-300)), 1)} dB)`],
+        ["Effective path Σ Rʲ ℓⱼ", `${fmt(mean(beams.map(b => b.Leff)) * 100, 2)} cm`],
+        ["Limit ℓ̄ / (1 − R)", p.R < 1 ? `${fmt(mean(L) / Math.max(mean(nb), 1) / (1 - p.R) * 100, 2)} cm` : "∞ (lossless)"],
+        ["1/e after", p.R < 1 ? `${fmt(-1 / Math.log(p.R), 1)} reflections` : "∞"],
+      ]),
       ["Lyapunov λ", !lam ? "not measurable" : lam.lam > 0.05 ? `${fmt(lam.lam, 3)} /refl. (chaotic)` : `≈ 0 (${fmt(lam.lam, 3)}): no exponential growth`],
     ];
     if (p.ports) {
@@ -948,6 +1215,13 @@ onmessage = e => {
     const p = P();
     $("nBeamsOut").value = p.nBeams;
     $("reflOut").value = `${(+$("refl").value).toFixed(2)} %`;
+    const crit = Math.asin(1 / +$("mirN").value) * 180 / Math.PI;
+    $("mirDes").max = Math.max(0, Math.floor((crit - 0.05) * 20) / 20);
+    if (+$("mirDes").value > +$("mirDes").max) $("mirDes").value = $("mirDes").max;
+    $("mirNOut").value = (+$("mirN").value).toFixed(3);
+    $("mirNpOut").value = $("mirNp").value;
+    $("mirDesOut").value = `${(+$("mirDes").value).toFixed(2)}° (critical ${crit.toFixed(2)}°)`;
+    $("mirLossOut").value = `${$("mirLoss").value} ppm`;
     $("lamOut").value = `${$("lam").value} nm`;
     $("nIdxOut").value = (+$("nIdx").value).toFixed(3);
     const ur = v => v >= 1e-3 ? `${+(v * 1e3).toPrecision(3)} mrad` : v >= 1e-6 ? `${+(v * 1e6).toPrecision(3)} µrad` : `${+(v * 1e9).toPrecision(3)} nrad`;
@@ -986,10 +1260,17 @@ onmessage = e => {
   let pending = false;
   function update() {
     if (pending) return; pending = true;
-    requestAnimationFrame(() => { pending = false; syncOutputs(); compute(); drawCell(); drawPoincare(); drawLyap(); drawStats(); drawIntensity(); drawPhase(); });
+    requestAnimationFrame(() => { pending = false; syncOutputs(); compute(); drawCell(); drawPoincare(); drawLyap(); drawStats(); drawIntensity(); drawMirror(); drawPhase(); });
   }
 
-  ["nBeams", "theta", "fan", "bounces", "nFacets", "diam", "curv", "tiltRms", "curvRms", "ports", "portW", "outPos", "fade", "dots", "refl", "shade", "figure", "lam", "nIdx", "win", "pass", "dAmp", "dWave"].forEach(id => $(id).addEventListener("input", update));
+  ["nBeams", "theta", "fan", "bounces", "nFacets", "diam", "curv", "tiltRms", "curvRms", "ports", "portW", "outPos", "fade", "dots", "refl", "shade", "figure", "lam", "nIdx", "win", "pass", "dAmp", "dWave", "mirMode", "mirNp", "mirMg", "mirMt", "mirDes", "mirLoss"].forEach(id => $(id).addEventListener("input", update));
+  ["mirN", "mirPol"].forEach(id => $(id).addEventListener("input", () => { $("mirPreset").value = "custom"; update(); }));
+  $("mirPreset").addEventListener("input", () => {
+    const v = $("mirPreset").value;
+    if (v !== "custom") { const [n, pol] = v.split("|"); $("mirN").value = n; $("mirPol").value = pol; }
+    update();
+  });
+  $("mirDesMedian").addEventListener("click", () => { if (mir) { $("mirDes").value = Math.min(mir.a.chi_50, +$("mirDes").max).toFixed(2); update(); } });
   $("selFacet").addEventListener("input", () => { loadSelected(); update(); });
   ["selTilt", "selCurv"].forEach(id => $(id).addEventListener("input", () => { storeSelected(); update(); }));
   $("seed").addEventListener("input", () => { makeNormals(); update(); });

@@ -157,9 +157,12 @@ def cascaded_R(wavelength, sin_in, n_in, sections, n_out=1.0, polarization="s"):
 class TrenchDBR:
     """In-plane DBR of a membrane cell: cavity (membrane, n_tooth) | [gap, tooth] x N | gap medium.
 
-    Gap and tooth are odd multiples m_gap, m_tooth of a quarter wave at lam_design. n_tooth is the effective
-    index of the slab mode; slab_pol the slab-mode label (TE -> p, TM -> s on the trench walls). bounce_loss
-    lumps what a 1D effective-index model misses (slot radiation, TE<->TM conversion, roughness)."""
+    Gap and tooth are odd multiples m_gap, m_tooth of a quarter wave at lam_design, measured along the layer normal
+    at the design angle of incidence (sin_design, in the membrane): d = m λ / (4 n cos θ_layer), Snell's law from the
+    membrane. sin_design = 0 is the normal-incidence design; it must stay below n_gap / n_tooth (beyond that the
+    first gap totally reflects and there is no quarter-wave condition). n_tooth is the effective index of the slab
+    mode; slab_pol the slab-mode label (TE -> p, TM -> s on the trench walls). bounce_loss lumps what a 1D
+    effective-index model misses (slot radiation, TE<->TM conversion, roughness)."""
 
     n_tooth: float
     lam_design: float = 1.55e-6
@@ -169,14 +172,20 @@ class TrenchDBR:
     n_gap: float = 1.0
     bounce_loss: float = 3e-4
     slab_pol: str = "TM"
+    sin_design: float = 0.0
+
+    def __post_init__(self):
+        if not 0 <= self.sin_design < self.n_gap / self.n_tooth:
+            raise ValueError(f"sin_design must lie in [0, n_gap/n_tooth = {self.n_gap / self.n_tooth:.4f})")
 
     @property
     def d_gap(self):
-        return self.m_gap * self.lam_design / (4 * self.n_gap)
+        cos_g = np.sqrt(1 - (self.n_tooth * self.sin_design / self.n_gap) ** 2)
+        return self.m_gap * self.lam_design / (4 * self.n_gap * cos_g)
 
     @property
     def d_tooth(self):
-        return self.m_tooth * self.lam_design / (4 * self.n_tooth)
+        return self.m_tooth * self.lam_design / (4 * self.n_tooth * np.sqrt(1 - self.sin_design**2))
 
     def layers(self, n_tooth=None):
         n_t = self.n_tooth if n_tooth is None else n_tooth

@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT))
 from engines.billiard_cell import engine as bc  # noqa: E402
 from engines.bragg_grating import engine as bg  # noqa: E402
 from engines.ray_phase import engine as rp  # noqa: E402
+from engines.cell_mirror import engine as cmir  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
@@ -81,6 +82,34 @@ def build() -> dict:
                                         "n_min": nmin, "n_max": nmax, "n_used": r["n_used"], "V": f(r["V"]), "V_model": f(r["V_model"]),
                                         "a": f(r["a"]), "b": f(r["b"]), "same_path": f(r["same_path"]),
                                         "resolved": [bool(x) for x in r["resolved"]]})
+    v["oblique_stack"] = []
+    for (lam, s, nin, layers, nout, pol) in ((1.55e-6, 0.25, 2.8, [], 1.0, "s"), (1.55e-6, 0.25, 2.8, [], 1.0, "p"),
+                                             (1.55e-6, 0.6, 2.8, [(1.0, 2e-7)], 2.8, "s"),
+                                             (1.5e-6, 0.3, 2.479, [(1.0, 4.2e-7), (2.479, 1.6e-7)] * 5, 1.0, "p"),
+                                             (1.6e-6, 0.1, 2.0, [(1.0, 3.9e-7), (2.0, 1.9e-7)] * 8, 1.0, "s")):
+        v["oblique_stack"].append({"wavelength": lam, "sin_in": s, "n_in": nin, "layers": [list(l) for l in layers], "n_out": nout,
+                                   "polarization": pol, "R": float(bg.stack_R_oblique(lam, s, nin, layers, nout, pol))})
+    v["trench_dbr"] = []
+    for (nt, N, mg, mt, pol, sd, loss) in ((2.479, 6, 1, 1, "TM", 0.0, 0.0), (2.814, 4, 1, 3, "TE", 0.2, 3e-4), (2.011, 10, 3, 1, "TM", 0.35, 0.0)):
+        d = bg.TrenchDBR(n_tooth=nt, N=N, m_gap=mg, m_tooth=mt, slab_pol=pol, sin_design=sd, bounce_loss=loss)
+        sg = [0.0, 0.1, 0.2, 0.3, 0.35, 0.4, 0.45, 0.6, 0.9]
+        v["trench_dbr"].append({"n_tooth": nt, "periods": N, "m_gap": mg, "m_tooth": mt, "slab_pol": pol, "sin_design": sd,
+                                "bounce_loss": loss, "wavelength": 1.55e-6, "d_gap": float(d.d_gap), "d_tooth": float(d.d_tooth),
+                                "sin": sg, "R": [float(x) for x in d.R(1.55e-6, np.array(sg))]})
+    v["cell_mirror"] = []
+    for (N, tilt5, curv, thc, fan, nb, nh, nt, pol, per, sd) in ((24, 5e-4, 0.0, np.radians(22.5), np.radians(1.1), 5, 80, 2.479, "TM", 4, 0.0),
+                                                              (24, 0.0, 20.0, np.radians(22.5), np.radians(2), 4, 25, 2.814, "TE", 3, 0.0),     # chaotic: keep it short
+                                                              (16, 1e-3, 0.0, 0.5, 0.0, 1, 50, 2.011, "TM", 8, 0.3)):
+        tilts = [0.0] * N
+        tilts[5] = tilt5
+        cell = bc.SegmentedCell(5e-3, N, tilts=tilts, curvatures=[curv] * N)
+        d = bg.TrenchDBR(n_tooth=nt, N=per, m_tooth=1, slab_pol=pol, sin_design=sd, bounce_loss=0.0)
+        st = cmir.cell_mirror_stats(cell, thc, fan, nb, nh, d)
+        v["cell_mirror"].append({"n_facets": N, "tilts": tilts, "curvature": curv, "theta_c": float(thc), "fan": float(fan),
+                                 "n_beams": nb, "n_hits": nh, "n_tooth": nt, "slab_pol": pol, "periods": per, "sin_design": sd,
+                                 **{k: float(st[k]) for k in ("R_mean", "R_eff", "I_end", "L_eff", "L_geom", "chi_50", "chi_95",
+                                                              "chi_max", "R_design", "R_uniform")},
+                                 "hist": [float(x) for x in st["hist"]]})
     return v
 
 

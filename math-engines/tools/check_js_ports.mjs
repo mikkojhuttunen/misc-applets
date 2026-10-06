@@ -100,6 +100,23 @@ const close = (label, got, want, rel, abs = 0) => {
     r.L0.forEach((v, j) => close(`phase[${i}] L0 pass ${j + 1}`, sc.L0[j], v, 1e-12));
     r.V.forEach((v, j) => close(`phase[${i}] V pass ${j + 1}`, sc.V[j], v, 0, 1e-6));
   }
+  const nan = v => v === null ? NaN : v;
+  const same = (label, got, want, rel, abs) => (want === null ? (checks++, Number.isNaN(got) || (fails++, console.error(`FAIL ${label}: got ${got}, want NaN`))) : close(label, got, want, rel, abs));
+  for (const [i, r] of V.ray_phase_analysis.entries()) {
+    const c = E.makeCell(r.radius, r.n_facets, r.tilts, null, null);
+    const o = E.ditherAnalysis(c, r.theta_c, r.amplitude, r.n_pass, r.wavelength, r.n_index, r.waveform, r.n_min, r.n_max);
+    close(`analysis[${i}] n_used`, o.nUsed, r.n_used, 0, 0);
+    for (let j = 0; j < r.n_pass; j++) {
+      same(`analysis[${i}] V p${j + 1}`, o.V[j], r.V[j], 0, 1e-6);
+      /* a, b are finite differences (steps 1 nrad, 1 µrad): rounding of L gives ~1e-6 (a) and ~1e-3 (b) relative noise */
+      same(`analysis[${i}] V_model p${j + 1}`, o.Vmodel[j], r.V_model[j], 0, 2e-5);
+      same(`analysis[${i}] a p${j + 1}`, o.a[j], r.a[j], 2e-5, 1e-3);
+      same(`analysis[${i}] b p${j + 1}`, o.b[j], r.b[j], 3e-3, 2e3);
+      same(`analysis[${i}] same_path p${j + 1}`, o.same[j], r.same_path[j], 0, 1e-12);
+      checks++; if (o.resolved[j] !== r.resolved[j]) { fails++; console.error(`FAIL analysis[${i}] resolved p${j + 1}`); }
+    }
+    void nan;
+  }
 }
 
 console.log(`${checks - fails}/${checks} JS port checks passed`);

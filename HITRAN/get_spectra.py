@@ -73,7 +73,11 @@ def alpha(label, mol_id, iso_id, window, x):
         WavenumberRange=window,
         WavenumberStep=STEP,
     )
-    return np.asarray(nu), np.asarray(a)
+    # NOTE: HAPI's coefficient is computed for the full gas density at P_ATM; the Diluent
+    # fractions only change the line broadening. Scale by the mixing ratio x to get the
+    # absorption coefficient of a trace gas at mixing ratio x (checked: output is
+    # independent of x apart from broadening).
+    return np.asarray(nu), np.asarray(a) * x
 
 
 def write_csv(path, header, rows):

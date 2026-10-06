@@ -1,0 +1,51 @@
+{
+ "line": "NH3 6528.770 cm^-1",
+ "alpha_per_ppm_cm": 2.2612365015576448e-07,
+ "Gamma": 0.6413598084240285,
+ "T_det_long_K1": 0.09925245690148872,
+ "steps": [
+  {
+   "step": "start: 1 beam, 1 MHz laser, 1 mK drift",
+   "sigma_A": 0.00484271361738478,
+   "L_mean_cm": 83.21729015603736,
+   "GammaL_cm": 53.37222527204292,
+   "c_min_ppb": 401261.4971747536
+  },
+  {
+   "step": "+ 1 GHz laser linewidth",
+   "sigma_A": 0.0005640615061427676,
+   "L_mean_cm": 83.21729015603736,
+   "GammaL_cm": 53.37222527204292,
+   "c_min_ppb": 46737.46629182714
+  },
+  {
+   "step": "+ beam dither, 4 input modes",
+   "sigma_A": 0.00029803306360555833,
+   "L_mean_cm": 86.16611133558906,
+   "GammaL_cm": 55.26348065883692,
+   "c_min_ppb": 23849.551981873796
+  },
+  {
+   "step": "+ beam dither, 16 input modes",
+   "sigma_A": 0.00019770819575136805,
+   "L_mean_cm": 79.74247186396511,
+   "GammaL_cm": 51.14361647793114,
+   "c_min_ppb": 17095.714276450602
+  },
+  {
+   "step": "+ drift 10 \u00b5K",
+   "sigma_A": 1.2603833529228782e-05,
+   "L_mean_cm": 79.74247186396511,
+   "GammaL_cm": 51.14361647793114,
+   "c_min_ppb": 1089.8462554107462
+  },
+  {
+   "step": "+ drift 1 \u00b5K",
+   "sigma_A": 3.985682120194718e-06,
+   "L_mean_cm": 79.74247186396511,
+   "GammaL_cm": 51.14361647793114,
+   "c_min_ppb": 344.63964665023383
+  }
+ ],
+ "note": "speckle-limited only; old assumptions 0.04 dB/cm, 3e-4 bounce loss, R=1-3e-4; to be re-run"
+}

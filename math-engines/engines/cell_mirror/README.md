@@ -1,0 +1,7 @@
+# cell_mirror
+
+Mirror reflectance the light actually sees in a segmented multipass cell. Beams are traced through a `billiard_cell.SegmentedCell` (tilts, curvatures, offsets included); at every hit the exact transfer-matrix reflectance of an etched-trench DBR (`bragg_grating.TrenchDBR`) at that angle is applied, so each ray's intensity is the product of the reflectances it met. Outputs: power-weighted mean R, the per-bounce reflectance of the total power R_eff = I_end^(1/n) (not the geometric mean over hits, which counts hits of already-dead rays), intensity left, effective path Σ I_j ℓ_j, and the power-weighted |χ| distribution with percentiles. `cell_mirror_reflectance` repeats the calculation for the same launch in the unperturbed cell and quotes R at the design angle and the uniform-sin χ (fully chaotic) average for comparison.
+
+Version 1. `cell_mirror_reflectance` returns a Result; `hit_angles`, `weighted_stats`, `cell_mirror_stats`, `uniform_average`, `weighted_quantile`, `launch_angles` are helpers. `TrenchDBR(sin_design=…)` (bragg_grating v2) makes the stack quarter-wave at an oblique design angle; it must stay below the critical angle n_gap/n_eff, beyond which the first air gap already totally reflects.
+
+R is evaluated exactly at every hit: a table interpolated in |sin χ| is off by up to 0.15 next to the TIR edge of a p-polarised mirror. The `cmpc-ray-tracer.html` applet carries a JS port checked against `test_vectors/vectors.json`.

@@ -1,5 +1,5 @@
 engine: path_coherence
-version: 1
+version: 2
 title: Multipath interference (speckle) noise
 description: Random-phase path model of interference noise in multipass cells; thermal pattern shift, two-path coherence and equal-path contrast as calculator functions (the full model works on billiard_cell ray tables).
 references:
@@ -19,13 +19,14 @@ functions:
       - {name: nu0, label: "Optical frequency", ui_unit: THz, scale: 1.0e+12}
   pair_coherence:
     title: Two-path visibility (Lorentzian source)
-    equations: ["V = exp(-2π Δν n_g ΔL / c)", "L_c = c / (π Δν n_g)"]
+    equations: ["|g(τ)| = exp(-π Δν τ), τ = n_g ΔL / c", "V = |g| = exp(-ΔL / L_c)", "L_c = c / (π Δν n_g)", "variance factor |g|²"]
     inputs:
       - {name: laser_fwhm, label: "Laser linewidth (FWHM)", ui_unit: MHz, scale: 1.0e+6, default: 1, min: 0}
       - {name: path_difference, label: "Geometric path difference", ui_unit: cm, scale: 1.0e-2, default: 10, min: 0}
       - {name: n_group, label: "Group index", ui_unit: "", scale: 1.0, default: 3.5, min: 1}
     outputs:
-      - {name: visibility, label: "Pair visibility factor", ui_unit: "", scale: 1.0}
+      - {name: visibility, label: "Fringe visibility |g(τ)|", ui_unit: "", scale: 1.0}
+      - {name: variance_factor, label: "Variance factor |g|²", ui_unit: "", scale: 1.0}
       - {name: coherence_length, label: "Coherence length (geometric)", ui_unit: m, scale: 1.0}
   random_phase_contrast:
     title: Equal-path speckle contrast

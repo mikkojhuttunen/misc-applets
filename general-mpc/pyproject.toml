@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "general-mpc"
+version = "0.1.0"
+description = "Planar (stadium, circle, faceted, perturbed) and Herriott-type (spherical, astigmatic, deformed) multipass-cell ray tracing."
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+figures = ["matplotlib>=3.6"]
+test = ["pytest>=7"]
+
+[tool.setuptools]
+packages = ["gmpc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

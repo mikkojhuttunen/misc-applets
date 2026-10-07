@@ -137,6 +137,28 @@ const close = (label, got, want, rel, abs = 0) => {
   }
 }
 
+/* ---- cmpc-ray-tracer.html: PathTable (billiard_cell.trace_rays + evaluate, the Γ⟨L⟩ figure) ---- */
+{
+  const html = fs.readFileSync(path.join(repo, 'cmpc-ray-tracer.html'), 'utf8');
+  const a = html.indexOf('/* engine:begin'), b = html.indexOf('/* engine:end */');
+  const ctx = vm.createContext({ Math, Number, Float64Array, Infinity, Object, Array, Error });
+  vm.runInContext(html.slice(a, b) + '\n;globalThis.__c = CellEngine; globalThis.__p = PathTable;', ctx);
+  const E = ctx.__c, T = ctx.__p;
+  const dbr = E.trenchDBR({ nTooth: 1.6532, lam: 1.55e-6, N: 20, loss: 0.02, slabPol: 'TM', sinDesign: 0 });
+  for (const [i, r] of V.path_table.entries()) {
+    const c = E.makeCell(r.radius, r.n_facets, r.tilts, null, null);
+    const tab = T.rayTable(c, { portW: r.port_w, nRays: r.n_rays, nBounce: 2500, theta0: r.theta0, thetaC: r.theta_c, sOutFrac: 0.37, maxPath: 8 });
+    close(`path_table[${i}] detected`, tab.det.length, r.n_detected, 0, 0);
+    for (const q of r.results) {
+      const f = q.mirror === 'const' ? () => 0.99 : s => dbr.R(1.55e-6, s);
+      const e = T.evaluate(tab, T.lnRSums(tab, T.lnRTable(f)), T.dBcmToAlpha(q.dB_cm), 0.5);
+      close(`path_table[${i}] ${q.mirror} ${q.dB_cm} dB/cm T`, e.T, q.T, 1e-5);
+      close(`path_table[${i}] ${q.mirror} ${q.dB_cm} dB/cm L`, e.L, q.L_mean, 1e-5);
+      close(`path_table[${i}] ${q.mirror} ${q.dB_cm} dB/cm L_gas`, e.Lgas, q.L_gas, 1e-5);
+    }
+  }
+}
+
 /* ---- cmpc-ray-tracer.html: general-mpc ports (gmpc.planar chain cells, gmpc.herriott) ---- */
 {
   const G = JSON.parse(fs.readFileSync(path.join(repo, 'general-mpc/tests/js_vectors.json'), 'utf8'));

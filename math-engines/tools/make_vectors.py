@@ -55,6 +55,7 @@ def build() -> dict:
         r = sif.lp01(l, a, dn)
         v["lp01"].append({"wavelength": l, "core_radius": a, "delta_n": dn, "neff": float(r["neff"]), "V": float(r["V"]), "mode_radius": float(r["mode_radius"])})
     v["segmented_cell"] = [_cell_vector(*c) for c in _CELL_CASES]
+    v["path_table"] = [_path_table_vector(*c) for c in _PATH_CASES]
     v["reflection_path"] = []
     for chords, R in (([1e-3, 2e-3, 3e-3], 0.95), (list(np.linspace(5e-3, 9e-3, 40)), 0.8), ([7.8e-3] * 200, 0.999)):
         L, Leff, I = bc.reflection_weighted_path(chords, R)
@@ -132,6 +133,45 @@ _CELL_CASES = [
      list(np.linspace(-1e-6, 1e-6, 12)), 0.4, 20),
     (4e-3, 24, [0] * 5 + [5e-4] + [0] * 18, [20.0] * 24, None, np.radians(30.0), 20),
 ]
+
+
+_PATH_CASES = [   # radius, facets, tilts, port width, rays (regular cells: no chaos, so ray-by-ray agreement is exact)
+    (2.5e-3, 24, None, 30e-6, 300),
+    (1.5e-3, 24, [3e-4 * np.sin(1.3 * k) for k in range(24)], 30e-6, 300),
+]
+
+
+def _r2_starts(n):
+    """The applet's deterministic launch sequence (R2 low-discrepancy): position across the port, angle."""
+    g = 1.324717957244746
+    i = np.arange(n)
+    return np.mod(0.5 + i / g, 1.0), np.mod(0.5 + i / g**2, 1.0)
+
+
+class _Seq:
+    def __init__(self, arrs):
+        self.arrs = list(arrs)
+
+    def random(self, n):
+        return self.arrs.pop(0)[:n]
+
+
+def _path_table_vector(r, N, tilts, w, n):
+    """bc.trace_rays with the R2 starts (θ_c 37.5°, spread λ/(n_eff w) for n_eff 2.011) and bc.evaluate for a constant
+    mirror and a trench DBR, at two background losses, Γ = 0.5: checks PathTable in cmpc-ray-tracer.html."""
+    from unittest import mock
+    cell = bc.SegmentedCell(r, N, tilts=tilts)
+    th0, thc = 1.55e-6 / (2.011 * w), np.radians(37.5)
+    with mock.patch.object(np.random, "default_rng", lambda *a, **k: _Seq(_r2_starts(n))):
+        tab = bc.trace_rays(cell, w, n, 2500, th0, max_path=8.0, theta_c=thc)
+    dbr = bg.TrenchDBR(n_tooth=1.6532, lam_design=1.55e-6, N=20, m_gap=1, m_tooth=1, bounce_loss=0.02, slab_pol="TM")
+    res = []
+    for name, f in (("const", lambda s: np.full_like(s, 0.99)), ("dbr", lambda s: dbr.R(1.55e-6, s))):
+        for db in (0.04, 0.5):
+            e = bc.evaluate(tab, f, float(bc.dB_per_cm_to_alpha(db)), 0.5)
+            res.append({"mirror": name, "dB_cm": db, "T": e.T_det, "L_mean": e.L_mean, "L_gas": e.L_eff_gas})
+    return {"radius": r, "n_facets": N, "tilts": tilts, "port_w": w, "n_rays": n, "theta0": th0, "theta_c": float(thc),
+            "n_detected": int(((tab.exit_port == 1) & (tab.exit_idx >= 0)).sum()), "results": res}
 
 
 def _cell_vector(r, N, tilts, curvs, offsets, theta, n_hits):

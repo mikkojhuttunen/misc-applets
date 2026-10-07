@@ -21,6 +21,8 @@ gmpc/herriott.py   Mirror3D (biconic + conic + polynomial sag, aperture, holes),
 gmpc/stats.py      effective_path (Σ I_j ℓ_j), lyapunov_fit, min_pairwise_distance
 examples/run_figures.py   overview figures (Herriott ideal / astigmatic / deformed, tolerance sweep; smooth vs
                           faceted vs perturbed stadium; path statistics vs mirror reflectance) -> figs/
+tools/make_js_vectors.py  reference traces -> tests/js_vectors.json for the JS port in cmpc-ray-tracer.html
+                          (checked by math-engines/tools/check_js_ports.mjs)
 tests/             pytest suite
 ```
 
@@ -28,6 +30,7 @@ tests/             pytest suite
 cd general-mpc
 python -m pytest -q
 python examples/run_figures.py
+python tools/make_js_vectors.py      after changing the engines; then node ../math-engines/tools/check_js_ports.mjs from the repo root
 ```
 
 ## Planar cells

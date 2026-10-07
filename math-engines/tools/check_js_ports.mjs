@@ -137,6 +137,58 @@ const close = (label, got, want, rel, abs = 0) => {
   }
 }
 
+/* ---- cmpc-ray-tracer.html: general-mpc ports (gmpc.planar chain cells, gmpc.herriott) ---- */
+{
+  const G = JSON.parse(fs.readFileSync(path.join(repo, 'general-mpc/tests/js_vectors.json'), 'utf8'));
+  const html = fs.readFileSync(path.join(repo, 'cmpc-ray-tracer.html'), 'utf8');
+  const a = html.indexOf('/* engine:begin'), b = html.indexOf('/* engine:end */');
+  const ctx = vm.createContext({ Math, Number, Float64Array, Infinity, Object, Array, Error });
+  vm.runInContext(html.slice(a, b) + '\n;globalThis.__c = CellEngine; globalThis.__h = HerriottEngine;', ctx);
+  const E = ctx.__c, H = ctx.__h;
+  for (const [i, r] of G.planar.entries()) {
+    const q = r.params, kind = r.kind === 'polygon' ? 'polygonChain' : r.kind;
+    const spec = { kind, r: q.r, N: q.n_facets, a: q.a, capFacets: q.cap_facets || 0, segs: q.straight_segments || 1,
+      tilts: r.tilts, offsets: r.offsets, curvs: r.curvatures };
+    const c = E.buildCell(spec), tag = `gmpc planar[${i}] ${r.kind}`;
+    close(`${tag} elements`, c.N, r.n_elements, 0, 0);
+    close(`${tag} elementCount`, E.elementCount(spec), r.n_elements, 0, 0);
+    close(`${tag} perimeter`, c.perimeter, r.perimeter, 1e-12);
+    close(`${tag} area`, c.area, r.area, 1e-12);
+    close(`${tag} s_in_default`, c.h, r.s_in_default, 1e-12);
+    const tr = E.trace(c, E.launch(c, r.s0, r.theta), r.n_hits, null);
+    close(`${tag} hits`, tr.s.length, r.s.length, 0, 0);
+    r.x.forEach((v, j) => close(`${tag} x[${j}]`, tr.xs[j], v, 0, 1e-9 * q.r));
+    r.y.forEach((v, j) => close(`${tag} y[${j}]`, tr.ys[j], v, 0, 1e-9 * q.r));
+    r.s.forEach((v, j) => close(`${tag} s[${j}]`, tr.s[j], v, 0, 1e-9 * q.r));
+    r.sinchi.forEach((v, j) => close(`${tag} sinchi[${j}]`, tr.sinchi[j], v, 0, 1e-8));
+    r.element.forEach((v, j) => close(`${tag} element[${j}]`, tr.facet[j], v, 0, 0));
+  }
+  for (const [i, r] of G.herriott.entries()) {
+    const c = H.herriottCell(r.R, r.N, r.M, r.A, r.B ?? r.A), tag = `gmpc herriott[${i}] N=${r.N}`;
+    close(`${tag} d`, c.d, r.d, 1e-13);
+    close(`${tag} hole`, c.holeRadius, r.hole_radius, 1e-12);
+    close(`${tag} w`, c.wMode, r.w_mode, 1e-12);
+    c.p0.forEach((v, j) => close(`${tag} p0[${j}]`, v, r.p0[j], 1e-12, 1e-15));
+    c.d0.forEach((v, j) => close(`${tag} d0[${j}]`, v, r.d0[j], 1e-12, 1e-15));
+    const ms = c.mirrors.slice();
+    if (r.pert) {
+      const q = r.pert;
+      ms[1] = H.perturbMirror(ms[1], { tiltX: q.tilt_x, tiltY: q.tilt_y, dRx: q.dRx, dRy: q.dRy, shift: q.shift });
+    }
+    const tr = H.trace(ms, c.p0, c.d0, 3 * r.N), rr = H.reentrance(tr);
+    close(`${tag} n_hits`, tr.nHits, r.n_hits, 0, 0);
+    if (tr.exit !== r.exit) { checks++; fails++; console.error(`FAIL ${tag} exit: got ${tr.exit}, want ${r.exit}`); } else checks++;
+    for (let j = 0; j < Math.min(tr.nHits, r.n_hits); j++) {
+      for (let q = 0; q < 3; q++) close(`${tag} hit ${j}[${q}]`, tr.hits[j][q], r.hits[3 * j + q], 0, 1e-10);
+      close(`${tag} mirror ${j}`, tr.mirror[j], r.mirror[j], 0, 0);
+      close(`${tag} cos_inc ${j}`, tr.cosInc[j], r.cos_inc[j], 0, 1e-12);
+    }
+    close(`${tag} path`, rr.path, r.path, 1e-12);
+    if (r.exit_offset !== null) close(`${tag} exit_offset`, rr.exitOffset, r.exit_offset, 1e-7, 1e-12);
+    if (r.reentry_angle !== null) close(`${tag} reentry_angle`, rr.reentryAngle, r.reentry_angle, 1e-5, 1e-11);
+  }
+}
+
 /* ---- fringe-washout.html: fringe_averaging engine block ---- */
 {
   const html = fs.readFileSync(path.join(repo, 'fringe-washout.html'), 'utf8');

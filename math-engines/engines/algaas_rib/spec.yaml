@@ -1,0 +1,48 @@
+engine: algaas_rib
+version: 1
+title: AlGaAs layer-poled rib waveguide (modal-phase-matched SHG)
+description: Al_xGa_(1-x)As index (Afromowitz) and a semi-vectorial finite-difference rib-waveguide solver with a core (chi2 > 0) and rib (chi2 < 0) of opposite sign; TE pump to TM higher-order second harmonic, Δk, coherence length, layer-poled overlap and normalised efficiency.
+requires: [scipy]
+references:
+  - "M. A. Afromowitz, Solid State Commun. 15, 59 (1974), refractive index of Ga(1-x)Al(x)As"
+  - "A. B. Fallahkhair, K. S. Li, T. E. Murphy, J. Lightwave Technol. 26, 1423 (2008), vector finite difference mode solver"
+  - "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)"
+functions:
+  algaas_index:
+    title: AlGaAs refractive index
+    equations: ["n² = 1 + E_d/E_0 + E_d E²/E_0³ + (η/π) E⁴ ln[(2E_0² - E_g² - E²)/(E_g² - E²)]", "E_g = 1.424 + 1.266x + 0.266x² eV"]
+    inputs:
+      - {name: x, label: "Al fraction x", ui_unit: "", scale: 1.0, default: 0.3, min: 0, max: 1}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 600}
+    outputs:
+      - {name: n, label: "Refractive index"}
+      - {name: bandgap, label: "Direct gap", ui_unit: eV}
+      - {name: photon_energy, label: "Photon energy", ui_unit: eV}
+      - {name: margin, label: "Gap margin above the photon energy", ui_unit: eV}
+  shg_modal_pm:
+    title: Layer-poled modal phase matching (TE -> TM)
+    equations: ["Δk = 4π (n_SH - n_p)/λ", "Γ = ∫ s(x,y) Ex_p² Ey_SH dA,  s = +1 core, -1 rib", "η_norm = 2 ω² d_eff² Γ² / (ε0 c³ n_p² n_SH)"]
+    inputs:
+      - {name: wavelength, label: "Pump vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 1000, max: 2000}
+      - {name: h_core, label: "Core (flat region) height", ui_unit: nm, scale: 1.0e-9, default: 150, min: 50}
+      - {name: h_rib, label: "Rib height", ui_unit: nm, scale: 1.0e-9, default: 200, min: 50}
+      - {name: width, label: "Rib width", ui_unit: nm, scale: 1.0e-9, default: 620, min: 200}
+      - {name: x_core, label: "Al fraction, core", ui_unit: "", scale: 1.0, default: 0.35, min: 0.2, max: 0.45}
+      - {name: x_rib, label: "Al fraction, rib", ui_unit: "", scale: 1.0, default: 0.35, min: 0.2, max: 0.45}
+      - {name: pump_vertical, label: "Pump vertical order", ui_unit: "", scale: 1.0, default: 0, min: 0, max: 3, step: 1}
+      - {name: sh_vertical, label: "SH vertical order", ui_unit: "", scale: 1.0, default: 1, min: 0, max: 6, step: 1}
+      - {name: d_eff, label: "d_eff", ui_unit: pm/V, scale: 1.0e-12, default: 100, min: 1}
+      - {name: length, label: "Waveguide length", ui_unit: mm, scale: 1.0e-3, default: 1, min: 0.01}
+    outputs:
+      - {name: n_pump, label: "Pump n_eff"}
+      - {name: n_sh, label: "SH n_eff"}
+      - {name: delta_n, label: "n_SH - n_p"}
+      - {name: sh_margin, label: "SH gap margin (worse of core and rib)", ui_unit: eV}
+      - {name: sh_loss_db_per_cm, label: "SH Urbach-tail loss estimate", ui_unit: dB/cm}
+      - {name: delta_k, label: "Phase mismatch Δk", ui_unit: 1/cm, scale: 100.0}
+      - {name: coherence_length, label: "Coherence length", ui_unit: µm, scale: 1.0e-6}
+      - {name: gamma, label: "Overlap Γ", ui_unit: 1/µm, scale: 1.0e6}
+      - {name: gamma_max, label: "Γ if the sign followed the SH field", ui_unit: 1/µm, scale: 1.0e6}
+      - {name: a_eff, label: "A_eff = 1/Γ²", ui_unit: µm², scale: 1.0e-12}
+      - {name: eta_norm, label: "Normalised efficiency", ui_unit: "1/(W cm²)", scale: 1.0e4}
+      - {name: eta, label: "Conversion efficiency at length L", ui_unit: "1/W", scale: 1.0}

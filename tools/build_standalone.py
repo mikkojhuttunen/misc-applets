@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parent.parent
 APPLETS = {
     "cmpc-ray-tracer.html": ("CMPC Ray Tracer", "billiard_cell, ray_phase, bragg_grating (stack_R_oblique, TrenchDBR) and cell_mirror engines"),
     "fringe-washout.html": ("Fringe Washout Planner", "fringe_averaging engine"),
+    "planar-mpc-ray-tracer.html": ("Planar MPC Ray Tracer", "planar_cell, ray_phase, bragg_grating (stack_R_oblique, TrenchDBR) and cell_mirror engines"),
+    "herriott-ray-tracer.html": ("Herriott Cell Ray Tracer", "herriott_cell and ray_phase engines"),
 }
 
 

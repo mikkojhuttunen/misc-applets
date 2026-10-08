@@ -1,7 +1,7 @@
 """Shared JSON test vectors from the Python reference engines.
 
 JavaScript ports (dbr-structures/dbr-engine.js, the physics inside
-parametric-amplifier.html and cmpc-ray-tracer.html) are checked against these by tools/check_js_ports.mjs.
+parametric-amplifier.html, cmpc-ray-tracer.html, planar-mpc-ray-tracer.html and herriott-ray-tracer.html) are checked against these by tools/check_js_ports.mjs.
 Run from math-engines/:  python tools/make_vectors.py
 """
 from __future__ import annotations
@@ -19,6 +19,8 @@ from engines.billiard_cell import engine as bc  # noqa: E402
 from engines.bragg_grating import engine as bg  # noqa: E402
 from engines.ray_phase import engine as rp  # noqa: E402
 from engines.cell_mirror import engine as cmir  # noqa: E402
+from engines.herriott_cell import engine as hc  # noqa: E402
+from engines.planar_cell import engine as pc  # noqa: E402
 from engines.fringe_averaging import engine as fav  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
@@ -111,6 +113,41 @@ def build() -> dict:
                                  **{k: float(st[k]) for k in ("R_mean", "R_eff", "I_end", "L_eff", "L_geom", "chi_50", "chi_95",
                                                               "chi_max", "R_design", "R_uniform")},
                                  "hist": [float(x) for x in st["hist"]]})
+    v["planar_cell"] = [_planar_vector(c) for c in _PLANAR_CASES]
+    f = lambda arr: [None if not np.isfinite(x) else float(x) for x in arr]
+    v["planar_phase"] = []
+    for (case, thc, A, npass, wf, nmin, nmax) in ((_PLANAR_CASES[0], 0.5, 2e-5, 20, "sine", 101, 801),
+                                                  (_PLANAR_CASES[4], None, 1e-4, 23, "triangle", 51, 401),
+                                                  (_PLANAR_CASES[3], 0.35, 3e-6, 15, "sine", 101, 1601)):
+        cell = _planar_build(case)
+        th = cell.meta["theta_launch"] if thc is None else thc
+        r = rp.dither_analysis(cell, th, A, npass, 1.55e-6, 1.0, wf, n_min=nmin, n_max=nmax)
+        v["planar_phase"].append({"case": _PLANAR_CASES.index(case), "theta_c": float(th), "amplitude": A, "n_pass": npass,
+                                  "waveform": wf, "wavelength": 1.55e-6, "n_index": 1.0, "n_min": nmin, "n_max": nmax,
+                                  "n_used": r["n_used"], "V": f(r["V"]), "V_model": f(r["V_model"]), "a": f(r["a"]), "b": f(r["b"]),
+                                  "same_path": f(r["same_path"]), "L0": f(r["L0"]), "resolved": [bool(x) for x in r["resolved"]]})
+    v["planar_mirror"] = []
+    for (case, thc, fan, nb, nh, nt, pol, per) in ((_PLANAR_CASES[0], 0.5, 0.02, 5, 60, 2.479, "TM", 4),
+                                                  (_PLANAR_CASES[4], None, 0.0, 1, 23, 2.814, "TE", 3),
+                                                  (_PLANAR_CASES[5], None, 0.004, 3, 40, 2.011, "TM", 6)):
+        cell = _planar_build(case)
+        th = cell.meta["theta_launch"] if thc is None else thc
+        d = bg.TrenchDBR(n_tooth=nt, N=per, m_tooth=1, bounce_loss=0.0, slab_pol=pol)
+        st = cmir.cell_mirror_stats(cell, th, fan, nb, nh, d)
+        v["planar_mirror"].append({"case": _PLANAR_CASES.index(case), "theta_c": float(th), "fan": fan, "n_beams": nb, "n_hits": nh,
+                                   "n_tooth": nt, "slab_pol": pol, "periods": per,
+                                   **{k: float(st[k]) for k in ("R_mean", "R_eff", "I_end", "L_eff", "L_geom", "chi_50", "chi_95",
+                                                                "chi_max", "R_design", "R_uniform")},
+                                   "hist": [float(x) for x in st["hist"]]})
+    v["herriott3d"] = [_herriott_vector(c) for c in _HERRIOTT_CASES]
+    v["herriott_phase"] = []
+    for (ci, plane, A, npass, wf) in ((0, "x", 1e-5, 29, "sine"), (1, "y", 3e-5, 20, "triangle")):
+        cc = _herriott_build(_HERRIOTT_CASES[ci])
+        hl = hc.HerriottLaunch(cc["mirrors"], cc["p0"], cc["d0"], plane)
+        r = rp.dither_analysis(hl, 0.0, A, npass, 1.55e-6, 1.0, wf, n_min=101, n_max=401)
+        v["herriott_phase"].append({"case": ci, "plane": plane, "amplitude": A, "n_pass": npass, "waveform": wf, "wavelength": 1.55e-6,
+                                    "n_index": 1.0, "n_min": 101, "n_max": 401, "n_used": r["n_used"], "V": f(r["V"]),
+                                    "V_model": f(r["V_model"]), "a": f(r["a"]), "same_path": f(r["same_path"]), "L0": f(r["L0"])})
     v["bessel"] = [{"x": x, "J": [float(j) for j in fav.bessel_j_all(x, 40)]} for x in (0.0, 0.7, 5.5, 33.0, -12.0)]
     v["fringe"] = []
     for (x1, f1, w1, x2, f2, w2, psi, drift, coh, kind) in ((2.4, 1000, "sine", 0.0, 1300, "triangle", 0.0, 0.0, 1.0, "boxcar"),
@@ -149,6 +186,121 @@ def _cell_vector(r, N, tilts, curvs, offsets, theta, n_hits):
         dx, dy = bc._reflect(dx, dy, hnx, hny)
     return {"radius": r, "n_facets": N, "tilts": tilts, "curvatures": curvs, "offsets": offsets, "theta": float(theta),
             "start": start, "hits": hits, "mean_chord": float(cell.mean_chord)}
+
+
+# planar_cell: builder + explicit per-element perturbations, launch (s = default input, theta), hits
+_PLANAR_CASES = [
+    {"build": "stadium", "r": 5e-3, "a": 5e-3, "cap_facets": 10, "straight_segments": 2, "tilts": "alt", "curvatures": None,
+     "offsets": "ramp", "theta": 0.4, "n_hits": 40},
+    {"build": "stadium", "r": 4e-3, "a": 3e-3, "cap_facets": None, "straight_segments": 1, "theta": 0.3, "n_hits": 14},
+    {"build": "circle", "r": 5e-3, "theta": 0.5, "n_hits": 30},
+    {"build": "polygon", "r": 5e-3, "n_facets": 16, "tilts": "one", "theta": 0.35, "n_hits": 30},
+    {"build": "herriott", "R": 20e-3, "N": 24, "M": 5, "A": 1e-3, "phase": 0.0, "n_hits": 30},
+    {"build": "herriott", "R": 20e-3, "N": 24, "M": 5, "A": 1e-3, "phase": np.pi / 24, "port_w": 25e-6, "R2": 20.1e-3,
+     "tilts": [0.0, 2e-4], "dtheta": 1e-3, "n_hits": 200},
+    {"build": "stadium", "r": 3e-3, "a": 2e-3, "cap_facets": 6, "straight_segments": 1, "curvatures": "curved", "theta": 0.2, "n_hits": 12},
+]
+
+
+def _pattern(kind, E):
+    k = np.arange(E)
+    if kind == "alt":
+        return list(1e-3 * np.where(k % 2, 1.0, -0.5) * (k % 3 != 0))
+    if kind == "ramp":
+        return list(np.linspace(-2e-6, 2e-6, E))
+    if kind == "one":
+        return list(np.where(k == 5, 5e-4, 0.0))
+    if kind == "curved":
+        return list(40.0 * np.cos(1.7 * k))
+    return kind
+
+
+def _planar_build(c):
+    if c["build"] == "stadium":
+        cell = pc.stadium_cell(c["r"], c["a"], c["cap_facets"], c["straight_segments"])
+    elif c["build"] == "circle":
+        cell = pc.circle_cell(c["r"])
+    elif c["build"] == "polygon":
+        cell = pc.polygon_cell(c["r"], c["n_facets"])
+    else:
+        cell = pc.herriott_planar_cell(c["R"], c["N"], c["M"], c["A"], port_w=c.get("port_w"), R2=c.get("R2"), phase=c["phase"],
+                                       d=pc.reentrant_spacing(c["R"], c["N"], c["M"]))
+    E = cell.n_elements
+    arr = {k: _pattern(c.get(k), E) for k in ("tilts", "offsets", "curvatures") if c.get(k) is not None}
+    return pc.perturb(cell, **arr) if arr else cell
+
+
+def _planar_vector(c):
+    cell = _planar_build(c)
+    th = c["theta"] if "theta" in c else cell.meta["theta_launch"] + c.get("dtheta", 0.0)
+    x, y, dx, dy = pc.launch(cell, cell.s_in_default, th)
+    start = [float(x[0]), float(y[0]), float(dx[0]), float(dy[0])]
+    hits = []
+    for _ in range(c["n_hits"]):
+        t, nx, ny, hs, k = cell.hit_k(x, y, dx, dy)
+        if not np.isfinite(t[0]):
+            break
+        x, y = x + t * dx, y + t * dy
+        hits.append([float(x[0]), float(y[0]), float(hs[0]), float((dx * ny - dy * nx)[0]), int(k[0])])
+        dx, dy = pc.reflect(dx, dy, nx, ny)
+    E = cell.n_elements
+    port = {}
+    if c["build"] == "herriott":
+        tr = pc.herriott_planar_trace(cell, c.get("dtheta", 0.0), n_max=200)
+        port = {"port_exit": tr["exit"], "port_n_hits": tr["n_hits"], "port_path": tr["path"], "exit_offset": tr.get("exit_offset"),
+                "exit_angle": tr.get("exit_angle"), "meta": {k: float(v) for k, v in cell.meta.items()}}
+    spec = {k: (_pattern(c[k], E) if k in ("tilts", "offsets", "curvatures") else c[k]) for k in c}
+    return {**{k: (float(v) if isinstance(v, (float, np.floating)) else v) for k, v in spec.items()}, "theta_used": float(th),
+            "elements": [[*map(float, cell.A[k]), *map(float, cell.B[k]), float(cell.kappa[k]), float(cell.ext[k])] for k in range(E)],
+            "area": cell.area, "perimeter": cell.perimeter, "mean_chord": float(cell.mean_chord), "s_in": cell.s_in_default,
+            "s_out": cell.s_out_default, "start": start, "hits": hits, "leaked": len(hits) < c["n_hits"], **port}
+
+
+# herriott_cell: herriott_cell / build_cell parameters, or an astigmatic cell, or a polynomial deformation
+_HERRIOTT_CASES = [
+    {"kind": "design", "R": 0.5, "N": 30, "M": 7, "A": 0.012, "n_max": 40},
+    {"kind": "build", "R": 0.5, "N": 30, "M": 7, "A": 0.012, "tilt2": 2e-4, "decentre2": 1e-4, "dR": 1e-3, "astig2": 5e-3,
+     "spacing_error": -2e-4, "conic": -0.3, "n_max": 80},
+    {"kind": "astig", "R_mean": 1.0, "N": 50, "Mx": 11, "My": 13, "A": 3e-3, "B": 2e-3, "hole": 4e-4, "n_max": 60},
+    {"kind": "poly", "R": 0.5, "N": 30, "M": 7, "A": 0.01, "poly": [[3, 0, 2e-3], [1, 2, -1e-3]], "n_max": 25},
+    {"kind": "build", "R": 1.0, "N": 40, "M": 9, "A": 0.02, "dR2": 4e-3, "n_max": 120},
+]
+
+
+def _herriott_build(c):
+    if c["kind"] in ("design", "build"):
+        kw = {k: c[k] for k in ("tilt2", "decentre2", "dR", "dR2", "astig2", "spacing_error", "conic") if k in c}
+        return hc.build_cell(c["R"], c["N"], c["M"], c["A"], **kw)
+    if c["kind"] == "astig":
+        Rx, Ry, d = hc.astigmatic_reentrant(c["R_mean"], c["N"], c["Mx"], c["My"])
+        return hc.astigmatic_cell(Rx, Ry, d, c["A"], c["B"], c["hole"])
+    cc = hc.herriott_cell(c["R"], c["N"], c["M"], c["A"])
+    m1 = hc.perturb_mirror(cc["mirrors"][0], poly={(i, j): a for i, j, a in c["poly"]})
+    m1.holes = []
+    p0, _ = hc.start_on_mirror(m1, (c["A"], 0.0), [0, 0, 1])
+    return dict(mirrors=[m1, cc["mirrors"][1]], p0=p0, d0=cc["d0"], w_mode=cc["w_mode"])
+
+
+def _herriott_vector(c):
+    cc = _herriott_build(c)
+    tr = hc.trace3d(cc["mirrors"], cc["p0"], cc["d0"], c["n_max"])
+    n = int(tr.n_hits[0])
+    mir = [{"vertex": list(map(float, m.vertex)), "rot": [list(map(float, r)) for r in m.rot], "Rx": float(m.Rx), "Ry": float(m.Ry),
+            "kx": float(m.kx), "ky": float(m.ky), "poly": [[int(i), int(j), float(a)] for (i, j), a in m.poly.items()],
+            "aperture": float(m.aperture), "holes": [list(map(float, h)) for h in m.holes]} for m in cc["mirrors"]]
+    re = hc.reentrance(tr)
+    out = {**c, "mirrors": mir, "p0": list(map(float, cc["p0"])), "d0": list(map(float, cc["d0"])),
+           "hits": [[*map(float, tr.hits[0, j]), int(tr.mirror[0, j]), float(tr.cos_inc[0, j]), *map(float, tr.local[0, j])] for j in range(n)],
+           "exit": str(tr.exit[0]), "n_hits": n, "reflections": tr.reflections(0), "path": tr.path(0),
+           "exit_offset": re.get("exit_offset"), "reentry_angle": re.get("reentry_angle")}
+    if "w_mode" in cc:
+        sm = hc.spot_metrics(tr, cc["mirrors"], w=cc["w_mode"])
+        out["w_mode"] = float(cc["w_mode"])
+        out["min_spacing"] = [float(e["min_spacing"]) for e in sm]
+        out["hole_clearance"] = sm[0].get("hole_clearance")
+    if c["kind"] in ("design", "build"):
+        out["d"], out["hole_radius"] = float(cc["d"]), float(cc["hole_radius"])
+    return out
 
 
 def render() -> str:

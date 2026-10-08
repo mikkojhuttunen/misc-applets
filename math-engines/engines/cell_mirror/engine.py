@@ -2,7 +2,7 @@
 distribution and an angle-dependent mirror (etched-trench DBR, bragg_grating.TrenchDBR).
 
 Rays are launched from the input point at θc + fan offsets and traced through a billiard_cell.SegmentedCell (facet
-tilts, curvatures and offsets included). At hit j a ray meets the mirror at |sin χ_j| and keeps R(χ_j) of its power,
+tilts, curvatures and offsets included), or any planar_cell wall (stadium, faceted stadium, integrated Herriott). At hit j a ray meets the mirror at |sin χ_j| and keeps R(χ_j) of its power,
 so its intensity arriving at hit j is I_j = Π_{i<j} R(χ_i) (I_0 = 1) and chord j (which ends at hit j) carries I_j.
 From that, self-consistently (no assumed reflectance):
 
@@ -35,7 +35,10 @@ N_TABLE = 4097
 
 
 def hit_angles(cell, theta, n_hits, s_in=None):
-    """|sin χ| at each mirror hit and the chord ending there: two arrays (n_rays, n_hits); NaN after a leak."""
+    """|sin χ| at each mirror hit and the chord ending there: two arrays (n_rays, n_hits); NaN after a leak (or once a
+    ray leaves an open planar_cell wall). Cells with their own hit_angles method (herriott_cell.HerriottLaunch) use it."""
+    if hasattr(cell, "hit_angles"):
+        return cell.hit_angles(theta, n_hits, s_in)
     x, y, dx, dy = launch(cell, theta, s_in)
     n_hits = int(n_hits)
     S = np.full((x.size, n_hits), np.nan)

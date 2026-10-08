@@ -137,6 +137,128 @@ const close = (label, got, want, rel, abs = 0) => {
   }
 }
 
+
+/* ---- planar-mpc-ray-tracer.html: planar_cell engine block (with ray_phase, cell_mirror, bragg_grating) ---- */
+/* a = dφ/dθ by central difference (h = 1 nrad): rounding of L (~1e-16 L) gives an absolute noise of ~k0 n L 1e-16 / 1e-9 */
+const aTol = (r, j) => Math.max(0.3, 4 * (2 * Math.PI * r.n_index / r.wavelength) * Math.abs(r.L0[j]) * 2.2e-16 / 2e-9);
+const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Number.isNaN(got) || (fails++, console.error(`FAIL ${label}: got ${got}, want NaN`))) : close(label, got, want, rel, abs));
+{
+  const html = fs.readFileSync(path.join(repo, 'planar-mpc-ray-tracer.html'), 'utf8');
+  const a = html.indexOf('/* engine:begin'), b = html.indexOf('/* engine:end */');
+  if (a < 0 || b < 0) throw new Error('engine block markers not found in planar-mpc-ray-tracer.html');
+  const ctx = vm.createContext({ Math, Number, Float64Array, Infinity, NaN, Array, Set, Object, Error, JSON });
+  vm.runInContext(html.slice(a, b) + '\n;globalThis.__p = PlanarEngine;', ctx);
+  const E = ctx.__p, same = sameOrNaN;
+  function build(c) {
+    let cell;
+    if (c.build === 'stadium') cell = E.stadiumCell(c.r, c.a, c.cap_facets, c.straight_segments);
+    else if (c.build === 'circle') cell = E.circleCell(c.r);
+    else if (c.build === 'polygon') cell = E.polygonCell(c.r, c.n_facets);
+    else cell = E.herriottPlanarCell(c.R, c.N, c.M, c.A, { portW: c.port_w ?? null, R2: c.R2 ?? null, phase: c.phase, d: E.reentrantSpacing(c.R, c.N, c.M) });
+    if (c.tilts || c.offsets || c.curvatures) cell = E.perturb(cell, c.tilts || null, c.offsets || null, c.curvatures || null);
+    return cell;
+  }
+  for (const [i, c] of V.planar_cell.entries()) {
+    const cell = build(c);
+    c.elements.forEach((e, k) => { ['Ax', 'Ay', 'Bx', 'By', 'kappa'].forEach((f, q) => close(`pc[${i}] el${k} ${f}`, cell[f][k], e[q], 1e-12, 1e-17)); });
+    close(`pc[${i}] area`, cell.area, c.area, 1e-12); close(`pc[${i}] P`, cell.perimeter, c.perimeter, 1e-12);
+    close(`pc[${i}] meanChord`, cell.meanChord, c.mean_chord, 1e-12); close(`pc[${i}] sIn`, cell.sIn, c.s_in, 1e-12);
+    const st = E.launch(cell, cell.sIn, c.theta_used);
+    st.forEach((v, j) => close(`pc[${i}] start${j}`, v, c.start[j], 1e-12, 1e-15));
+    const tr = E.trace(cell, st, c.hits.length + (c.leaked ? 1 : 0), null);
+    checks++; if ((tr.exit === -2) !== c.leaked || tr.s.length !== c.hits.length) { fails++; console.error(`FAIL pc[${i}] hit count ${tr.s.length} vs ${c.hits.length}`); }
+    const sc = (c.build === 'stadium' && c.cap_facets === null) || c.curvatures ? 1e-7 : 1e-9;
+    c.hits.forEach(([x, y, s, sn, k], j) => {
+      close(`pc[${i}] hit${j} x`, tr.xs[j + 1], x, 0, sc * 1e-2); close(`pc[${i}] hit${j} y`, tr.ys[j + 1], y, 0, sc * 1e-2);
+      close(`pc[${i}] hit${j} s`, tr.s[j], s, 0, sc * 1e-2); close(`pc[${i}] hit${j} sinchi`, tr.sinchi[j], sn, 0, sc);
+      checks++; if (tr.elem[j] !== k) { fails++; console.error(`FAIL pc[${i}] hit${j} element ${tr.elem[j]} vs ${k}`); }
+    });
+    if (c.port_exit) {
+      const h = E.herriottTrace(cell, c.dtheta || 0, 200);
+      checks++; if (h.exit !== c.port_exit || h.nHits !== c.port_n_hits) { fails++; console.error(`FAIL pc[${i}] herriott exit ${h.exit} ${h.nHits}`); }
+      close(`pc[${i}] port path`, h.path, c.port_path, 1e-12); close(`pc[${i}] exit offset`, h.exitOffset, c.exit_offset, 0, 1e-12);
+      close(`pc[${i}] exit angle`, h.exitAngle, c.exit_angle, 0, 1e-10); close(`pc[${i}] theta launch`, cell.meta.thetaLaunch, c.meta.theta_launch, 1e-12, 1e-18);
+    }
+  }
+  for (const [i, r] of V.planar_phase.entries()) {
+    const cell = build(V.planar_cell[r.case]);
+    const o = E.ditherAnalysis(E.cellPaths(cell), r.theta_c, r.amplitude, r.n_pass, r.wavelength, r.n_index, r.waveform, r.n_min, r.n_max);
+    close(`pphase[${i}] n_used`, o.nUsed, r.n_used, 0, 0);
+    for (let j = 0; j < r.n_pass; j++) {
+      same(`pphase[${i}] V p${j + 1}`, o.V[j], r.V[j], 0, 1e-6); same(`pphase[${i}] Vm p${j + 1}`, o.Vmodel[j], r.V_model[j], 0, 2e-5);
+      same(`pphase[${i}] a p${j + 1}`, o.a[j], r.a[j], 2e-5, 0.3); same(`pphase[${i}] b p${j + 1}`, o.b[j], r.b[j], 3e-3, 2e3);
+      same(`pphase[${i}] same p${j + 1}`, o.same[j], r.same_path[j], 0, 1e-12); same(`pphase[${i}] L0 p${j + 1}`, o.L0[j], r.L0[j], 1e-12);
+    }
+  }
+  for (const [i, r] of V.planar_mirror.entries()) {
+    const cell = build(V.planar_cell[r.case]);
+    const d = E.trenchDBR({ nTooth: r.n_tooth, lam: 1.55e-6, N: r.periods, slabPol: r.slab_pol });
+    const st = E.cellMirrorStats(cell, r.theta_c, r.fan, r.n_beams, r.n_hits, d, 1.55e-6);
+    for (const k of ["R_mean", "R_eff", "I_end", "L_eff", "L_geom", "R_design", "R_uniform"]) close(`pmirror[${i}] ${k}`, st[k], r[k], 1e-9, 1e-14);
+    for (const k of ["chi_50", "chi_95", "chi_max"]) close(`pmirror[${i}] ${k}`, st[k], r[k], 0, 1e-6);
+    r.hist.forEach((hv, j) => close(`pmirror[${i}] hist ${j}`, st.hist[j], hv, 1e-6, 1e-14));
+  }
+}
+
+/* ---- herriott-ray-tracer.html: herriott_cell engine block ---- */
+{
+  const html = fs.readFileSync(path.join(repo, 'herriott-ray-tracer.html'), 'utf8');
+  const a = html.indexOf('/* engine:begin'), b = html.indexOf('/* engine:end */');
+  if (a < 0 || b < 0) throw new Error('engine block markers not found in herriott-ray-tracer.html');
+  const ctx = vm.createContext({ Math, Number, Float64Array, Infinity, NaN, Array, Set, Object, Error, JSON });
+  vm.runInContext(html.slice(a, b) + '\n;globalThis.__h = HerriottEngine;', ctx);
+  const H = ctx.__h, same = sameOrNaN;
+  function build(c) {
+    if (c.kind === 'design' || c.kind === 'build')
+      return H.buildCell({ R: c.R, N: c.N, M: c.M, A: c.A, tilt2: c.tilt2 || 0, decentre2: c.decentre2 || 0, dR: c.dR || 0, dR2: c.dR2 || 0,
+        astig2: c.astig2 || 0, spacingError: c.spacing_error || 0, conic: c.conic || 0 });
+    if (c.kind === 'astig') { const [Rx, Ry, d] = H.astigmaticReentrant(c.R_mean, c.N, c.Mx, c.My); return H.astigmaticCell(Rx, Ry, d, c.A, c.B, c.hole); }
+    const cc = H.herriottCell(c.R, c.N, c.M, c.A);
+    const m1 = H.perturbMirror(cc.mirrors[0], { poly: c.poly }); m1.holes = [];
+    const st = H.startOnMirror(m1, [c.A, 0], [0, 0, 1]);
+    return { mirrors: [m1, cc.mirrors[1]], p0: st.p, d0: cc.d0, wMode: cc.wMode };
+  }
+  for (const [i, c] of V.herriott3d.entries()) {
+    const cc = build(c);
+    c.mirrors.forEach((m, k) => {
+      const g = cc.mirrors[k];
+      m.vertex.forEach((v, q) => close(`h[${i}] m${k} vertex${q}`, g.vertex[q], v, 1e-12, 1e-15));
+      m.rot.forEach((r, a) => r.forEach((v, b) => close(`h[${i}] m${k} rot${a}${b}`, g.rot[a][b], v, 1e-12, 1e-15)));
+      ['Rx', 'Ry', 'kx', 'ky', 'aperture'].forEach(f => close(`h[${i}] m${k} ${f}`, g[f], m[f], 1e-12, 1e-15));
+      m.holes.forEach((h, q) => h.forEach((v, z) => close(`h[${i}] m${k} hole${q}.${z}`, g.holes[q][z], v, 1e-12, 1e-15)));
+    });
+    c.p0.forEach((v, q) => close(`h[${i}] p0.${q}`, cc.p0[q], v, 1e-12, 1e-15)); c.d0.forEach((v, q) => close(`h[${i}] d0.${q}`, cc.d0[q], v, 1e-12, 1e-15));
+    const tr = H.trace3d(cc.mirrors, cc.p0, cc.d0, c.n_max);
+    checks++; if (tr.exit !== c.exit || tr.nHits !== c.n_hits || tr.reflections !== c.reflections) { fails++; console.error(`FAIL h[${i}] exit ${tr.exit} ${tr.nHits} vs ${c.exit} ${c.n_hits}`); }
+    c.hits.forEach(([x, y, z, m, ci, lx, ly], j) => {
+      [x, y, z].forEach((v, q) => close(`h[${i}] hit${j} ${q}`, tr.hits[j][q], v, 0, 1e-12));
+      close(`h[${i}] hit${j} cos`, tr.cosInc[j], ci, 0, 1e-12); close(`h[${i}] hit${j} lx`, tr.local[j][0], lx, 0, 1e-12); close(`h[${i}] hit${j} ly`, tr.local[j][1], ly, 0, 1e-12);
+      checks++; if (tr.mirror[j] !== m) { fails++; console.error(`FAIL h[${i}] hit${j} mirror`); }
+    });
+    close(`h[${i}] path`, tr.path, c.path, 1e-13);
+    const re = H.reentrance(tr);
+    close(`h[${i}] exit offset`, re.exitOffset, c.exit_offset, 1e-7, 1e-13);
+    if (c.reentry_angle !== null && c.reentry_angle !== undefined) close(`h[${i}] reentry angle`, re.reentryAngle, c.reentry_angle, 1e-6, 1e-11);
+    if (c.w_mode) {
+      const sm = H.spotMetrics(tr, cc.mirrors, cc.wMode);
+      close(`h[${i}] w`, cc.wMode, c.w_mode, 1e-12);
+      c.min_spacing.forEach((v, k) => close(`h[${i}] spacing${k}`, sm[k].minSpacing, v, 1e-9));
+      if (c.hole_clearance !== null && c.hole_clearance !== undefined) close(`h[${i}] hole clearance`, sm[0].holeClearance, c.hole_clearance, 1e-9);
+    }
+    if (c.d !== undefined) { close(`h[${i}] d`, cc.d, c.d, 1e-14); close(`h[${i}] hole`, cc.holeRadius, c.hole_radius, 1e-12); }
+  }
+  for (const [i, r] of V.herriott_phase.entries()) {
+    const cc = build(V.herriott3d[r.case]);
+    const hl = H.launcher(cc.mirrors, cc.p0, cc.d0, r.plane);
+    const o = H.ditherAnalysis(hl.paths, 0, r.amplitude, r.n_pass, r.wavelength, r.n_index, r.waveform, r.n_min, r.n_max);
+    close(`hphase[${i}] n_used`, o.nUsed, r.n_used, 0, 0);
+    for (let j = 0; j < r.n_pass; j++) {
+      same(`hphase[${i}] V p${j + 1}`, o.V[j], r.V[j], 0, 1e-6); same(`hphase[${i}] a p${j + 1}`, o.a[j], r.a[j], 2e-5, aTol(r, j));
+      same(`hphase[${i}] same p${j + 1}`, o.same[j], r.same_path[j], 0, 1e-12); same(`hphase[${i}] L0 p${j + 1}`, o.L0[j], r.L0[j], 1e-12);
+    }
+  }
+}
+
 /* ---- fringe-washout.html: fringe_averaging engine block ---- */
 {
   const html = fs.readFileSync(path.join(repo, 'fringe-washout.html'), 'utf8');

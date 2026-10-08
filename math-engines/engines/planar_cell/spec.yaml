@@ -1,0 +1,208 @@
+engine: planar_cell
+version: 1
+title: Planar multipass cells (stadium, faceted stadium, integrated Herriott)
+description: 2D ray tracing in cells whose wall is a chain of flat and curved mirror elements (circle, segmented polygon, smooth or faceted stadium, perturbed walls) and in the integrated in-plane Herriott cell; port statistics, chaos, re-entrance, launch-angle dither and trench-DBR mirror analyses.
+references:
+  - "L. A. Bunimovich, Commun. Math. Phys. 65, 295 (1979) (stadium billiard)"
+  - "N. Chernov, J. Stat. Phys. 88, 1 (1997) (mean free path πA/P of planar billiards)"
+  - "D. Herriott, H. Kogelnik, R. Kompfner, Appl. Opt. 3, 523 (1964) (off-axis paths in spherical mirror interferometers)"
+  - "R. E. Richens, J. Phys. A 15, 2101 (1982) (pseudo-integrable polygonal billiards)"
+common_inputs:
+  shape: {label: "Cell shape", type: choice, choices: [circle, polygon, stadium, faceted_stadium], default: faceted_stadium}
+  radius: {label: "Radius (circle, polygon circumradius, stadium caps)", ui_unit: mm, scale: 1.0e-3, default: 5}
+  straight: {label: "Stadium straight length a", ui_unit: mm, scale: 1.0e-3, default: 5, min: 0}
+  n_facets: {label: "Facets (polygon) or facets per cap (faceted stadium)", ui_unit: "", scale: 1.0, default: 12, min: 1, step: 1}
+  tilt_rms: {label: "Random element tilt (rms)", ui_unit: mrad, scale: 1.0e-3, default: 0, min: 0}
+  curvature_rms: {label: "Random element curvature 1/ρ (rms)", ui_unit: 1/m, scale: 1.0, default: 0, min: 0}
+  seed: {label: "Perturbation pattern (seed)", ui_unit: "", scale: 1.0, default: 1, min: 0, step: 1}
+  R: {label: "Mirror radius of curvature R", ui_unit: mm, scale: 1.0e-3, default: 10}
+  N: {label: "Hits to re-entrance N (even)", ui_unit: "", scale: 1.0, default: 20, min: 4, step: 1}
+  M: {label: "Pattern turns M (0 < M < N/2)", ui_unit: "", scale: 1.0, default: 3, min: 1, step: 1}
+  A: {label: "Spot pattern half width A", ui_unit: mm, scale: 1.0e-3, default: 1}
+  phase: {label: "Pattern phase φ (0: window at the edge, π/N: distinct spots)", ui_unit: rad, scale: 1.0, default: 0}
+  wavelength: {label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550}
+  waveform: {label: "Dither waveform", type: choice, choices: [sine, triangle], default: sine}
+functions:
+  ray_statistics:
+    title: Port statistics (Monte Carlo)
+    equations: ["W_i = R^(n_i) e^{-α L_i}", "T = Σ W_i / N_launched", "⟨L⟩ = Σ W_i L_i / Σ W_i", "mean field: ℓ = πA/P, η = w/P"]
+    inputs:
+      - shape
+      - radius
+      - straight
+      - n_facets
+      - tilt_rms
+      - curvature_rms
+      - seed
+      - {name: port_width, label: "Port width w", ui_unit: µm, scale: 1.0e-6, default: 150}
+      - {name: theta0, label: "Launch half-angle", ui_unit: mrad, scale: 1.0e-3, default: 349.066}
+      - {name: R_mean, label: "Mirror reflectance", ui_unit: "", scale: 1.0, default: 0.999, min: 0, max: 1}
+      - {name: alpha_bg, label: "Background loss α_bg", ui_unit: 1/cm, scale: 100.0, default: 0, min: 0}
+      - {name: Gamma, label: "Evanescent factor Γ", ui_unit: "", scale: 1.0, default: 1, min: 0}
+      - {name: n_rays, label: "Rays", ui_unit: "", scale: 1.0, default: 1000, min: 1, step: 1}
+      - {name: n_bounce, label: "Maximum reflections per ray", ui_unit: "", scale: 1.0, default: 1500, min: 1, step: 1}
+    outputs:
+      - {name: T_det, label: "Transmission to the output port", ui_unit: "", scale: 1.0}
+      - {name: L_mean, label: "Mean path ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: L_mean_err, label: "Standard error of ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: L_eff_gas, label: "Gas-equivalent path Γ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: S1, label: "Signal yield Γ T ⟨L⟩", ui_unit: cm, scale: 1.0e-2}
+      - {name: n_det, label: "Detected rays", ui_unit: "", scale: 1.0}
+      - {name: trapped_fraction, label: "Rays still trapped at the end", ui_unit: "", scale: 1.0}
+      - {name: leaked_fraction, label: "Rays leaked through gaps", ui_unit: "", scale: 1.0}
+      - {name: mean_chord, label: "Mean chord πA/P", ui_unit: mm, scale: 1.0e-3}
+      - {name: area, label: "Cell area", ui_unit: mm², scale: 1.0e-6}
+      - {name: perimeter, label: "Wall length", ui_unit: mm, scale: 1.0e-3}
+      - {name: T_mean_field, label: "Transmission, ergodic mean field", ui_unit: "", scale: 1.0}
+      - {name: L_mean_field, label: "Mean path, ergodic mean field", ui_unit: cm, scale: 1.0e-2}
+  chaos:
+    title: Chaos (twin-ray Lyapunov exponent)
+    equations: ["|δ_j| ≈ |δ_0| e^{λ j}", "λ from ln|δ_j| between 1e-10 and 1e-2 of the cell size"]
+    inputs:
+      - {name: shape, label: "Cell shape", type: choice, choices: [circle, polygon, stadium, faceted_stadium], default: stadium}
+      - radius
+      - straight
+      - n_facets
+      - tilt_rms
+      - curvature_rms
+      - seed
+      - {name: theta, label: "Launch angle from the wall normal", ui_unit: mrad, scale: 1.0e-3, default: 500}
+      - {name: n_hits, label: "Reflections", ui_unit: "", scale: 1.0, default: 300, min: 10, step: 1}
+    outputs:
+      - {name: lyapunov, label: "Lyapunov exponent λ", ui_unit: 1/reflection, scale: 1.0}
+      - {name: chaotic, label: "Chaotic (λ > 0.05)", ui_unit: "", scale: 1.0}
+      - {name: final_separation, label: "Separation after the last reflection", ui_unit: µm, scale: 1.0e-6}
+      - {name: fit_first, label: "Fit from reflection", ui_unit: "", scale: 1.0}
+      - {name: fit_last, label: "Fit to reflection", ui_unit: "", scale: 1.0}
+  planar_herriott:
+    title: Integrated Herriott cell, design and re-entrance
+    equations: ["cos θ = 1 − d/R", "d = R (1 − cos 2πM/N)", "y_n = A cos(nθ + φ)", "w² = (λ/n) d / (π √(1 − g²)), g = 1 − d/R"]
+    inputs:
+      - R
+      - N
+      - M
+      - A
+      - phase
+      - {name: port_width, label: "Window width", ui_unit: µm, scale: 1.0e-6, default: 100}
+      - wavelength
+      - {name: n_index, label: "Slab index n_eff", ui_unit: "", scale: 1.0, default: 2.479, min: 1}
+      - {name: R_mirror, label: "Mirror reflectance", ui_unit: "", scale: 1.0, default: 0.999, min: 0, max: 1}
+      - {name: dR2, label: "Radius error of M2", ui_unit: µm, scale: 1.0e-6, default: 0}
+      - {name: tilt2, label: "Tilt of M2", ui_unit: mrad, scale: 1.0e-3, default: 0}
+      - {name: spacing_error, label: "Spacing error", ui_unit: µm, scale: 1.0e-6, default: 0}
+      - {name: dtheta, label: "Launch-angle offset", ui_unit: mrad, scale: 1.0e-3, default: 0}
+    outputs:
+      - {name: d, label: "Mirror spacing d", ui_unit: mm, scale: 1.0e-3}
+      - {name: theta, label: "Phase advance per hit θ", ui_unit: rad, scale: 1.0}
+      - {name: theta_launch, label: "Design launch angle from the normal", ui_unit: mrad, scale: 1.0e-3}
+      - {name: path_design, label: "Design path N d", ui_unit: cm, scale: 1.0e-2}
+      - {name: mode_radius, label: "Mode radius on the mirrors", ui_unit: µm, scale: 1.0e-6}
+      - {name: spot_spacing_design, label: "Closest spots on one mirror", ui_unit: µm, scale: 1.0e-6}
+      - {name: spot_spacing_in_w, label: "Closest spots, in mode radii", ui_unit: "", scale: 1.0}
+      - {name: window_clearance_in_w, label: "Window clearance, in mode radii", ui_unit: "", scale: 1.0}
+      - {name: exits_through_port, label: "Leaves through the window", ui_unit: "", scale: 1.0}
+      - {name: reflections, label: "Reflections", ui_unit: "", scale: 1.0}
+      - {name: path, label: "Traced path", ui_unit: cm, scale: 1.0e-2}
+      - {name: exit_offset, label: "Exit point from the window centre", ui_unit: µm, scale: 1.0e-6}
+      - {name: exit_angle, label: "Exit-angle error", ui_unit: mrad, scale: 1.0e-3}
+      - {name: L_eff, label: "Effective path Σ Rʲ ℓⱼ", ui_unit: cm, scale: 1.0e-2}
+      - {name: I_end, label: "Intensity at the exit", ui_unit: "", scale: 1.0}
+      - {name: footprint_length, label: "Footprint length", ui_unit: mm, scale: 1.0e-3}
+      - {name: footprint_width, label: "Footprint width", ui_unit: mm, scale: 1.0e-3}
+  dither_visibility:
+    title: Fringe visibility under angle dither (stadium, polygon, circle)
+    equations: ["V_p = |⟨exp(i Δφ_p(θc + δ(t)))⟩_t|", "x_p = k₀ n |dL_p/dθ| A", "V ≈ |J₀(x_p)| (sine), |sinc(x_p)| (triangle)"]
+    inputs:
+      - shape
+      - radius
+      - straight
+      - n_facets
+      - tilt_rms
+      - curvature_rms
+      - seed
+      - {name: theta_c, label: "Launch angle θc", ui_unit: mrad, scale: 1.0e-3, default: 500}
+      - wavelength
+      - {name: n_index, label: "Index of the medium (n_eff)", ui_unit: "", scale: 1.0, default: 1.0, min: 1}
+      - {name: amplitude, label: "Dither amplitude A", ui_unit: µrad, scale: 1.0e-6, default: 10}
+      - {name: n_pass, label: "Pass (mirror hit) number", ui_unit: "", scale: 1.0, default: 20, min: 1, step: 1}
+      - waveform
+    outputs: &dither_out
+      - {name: V_first, label: "Visibility at pass 1", ui_unit: "", scale: 1.0}
+      - {name: V_last, label: "Visibility at the chosen pass", ui_unit: "", scale: 1.0}
+      - {name: V_model_last, label: "Linear-model V at the chosen pass", ui_unit: "", scale: 1.0}
+      - {name: x_last, label: "Dither depth x = a A", ui_unit: rad, scale: 1.0}
+      - {name: chirp_last, label: "Chirp ½|b|A²", ui_unit: rad, scale: 1.0}
+      - {name: same_path_last, label: "Share of rays on the centre ray's element path", ui_unit: "", scale: 1.0}
+      - {name: A_half_last, label: "Amplitude for V = 0.5 (model)", ui_unit: µrad, scale: 1.0e-6}
+      - {name: L_last, label: "Path to the chosen pass", ui_unit: cm, scale: 1.0e-2}
+      - {name: noise_floor, label: "Random-phase floor √π/(2√N)", ui_unit: "", scale: 1.0}
+      - {name: resolved, label: "Resolved", ui_unit: "", scale: 1.0}
+  planar_herriott_dither:
+    title: Integrated Herriott cell, angle dither
+    equations: ["V_p = |⟨exp(i Δφ_p(θ_launch + δ(t)))⟩_t|", "x_p = k₀ n |dL_p/dθ| A"]
+    inputs:
+      - R
+      - N
+      - M
+      - A
+      - phase
+      - {name: dtheta, label: "Launch-angle offset", ui_unit: mrad, scale: 1.0e-3, default: 0}
+      - wavelength
+      - {name: n_index, label: "Slab index n_eff", ui_unit: "", scale: 1.0, default: 2.479, min: 1}
+      - {name: amplitude, label: "Dither amplitude A", ui_unit: µrad, scale: 1.0e-6, default: 100}
+      - {name: n_pass, label: "Pass (mirror hit) number (< N)", ui_unit: "", scale: 1.0, default: 19, min: 1, step: 1}
+      - waveform
+    outputs: *dither_out
+  mirror_reflectance:
+    title: Trench-DBR reflectance over the cell's angles (stadium, polygon, circle)
+    equations: ["I_j = Π_{i<j} R(χ_i)", "R_eff = I_end^(1/n̄)", "L_eff = Σ I_j ℓ_j"]
+    inputs:
+      - shape
+      - radius
+      - straight
+      - n_facets
+      - tilt_rms
+      - curvature_rms
+      - seed
+      - {name: theta_c, label: "Launch angle θc", ui_unit: mrad, scale: 1.0e-3, default: 500}
+      - {name: fan, label: "Fan width", ui_unit: mrad, scale: 1.0e-3, default: 17.45}
+      - {name: n_beams, label: "Beams", ui_unit: "", scale: 1.0, default: 7, min: 1, step: 1}
+      - {name: n_hits, label: "Reflections per beam", ui_unit: "", scale: 1.0, default: 150, min: 1, step: 1}
+      - {name: n_eff, label: "Slab n_eff (DBR tooth index)", ui_unit: "", scale: 1.0, default: 2.479, min: 1}
+      - {name: polarization, label: "Slab polarisation", type: choice, choices: [TM, TE], default: TM}
+      - {name: periods, label: "DBR periods", ui_unit: "", scale: 1.0, default: 6, min: 1, step: 1}
+      - {name: sin_design, label: "sin of the DBR design angle", ui_unit: "", scale: 1.0, default: 0, min: 0}
+      - wavelength
+    outputs: &mirror_out
+      - {name: R_eff, label: "R per bounce, I_end^(1/n)", ui_unit: "", scale: 1.0}
+      - {name: loss_per_bounce, label: "Loss per bounce", ui_unit: ppm, scale: 1.0e-6}
+      - {name: R_mean, label: "⟨R⟩ weighted by arriving power", ui_unit: "", scale: 1.0}
+      - {name: I_end, label: "Intensity after the traced hits", ui_unit: "", scale: 1.0}
+      - {name: L_eff, label: "Effective path Σ Iⱼ ℓⱼ", ui_unit: cm, scale: 1.0e-2}
+      - {name: L_geom, label: "Geometric path", ui_unit: cm, scale: 1.0e-2}
+      - {name: chi_50, label: "Median |χ|", ui_unit: deg, scale: 1.0}
+      - {name: chi_95, label: "95 % of power below |χ|", ui_unit: deg, scale: 1.0}
+      - {name: chi_max, label: "Largest |χ|", ui_unit: deg, scale: 1.0}
+      - {name: R_design, label: "R at the design angle", ui_unit: "", scale: 1.0}
+      - {name: R_uniform, label: "⟨R⟩ over uniform sin χ", ui_unit: "", scale: 1.0}
+      - {name: R_eff_regular, label: "R per bounce, unperturbed cell", ui_unit: "", scale: 1.0}
+      - {name: L_eff_regular, label: "Effective path, unperturbed cell", ui_unit: cm, scale: 1.0e-2}
+  planar_herriott_mirror:
+    title: Integrated Herriott cell, trench-DBR reflectance
+    equations: ["I_j = Π_{i<j} R(χ_i)", "R_eff = I_end^(1/n̄)", "L_eff = Σ I_j ℓ_j"]
+    inputs:
+      - R
+      - N
+      - M
+      - A
+      - phase
+      - {name: fan, label: "Fan width", ui_unit: mrad, scale: 1.0e-3, default: 0}
+      - {name: n_beams, label: "Beams", ui_unit: "", scale: 1.0, default: 1, min: 1, step: 1}
+      - {name: n_hits, label: "Reflections per beam (< N)", ui_unit: "", scale: 1.0, default: 19, min: 1, step: 1}
+      - {name: n_eff, label: "Slab n_eff (DBR tooth index)", ui_unit: "", scale: 1.0, default: 2.479, min: 1}
+      - {name: polarization, label: "Slab polarisation", type: choice, choices: [TM, TE], default: TM}
+      - {name: periods, label: "DBR periods", ui_unit: "", scale: 1.0, default: 4, min: 1, step: 1}
+      - {name: sin_design, label: "sin of the DBR design angle", ui_unit: "", scale: 1.0, default: 0, min: 0}
+      - wavelength
+      - {name: tilt2, label: "Tilt of M2", ui_unit: mrad, scale: 1.0e-3, default: 0}
+    outputs: *mirror_out

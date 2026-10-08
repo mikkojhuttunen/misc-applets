@@ -2,7 +2,8 @@
 left when the launch angle is dithered.
 
 A ray leaves the input point at angle θ from the inward normal and is traced through the cell (billiard_cell
-geometry). After p mirror hits its geometric path is L_p(θ); its optical phase relative to the centre ray θc is
+SegmentedCell, any planar_cell wall: circle, stadium, faceted stadium, integrated Herriott; or a 3D Herriott cell
+through herriott_cell.HerriottLaunch, where θ tilts the injected beam). After p mirror hits its geometric path is L_p(θ); its optical phase relative to the centre ray θc is
 
     Δφ_p(θ) = k0 n (L_p(θ) - L_p(θc)),      k0 = 2π / λ,  n = index of the medium (slab n_eff for a membrane)
 
@@ -61,19 +62,31 @@ def launch(cell, theta, s_in=None):
     return x, y, ux * np.cos(th) - uy * np.sin(th), ux * np.sin(th) + uy * np.cos(th)
 
 
+def _hit_segment(cell, x, y, dx, dy):
+    """t, outward normal, s and segment (facet or element) index of the next hit. Cells with hit_k (planar_cell.Cell2D)
+    report the element; billiard_cell.SegmentedCell's facet follows from s."""
+    if hasattr(cell, "hit_k"):
+        t, nx, ny, hs, k = cell.hit_k(x, y, dx, dy)
+        return t, nx, ny, hs, np.where(np.isfinite(t), k, 0).astype(float)
+    t, nx, ny, hs = cell.hit(x, y, dx, dy)
+    return t, nx, ny, hs, np.clip(np.floor(np.nan_to_num(hs) / (2 * cell.h)), 0, cell.n_facets - 1)
+
+
 def path_lengths(cell, theta, n_pass, s_in=None, return_ids=False):
     """Cumulative geometric path [m] to each of the first n_pass mirror hits: array (len(theta), n_pass).
-    Rays that leak through a corner gap get NaN from that hit on. return_ids=True also returns a path id per hit
-    (hash of the facet sequence so far; equal ids = same facet sequence)."""
+    Rays that leak through a corner gap (or leave an open cell) get NaN from that hit on. return_ids=True also returns
+    a path id per hit (hash of the facet / element sequence so far; equal ids = same sequence).
+    Works for billiard_cell.SegmentedCell and planar_cell.Cell2D; any other cell object can supply its own
+    path_lengths(theta, n_pass, s_in, return_ids) method (herriott_cell.HerriottLaunch does)."""
+    if hasattr(cell, "path_lengths"):
+        return cell.path_lengths(theta, n_pass, s_in, return_ids)
     x, y, dx, dy = launch(cell, theta, s_in)
     L = np.full((x.size, int(n_pass)), np.nan)
     ids = np.full((x.size, int(n_pass)), -1.0)
     pid = np.zeros(x.size)
     acc = np.zeros(x.size)
-    nseg = cell.n_facets
     for j in range(int(n_pass)):
-        t, nx, ny, hs = cell.hit(x, y, dx, dy)
-        fac = np.clip(np.floor(np.nan_to_num(hs) / (2 * cell.h)), 0, nseg - 1)
+        t, nx, ny, hs, fac = _hit_segment(cell, x, y, dx, dy)
         pid = np.where(np.isfinite(t) & (pid >= 0), np.mod(pid * 1000003 + fac + 1, _HASH_M), -1.0)   # -1 once leaked
         ids[:, j] = pid
         ok = np.isfinite(t)

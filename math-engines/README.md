@@ -15,8 +15,10 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [billiard_cell](engines/billiard_cell/) | 2D ray tracing of stadium and perturbed segmented-polygon multipass cells with ports; reusable ray tables re-weighted for any R(sin χ), loss and Γ; ergodic mean-field estimate, Poincaré sections, occupancy maps | |
 | [trace_gas](engines/trace_gas/) | Voigt line shapes and absorption spectra of CH₄, NH₃, CO₂, H₂O (illustrative lines or a HITRAN export), transmission through a path-length distribution, shot-noise absorbance | scipy |
 | [path_coherence](engines/path_coherence/) | Random-phase path model of speckle/etalon noise in multipass cells: contrast vs linewidth, spectral autocovariance, thermal decorrelation, simulated coherent spectra | |
-| [ray_phase](engines/ray_phase/) | Optical path and phase of rays vs launch angle in a segmented cell, pass by pass; fringe visibility under sine or triangle angle dither | |
-| [cell_mirror](engines/cell_mirror/) | Etched-trench DBR reflectance averaged self-consistently over the angles of incidence in a (perturbed) segmented cell, vs the unperturbed cell; effective path and angle percentiles | |
+| [ray_phase](engines/ray_phase/) | Optical path and phase of rays vs launch angle, pass by pass, in a segmented cell, any `planar_cell` wall or a 3D Herriott cell (`HerriottLaunch`); fringe visibility under sine or triangle angle dither | |
+| [cell_mirror](engines/cell_mirror/) | Etched-trench DBR reflectance averaged self-consistently over the angles of incidence in a (perturbed) segmented cell or any `planar_cell` wall, vs the unperturbed cell; effective path and angle percentiles | |
+| [planar_cell](engines/planar_cell/) | 2D ray tracing in walls of flat and curved mirror elements: circle, segmented polygon, smooth or faceted stadium, per-element perturbations, and the integrated (in-plane) Herriott cell; ports, path statistics, chaos, re-entrance; feeds `ray_phase` and `cell_mirror` | |
+| [herriott_cell](engines/herriott_cell/) | Exact 3D tracing of Herriott, astigmatic and deformed Herriott cells (biconic/conic/polynomial mirrors, tilt, decentre, radius and spacing errors, holes, apertures); re-entrance, spot metrics, effective path, injection-angle dither | |
 | [fringe_averaging](engines/fringe_averaging/) | Residual interference-fringe visibility after angle and laser-frequency dithering, drifts, linewidth and averaging over seconds (exact harmonic expansion) | scipy (tests) |
 
 ## Use
@@ -50,7 +52,7 @@ engines/
     test_engine.py     hand-checkable reference values and independent cross-checks
     README.md
 test_vectors/vectors.json   reference outputs shared with the JavaScript ports
-tools/build_index.py        specs → web/engines_index.json
+tools/build_index.py        specs → web/engines_index.json (engine files plus the engines they import)
 tools/make_vectors.py       engines → test_vectors/vectors.json
 tools/check_js_ports.mjs    JS ports in the applets checked against vectors.json
 tools/fetch_hitran.py       HITRAN line lists (HAPI) → engines/trace_gas/hitran_lines.json
@@ -76,5 +78,8 @@ The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out
 | `parametric-amplifier.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver | `check_js_ports.mjs` (functions extracted from the page) |
 | `fringe-washout.html` (inline `engine:begin/end` block) | `fringe_averaging` harmonics, components, filters, residual visibility | `check_js_ports.mjs` (block extracted from the page) |
 | `cmpc-ray-tracer.html` (inline `engine:begin/end` block) | `billiard_cell.SegmentedCell` geometry, hit test, reflection, launch, `reflection_weighted_path`; `ray_phase` path lengths, dither offsets, visibility, `dither_analysis`; `bragg_grating.stack_R_oblique`, `TrenchDBR`; `cell_mirror` statistics | `check_js_ports.mjs` (block extracted from the page) |
+
+| `planar-mpc-ray-tracer.html` (inline `engine:begin/end` block) | `planar_cell` builders, perturbations, hits, traces, integrated Herriott trace; `ray_phase` path lengths and `dither_analysis`; `cell_mirror` statistics with `TrenchDBR` | `check_js_ports.mjs` (block extracted from the page) |
+| `herriott-ray-tracer.html` (inline `engine:begin/end` block) | `herriott_cell` surfaces, Newton intersections, `trace3d`, `build_cell`, astigmatic cells, `reentrance`, `spot_metrics`, `HerriottLaunch` paths and `dither_analysis` | `check_js_ports.mjs` (block extracted from the page) |
 
 Known deviation: the ports work in µm inside; the check converts SI to µm at the boundary.

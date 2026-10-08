@@ -7,3 +7,5 @@ Version 2 adds `dither_analysis`, which explains V pass by pass: the phase slope
 `first_mirror_phase` and `dither_visibility` return Results; the rest are helpers. The `cmpc-ray-tracer.html` applet carries a JS port checked against `test_vectors/vectors.json`.
 
 Ray picture: V_p is the stability of each ray's own optical phase under the dither, i.e. what happens to an interference term between pass-p light and light that does not follow the dither. Reflection phases are ignored; neighbouring rays separate spatially after a few passes, so this is not an overlap-integral (wave) calculation.
+
+Other cells: `path_lengths` also runs on any `planar_cell` wall (stadium, faceted stadium, circle, integrated Herriott; path id = element sequence, NaN once a ray leaves an open wall) and on any object with its own `path_lengths` method, such as `herriott_cell.HerriottLaunch` (3D Herriott cell, θ = injection-angle tilt), so `dither_analysis` applies to them unchanged. Front ends for those cells are in `planar_cell` and `herriott_cell`.

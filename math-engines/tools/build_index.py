@@ -5,6 +5,7 @@ Run from math-engines/:  python tools/build_index.py
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -52,10 +53,18 @@ def build() -> dict:
                 for name, fn in spec["functions"].items()
             },
         })
-    # engines that import other engines need their files too
-    deps = {"step_index_fiber": ["materials"], "membrane_mode": ["materials", "slab_waveguide"], "path_coherence": ["billiard_cell"], "ray_phase": ["billiard_cell"], "cell_mirror": ["billiard_cell", "bragg_grating", "ray_phase"]}
+    # engines that import other engines need their files too: follow "from ..<engine>.engine import" lines
+    names = {e["engine"] for e in engines}
+    direct = {n: set(re.findall(r"from \.\.(\w+)(?:\.engine)? import", (ENGINES / n / "engine.py").read_text(encoding="utf-8"))) & names
+              for n in names}
     for e in engines:
-        for dep in deps.get(e["engine"], []):
+        seen, todo = set(), list(direct[e["engine"]])
+        while todo:
+            dep = todo.pop()
+            if dep not in seen and dep != e["engine"]:
+                seen.add(dep)
+                todo += direct[dep]
+        for dep in seen:
             e["files"] = sorted(set(e["files"]) | {f"engines/{dep}/__init__.py", f"engines/{dep}/engine.py"})
     return {"shared": SHARED, "engines": engines}
 

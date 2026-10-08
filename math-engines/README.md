@@ -17,6 +17,8 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [path_coherence](engines/path_coherence/) | Random-phase path model of speckle/etalon noise in multipass cells: contrast vs linewidth, spectral autocovariance, thermal decorrelation, simulated coherent spectra | |
 | [ray_phase](engines/ray_phase/) | Optical path and phase of rays vs launch angle in a segmented cell, pass by pass; fringe visibility under sine or triangle angle dither | |
 | [cell_mirror](engines/cell_mirror/) | Etched-trench DBR reflectance averaged self-consistently over the angles of incidence in a (perturbed) segmented cell, vs the unperturbed cell; effective path and angle percentiles | |
+| [thermo_optic](engines/thermo_optic/) | Thermo-optic LUT (dn/dT, k, ρ, c_p, expansion, band gap, TPA) for Si, SiO₂, Si₃N₄, SiNx, TFLN, TFLT, GaAs, AlGaAs, InP, AlN, Al₂O₃, TiO₂, polymer; slab-mode dn_eff/dT and resonance drift; heat from absorption, TPA, free carriers and quantum defect; closed-form thermal resistance; pump-power budget | |
+| [waveguide_thermal](engines/waveguide_thermal/) | 2D finite-volume heat conduction in a waveguide cross-section (substrate / BOX / film / ridge / cladding): ΔT, R′, energy time constant, index and resonance shifts | scipy |
 | [fringe_averaging](engines/fringe_averaging/) | Residual interference-fringe visibility after angle and laser-frequency dithering, drifts, linewidth and averaging over seconds (exact harmonic expansion) | scipy (tests) |
 
 ## Use
@@ -53,6 +55,7 @@ test_vectors/vectors.json   reference outputs shared with the JavaScript ports
 tools/build_index.py        specs → web/engines_index.json
 tools/make_vectors.py       engines → test_vectors/vectors.json
 tools/check_js_ports.mjs    JS ports in the applets checked against vectors.json
+tools/make_thermo_lut.py    thermo_optic LUT → engines/thermo_optic/LUT.md and thermo_optic_lut.csv
 tools/fetch_hitran.py       HITRAN line lists (HAPI) → engines/trace_gas/hitran_lines.json
 web/index.html              Pyodide calculator
 ```
@@ -62,11 +65,12 @@ After changing a spec or an engine, regenerate and rerun:
 ```
 python tools/build_index.py
 python tools/make_vectors.py
+python tools/make_thermo_lut.py
 python -m pytest -q
 node tools/check_js_ports.mjs
 ```
 
-The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out of date.
+The tests fail if `web/engines_index.json`, `test_vectors/vectors.json` or the thermo-optic LUT exports are out of date.
 
 ## JavaScript ports
 

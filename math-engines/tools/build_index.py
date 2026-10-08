@@ -53,7 +53,8 @@ def build() -> dict:
             },
         })
     # engines that import other engines need their files too
-    deps = {"step_index_fiber": ["materials"], "membrane_mode": ["materials", "slab_waveguide"], "path_coherence": ["billiard_cell"], "ray_phase": ["billiard_cell"], "cell_mirror": ["billiard_cell", "bragg_grating", "ray_phase"]}
+    deps = {"step_index_fiber": ["materials"], "membrane_mode": ["materials", "slab_waveguide"], "path_coherence": ["billiard_cell"], "ray_phase": ["billiard_cell"], "cell_mirror": ["billiard_cell", "bragg_grating", "ray_phase"],
+            "thermo_optic": ["materials", "slab_waveguide"], "waveguide_thermal": ["thermo_optic", "materials", "slab_waveguide"]}
     for e in engines:
         for dep in deps.get(e["engine"], []):
             e["files"] = sorted(set(e["files"]) | {f"engines/{dep}/__init__.py", f"engines/{dep}/engine.py"})

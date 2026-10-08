@@ -2645,6 +2645,964 @@
    }
   },
   {
+   "engine": "thermo_optic",
+   "version": 1,
+   "title": "Thermo-optic LUT, absorbed heat and pump budget",
+   "description": "Look-up table of dn/dT, thermal conductivity, heat capacity, expansion, band gap and TPA for Si, SiO2, Si3N4, SiNx, TFLN, TFLT, GaAs, AlGaAs, InP, AlN, Al2O3, TiO2, polymer and air; index and slab-mode thermal shifts, heat from linear absorption, TPA, free carriers and quantum defect, closed-form waveguide thermal resistance, and the largest power that keeps ΔT and Δn_eff in budget.",
+   "requires": [],
+   "references": [
+    "B. J. Frey, D. B. Leviton, T. J. Madison, Proc. SPIE 6273, 62732J (2006)",
+    "J. Komma et al., Appl. Phys. Lett. 101, 041905 (2012) (Si dn/dT)",
+    "A. Arbabi and L. L. Goddard, Opt. Lett. 38, 3878 (2013) (Si3N4 dn/dT)",
+    "L. Moretti et al., J. Phys. D 38, 3016 (2005) (LiNbO3 dn/dT)",
+    "G. Della Corte et al., J. Appl. Phys. 88, 7115 (2000) (GaAs, InP dn/dT)",
+    "S. Adachi, J. Appl. Phys. 54, 1844 (1983) (AlGaAs thermal conductivity)",
+    "A. D. Bristow, N. Rotenberg, H. M. van Driel, Appl. Phys. Lett. 90, 191104 (2007) (Si TPA, n2)",
+    "R. A. Soref and B. R. Bennett, IEEE J. Quantum Electron. 23, 123 (1987) (free-carrier absorption)",
+    "H. S. Carslaw and J. C. Jaeger, Conduction of Heat in Solids, 2nd ed. (Oxford, 1959) (line source above an isothermal plane)"
+   ],
+   "files": [
+    "engines/materials/__init__.py",
+    "engines/materials/engine.py",
+    "engines/slab_waveguide/__init__.py",
+    "engines/slab_waveguide/engine.py",
+    "engines/thermo_optic/__init__.py",
+    "engines/thermo_optic/engine.py"
+   ],
+   "functions": {
+    "material_properties": {
+     "title": "Material LUT row",
+     "equations": [
+      "D = k / (ρ c_p)"
+     ],
+     "inputs": [
+      {
+       "name": "material",
+       "label": "Material",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8",
+        "air"
+       ],
+       "default": "si"
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 200
+      },
+      {
+       "name": "al_fraction",
+       "label": "Al fraction x (AlGaAs only)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.2,
+       "min": 0,
+       "max": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "n",
+       "label": "Refractive index n",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "dn_dT",
+       "label": "dn/dT",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05
+      },
+      {
+       "name": "dn_dT_min",
+       "label": "dn/dT, low end",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05
+      },
+      {
+       "name": "dn_dT_max",
+       "label": "dn/dT, high end",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05
+      },
+      {
+       "name": "k",
+       "label": "Thermal conductivity k",
+       "ui_unit": "W/(m K)",
+       "scale": 1.0
+      },
+      {
+       "name": "k_min",
+       "label": "k, low end",
+       "ui_unit": "W/(m K)",
+       "scale": 1.0
+      },
+      {
+       "name": "k_max",
+       "label": "k, high end",
+       "ui_unit": "W/(m K)",
+       "scale": 1.0
+      },
+      {
+       "name": "rho",
+       "label": "Density",
+       "ui_unit": "kg/m³",
+       "scale": 1.0
+      },
+      {
+       "name": "cp",
+       "label": "Specific heat",
+       "ui_unit": "J/(kg K)",
+       "scale": 1.0
+      },
+      {
+       "name": "diffusivity",
+       "label": "Thermal diffusivity",
+       "ui_unit": "mm²/s",
+       "scale": 1e-06
+      },
+      {
+       "name": "alpha_L",
+       "label": "Linear expansion",
+       "ui_unit": "ppm/K",
+       "scale": 1e-06
+      },
+      {
+       "name": "Eg",
+       "label": "Band gap",
+       "ui_unit": "eV",
+       "scale": 1.0
+      },
+      {
+       "name": "beta_tpa",
+       "label": "TPA coefficient β",
+       "ui_unit": "cm/GW",
+       "scale": 1e-11
+      },
+      {
+       "name": "n2",
+       "label": "Kerr n2",
+       "ui_unit": "1e-20 m²/W",
+       "scale": 1e-20
+      }
+     ]
+    },
+    "index_change": {
+     "title": "Index change of a material",
+     "equations": [
+      "Δn = (dn/dT) ΔT",
+      "Δφ/L = 2π Δn / λ",
+      "L_π = λ / (2 |Δn|)"
+     ],
+     "inputs": [
+      {
+       "name": "material",
+       "label": "Material",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8",
+        "air"
+       ],
+       "default": "ln_e"
+      },
+      {
+       "name": "delta_T",
+       "label": "Temperature rise ΔT",
+       "ui_unit": "K",
+       "scale": 1.0,
+       "default": 10
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 200
+      },
+      {
+       "name": "al_fraction",
+       "label": "Al fraction x (AlGaAs only)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.2,
+       "min": 0,
+       "max": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "delta_n",
+       "label": "Δn",
+       "ui_unit": "1e-4",
+       "scale": 0.0001
+      },
+      {
+       "name": "delta_n_min",
+       "label": "Δn, LUT range low",
+       "ui_unit": "1e-4",
+       "scale": 0.0001
+      },
+      {
+       "name": "delta_n_max",
+       "label": "Δn, LUT range high",
+       "ui_unit": "1e-4",
+       "scale": 0.0001
+      },
+      {
+       "name": "phase_per_length",
+       "label": "Phase shift per length",
+       "ui_unit": "rad/mm",
+       "scale": 1000.0
+      },
+      {
+       "name": "length_for_pi",
+       "label": "Length for a π shift",
+       "ui_unit": "mm",
+       "scale": 0.001
+      }
+     ]
+    },
+    "slab_thermal_shift": {
+     "title": "Thermal shift of a slab mode",
+     "equations": [
+      "dn_eff/dT = Σ_i Γ_i dn_i/dT, Γ_i = ∂n_eff/∂n_i",
+      "dλ/dT = λ (dn_eff/dT + n_eff α_sub) / n_g"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 200
+      },
+      {
+       "name": "core",
+       "label": "Core",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8",
+        "air"
+       ],
+       "default": "si"
+      },
+      {
+       "name": "substrate",
+       "label": "Lower cladding",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "cladding",
+       "label": "Upper cladding",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "thickness",
+       "label": "Core thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 220,
+       "min": 1
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "al_fraction",
+       "label": "Al fraction x (AlGaAs only)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.2,
+       "min": 0,
+       "max": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Effective index",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_group",
+       "label": "Group index",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "dneff_dT",
+       "label": "dn_eff/dT",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05
+      },
+      {
+       "name": "Gamma_core",
+       "label": "Γ core = ∂n_eff/∂n_core",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "contrib_core",
+       "label": "Core share of dn_eff/dT",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05
+      },
+      {
+       "name": "contrib_sub",
+       "label": "Lower-cladding share",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05
+      },
+      {
+       "name": "contrib_clad",
+       "label": "Upper-cladding share",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05
+      },
+      {
+       "name": "dlambda_dT",
+       "label": "Resonance drift dλ/dT",
+       "ui_unit": "pm/K",
+       "scale": 1e-12
+      }
+     ]
+    },
+    "resonance_shift": {
+     "title": "Resonance drift",
+     "equations": [
+      "dλ/dT = λ (dn_eff/dT + n_eff α_L) / n_g",
+      "dν/dT = -c/λ² dλ/dT"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Resonance wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 200
+      },
+      {
+       "name": "dneff_dT",
+       "label": "dn_eff/dT",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05,
+       "default": 18
+      },
+      {
+       "name": "n_group",
+       "label": "Group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 4.2,
+       "min": 1
+      },
+      {
+       "name": "n_eff",
+       "label": "Effective index (for expansion)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.4,
+       "min": 0
+      },
+      {
+       "name": "alpha_L",
+       "label": "Expansion of the cavity",
+       "ui_unit": "ppm/K",
+       "scale": 1e-06,
+       "default": 2.6
+      },
+      {
+       "name": "delta_T",
+       "label": "Temperature rise ΔT",
+       "ui_unit": "K",
+       "scale": 1.0,
+       "default": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "dlambda_dT",
+       "label": "dλ/dT",
+       "ui_unit": "pm/K",
+       "scale": 1e-12
+      },
+      {
+       "name": "delta_lambda",
+       "label": "Δλ at ΔT",
+       "ui_unit": "pm",
+       "scale": 1e-12
+      },
+      {
+       "name": "dnu_dT",
+       "label": "dν/dT",
+       "ui_unit": "GHz/K",
+       "scale": 1000000000.0
+      }
+     ]
+    },
+    "absorbed_heat": {
+     "title": "Heat deposited per unit length",
+     "equations": [
+      "q' = α_abs P + β P²/A_eff + σ N P",
+      "N = τ β P² / (2 hν A_eff²)"
+     ],
+     "inputs": [
+      {
+       "name": "power",
+       "label": "Guided power P",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 100,
+       "min": 0
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 200
+      },
+      {
+       "name": "a_eff",
+       "label": "Effective area A_eff",
+       "ui_unit": "µm²",
+       "scale": 1e-12,
+       "default": 0.1,
+       "min": 0
+      },
+      {
+       "name": "loss_abs_db_per_cm",
+       "label": "Absorption loss (not scattering)",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": 0.1,
+       "min": 0
+      },
+      {
+       "name": "beta_tpa",
+       "label": "TPA coefficient β",
+       "ui_unit": "cm/GW",
+       "scale": 1e-11,
+       "default": 0.8,
+       "min": 0
+      },
+      {
+       "name": "carrier_lifetime",
+       "label": "Free-carrier lifetime τ",
+       "ui_unit": "ns",
+       "scale": 1e-09,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "sigma_fca",
+       "label": "FCA cross-section σ",
+       "ui_unit": "1e-21 m²",
+       "scale": 1e-21,
+       "default": 1.45,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "q_total",
+       "label": "Heat per length q'",
+       "ui_unit": "mW/mm",
+       "scale": 1.0
+      },
+      {
+       "name": "q_linear",
+       "label": "Linear absorption",
+       "ui_unit": "mW/mm",
+       "scale": 1.0
+      },
+      {
+       "name": "q_tpa",
+       "label": "TPA",
+       "ui_unit": "mW/mm",
+       "scale": 1.0
+      },
+      {
+       "name": "q_fca",
+       "label": "Free-carrier absorption",
+       "ui_unit": "mW/mm",
+       "scale": 1.0
+      },
+      {
+       "name": "carrier_density",
+       "label": "Carrier density N",
+       "ui_unit": "1/cm³",
+       "scale": 1000000.0
+      },
+      {
+       "name": "alpha_fca",
+       "label": "FCA loss coefficient",
+       "ui_unit": "1/cm",
+       "scale": 100
+      }
+     ]
+    },
+    "amplifier_heat_fraction": {
+     "title": "Heat fraction of absorbed pump",
+     "equations": [
+      "quantum defect = 1 - λ_p/λ_em",
+      "η_heat = 1 - η_q λ_p/λ_em"
+     ],
+     "inputs": [
+      {
+       "name": "pump_wavelength",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 980,
+       "min": 200
+      },
+      {
+       "name": "emission_wavelength",
+       "label": "Mean emission wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532,
+       "min": 200
+      },
+      {
+       "name": "quantum_efficiency",
+       "label": "Radiative quantum efficiency η_q",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 0,
+       "max": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "quantum_defect",
+       "label": "Quantum defect",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "eta_heat",
+       "label": "Heat fraction η_heat",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "strip_thermal_resistance": {
+     "title": "Waveguide thermal resistance (closed form)",
+     "equations": [
+      "embedded: R' = acosh(d/r)/(2π k_box) + ln(8H/(π w''))/(π k_sub), r = (w+2h)/4, d = t + h/2",
+      "air clad or film: R' = acosh(d/r)/(π k_box) + ..., r = w_eff/4, w_eff = w + 2 sqrt(k_f t_f t / (2 k_box))"
+     ],
+     "inputs": [
+      {
+       "name": "width",
+       "label": "Waveguide width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.5,
+       "min": 0
+      },
+      {
+       "name": "height",
+       "label": "Waveguide height",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.22,
+       "min": 0
+      },
+      {
+       "name": "box_thickness",
+       "label": "Buried-layer thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2,
+       "min": 0
+      },
+      {
+       "name": "box_material",
+       "label": "Buried layer",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "si3n4",
+        "sinx",
+        "al2o3_film",
+        "sapphire",
+        "su8",
+        "aln",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "substrate_thickness",
+       "label": "Substrate thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 500,
+       "min": 0
+      },
+      {
+       "name": "substrate_material",
+       "label": "Substrate",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "sapphire",
+        "gaas",
+        "inp",
+        "ln_e",
+        "lt_e",
+        "aln"
+       ],
+       "default": "si"
+      },
+      {
+       "name": "clad_material",
+       "label": "Cladding",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "slab_thickness",
+       "label": "Film (slab) under the ridge",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "slab_material",
+       "label": "Film material",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8",
+        "air"
+       ],
+       "default": "si"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "R_th",
+       "label": "R' (= ΔT in K per mW/mm of heat)",
+       "ui_unit": "K m/W",
+       "scale": 1.0
+      },
+      {
+       "name": "R_box",
+       "label": "Buried-layer part",
+       "ui_unit": "K m/W",
+       "scale": 1.0
+      },
+      {
+       "name": "R_sub",
+       "label": "Substrate part",
+       "ui_unit": "K m/W",
+       "scale": 1.0
+      },
+      {
+       "name": "w_eff",
+       "label": "Effective heated width",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      }
+     ]
+    },
+    "pump_budget": {
+     "title": "Pump power budget from heating",
+     "equations": [
+      "q' = (α_abs + η_heat α_p) P + β P²/A_eff + σ τ β P³/(2hν A_eff²)",
+      "ΔT = R' q', Δn_eff = (dn_eff/dT) ΔT",
+      "P_max: ΔT ≤ ΔT_max and |Δn_eff| ≤ Δn_max"
+     ],
+     "inputs": [
+      {
+       "name": "R_th",
+       "label": "Thermal resistance R'",
+       "ui_unit": "K m/W",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0
+      },
+      {
+       "name": "dneff_dT",
+       "label": "dn_eff/dT",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05,
+       "default": 3.4
+      },
+      {
+       "name": "power",
+       "label": "Pump power P",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 200,
+       "min": 0
+      },
+      {
+       "name": "wavelength",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 980,
+       "min": 200
+      },
+      {
+       "name": "a_eff",
+       "label": "Effective area A_eff",
+       "ui_unit": "µm²",
+       "scale": 1e-12,
+       "default": 1.0,
+       "min": 0
+      },
+      {
+       "name": "loss_abs_db_per_cm",
+       "label": "Background absorption",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": 0.1,
+       "min": 0
+      },
+      {
+       "name": "beta_tpa",
+       "label": "TPA coefficient β",
+       "ui_unit": "cm/GW",
+       "scale": 1e-11,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "carrier_lifetime",
+       "label": "Free-carrier lifetime τ",
+       "ui_unit": "ns",
+       "scale": 1e-09,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "sigma_fca",
+       "label": "FCA cross-section σ",
+       "ui_unit": "1e-21 m²",
+       "scale": 1e-21,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "pump_absorption_db_per_cm",
+       "label": "Gain-medium pump absorption",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 0
+      },
+      {
+       "name": "eta_heat",
+       "label": "Heat fraction η_heat",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.36,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "dT_max",
+       "label": "Allowed ΔT",
+       "ui_unit": "K",
+       "scale": 1.0,
+       "default": 10,
+       "min": 0
+      },
+      {
+       "name": "dneff_max",
+       "label": "Allowed |Δn_eff|",
+       "ui_unit": "1e-4",
+       "scale": 0.0001,
+       "default": 1,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "q",
+       "label": "Heat per length q'",
+       "ui_unit": "mW/mm",
+       "scale": 1.0
+      },
+      {
+       "name": "dT",
+       "label": "Temperature rise ΔT",
+       "ui_unit": "K",
+       "scale": 1.0
+      },
+      {
+       "name": "dneff",
+       "label": "Δn_eff",
+       "ui_unit": "1e-4",
+       "scale": 0.0001
+      },
+      {
+       "name": "P_max_dT",
+       "label": "Max power for ΔT_max",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "P_max_dn",
+       "label": "Max power for Δn_max",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "P_max",
+       "label": "Max power (both limits)",
+       "ui_unit": "mW",
+       "scale": 0.001
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "trace_gas",
    "version": 1,
    "title": "Trace-gas absorption lines",
@@ -2806,6 +3764,257 @@
        "label": "Detected power",
        "ui_unit": "µW",
        "scale": 1e-06
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "waveguide_thermal",
+   "version": 1,
+   "title": "Waveguide cross-section heating (2D finite volumes)",
+   "description": "Steady-state temperature rise of a heated ridge or strip waveguide on a layered substrate (substrate / BOX / film / ridge / cladding), thermal resistance per length, energy time constant, and the resulting index, phase and resonance shifts. Conductivities from the thermo_optic LUT.",
+   "requires": [
+    "scipy"
+   ],
+   "references": [
+    "S. V. Patankar, Numerical Heat Transfer and Fluid Flow (Hemisphere, 1980) (finite-volume discretisation, harmonic-mean face conductances)",
+    "H. S. Carslaw and J. C. Jaeger, Conduction of Heat in Solids, 2nd ed. (Oxford, 1959) (line source above an isothermal plane, used in the tests)"
+   ],
+   "files": [
+    "engines/materials/__init__.py",
+    "engines/materials/engine.py",
+    "engines/slab_waveguide/__init__.py",
+    "engines/slab_waveguide/engine.py",
+    "engines/thermo_optic/__init__.py",
+    "engines/thermo_optic/engine.py",
+    "engines/waveguide_thermal/__init__.py",
+    "engines/waveguide_thermal/engine.py"
+   ],
+   "functions": {
+    "ridge_heating": {
+     "title": "Temperature rise of a heated waveguide",
+     "equations": [
+      "∇·(k∇T) = -q'''",
+      "R' = ΔT_core / q'",
+      "τ_E = ∫ρ c_p ΔT dA / q'"
+     ],
+     "inputs": [
+      {
+       "name": "heat_per_length",
+       "label": "Heat per length q'",
+       "ui_unit": "mW/mm",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "core_material",
+       "label": "Ridge / strip",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8"
+       ],
+       "default": "si"
+      },
+      {
+       "name": "core_width",
+       "label": "Ridge width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.5,
+       "min": 0
+      },
+      {
+       "name": "core_height",
+       "label": "Ridge height (above the film)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.22,
+       "min": 0
+      },
+      {
+       "name": "slab_material",
+       "label": "Film under the ridge",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8"
+       ],
+       "default": "si"
+      },
+      {
+       "name": "slab_thickness",
+       "label": "Film thickness (0 = none)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "box_material",
+       "label": "Buried layer",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "si3n4",
+        "sinx",
+        "al2o3_film",
+        "sapphire",
+        "su8",
+        "aln"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "box_thickness",
+       "label": "Buried-layer thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2,
+       "min": 0
+      },
+      {
+       "name": "substrate_material",
+       "label": "Substrate",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "sapphire",
+        "gaas",
+        "inp",
+        "ln_e",
+        "lt_e",
+        "aln"
+       ],
+       "default": "si"
+      },
+      {
+       "name": "substrate_thickness",
+       "label": "Substrate thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 500,
+       "min": 0
+      },
+      {
+       "name": "clad_material",
+       "label": "Cladding",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "si3n4",
+        "sinx",
+        "al2o3_film",
+        "tio2_film",
+        "su8",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "clad_thickness",
+       "label": "Cladding height above the buried layer",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2,
+       "min": 0
+      },
+      {
+       "name": "domain_half_width",
+       "label": "Chip half-width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 500,
+       "min": 0
+      },
+      {
+       "name": "h_top",
+       "label": "Top heat-transfer coefficient",
+       "ui_unit": "W/(m² K)",
+       "scale": 1.0,
+       "default": 10,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "dT_core",
+       "label": "Mean ΔT in the ridge",
+       "ui_unit": "K",
+       "scale": 1.0
+      },
+      {
+       "name": "dT_max",
+       "label": "Peak ΔT",
+       "ui_unit": "K",
+       "scale": 1.0
+      },
+      {
+       "name": "R_th",
+       "label": "R' (= ΔT in K per mW/mm)",
+       "ui_unit": "K m/W",
+       "scale": 1.0
+      },
+      {
+       "name": "dT_box_top",
+       "label": "ΔT at the buried-layer top (centre)",
+       "ui_unit": "K",
+       "scale": 1.0
+      },
+      {
+       "name": "dT_substrate_top",
+       "label": "ΔT at the substrate top (centre)",
+       "ui_unit": "K",
+       "scale": 1.0
+      },
+      {
+       "name": "tau_E",
+       "label": "Energy time constant τ_E",
+       "ui_unit": "µs",
+       "scale": 1e-06
+      },
+      {
+       "name": "heat_balance",
+       "label": "Heat balance check (1 = exact)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_cells",
+       "label": "Grid cells (half domain)",
+       "ui_unit": "",
+       "scale": 1.0
       }
      ]
     }

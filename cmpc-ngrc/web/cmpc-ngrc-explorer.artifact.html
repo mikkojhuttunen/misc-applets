@@ -1,0 +1,1404 @@
+<title>CMPC Speckle Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument-panel app. Header with tabs; Explorer = controls | cell view | outputs (stacks on phones). */
+:root {
+  --bg: #f3f5f8; --panel: #ffffff; --ink: #101820; --muted: #566273; --faint: #8a95a3; --line: #dbe1e8;
+  --slab: #e6edf5; --wall: #1d2835; --accent: #2a78d6; --ray: #eb6834; --dn: #4a3aa7; --det: #1baf7a;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --good: #1a7f37; --warn: #9a6700; --todo: #8a95a3; --gridline: #e7ebf0; --chip: #eef2f6;
+  --f-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
+  --f-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --panel: #151c24; --ink: #e6ebf1; --muted: #9ba7b6; --faint: #6c7988; --line: #263241;
+    --slab: #18222e; --wall: #c8d3df; --accent: #3987e5; --ray: #f07a45; --dn: #9085e9; --det: #199e70;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good: #3fb950; --warn: #d29922; --todo: #6c7988; --gridline: #1e2833; --chip: #1c2530; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --panel: #151c24; --ink: #e6ebf1; --muted: #9ba7b6; --faint: #6c7988; --line: #263241;
+  --slab: #18222e; --wall: #c8d3df; --accent: #3987e5; --ray: #f07a45; --dn: #9085e9; --det: #199e70;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good: #3fb950; --warn: #d29922; --todo: #6c7988; --gridline: #1e2833; --chip: #1c2530; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-body); }
+.wrap { max-width: 1480px; margin: 0 auto; padding-inline: 16px; padding-block: 14px 40px; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-block: 6px 14px; border-bottom: 1px solid var(--line); }
+h1 { font: 700 26px/1.1 var(--f-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 70ch; }
+nav { display: flex; gap: 4px; background: var(--chip); padding: 3px; border-radius: 999px; }
+nav button { border: 0; background: transparent; color: var(--muted); font: 500 13px var(--f-body); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+nav button[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h2 { font: 600 15px/1.3 var(--f-body); margin: 0 0 8px; }
+h3 { font: 600 12px/1.3 var(--f-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; min-width: 0; }
+.explorer { display: grid; grid-template-columns: 300px minmax(0, 1fr) minmax(0, 420px); gap: 14px; margin-top: 14px; align-items: start; }
+@media (max-width: 1180px) { .explorer { grid-template-columns: 300px minmax(0, 1fr); } .explorer .outputs { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .explorer { grid-template-columns: minmax(0, 1fr); } }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+label.f { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); min-width: 0; }
+input[type=number], select { width: 100%; font: 13px var(--f-mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.btn { font: 500 12.5px var(--f-body); border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 11.5px; }
+td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.ports td input, .ports td select { padding: 3px 4px; font-size: 12px; width: 4.4em; }
+.ports td select { width: 5.6em; }
+.ports td, .ports th { padding: 3px 3px; }
+.scroll { overflow-x: auto; }
+.cellwrap { position: relative; }
+#cellCanvas { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; touch-action: none; cursor: crosshair; border-radius: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.legend i.sq { height: 10px; width: 10px; }
+.stats { font: 12px/1.6 var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats b { color: var(--ink); font-weight: 500; }
+.status { font: 12px var(--f-mono); color: var(--muted); min-height: 1.4em; }
+.spk { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.spk figure { margin: 0; min-width: 0; }
+.spk figcaption { font: 11.5px var(--f-mono); color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+.spk figcaption b { color: var(--ink); font-weight: 500; }
+svg text { font-family: var(--f-mono); font-size: 10.5px; fill: var(--muted); }
+svg .ttl { fill: var(--ink); font-family: var(--f-body); font-size: 12px; font-weight: 600; }
+#tip { position: fixed; pointer-events: none; z-index: 10; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--f-mono); box-shadow: 0 4px 14px rgba(0,0,0,.18); white-space: pre; }
+.note { font-size: 12.5px; color: var(--muted); max-width: 72ch; }
+.note b { color: var(--ink); font-weight: 600; }
+.lab { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+@media (max-width: 860px) { .lab { grid-template-columns: minmax(0, 1fr); } }
+.charts2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.prog { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+@media (max-width: 980px) { .prog { grid-template-columns: minmax(0, 1fr); } }
+.tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.tasks li { display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px dashed var(--line); font-size: 12.5px; }
+.tasks li code { font: 11.5px var(--f-mono); color: var(--muted); }
+.pill { font: 500 10.5px var(--f-mono); padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.done { color: var(--good); } .pill.part { color: var(--warn); } .pill.todo { color: var(--todo); }
+.kpis { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.kpis b { font: 600 18px var(--f-mono); color: var(--ink); margin-right: 4px; }
+.occ { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.occ figure { margin: 0; } .occ canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 50%; }
+.occ figcaption { font: 11px var(--f-mono); color: var(--muted); text-align: center; margin-top: 3px; }
+td.heat { font-family: var(--f-mono); text-align: right; }
+.seg { display: inline-flex; gap: 2px; background: var(--chip); padding: 2px; border-radius: 6px; }
+.seg button { border: 0; background: transparent; color: var(--muted); font: 12px var(--f-body); padding: 3px 9px; border-radius: 4px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>CMPC Speckle Lab</h1>
+      <p class="sub">Rays and Gaussian beamlets in a circular on-chip multipass cell with Δn<sub>eff</sub> dots. The speckle at the output ports is the reservoir; a trained readout tries to recover the circular-harmonic decomposition (CHD) of the dots.</p>
+    </div>
+    <nav role="tablist" aria-label="Views">
+      <button role="tab" id="tab-explore" aria-selected="true" data-tab="explore">Explorer</button>
+      <button role="tab" id="tab-lab" aria-selected="false" data-tab="lab">Readout lab</button>
+      <button role="tab" id="tab-progress" aria-selected="false" data-tab="progress">Progress</button>
+    </nav>
+  </header>
+
+  <!-- ===================== EXPLORER ===================== -->
+  <section id="view-explore" class="explorer">
+    <aside class="panel">
+      <h2>Cell and ports</h2>
+      <div class="row">
+        <label class="f">Layout<select id="preset"></select></label>
+        <label class="f">Port width (µm)<input id="portW" type="number" step="1" min="2" value="20"></label>
+      </div>
+      <div class="row">
+        <label class="f">Launch (°, all inputs)<input id="launchAll" type="number" step="1" value="20"></label>
+        <label class="f">Fan (°, all inputs)<input id="fanAll" type="number" step="1" min="0" value="23"></label>
+      </div>
+      <div class="scroll" style="margin-top:8px">
+        <table class="ports"><thead><tr><th>Port</th><th>Angle °</th><th>Role</th><th>Launch °</th><th>Fan °</th><th></th></tr></thead><tbody id="portRows"></tbody></table>
+      </div>
+      <div class="btns"><button class="btn" id="addPort">Add port</button><span class="note" style="align-self:center">Drag a port along the wall in the view.</span></div>
+
+      <h3>Slab and wall</h3>
+      <div class="row">
+        <label class="f">Radius (µm)<input id="radius" type="number" step="50" min="200" value="1000"></label>
+        <label class="f">Effective index<input id="neff" type="number" step="0.01" min="1" value="1.80"></label>
+        <label class="f">λ (nm)<input id="lambda" type="number" step="1" value="1550"></label>
+        <label class="f">Wall R (%)<input id="Rwall" type="number" step="0.1" max="100" value="99"></label>
+      </div>
+      <h3>Rays</h3>
+      <div class="row">
+        <label class="f">Engine<select id="mode"><option value="curved">Curved rays (full)</option><option value="phase">Phase screen (1st order)</option><option value="none">Unperturbed</option></select></label>
+        <label class="f">Beamlet waist (µm)<input id="waist" type="number" step="0.5" min="1" value="5"></label>
+        <label class="f">Positions / port<input id="nPos" type="number" min="1" max="15" value="3"></label>
+        <label class="f">Angles / port<input id="nAng" type="number" min="1" max="301" value="61"></label>
+      </div>
+      <label class="f" style="margin-top:6px">Rays drawn: <span id="nShowV">12</span><input id="nShow" type="range" min="0" max="200" value="12"></label>
+      <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:4px"><input type="checkbox" id="density" checked> Ray density (unperturbed)</label>
+
+      <h3>Δn dots</h3>
+      <div class="row">
+        <label class="f">Selected<select id="shapeSel"></select></label>
+        <div class="btns" style="margin-top:16px"><button class="btn" id="addShape">Add</button><button class="btn" id="delShape">Remove</button></div>
+      </div>
+      <div class="row3">
+        <label class="f">x (µm)<input id="sx" type="number" step="10"></label>
+        <label class="f">y (µm)<input id="sy" type="number" step="10"></label>
+        <label class="f">R (µm)<input id="sR" type="number" step="5" min="5"></label>
+        <label class="f">Δn (×10⁻³)<input id="sdn" type="number" step="0.1"></label>
+        <label class="f">Edge (µm)<input id="sedge" type="number" step="0.5" min="0.5"></label>
+        <label class="f">&nbsp;<button class="btn" id="randShape">Randomise</button></label>
+      </div>
+      <div id="harmSliders" style="margin-top:6px"></div>
+      <h3>Insert from image</h3>
+      <div class="row">
+        <label class="f">Image width (µm)<input id="imgW" type="number" step="10" min="20" value="240"></label>
+        <label class="f">&nbsp;<button class="btn" id="imgBtn">Choose image…</button></label>
+      </div>
+      <input type="file" id="imgFile" accept="image/*" hidden>
+      <p class="note" id="imgNote">A dark or light blob on a plain background. Its contour is fitted with circular harmonics (m ≤ 10) and inserted as a dot at the selected dot's position.</p>
+    </aside>
+
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+        <h2>Cell view</h2><span class="status" id="status">tracing…</span>
+      </div>
+      <div class="cellwrap"><canvas id="cellCanvas" aria-label="Cell with ports, rays and Δn dots"></canvas></div>
+      <div class="legend">
+        <span><i style="background:var(--ray)"></i>rays (curved)</span>
+        <span><i class="sq" style="background:var(--dn);opacity:.6"></i>Δn dot</span>
+        <span><i style="background:var(--ray);height:8px;width:8px;border-radius:50%"></i>input port</span>
+        <span><i style="background:var(--accent);height:8px;width:8px;border-radius:50%"></i>output port</span>
+        <span><i style="background:var(--det)"></i>detector line</span>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div class="panel outputs">
+      <h2>Speckle at the detectors</h2>
+      <p class="note">Intensity along each detector line (64 pixels, 100 µm outside the port), divided by the mean unperturbed intensity. Grey: no dots. Blue: with dots. ρ is the field correlation between the two.</p>
+      <div class="spk" id="speckle"></div>
+      <h3>CHD of the selected dot</h3>
+      <div id="chdChart"></div>
+      <div class="scroll"><table id="chdTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ===================== READOUT LAB ===================== -->
+  <section id="view-lab" class="lab" hidden>
+    <aside class="panel">
+      <h2>Dataset</h2>
+      <p class="note">Random deformed dots r(θ) = R[1 + Σ a<sub>m</sub> cos mθ + b<sub>m</sub> sin mθ], m = 2…6, traced through the cell and ports set in the Explorer. Features: relative speckle intensity I/I₀ − 1 on every detector pixel, for every input port. Readout: ridge regression (the NGRC readout) on a 75/25 split, penalty chosen by validation.</p>
+      <div class="row">
+        <label class="f">Samples<input id="dsN" type="number" step="20" min="40" max="1200" value="240"></label>
+        <label class="f">Engine<select id="dsMode"><option value="phase">Phase screen (fast)</option><option value="curved">Curved rays (slow)</option></select></label>
+        <label class="f">Position<select id="dsPos"><option value="fixed">Fixed (selected dot)</option><option value="random">Random</option></select></label>
+        <label class="f">Place radius (µm)<input id="dsPlace" type="number" step="50" value="600"></label>
+        <label class="f">Δn (×10⁻³)<input id="dsDn" type="number" step="0.1" value="1"></label>
+        <label class="f">σ (a₂ spread)<input id="dsSigma" type="number" step="0.01" value="0.08"></label>
+        <label class="f">R min (µm)<input id="dsRmin" type="number" step="5" value="60"></label>
+        <label class="f">R max (µm)<input id="dsRmax" type="number" step="5" value="110"></label>
+        <label class="f">Rays / port (angles)<input id="dsAng" type="number" step="2" min="5" value="41"></label>
+        <label class="f">Seed<input id="dsSeed" type="number" step="1" value="1"></label>
+      </div>
+      <div class="btns"><button class="btn primary" id="dsRun">Run on current layout</button><button class="btn" id="dsRunAll">Run every preset layout</button><button class="btn" id="dsStop" disabled>Stop</button></div>
+      <div class="bar"><div id="dsBar"></div></div>
+      <div class="status" id="dsStatus">Ready.</div>
+    </aside>
+    <div style="display:grid;gap:14px;min-width:0">
+      <div class="charts2">
+        <div class="panel"><h2>R² of a<sub>m</sub>, b<sub>m</sub> per harmonic order</h2><div id="labAB"></div></div>
+        <div class="panel"><h2>R² of the power p<sub>m</sub> = a<sub>m</sub>² + b<sub>m</sub>²</h2><div id="labP"></div></div>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>Latest run: predicted vs true</h2>
+          <div class="seg" id="scSel" role="group" aria-label="Target"></div>
+          <div id="labScatter"></div></div>
+        <div class="panel"><h2>Runs</h2><div class="scroll"><table id="runTable"></table></div>
+          <p class="note">Bars show the four most recent runs. R² ≤ 0 means the readout does no better than predicting the mean.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PROGRESS ===================== -->
+  <section id="view-progress" class="prog" hidden>
+    <div class="panel">
+      <h2>Task list</h2>
+      <div class="kpis" id="taskKpis"></div>
+      <div id="taskList"></div>
+    </div>
+    <div style="display:grid;gap:14px;min-width:0">
+      <div class="panel">
+        <h2>Python engine results</h2>
+        <p class="note" id="pyMeta"></p>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>E1 · Sensitivity per order vs launch angle</h2><div id="e1chart"></div>
+          <p class="note">rms ∂I/∂a<sub>m</sub> over all detector pixels (per unit coefficient, ÷ mean I₀), four symmetric ports, one input, fan ±11.5°, dots within 600 µm of the centre. A ray with incidence angle χ never comes closer to the centre than R<sub>c</sub> sin χ, so steep launches cannot see central dots.</p></div>
+        <div class="panel"><h2>E1 · Where the rays go</h2><div class="occ" id="e1occ"></div>
+          <p class="note">Unperturbed ray density for each launch angle. The dark core is the caustic disk that the rays never enter.</p></div>
+      </div>
+      <div class="panel"><h2>E2 · Port layouts</h2><div class="scroll"><table id="e2table"></table></div>
+        <p class="note" id="e2note"></p></div>
+      <div class="charts2">
+        <div class="panel"><h2>E3 · Readouts</h2>
+          <div class="seg" id="e3sel" role="group" aria-label="Case"></div>
+          <div id="e3chart"></div><div class="note" id="e3svc"></div></div>
+        <div class="panel"><h2>E4 · Validity of the phase-screen model</h2><div id="e4chart"></div>
+          <p class="note">Field correlation of the first-order (phase-screen) speckle with full curved-ray tracing, and of the perturbed speckle with the unperturbed one, against Δn of one 80 µm dot.</p></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="tip" hidden></div>
+
+<script id="engine">/* cmpc-ngrc JS engine: port of the Python reference (ngrc/shapes.py, rays.py, field.py, perturbative.py,
+   harmonics.py, readout.py ridge). Per-ray scalar loops; the physics and step logic follow the Python code so the
+   results agree with tools/vectors.json (checked by tools/check_js.mjs). SI units.
+   Exposes NGRC = { makeShape, shapeEval, trace, detectorFields, PhaseScreen, chdShape, chdContour, randomShape,
+   rng, ridge... } on globalThis and as module.exports. */
+(function (root) {
+  'use strict';
+  const TAIL_U = 7.0, STEP_U = 4.5;
+  const TAU = 2 * Math.PI;
+
+  // ---------- shapes ----------
+  function makeShape(o) {
+    const M = Math.max((o.a || []).length, (o.b || []).length);
+    const a = new Float64Array(M), b = new Float64Array(M);
+    (o.a || []).forEach((v, i) => a[i] = v); (o.b || []).forEach((v, i) => b[i] = v);
+    const s = { x0: o.x0, y0: o.y0, R: o.R, dn: o.dn, edge: o.edge ?? 3e-6, a, b, rotation: o.rotation || 0, M };
+    let sa = 0; for (let i = 0; i < M; i++) sa += Math.abs(a[i]) + Math.abs(b[i]);
+    s.bound = s.R * (1 + sa) + TAIL_U * s.edge;
+    return s;
+  }
+  function radiusAll(s, th, out) {
+    const t = th - s.rotation;
+    let r = 0, r1 = 0, r2 = 0;
+    for (let k = 0; k < s.M; k++) {
+      const m = k + 1, c = Math.cos(m * t), sn = Math.sin(m * t);
+      const ac = s.a[k] * c, bs = s.b[k] * sn;
+      r += ac + bs; r1 += m * (s.b[k] * c - s.a[k] * sn); r2 -= m * m * (ac + bs);
+    }
+    out[0] = s.R * (1 + r); out[1] = s.R * r1; out[2] = s.R * r2;
+  }
+  const _r = new Float64Array(3);
+  function shapeEval(s, x, y, out, hess) {
+    const dx = x - s.x0, dy = y - s.y0;
+    const rho = Math.max(Math.hypot(dx, dy), 1e-4 * s.R);
+    radiusAll(s, Math.atan2(dy, dx), _r);
+    const r = _r[0], r1 = _r[1], r2 = _r[2], w = s.edge;
+    const u = (r - rho) / w, t = Math.tanh(u);
+    const S = 0.5 * (1 + t), S1 = 0.5 * (1 - t * t);
+    const rx = dx / rho, ry = dy / rho, rho2 = rho * rho;
+    const thx = -dy / rho2, thy = dx / rho2;
+    const ux = (r1 * thx - rx) / w, uy = (r1 * thy - ry) / w;
+    out[0] += s.dn * S; out[1] += s.dn * S1 * ux; out[2] += s.dn * S1 * uy;
+    if (!hess) return;
+    const S2 = -2 * t * S1, rho4 = rho2 * rho2;
+    const thxx = 2 * dx * dy / rho4, thxy = (dy * dy - dx * dx) / rho4, thyy = -2 * dx * dy / rho4;
+    const pxx = (1 - rx * rx) / rho, pxy = -rx * ry / rho, pyy = (1 - ry * ry) / rho;
+    const uxx = (r2 * thx * thx + r1 * thxx - pxx) / w;
+    const uxy = (r2 * thx * thy + r1 * thxy - pxy) / w;
+    const uyy = (r2 * thy * thy + r1 * thyy - pyy) / w;
+    out[3] += s.dn * (S2 * ux * ux + S1 * uxx); out[4] += s.dn * (S2 * ux * uy + S1 * uxy);
+    out[5] += s.dn * (S2 * uy * uy + S1 * uyy);
+  }
+  function shapeValue(s, x, y) { const o = [0, 0, 0]; shapeEval(s, x, y, o, false); return o[0]; }
+  function pertEval(shapes, x, y, out, hess) {
+    out[0] = out[1] = out[2] = out[3] = out[4] = out[5] = 0;
+    for (let i = 0; i < shapes.length; i++) shapeEval(shapes[i], x, y, out, hess);
+  }
+  function safeStep(shapes, x, y, ds) {
+    let h = Infinity;
+    for (const s of shapes) {
+      const dx = x - s.x0, dy = y - s.y0;
+      radiusAll(s, Math.atan2(dy, dx), _r);
+      h = Math.min(h, Math.max(0.5 * (Math.abs(_r[0] - Math.hypot(dx, dy)) - STEP_U * s.edge), 0));
+    }
+    return Math.max(h, ds);
+  }
+
+  // ---------- cell ----------
+  function portIndex(cell, phi) {
+    let idx = -1;
+    for (let i = 0; i < cell.ports.length; i++) {
+      const p = cell.ports[i];
+      const half = Math.asin(Math.min(1, p.width / (2 * cell.radius)));
+      let d = phi - p.angle; d = Math.atan2(Math.sin(d), Math.cos(d));
+      if (Math.abs(d) <= half) idx = i;
+    }
+    return idx;
+  }
+  const isIn = p => p.role === 'in' || p.role === 'inout';
+  const isOut = p => p.role === 'out' || p.role === 'inout';
+  function linspace(n) { if (n <= 1) return [0]; const o = []; for (let i = 0; i < n; i++) o.push(-0.5 + i / (n - 1)); return o; }
+
+  function launch(cell, port, src) {
+    const p = cell.ports[port], a = p.angle;
+    const nx = Math.cos(a), ny = Math.sin(a), tnx = -ny, tny = nx;
+    const cx = cell.radius * nx, cy = cell.radius * ny;
+    const U = linspace(src.nPos).map(v => v * 0.9 * p.width), V = linspace(src.nAng).map(v => v * p.fan);
+    const mw = src.modeWidth ?? p.width / 2;
+    const base = Math.atan2(-ny, -nx) + p.launch;
+    const rays = [];
+    let norm = 0;
+    for (const u of U) for (const v of V) {
+      let amp = Math.exp(-((u / mw) ** 2));
+      if (src.angWidth != null) amp *= Math.exp(-((v / src.angWidth) ** 2));
+      const ang = base + v;
+      rays.push({ x: cx + u * tnx, y: cy + u * tny, tx: Math.cos(ang), ty: Math.sin(ang), amp });
+      norm += amp * amp;
+    }
+    norm = Math.sqrt(norm);
+    rays.forEach(r => r.amp /= norm);
+    return rays;
+  }
+
+  // ---------- tracer ----------
+  // state vector s = [x, y, px, py, L, Qr, Qi, Pr, Pi]
+  const _e = new Float64Array(6);
+  function derivs(shapes, n0, curved, s, d) {
+    pertEval(shapes, s[0], s[1], _e, curved);
+    const n = n0 + _e[0];
+    const pn = Math.hypot(s[2], s[3]), tx = s[2] / pn, ty = s[3] / pn;
+    d[0] = tx; d[1] = ty; d[4] = n;
+    if (curved) {
+      const ex = -ty, ey = tx;
+      const nn = _e[1] * ex + _e[2] * ey;
+      const nnn = ex * ex * _e[3] + 2 * ex * ey * _e[4] + ey * ey * _e[5];
+      const c = nnn - 2 * nn * nn / n;
+      d[2] = _e[1]; d[3] = _e[2];
+      d[5] = s[7] / n; d[6] = s[8] / n;
+      d[7] = c * s[5]; d[8] = c * s[6];
+    } else {
+      d[2] = 0; d[3] = 0; d[5] = s[7] / n0; d[6] = s[8] / n0; d[7] = 0; d[8] = 0;
+    }
+  }
+  const K1 = new Float64Array(9), K2 = new Float64Array(9), K3 = new Float64Array(9), K4 = new Float64Array(9), T = new Float64Array(9);
+  function rk4(shapes, n0, curved, h, s) {
+    derivs(shapes, n0, curved, s, K1);
+    for (let i = 0; i < 9; i++) T[i] = s[i] + 0.5 * h * K1[i];
+    derivs(shapes, n0, curved, T, K2);
+    for (let i = 0; i < 9; i++) T[i] = s[i] + 0.5 * h * K2[i];
+    derivs(shapes, n0, curved, T, K3);
+    for (let i = 0; i < 9; i++) T[i] = s[i] + h * K3[i];
+    derivs(shapes, n0, curved, T, K4);
+    for (let i = 0; i < 9; i++) s[i] += h / 6 * (K1[i] + 2 * K2[i] + 2 * K3[i] + K4[i]);
+  }
+
+  function defaultDs(shapes) {
+    let ds = 2e-6; for (const s of shapes) ds = Math.min(ds, s.edge / 2); return ds;
+  }
+
+  /* trace(cell, port, shapes, opt) → { exits: [...], nLaunched, lost, paths?, chords? }
+     opt: mode ('curved' | 'straight' | 'none'), nPos, nAng, waist, ds, maxBounces, ampMin, adaptive,
+          recordPaths (first n rays) or pathIds (list of ray ids), recordChords */
+  function trace(cell, port, shapes, opt = {}) {
+    const mode = opt.mode || 'curved';
+    shapes = mode === 'none' ? [] : (shapes || []);
+    const curved = mode === 'curved';
+    const src = { nPos: opt.nPos ?? 5, nAng: opt.nAng ?? 41, waist: opt.waist ?? 5e-6, modeWidth: opt.modeWidth, angWidth: opt.angWidth };
+    const Rc = cell.radius, n0 = cell.n_eff, k0 = TAU / cell.wavelength;
+    const R = cell.reflectance ?? 0.99, phR = cell.reflection_phase ?? Math.PI;
+    const ds = opt.ds ?? defaultDs(shapes), adaptive = opt.adaptive ?? true;
+    const maxB = opt.maxBounces ?? 400, ampMin = opt.ampMin ?? 1e-3;
+    for (const s of shapes) if (Math.hypot(s.x0, s.y0) + s.bound > Rc) throw new Error('a perturbation reaches the wall');
+    const rays = launch(cell, port, src);
+    const amp0max = Math.max(...rays.map(r => r.amp));
+    const zR = k0 * n0 * src.waist ** 2 / 2;
+    const exits = [], lost = { bounces: 0, amplitude: 0 };
+    const paths = [], chords = opt.recordChords ? [] : null;
+    const pathSet = opt.pathIds ? new Set(opt.pathIds) : null;
+    const s = new Float64Array(9);
+    for (let id = 0; id < rays.length; id++) {
+      const r0 = rays[id];
+      let x = r0.x, y = r0.y, tx = r0.tx, ty = r0.ty, amp = r0.amp;
+      let L = 0, Qr = 1, Qi = 0, Pr = 0, Pi = n0 / zR, argQ = 0, phase = 0, nb = 0, inside = false;
+      let px = 0, py = 0;
+      const path = (id < (opt.recordPaths || 0) || (pathSet && pathSet.has(id))) ? [x, y] : null;
+      const ch = chords ? [] : null;
+      for (let guard = 0; guard < 1e6; guard++) {
+        if (!inside) {
+          const b = x * tx + y * ty;
+          const sWall = -b + Math.sqrt(Math.max(b * b - (x * x + y * y) + Rc * Rc, 0));
+          let sReg = Infinity;
+          for (const sh of shapes) {
+            const dx = x - sh.x0, dy = y - sh.y0, bb = dx * tx + dy * ty;
+            const cc = dx * dx + dy * dy - sh.bound * sh.bound, disc = bb * bb - cc;
+            if (cc > 0 && bb < 0 && disc > 0) sReg = Math.min(sReg, -bb - Math.sqrt(disc));
+          }
+          const toReg = sReg < sWall, sg = toReg ? sReg : sWall;
+          if (ch) ch.push(x, y, tx, ty, sg);
+          x += sg * tx; y += sg * ty; L += n0 * sg;
+          const nQr = Qr + Pr * sg / n0, nQi = Qi + Pi * sg / n0;
+          argQ += Math.atan2(nQi * Qr - nQr * Qi, nQr * Qr + nQi * Qi);
+          Qr = nQr; Qi = nQi;
+          if (toReg) { inside = true; px = n0 * tx; py = n0 * ty; if (path) path.push(x, y); continue; }
+          const rr = Math.hypot(x, y); x *= Rc / rr; y *= Rc / rr;
+          if (path) path.push(x, y);
+          const pid = portIndex(cell, Math.atan2(y, x));
+          if (pid >= 0) {
+            exits.push({ port: pid, ray: id, x, y, tx, ty, L, Qr, Qi, Pr, Pi, argQ, amp, phase, nb });
+            break;
+          }
+          const nx = x / Rc, ny = y / Rc, cosc = tx * nx + ty * ny;
+          tx -= 2 * cosc * nx; ty -= 2 * cosc * ny;
+          const f = 2 * n0 / (Rc * Math.max(cosc, 1e-9));
+          Pr -= f * Qr; Pi -= f * Qi;
+          amp *= Math.sqrt(typeof R === 'function' ? R(cosc) : R);
+          phase += phR; nb++;
+          if (nb >= maxB) { lost.bounces++; break; }
+          if (amp < ampMin * amp0max) { lost.amplitude++; break; }
+        } else {
+          const h = adaptive ? safeStep(shapes, x, y, ds) : ds;
+          s[0] = x; s[1] = y; s[2] = px; s[3] = py; s[4] = L; s[5] = Qr; s[6] = Qi; s[7] = Pr; s[8] = Pi;
+          rk4(shapes, n0, curved, h, s);
+          argQ += Math.atan2(s[6] * Qr - s[5] * Qi, s[5] * Qr + s[6] * Qi);
+          x = s[0]; y = s[1]; px = s[2]; py = s[3]; L = s[4]; Qr = s[5]; Qi = s[6]; Pr = s[7]; Pi = s[8];
+          if (x * x + y * y >= Rc * Rc) throw new Error('ray reached the wall inside a perturbation');
+          let any = false;
+          for (const sh of shapes) if ((x - sh.x0) ** 2 + (y - sh.y0) ** 2 < sh.bound * sh.bound) { any = true; break; }
+          if (path) path.push(x, y);
+          if (!any) { const pn = Math.hypot(px, py); tx = px / pn; ty = py / pn; inside = false; }
+        }
+      }
+      if (path) paths.push({ id, pts: path });
+      if (ch) chords.push(ch);
+    }
+    return { exits, nLaunched: rays.length, lost, paths, chords, cell, src };
+  }
+
+  // ---------- detector field ----------
+  function detectorPoints(cell, port) {
+    const a = cell.ports[port].angle, nx = Math.cos(a), ny = Math.sin(a);
+    const d = cell.detector || { distance: 100e-6, width: 400e-6, n_pix: 64 };
+    const cx = cell.radius * nx + d.distance * nx, cy = cell.radius * ny + d.distance * ny;
+    const pts = [];
+    for (let i = 0; i < d.n_pix; i++) {
+      const u = (d.n_pix > 1 ? -0.5 + i / (d.n_pix - 1) : 0) * d.width;
+      pts.push([cx - u * ny, cy + u * nx]);
+    }
+    return pts;
+  }
+  // per-exit beamlet contributions at the pixels: returns {re, im} arrays [nPix][nExit] flattened, and ray ids
+  function beamletMatrix(cell, exits, port) {
+    const n0 = cell.n_eff, k0 = TAU / cell.wavelength;
+    const ex = exits.filter(e => e.port === port);
+    const pts = detectorPoints(cell, port), np = pts.length, ne = ex.length;
+    const re = new Float64Array(np * ne), im = new Float64Array(np * ne);
+    for (let j = 0; j < ne; j++) {
+      const e = ex[j];
+      for (let i = 0; i < np; i++) {
+        const dx = pts[i][0] - e.x, dy = pts[i][1] - e.y;
+        const s = dx * e.tx + dy * e.ty, q = -dx * e.ty + dy * e.tx;
+        const Qr = e.Qr + e.Pr * s / n0, Qi = e.Qi + e.Pi * s / n0;
+        const qq = Qr * Qr + Qi * Qi;
+        const Mr = (e.Pr * Qr + e.Pi * Qi) / qq, Mi = (e.Pi * Qr - e.Pr * Qi) / qq;
+        const argQs = e.argQ + Math.atan2(Qi * e.Qr - Qr * e.Qi, Qr * e.Qr + Qi * e.Qi);
+        const mag = e.amp * Math.pow(qq, -0.25) * Math.exp(-k0 * 0.5 * Mi * q * q);
+        const ph = -0.5 * argQs + k0 * (e.L + n0 * s + 0.5 * Mr * q * q) + e.phase;
+        re[i * ne + j] = mag * Math.cos(ph); im[i * ne + j] = mag * Math.sin(ph);
+      }
+    }
+    return { re, im, np, ne, rays: ex.map(e => e.ray) };
+  }
+  function applyMatrix(B, phase) {   // phase: per-ray extra phase (Float64Array over launched rays) or null
+    const Er = new Float64Array(B.np), Ei = new Float64Array(B.np);
+    const cr = new Float64Array(B.ne), ci = new Float64Array(B.ne);
+    for (let j = 0; j < B.ne; j++) { const p = phase ? phase[B.rays[j]] : 0; cr[j] = Math.cos(p); ci[j] = Math.sin(p); }
+    for (let i = 0; i < B.np; i++) {
+      let a = 0, b = 0; const o = i * B.ne;
+      for (let j = 0; j < B.ne; j++) { const r = B.re[o + j], m = B.im[o + j]; a += r * cr[j] - m * ci[j]; b += r * ci[j] + m * cr[j]; }
+      Er[i] = a; Ei[i] = b;
+    }
+    return { re: Er, im: Ei };
+  }
+  function detectorFields(cell, tr) {
+    const out = {};
+    cell.ports.forEach((p, i) => { if (isOut(p)) out[i] = applyMatrix(beamletMatrix(cell, tr.exits, i), null); });
+    return out;
+  }
+
+  // ---------- phase-screen model ----------
+  class PhaseScreen {
+    constructor(cell, opt = {}) {
+      this.cell = cell; this.opt = opt;
+      this.inputs = cell.ports.map((p, i) => isIn(p) ? i : -1).filter(i => i >= 0);
+      this.outputs = cell.ports.map((p, i) => isOut(p) ? i : -1).filter(i => i >= 0);
+      this.tables = this.inputs.map(port => {
+        const tr = trace(cell, port, [], Object.assign({}, opt, { mode: 'none', recordChords: true }));
+        const B = {}; for (const o of this.outputs) B[o] = beamletMatrix(cell, tr.exits, o);
+        return { port, tr, B };
+      });
+    }
+    deltaL(k, shapes) {
+      const t = this.tables[k], dL = new Float64Array(t.tr.nLaunched);
+      for (const sh of shapes) {
+        const st = Math.min(3e-6, sh.edge), R2 = sh.bound * sh.bound;
+        t.tr.chords.forEach((ch, ray) => {
+          let acc = 0;
+          for (let c = 0; c < ch.length; c += 5) {
+            const x = ch[c], y = ch[c + 1], tx = ch[c + 2], ty = ch[c + 3], ln = ch[c + 4];
+            const dx = x - sh.x0, dy = y - sh.y0, b = dx * tx + dy * ty;
+            const disc = b * b - (dx * dx + dy * dy - R2);
+            if (disc <= 0) continue;
+            const sq = Math.sqrt(disc), s1 = Math.max(-b - sq, 0), s2 = Math.min(-b + sq, ln);
+            if (s2 <= s1) continue;
+            const nq = Math.max(8, Math.ceil((s2 - s1) / st) + 1), hq = (s2 - s1) / nq;
+            let sum = 0;
+            for (let q = 0; q < nq; q++) { const s = s1 + (q + 0.5) * hq; sum += shapeValue(sh, x + s * tx, y + s * ty); }
+            acc += sum * hq;
+          }
+          dL[ray] += acc;
+        });
+      }
+      return dL;
+    }
+    fields(shapes) {   // {"in,out": {re, im}}
+      const out = {}, k0 = TAU / this.cell.wavelength;
+      this.tables.forEach((t, k) => {
+        let ph = null;
+        if (shapes && shapes.length) { ph = this.deltaL(k, shapes); for (let i = 0; i < ph.length; i++) ph[i] *= k0; }
+        for (const o of this.outputs) out[t.port + ',' + o] = applyMatrix(t.B[o], ph);
+      });
+      return out;
+    }
+  }
+  function curvedFields(cell, shapes, opt = {}) {
+    const out = {};
+    cell.ports.forEach((p, i) => {
+      if (!isIn(p)) return;
+      const tr = trace(cell, i, shapes, opt);
+      const f = detectorFields(cell, tr);
+      for (const o in f) out[i + ',' + o] = f[o];
+    });
+    return out;
+  }
+
+  // ---------- harmonics ----------
+  function chdShape(s, mMax) {
+    const ph = k => (k + 1) * s.rotation;
+    const a = [], b = [];
+    for (let k = 0; k < mMax; k++) {
+      const ak = s.a[k] || 0, bk = s.b[k] || 0;
+      a.push(ak * Math.cos(ph(k)) - bk * Math.sin(ph(k))); b.push(ak * Math.sin(ph(k)) + bk * Math.cos(ph(k)));
+    }
+    return { R0: s.R, a, b };
+  }
+  function chdContour(valueFn, x0, y0, rMax, mMax = 8, nTheta = 256, nR = 400, level = 0.5) {
+    // centroid
+    let sw = 0, sx = 0, sy = 0; const ng = 129;
+    for (let i = 0; i < ng; i++) for (let j = 0; j < ng; j++) {
+      const X = x0 - rMax + 2 * rMax * j / (ng - 1), Y = y0 - rMax + 2 * rMax * i / (ng - 1);
+      const w = Math.abs(valueFn(X, Y)); sw += w; sx += w * X; sy += w * Y;
+    }
+    const cx = sw ? sx / sw : x0, cy = sw ? sy / sw : y0;
+    const r = new Float64Array(nTheta); let pk = 0;
+    const prof = [];
+    for (let k = 0; k < nTheta; k++) {
+      const th = TAU * k / nTheta, c = Math.cos(th), sn = Math.sin(th), row = new Float64Array(nR);
+      for (let j = 0; j < nR; j++) { const rr = rMax * j / (nR - 1); row[j] = Math.abs(valueFn(cx + rr * c, cy + rr * sn)); pk = Math.max(pk, row[j]); }
+      prof.push(row);
+    }
+    for (let k = 0; k < nTheta; k++) {
+      const v = prof[k]; let jl = -1;
+      for (let j = 0; j < nR; j++) if (v[j] >= level * pk) jl = j;
+      if (jl < 0) continue;
+      if (jl + 1 >= nR) { r[k] = rMax; continue; }
+      const f = v[jl] !== v[jl + 1] ? (v[jl] - level * pk) / (v[jl] - v[jl + 1]) : 0;
+      r[k] = rMax * (jl + f) / (nR - 1);
+    }
+    let R0 = 0; for (let k = 0; k < nTheta; k++) R0 += r[k]; R0 /= nTheta;
+    const a = [], b = [];
+    for (let m = 1; m <= mMax; m++) {
+      let cr = 0, ci = 0;
+      for (let k = 0; k < nTheta; k++) { const th = TAU * k / nTheta; cr += r[k] * Math.cos(m * th); ci -= r[k] * Math.sin(m * th); }
+      cr /= nTheta; ci /= nTheta; a.push(2 * cr / R0); b.push(-2 * ci / R0);
+    }
+    return { R0, a, b, cx, cy, r: Array.from(r) };
+  }
+
+  // ---------- random numbers / shapes ----------
+  function rng(seed) {
+    let t = seed >>> 0, spare = null;
+    const u = () => { t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t); r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; };
+    const normal = () => {
+      if (spare !== null) { const v = spare; spare = null; return v; }
+      let a, b, s; do { a = 2 * u() - 1; b = 2 * u() - 1; s = a * a + b * b; } while (s >= 1 || s === 0);
+      const f = Math.sqrt(-2 * Math.log(s) / s); spare = b * f; return a * f;
+    };
+    return { uniform: (lo = 0, hi = 1) => lo + (hi - lo) * u(), normal };
+  }
+  function randomShape(g, cellRadius, o = {}) {
+    const mMax = o.mMax ?? 6, sigma = o.sigma ?? 0.08, decay = o.decay ?? 0.5;
+    const a = [], b = [];
+    for (let m = 1; m <= mMax; m++) {
+      const sd = m >= 2 ? sigma / Math.pow(Math.max(m - 1, 1), decay) : 0;
+      a.push(g.normal() * sd); b.push(g.normal() * sd);
+    }
+    const R = g.uniform(...(o.Rrange || [60e-6, 110e-6]));
+    const dn = g.uniform(...(o.dnRange || [1e-3, 1e-3]));
+    const s = makeShape({ x0: 0, y0: 0, R, dn, edge: o.edge ?? 3e-6, a, b });
+    if (o.centre) { s.x0 = o.centre[0]; s.y0 = o.centre[1]; }
+    else {
+      const rmax = o.placeRadius ?? (cellRadius - 40e-6 - s.bound);
+      const rr = rmax * Math.sqrt(g.uniform()), ph = g.uniform(0, TAU);
+      s.x0 = rr * Math.cos(ph); s.y0 = rr * Math.sin(ph);
+    }
+    if (Math.hypot(s.x0, s.y0) + s.bound > cellRadius - 10e-6) {   // keep inside
+      const f = (cellRadius - 10e-6 - s.bound) / Math.hypot(s.x0, s.y0); s.x0 *= f; s.y0 *= f;
+    }
+    return s;
+  }
+
+  // ---------- features / ridge ----------
+  function stackRelative(fields, ref) {
+    const keys = Object.keys(ref).sort(), out = [];
+    for (const k of keys) {
+      const f = fields[k], r = ref[k];
+      let mean = 0; for (let i = 0; i < r.re.length; i++) mean += r.re[i] ** 2 + r.im[i] ** 2; mean /= r.re.length;
+      for (let i = 0; i < f.re.length; i++) {
+        const I = f.re[i] ** 2 + f.im[i] ** 2, I0 = r.re[i] ** 2 + r.im[i] ** 2;
+        out.push(I / (I0 + 1e-12 * mean) - 1);
+      }
+    }
+    return out;
+  }
+  function cholSolve(A, n, B, m) {   // A n×n SPD (row-major, overwritten), B n×m → solution
+    for (let j = 0; j < n; j++) {
+      let d = A[j * n + j];
+      for (let k = 0; k < j; k++) d -= A[j * n + k] ** 2;
+      d = Math.sqrt(Math.max(d, 1e-300)); A[j * n + j] = d;
+      for (let i = j + 1; i < n; i++) {
+        let v = A[i * n + j];
+        for (let k = 0; k < j; k++) v -= A[i * n + k] * A[j * n + k];
+        A[i * n + j] = v / d;
+      }
+    }
+    const X = Float64Array.from(B);
+    for (let c = 0; c < m; c++) {
+      for (let i = 0; i < n; i++) { let v = X[i * m + c]; for (let k = 0; k < i; k++) v -= A[i * n + k] * X[k * m + c]; X[i * m + c] = v / A[i * n + i]; }
+      for (let i = n - 1; i >= 0; i--) { let v = X[i * m + c]; for (let k = i + 1; k < n; k++) v -= A[k * n + i] * X[k * m + c]; X[i * m + c] = v / A[i * n + i]; }
+    }
+    return X;
+  }
+  // ridge in dual form on standardised features; returns predictions for Xte and the alpha used
+  function ridgeFitPredict(Xtr, Ytr, Xte, alpha) {
+    const n = Xtr.length, d = Xtr[0].length, m = Ytr[0].length;
+    const mu = new Float64Array(d), sd = new Float64Array(d);
+    for (const r of Xtr) for (let j = 0; j < d; j++) mu[j] += r[j] / n;
+    for (const r of Xtr) for (let j = 0; j < d; j++) sd[j] += (r[j] - mu[j]) ** 2 / n;
+    for (let j = 0; j < d; j++) sd[j] = Math.sqrt(sd[j]) || 1;
+    const Z = Xtr.map(r => r.map((v, j) => (v - mu[j]) / sd[j]));
+    const Zt = Xte.map(r => r.map((v, j) => (v - mu[j]) / sd[j]));
+    const ym = new Float64Array(m); for (const r of Ytr) for (let c = 0; c < m; c++) ym[c] += r[c] / n;
+    const K = new Float64Array(n * n);
+    for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) {
+      let v = 0; const a = Z[i], b = Z[j]; for (let k = 0; k < d; k++) v += a[k] * b[k];
+      K[i * n + j] = K[j * n + i] = v;
+    }
+    // centre the kernel (equivalent to an unpenalised intercept with centred features: features already centred)
+    for (let i = 0; i < n; i++) K[i * n + i] += alpha;
+    const B = new Float64Array(n * m); for (let i = 0; i < n; i++) for (let c = 0; c < m; c++) B[i * m + c] = Ytr[i][c] - ym[c];
+    const Acoef = cholSolve(K, n, B, m);
+    return Zt.map(z => {
+      const p = Array.from(ym);
+      for (let i = 0; i < n; i++) { let v = 0; const zi = Z[i]; for (let k = 0; k < d; k++) v += z[k] * zi[k]; for (let c = 0; c < m; c++) p[c] += v * Acoef[i * m + c]; }
+      return p;
+    });
+  }
+  function r2(Y, P) {
+    const m = Y[0].length, out = [];
+    for (let c = 0; c < m; c++) {
+      let mean = 0; for (const r of Y) mean += r[c] / Y.length;
+      let ss = 0, se = 0; Y.forEach((r, i) => { ss += (r[c] - mean) ** 2; se += (r[c] - P[i][c]) ** 2; });
+      out.push(ss > 0 ? 1 - se / ss : 0);
+    }
+    return out;
+  }
+  function ridgeCV(X, Y, alphas, seed = 0) {
+    const n = X.length, g = rng(seed + 99), idx = [...Array(n).keys()];
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(g.uniform() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+    const nv = Math.max(2, Math.round(0.2 * n)), va = idx.slice(0, nv), tr = idx.slice(nv);
+    let best = alphas[0], bs = -Infinity;
+    for (const a of alphas) {
+      const P = ridgeFitPredict(tr.map(i => X[i]), tr.map(i => Y[i]), va.map(i => X[i]), a);
+      const s = r2(va.map(i => Y[i]), P).reduce((p, q) => p + q, 0);
+      if (s > bs) { bs = s; best = a; }
+    }
+    return best;
+  }
+
+  const NGRC = { makeShape, shapeEval, shapeValue, pertEval, safeStep, portIndex, launch, trace, detectorPoints,
+    beamletMatrix, applyMatrix, detectorFields, PhaseScreen, curvedFields, chdShape, chdContour, rng, randomShape,
+    stackRelative, ridgeFitPredict, ridgeCV, r2, isIn, isOut };
+  root.NGRC = NGRC;
+  if (typeof module !== 'undefined' && module.exports) module.exports = NGRC;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+const PROGRESS = {"meta":{"date":"2026-10-09","quick":true,"m":[2,3,4,5,6],"cell":{"radius":0.001,"n_eff":1.8,"wavelength":1.55e-06,"R":0.99,"port_width":2e-05},"source":{"n_pos":3,"n_ang":41},"runtime_s":342.4},"tests":{"summary":"20 passed in 27.00s","ok":true},"E1":{"launch":[0.0,0.5,1.0],"S":[[0.9280217774256317,0.9384105760888493,0.7859768648825207,0.7560412232393017,0.7914151971019785],[1.7862815292105043,1.455786179893196,1.2928566064997498,1.2657997779771133,1.1607645425908668],[0.0,0.0,0.0,0.0,0.0]],"sv":[[1.0,0.8762686777408348,0.7473900307847116,0.6896920240251017,0.5770053967023254,0.5285881646349854,0.44270231061412074,0.40358748776251807,0.3278037463904351,0.23463995232254659],[1.0,0.7914354998962795,0.6490736696138829,0.6310022411926313,0.48622670315441924,0.39869757806128125,0.33003112468192636,0.30765278036837757,0.23294374261049622,0.13423007282759464],[NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN]],"occupancy":{"0.0":[[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.051,0.076,0.061,0.08,0.08,0.085,0.086,0.093,0.097,0.068,0.099,0.058,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.062,0.102,0.084,0.07,0.084,0.079,0.062,0.083,0.081,0.085,0.088,0.101,0.098,0.079,0.09,0.089,0.104,0.086,0.072,0.052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.032,0.078,0.103,0.093,0.1,0.093,0.074,0.085,0.087,0.068,0.079,0.088,0.082,0.095,0.104,0.096,0.093,0.09,0.094,0.101,0.082,0.087,0.071,0.089,0.087,0.014,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.049,0.103,0.071,0.089,0.102,0.078,0.097,0.106,0.08,0.084,0.089,0.074,0.078,0.093,0.085,0.097,0.111,0.091,0.099,0.097,0.093,0.104,0.082,0.088,0.087,0.077,0.079,0.062,0.103,0.032,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.018,0.072,0.083,0.104,0.09,0.094,0.093,0.093,0.103,0.105,0.095,0.081,0.093,0.075,0.084,0.094,0.09,0.101,0.111,0.096,0.104,0.104,0.103,0.099,0.087,0.09,0.083,0.087,0.068,0.081,0.096,0.057,0.116,0.025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.079,0.088,0.08,0.077,0.107,0.106,0.081,0.091,0.096,0.115,0.104,0.102,0.086,0.092,0.086,0.085,0.099,0.091,0.103,0.111,0.103,0.107,0.109,0.099,0.099,0.099,0.09,0.078,0.091,0.077,0.105,0.084,0.085,0.111,0.078,0.085,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.012,0.09,0.072,0.096,0.086,0.083,0.08,0.118,0.087,0.1,0.099,0.11,0.101,0.111,0.092,0.093,0.096,0.09,0.098,0.094,0.11,0.114,0.105,0.113,0.112,0.104,0.105,0.097,0.09,0.093,0.083,0.082,0.096,0.086,0.117,0.083,0.111,0.063,0.111,0.023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.032,0.08,0.079,0.073,0.096,0.084,0.096,0.075,0.114,0.105,0.108,0.097,0.11,0.111,0.115,0.103,0.098,0.098,0.096,0.094,0.106,0.112,0.118,0.108,0.122,0.113,0.101,0.108,0.106,0.087,0.097,0.097,0.083,0.107,0.079,0.121,0.089,0.111,0.076,0.099,0.085,0.05,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.07,0.08,0.103,0.072,0.083,0.097,0.076,0.111,0.089,0.102,0.104,0.12,0.106,0.107,0.12,0.113,0.114,0.098,0.101,0.103,0.095,0.114,0.113,0.12,0.118,0.126,0.114,0.108,0.111,0.104,0.093,0.095,0.111,0.077,0.12,0.094,0.12,0.084,0.102,0.089,0.075,0.114,0.068,0.064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.078,0.082,0.124,0.09,0.056,0.099,0.084,0.081,0.098,0.088,0.111,0.098,0.119,0.116,0.111,0.129,0.116,0.128,0.105,0.099,0.114,0.101,0.129,0.12,0.122,0.124,0.13,0.113,0.121,0.117,0.103,0.095,0.108,0.099,0.102,0.117,0.099,0.111,0.105,0.08,0.121,0.081,0.083,0.107,0.077,0.064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.084,0.075,0.117,0.111,0.08,0.096,0.085,0.072,0.114,0.077,0.107,0.111,0.111,0.091,0.131,0.109,0.132,0.123,0.131,0.111,0.109,0.117,0.106,0.131,0.129,0.124,0.14,0.129,0.121,0.119,0.126,0.105,0.097,0.11,0.111,0.118,0.108,0.116,0.107,0.126,0.085,0.111,0.1,0.087,0.097,0.111,0.09,0.059,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.055,0.084,0.142,0.114,0.099,0.098,0.129,0.087,0.084,0.11,0.089,0.106,0.098,0.13,0.108,0.121,0.129,0.138,0.119,0.146,0.118,0.113,0.127,0.114,0.132,0.132,0.131,0.15,0.13,0.129,0.127,0.124,0.119,0.102,0.126,0.098,0.131,0.109,0.136,0.079,0.128,0.098,0.074,0.133,0.087,0.072,0.108,0.121,0.087,0.037,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.022,0.105,0.131,0.103,0.098,0.103,0.154,0.096,0.095,0.122,0.095,0.096,0.114,0.083,0.136,0.113,0.118,0.128,0.145,0.135,0.135,0.129,0.126,0.135,0.129,0.138,0.142,0.138,0.154,0.135,0.127,0.137,0.121,0.118,0.112,0.139,0.111,0.135,0.104,0.14,0.105,0.101,0.127,0.097,0.076,0.13,0.099,0.078,0.098,0.117,0.093,0.019,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.118,0.111,0.084,0.092,0.119,0.157,0.1,0.107,0.134,0.114,0.08,0.129,0.105,0.1,0.118,0.128,0.134,0.12,0.157,0.14,0.132,0.132,0.143,0.133,0.142,0.138,0.147,0.149,0.165,0.143,0.135,0.135,0.132,0.12,0.14,0.132,0.118,0.139,0.111,0.126,0.131,0.094,0.116,0.132,0.093,0.102,0.138,0.105,0.071,0.076,0.093,0.109,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.096,0.065,0.097,0.099,0.136,0.123,0.1,0.108,0.151,0.147,0.097,0.112,0.125,0.105,0.132,0.11,0.132,0.15,0.123,0.147,0.158,0.151,0.14,0.156,0.141,0.161,0.136,0.153,0.157,0.168,0.155,0.137,0.152,0.14,0.128,0.151,0.121,0.132,0.131,0.141,0.107,0.135,0.11,0.093,0.121,0.138,0.101,0.072,0.105,0.124,0.095,0.084,0.08,0.089,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.032,0.081,0.118,0.12,0.12,0.095,0.092,0.111,0.155,0.134,0.112,0.133,0.151,0.105,0.119,0.14,0.112,0.138,0.142,0.145,0.142,0.173,0.15,0.144,0.168,0.155,0.171,0.151,0.157,0.181,0.168,0.164,0.133,0.165,0.154,0.142,0.162,0.119,0.149,0.132,0.161,0.117,0.112,0.142,0.121,0.104,0.122,0.128,0.102,0.096,0.086,0.111,0.12,0.13,0.104,0.031,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.095,0.105,0.091,0.092,0.077,0.11,0.143,0.138,0.109,0.117,0.141,0.172,0.137,0.123,0.143,0.136,0.126,0.15,0.132,0.161,0.143,0.175,0.175,0.159,0.174,0.18,0.168,0.168,0.187,0.187,0.171,0.17,0.156,0.168,0.165,0.155,0.158,0.131,0.169,0.135,0.138,0.145,0.108,0.138,0.15,0.118,0.096,0.11,0.128,0.127,0.11,0.092,0.097,0.098,0.12,0.124,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.05,0.061,0.078,0.096,0.114,0.13,0.116,0.099,0.104,0.114,0.155,0.157,0.141,0.133,0.167,0.14,0.128,0.153,0.151,0.147,0.154,0.164,0.163,0.176,0.172,0.168,0.199,0.197,0.175,0.194,0.194,0.184,0.176,0.18,0.184,0.169,0.161,0.146,0.168,0.156,0.161,0.124,0.148,0.175,0.105,0.114,0.133,0.14,0.113,0.105,0.096,0.126,0.138,0.143,0.129,0.101,0.09,0.05,0.0,0.0,0.0],[0.0,0.0,0.0,0.105,0.112,0.106,0.083,0.079,0.087,0.095,0.124,0.144,0.143,0.123,0.126,0.136,0.182,0.158,0.152,0.146,0.17,0.137,0.181,0.164,0.175,0.187,0.184,0.183,0.19,0.199,0.222,0.191,0.206,0.211,0.193,0.191,0.196,0.214,0.162,0.173,0.168,0.181,0.152,0.159,0.153,0.141,0.141,0.155,0.129,0.12,0.132,0.145,0.14,0.133,0.115,0.126,0.098,0.096,0.118,0.12,0.114,0.0,0.0,0.0],[0.0,0.0,0.025,0.07,0.087,0.111,0.113,0.114,0.12,0.116,0.107,0.108,0.111,0.136,0.157,0.173,0.144,0.162,0.163,0.187,0.146,0.175,0.178,0.187,0.187,0.186,0.203,0.19,0.208,0.214,0.249,0.234,0.226,0.212,0.214,0.214,0.225,0.22,0.19,0.19,0.171,0.175,0.168,0.138,0.187,0.163,0.131,0.149,0.17,0.164,0.126,0.105,0.126,0.138,0.149,0.131,0.132,0.127,0.124,0.103,0.094,0.029,0.0,0.0],[0.0,0.0,0.102,0.099,0.084,0.081,0.096,0.102,0.088,0.111,0.12,0.133,0.145,0.142,0.136,0.125,0.153,0.182,0.201,0.165,0.172,0.196,0.189,0.185,0.213,0.192,0.214,0.212,0.209,0.252,0.252,0.253,0.243,0.207,0.238,0.231,0.238,0.22,0.216,0.193,0.178,0.192,0.193,0.178,0.164,0.168,0.185,0.148,0.144,0.138,0.143,0.166,0.16,0.137,0.124,0.114,0.117,0.1,0.098,0.101,0.096,0.09,0.0,0.0],[0.0,0.0,0.118,0.12,0.113,0.112,0.102,0.108,0.128,0.123,0.106,0.105,0.11,0.133,0.148,0.179,0.177,0.163,0.169,0.199,0.215,0.198,0.171,0.221,0.225,0.242,0.225,0.234,0.235,0.284,0.283,0.273,0.262,0.229,0.274,0.264,0.26,0.244,0.215,0.193,0.216,0.18,0.192,0.219,0.197,0.165,0.18,0.18,0.162,0.152,0.154,0.138,0.123,0.129,0.138,0.128,0.12,0.111,0.099,0.091,0.092,0.094,0.0,0.0],[0.0,0.062,0.085,0.088,0.111,0.109,0.12,0.113,0.11,0.127,0.136,0.139,0.139,0.131,0.146,0.138,0.15,0.187,0.202,0.208,0.205,0.175,0.246,0.224,0.23,0.254,0.258,0.259,0.256,0.305,0.32,0.305,0.294,0.28,0.311,0.286,0.294,0.235,0.249,0.209,0.214,0.237,0.22,0.223,0.199,0.206,0.173,0.148,0.151,0.161,0.166,0.162,0.152,0.134,0.127,0.12,0.109,0.108,0.09,0.103,0.115,0.096,0.059,0.0],[0.0,0.113,0.111,0.111,0.111,0.12,0.123,0.125,0.121,0.108,0.122,0.136,0.148,0.151,0.145,0.163,0.179,0.17,0.178,0.199,0.209,0.255,0.221,0.234,0.244,0.288,0.3,0.317,0.279,0.336,0.349,0.341,0.345,0.339,0.336,0.326,0.309,0.254,0.241,0.253,0.268,0.259,0.262,0.201,0.197,0.187,0.171,0.197,0.188,0.165,0.149,0.139,0.126,0.12,0.123,0.113,0.103,0.104,0.112,0.108,0.094,0.084,0.091,0.0],[0.0,0.09,0.099,0.111,0.12,0.125,0.115,0.123,0.132,0.138,0.142,0.14,0.151,0.157,0.165,0.164,0.164,0.184,0.206,0.222,0.233,0.236,0.231,0.272,0.307,0.274,0.325,0.341,0.363,0.389,0.382,0.425,0.432,0.409,0.381,0.371,0.343,0.292,0.271,0.34,0.303,0.26,0.229,0.244,0.221,0.197,0.185,0.172,0.161,0.155,0.151,0.15,0.146,0.136,0.118,0.118,0.123,0.115,0.111,0.106,0.104,0.105,0.1,0.0],[0.0,0.111,0.119,0.121,0.113,0.11,0.132,0.136,0.138,0.142,0.15,0.148,0.139,0.154,0.17,0.185,0.186,0.193,0.205,0.233,0.251,0.267,0.294,0.276,0.28,0.321,0.389,0.367,0.451,0.506,0.534,0.545,0.574,0.573,0.431,0.428,0.408,0.378,0.341,0.326,0.318,0.303,0.254,0.21,0.191,0.193,0.192,0.19,0.184,0.171,0.159,0.149,0.139,0.129,0.134,0.126,0.117,0.109,0.103,0.102,0.099,0.092,0.087,0.0],[0.068,0.117,0.108,0.114,0.121,0.131,0.12,0.126,0.138,0.145,0.155,0.163,0.168,0.157,0.172,0.185,0.204,0.207,0.221,0.238,0.267,0.287,0.308,0.319,0.356,0.416,0.437,0.424,0.557,0.588,0.639,0.65,0.603,0.629,0.593,0.59,0.469,0.42,0.44,0.349,0.292,0.248,0.239,0.244,0.242,0.227,0.209,0.196,0.18,0.177,0.155,0.14,0.133,0.136,0.128,0.119,0.112,0.113,0.096,0.099,0.086,0.083,0.085,0.047],[0.107,0.108,0.113,0.111,0.116,0.116,0.129,0.126,0.126,0.136,0.135,0.144,0.154,0.167,0.163,0.159,0.175,0.206,0.222,0.239,0.261,0.282,0.335,0.382,0.391,0.424,0.511,0.633,0.666,0.666,0.718,0.751,0.768,0.755,0.648,0.653,0.567,0.47,0.42,0.386,0.327,0.29,0.266,0.257,0.236,0.213,0.197,0.181,0.157,0.136,0.138,0.135,0.128,0.122,0.108,0.112,0.11,0.104,0.108,0.103,0.1,0.099,0.095,0.088],[0.084,0.092,0.093,0.105,0.11,0.124,0.124,0.131,0.138,0.139,0.147,0.147,0.159,0.171,0.175,0.198,0.182,0.179,0.197,0.224,0.242,0.266,0.293,0.343,0.421,0.472,0.617,0.718,0.723,0.728,0.635,0.563,0.554,0.65,0.752,0.763,0.73,0.663,0.536,0.408,0.351,0.321,0.293,0.256,0.254,0.232,0.211,0.199,0.19,0.184,0.168,0.151,0.145,0.135,0.134,0.129,0.12,0.112,0.099,0.094,0.093,0.084,0.087,0.09],[0.084,0.087,0.096,0.102,0.104,0.102,0.114,0.126,0.136,0.142,0.149,0.163,0.168,0.167,0.178,0.184,0.204,0.217,0.227,0.23,0.248,0.304,0.329,0.36,0.442,0.519,0.63,0.76,0.838,0.684,0.556,0.627,0.628,0.557,0.683,0.828,0.69,0.652,0.522,0.434,0.387,0.369,0.334,0.306,0.249,0.23,0.209,0.192,0.184,0.173,0.172,0.162,0.146,0.129,0.125,0.111,0.107,0.109,0.111,0.114,0.111,0.112,0.106,0.103],[0.099,0.103,0.105,0.102,0.107,0.106,0.105,0.102,0.104,0.112,0.126,0.139,0.154,0.167,0.186,0.195,0.207,0.224,0.237,0.249,0.266,0.266,0.329,0.389,0.462,0.647,0.689,0.818,0.73,0.669,0.769,0.731,0.723,0.769,0.667,0.747,0.821,0.73,0.571,0.423,0.392,0.352,0.326,0.276,0.273,0.243,0.224,0.212,0.191,0.184,0.164,0.154,0.149,0.149,0.144,0.144,0.136,0.129,0.127,0.122,0.117,0.105,0.107,0.099],[0.077,0.078,0.082,0.084,0.088,0.098,0.104,0.112,0.117,0.127,0.135,0.132,0.141,0.149,0.157,0.172,0.197,0.218,0.239,0.296,0.304,0.329,0.352,0.384,0.463,0.592,0.71,0.833,0.672,0.775,0.993,0.788,0.789,1.0,0.786,0.663,0.848,0.679,0.639,0.492,0.384,0.324,0.27,0.248,0.219,0.216,0.203,0.196,0.18,0.168,0.172,0.167,0.164,0.154,0.151,0.138,0.139,0.136,0.128,0.122,0.117,0.12,0.114,0.114],[0.076,0.077,0.081,0.084,0.087,0.097,0.103,0.111,0.117,0.126,0.134,0.132,0.14,0.148,0.157,0.172,0.196,0.218,0.238,0.296,0.303,0.328,0.351,0.384,0.462,0.591,0.709,0.832,0.671,0.774,0.992,0.788,0.788,0.999,0.785,0.663,0.848,0.678,0.639,0.491,0.384,0.323,0.27,0.247,0.218,0.215,0.203,0.196,0.179,0.167,0.171,0.166,0.163,0.154,0.15,0.137,0.138,0.136,0.127,0.121,0.117,0.12,0.114,0.114],[0.099,0.103,0.105,0.102,0.107,0.106,0.105,0.102,0.104,0.112,0.126,0.139,0.154,0.167,0.186,0.195,0.207,0.224,0.237,0.249,0.266,0.266,0.329,0.389,0.462,0.647,0.689,0.818,0.73,0.669,0.769,0.731,0.723,0.769,0.667,0.747,0.821,0.73,0.571,0.423,0.392,0.352,0.326,0.276,0.273,0.243,0.224,0.212,0.191,0.184,0.164,0.154,0.149,0.149,0.144,0.144,0.136,0.129,0.127,0.122,0.117,0.105,0.107,0.099],[0.084,0.087,0.096,0.102,0.104,0.102,0.114,0.126,0.136,0.142,0.149,0.163,0.168,0.167,0.178,0.184,0.204,0.217,0.227,0.23,0.248,0.304,0.329,0.36,0.442,0.519,0.63,0.76,0.838,0.684,0.556,0.627,0.628,0.557,0.683,0.828,0.69,0.652,0.522,0.434,0.387,0.369,0.334,0.306,0.249,0.23,0.209,0.192,0.184,0.173,0.172,0.162,0.146,0.129,0.125,0.111,0.107,0.109,0.111,0.114,0.111,0.112,0.106,0.103],[0.084,0.092,0.093,0.105,0.11,0.124,0.124,0.131,0.138,0.139,0.147,0.147,0.159,0.171,0.175,0.198,0.182,0.179,0.197,0.224,0.242,0.266,0.293,0.343,0.421,0.472,0.617,0.718,0.723,0.728,0.635,0.563,0.554,0.65,0.752,0.763,0.73,0.663,0.536,0.408,0.351,0.321,0.293,0.256,0.254,0.232,0.211,0.199,0.19,0.184,0.168,0.151,0.145,0.135,0.134,0.129,0.12,0.112,0.099,0.094,0.093,0.084,0.087,0.09],[0.107,0.108,0.113,0.111,0.116,0.116,0.129,0.126,0.126,0.136,0.135,0.144,0.154,0.167,0.163,0.159,0.175,0.206,0.222,0.239,0.261,0.282,0.335,0.382,0.391,0.424,0.511,0.633,0.666,0.666,0.718,0.751,0.768,0.755,0.648,0.653,0.567,0.47,0.42,0.386,0.327,0.29,0.266,0.257,0.236,0.213,0.197,0.181,0.157,0.136,0.138,0.135,0.128,0.122,0.108,0.112,0.11,0.104,0.108,0.103,0.1,0.099,0.095,0.088],[0.068,0.117,0.108,0.114,0.121,0.131,0.12,0.126,0.138,0.145,0.155,0.163,0.168,0.157,0.172,0.185,0.204,0.207,0.221,0.238,0.267,0.287,0.308,0.319,0.356,0.416,0.437,0.424,0.557,0.588,0.639,0.65,0.603,0.629,0.593,0.59,0.469,0.42,0.44,0.349,0.292,0.248,0.239,0.244,0.242,0.227,0.209,0.196,0.18,0.177,0.155,0.14,0.133,0.136,0.128,0.119,0.112,0.113,0.096,0.099,0.086,0.083,0.085,0.047],[0.0,0.111,0.119,0.121,0.113,0.11,0.132,0.136,0.138,0.142,0.15,0.148,0.139,0.154,0.17,0.185,0.186,0.193,0.205,0.233,0.251,0.267,0.294,0.276,0.28,0.321,0.389,0.367,0.451,0.506,0.534,0.545,0.574,0.573,0.431,0.428,0.408,0.378,0.341,0.326,0.318,0.303,0.254,0.21,0.191,0.193,0.192,0.19,0.184,0.171,0.159,0.149,0.139,0.129,0.134,0.126,0.117,0.109,0.103,0.102,0.099,0.092,0.087,0.0],[0.0,0.09,0.099,0.111,0.12,0.125,0.115,0.123,0.132,0.138,0.142,0.14,0.151,0.157,0.165,0.164,0.164,0.184,0.206,0.222,0.233,0.236,0.231,0.272,0.307,0.274,0.325,0.341,0.363,0.389,0.382,0.425,0.432,0.409,0.381,0.371,0.343,0.292,0.271,0.34,0.303,0.26,0.229,0.244,0.221,0.197,0.185,0.172,0.161,0.155,0.151,0.15,0.146,0.136,0.118,0.118,0.123,0.115,0.111,0.106,0.104,0.105,0.1,0.0],[0.0,0.113,0.111,0.111,0.111,0.12,0.123,0.125,0.121,0.108,0.122,0.136,0.148,0.151,0.145,0.163,0.179,0.17,0.178,0.199,0.209,0.255,0.221,0.234,0.244,0.288,0.3,0.317,0.279,0.336,0.349,0.341,0.345,0.339,0.336,0.326,0.309,0.254,0.241,0.253,0.268,0.259,0.262,0.201,0.197,0.187,0.171,0.197,0.188,0.165,0.149,0.139,0.126,0.12,0.123,0.113,0.103,0.104,0.112,0.108,0.094,0.084,0.091,0.0],[0.0,0.062,0.085,0.088,0.111,0.109,0.12,0.113,0.11,0.127,0.136,0.139,0.139,0.131,0.146,0.138,0.15,0.187,0.202,0.208,0.205,0.175,0.246,0.224,0.23,0.254,0.258,0.259,0.256,0.305,0.32,0.305,0.294,0.28,0.311,0.286,0.294,0.235,0.249,0.209,0.214,0.237,0.22,0.223,0.199,0.206,0.173,0.148,0.151,0.161,0.166,0.162,0.152,0.134,0.127,0.12,0.109,0.108,0.09,0.103,0.115,0.096,0.059,0.0],[0.0,0.0,0.118,0.12,0.113,0.112,0.102,0.108,0.128,0.123,0.106,0.105,0.11,0.133,0.148,0.179,0.177,0.163,0.169,0.199,0.215,0.198,0.171,0.221,0.225,0.242,0.225,0.234,0.235,0.284,0.283,0.273,0.262,0.229,0.274,0.264,0.26,0.244,0.215,0.193,0.216,0.18,0.192,0.219,0.197,0.165,0.18,0.18,0.162,0.152,0.154,0.138,0.123,0.129,0.138,0.128,0.12,0.111,0.099,0.091,0.092,0.094,0.0,0.0],[0.0,0.0,0.102,0.099,0.084,0.081,0.096,0.102,0.088,0.111,0.12,0.133,0.145,0.142,0.136,0.125,0.153,0.182,0.201,0.165,0.172,0.196,0.189,0.185,0.213,0.192,0.214,0.212,0.209,0.252,0.252,0.253,0.243,0.207,0.238,0.231,0.238,0.22,0.216,0.193,0.178,0.192,0.193,0.178,0.164,0.168,0.185,0.148,0.144,0.138,0.143,0.166,0.16,0.137,0.124,0.114,0.117,0.1,0.098,0.101,0.096,0.09,0.0,0.0],[0.0,0.0,0.025,0.07,0.087,0.111,0.113,0.114,0.12,0.116,0.107,0.108,0.111,0.136,0.157,0.173,0.144,0.162,0.163,0.187,0.146,0.175,0.178,0.187,0.187,0.186,0.203,0.19,0.208,0.214,0.249,0.234,0.226,0.212,0.214,0.214,0.225,0.22,0.19,0.19,0.171,0.175,0.168,0.138,0.187,0.163,0.131,0.149,0.17,0.164,0.126,0.105,0.126,0.138,0.149,0.131,0.132,0.127,0.124,0.103,0.094,0.029,0.0,0.0],[0.0,0.0,0.0,0.105,0.112,0.106,0.083,0.079,0.087,0.095,0.124,0.144,0.143,0.123,0.126,0.136,0.182,0.158,0.152,0.146,0.17,0.137,0.181,0.164,0.175,0.187,0.184,0.183,0.19,0.199,0.222,0.191,0.206,0.211,0.193,0.191,0.196,0.214,0.162,0.173,0.168,0.181,0.152,0.159,0.153,0.141,0.141,0.155,0.129,0.12,0.132,0.145,0.14,0.133,0.115,0.126,0.098,0.096,0.118,0.12,0.114,0.0,0.0,0.0],[0.0,0.0,0.0,0.05,0.061,0.078,0.096,0.114,0.13,0.116,0.099,0.104,0.114,0.155,0.157,0.141,0.133,0.167,0.14,0.128,0.153,0.151,0.147,0.154,0.164,0.163,0.176,0.172,0.168,0.199,0.197,0.175,0.194,0.194,0.184,0.176,0.18,0.184,0.169,0.161,0.146,0.168,0.156,0.161,0.124,0.148,0.175,0.105,0.114,0.133,0.14,0.113,0.105,0.096,0.126,0.138,0.143,0.129,0.101,0.09,0.05,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.095,0.105,0.091,0.092,0.077,0.11,0.143,0.138,0.109,0.117,0.141,0.172,0.137,0.123,0.143,0.136,0.126,0.15,0.132,0.161,0.143,0.175,0.175,0.159,0.174,0.18,0.168,0.168,0.187,0.187,0.171,0.17,0.156,0.168,0.165,0.155,0.158,0.131,0.169,0.135,0.138,0.145,0.108,0.138,0.15,0.118,0.096,0.11,0.128,0.127,0.11,0.092,0.097,0.098,0.12,0.124,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.032,0.081,0.118,0.12,0.12,0.095,0.092,0.111,0.155,0.134,0.112,0.133,0.151,0.105,0.119,0.14,0.112,0.138,0.142,0.145,0.142,0.173,0.15,0.144,0.168,0.155,0.171,0.151,0.157,0.181,0.168,0.164,0.133,0.165,0.154,0.142,0.162,0.119,0.149,0.132,0.161,0.117,0.112,0.142,0.121,0.104,0.122,0.128,0.102,0.096,0.086,0.111,0.12,0.13,0.104,0.031,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.096,0.065,0.097,0.099,0.136,0.123,0.1,0.108,0.151,0.147,0.097,0.112,0.125,0.105,0.132,0.11,0.132,0.15,0.123,0.147,0.158,0.151,0.14,0.156,0.141,0.161,0.136,0.153,0.157,0.168,0.155,0.137,0.152,0.14,0.128,0.151,0.121,0.132,0.131,0.141,0.107,0.135,0.11,0.093,0.121,0.138,0.101,0.072,0.105,0.124,0.095,0.084,0.08,0.089,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.118,0.111,0.084,0.092,0.119,0.157,0.1,0.107,0.134,0.114,0.08,0.129,0.105,0.1,0.118,0.128,0.134,0.12,0.157,0.14,0.132,0.132,0.143,0.133,0.142,0.138,0.147,0.149,0.165,0.143,0.135,0.135,0.132,0.12,0.14,0.132,0.118,0.139,0.111,0.126,0.131,0.094,0.116,0.132,0.093,0.102,0.138,0.105,0.071,0.076,0.093,0.109,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.022,0.105,0.131,0.103,0.098,0.103,0.154,0.096,0.095,0.122,0.095,0.096,0.114,0.083,0.136,0.113,0.118,0.128,0.145,0.135,0.135,0.129,0.126,0.135,0.129,0.138,0.142,0.138,0.154,0.135,0.127,0.137,0.121,0.118,0.112,0.139,0.111,0.135,0.104,0.14,0.105,0.101,0.127,0.097,0.076,0.13,0.099,0.078,0.098,0.117,0.093,0.019,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.055,0.084,0.142,0.114,0.099,0.098,0.129,0.087,0.084,0.11,0.089,0.106,0.098,0.13,0.108,0.121,0.129,0.138,0.119,0.146,0.118,0.113,0.127,0.114,0.132,0.132,0.131,0.15,0.13,0.129,0.127,0.124,0.119,0.102,0.126,0.098,0.131,0.109,0.136,0.079,0.128,0.098,0.074,0.133,0.087,0.072,0.108,0.121,0.087,0.037,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.084,0.075,0.117,0.111,0.08,0.096,0.085,0.072,0.114,0.077,0.107,0.111,0.111,0.091,0.131,0.109,0.132,0.123,0.131,0.111,0.109,0.117,0.106,0.131,0.129,0.124,0.14,0.129,0.121,0.119,0.126,0.105,0.097,0.11,0.111,0.118,0.108,0.116,0.107,0.126,0.085,0.111,0.1,0.087,0.097,0.111,0.09,0.059,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.078,0.082,0.124,0.09,0.056,0.099,0.084,0.081,0.098,0.088,0.111,0.098,0.119,0.116,0.111,0.129,0.116,0.128,0.105,0.099,0.114,0.101,0.129,0.12,0.122,0.124,0.13,0.113,0.121,0.117,0.103,0.095,0.108,0.099,0.102,0.117,0.099,0.111,0.105,0.08,0.121,0.081,0.083,0.107,0.077,0.064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.07,0.08,0.103,0.072,0.083,0.097,0.076,0.111,0.089,0.102,0.104,0.12,0.106,0.107,0.12,0.113,0.114,0.098,0.101,0.103,0.095,0.114,0.113,0.12,0.118,0.126,0.114,0.108,0.111,0.104,0.093,0.095,0.111,0.077,0.12,0.094,0.12,0.084,0.102,0.089,0.075,0.114,0.068,0.064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.032,0.08,0.079,0.073,0.096,0.084,0.096,0.075,0.114,0.105,0.108,0.097,0.11,0.111,0.115,0.103,0.098,0.098,0.096,0.094,0.106,0.112,0.118,0.108,0.122,0.113,0.101,0.108,0.106,0.087,0.097,0.097,0.083,0.107,0.079,0.121,0.089,0.111,0.076,0.099,0.085,0.05,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.012,0.09,0.072,0.096,0.086,0.083,0.08,0.118,0.087,0.1,0.099,0.11,0.101,0.111,0.092,0.093,0.096,0.09,0.098,0.094,0.11,0.114,0.105,0.113,0.112,0.104,0.105,0.097,0.09,0.093,0.083,0.082,0.096,0.086,0.117,0.083,0.111,0.063,0.111,0.023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.079,0.088,0.08,0.077,0.107,0.106,0.081,0.091,0.096,0.115,0.104,0.102,0.086,0.092,0.086,0.085,0.099,0.091,0.103,0.111,0.103,0.107,0.109,0.099,0.099,0.099,0.09,0.078,0.091,0.077,0.105,0.084,0.085,0.111,0.078,0.085,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.018,0.072,0.083,0.104,0.09,0.094,0.093,0.093,0.103,0.105,0.095,0.081,0.093,0.075,0.084,0.094,0.09,0.101,0.111,0.096,0.104,0.104,0.103,0.099,0.087,0.09,0.083,0.087,0.068,0.081,0.096,0.057,0.116,0.025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.049,0.103,0.071,0.089,0.102,0.078,0.097,0.106,0.08,0.084,0.089,0.074,0.078,0.093,0.085,0.097,0.111,0.091,0.099,0.097,0.093,0.104,0.082,0.088,0.087,0.077,0.079,0.062,0.103,0.032,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.032,0.078,0.103,0.093,0.1,0.093,0.074,0.085,0.087,0.068,0.079,0.088,0.082,0.095,0.104,0.096,0.093,0.09,0.094,0.101,0.082,0.087,0.071,0.089,0.087,0.014,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.062,0.102,0.084,0.07,0.084,0.079,0.062,0.083,0.081,0.085,0.088,0.101,0.098,0.079,0.09,0.089,0.104,0.086,0.072,0.052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.051,0.076,0.061,0.08,0.08,0.085,0.086,0.093,0.097,0.068,0.099,0.058,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]],"0.5":[[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.055,0.293,0.285,0.228,0.259,0.29,0.282,0.321,0.23,0.235,0.252,0.212,0.197,0.039,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.026,0.26,0.277,0.349,0.372,0.304,0.357,0.315,0.351,0.381,0.297,0.399,0.36,0.321,0.331,0.264,0.234,0.357,0.355,0.333,0.224,0.012,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.152,0.242,0.398,0.281,0.404,0.332,0.383,0.355,0.329,0.382,0.371,0.329,0.347,0.36,0.43,0.345,0.285,0.293,0.334,0.394,0.351,0.336,0.292,0.317,0.264,0.178,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.233,0.335,0.348,0.342,0.349,0.334,0.348,0.392,0.402,0.371,0.375,0.385,0.402,0.314,0.424,0.376,0.385,0.394,0.331,0.356,0.381,0.308,0.369,0.313,0.388,0.287,0.366,0.36,0.343,0.215,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.099,0.315,0.376,0.34,0.391,0.347,0.409,0.347,0.361,0.351,0.432,0.38,0.353,0.443,0.382,0.425,0.422,0.435,0.409,0.391,0.37,0.436,0.329,0.38,0.346,0.341,0.39,0.362,0.318,0.346,0.403,0.305,0.285,0.106,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.007,0.3,0.301,0.321,0.352,0.33,0.337,0.41,0.458,0.398,0.36,0.434,0.398,0.414,0.448,0.341,0.408,0.451,0.401,0.44,0.368,0.394,0.507,0.421,0.357,0.34,0.372,0.378,0.411,0.37,0.35,0.364,0.381,0.367,0.372,0.359,0.324,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.106,0.374,0.338,0.332,0.372,0.421,0.344,0.396,0.374,0.394,0.373,0.454,0.407,0.427,0.434,0.385,0.464,0.382,0.476,0.396,0.391,0.438,0.459,0.493,0.445,0.446,0.388,0.426,0.412,0.347,0.459,0.374,0.408,0.437,0.356,0.331,0.334,0.361,0.335,0.114,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.217,0.284,0.364,0.34,0.323,0.38,0.448,0.375,0.394,0.435,0.434,0.373,0.443,0.439,0.439,0.454,0.474,0.427,0.535,0.446,0.449,0.473,0.559,0.523,0.464,0.525,0.518,0.397,0.414,0.412,0.452,0.502,0.394,0.378,0.429,0.357,0.359,0.322,0.378,0.354,0.337,0.176,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.255,0.362,0.38,0.381,0.347,0.319,0.394,0.427,0.35,0.446,0.482,0.525,0.406,0.473,0.438,0.512,0.416,0.449,0.564,0.504,0.455,0.549,0.51,0.58,0.6,0.58,0.441,0.517,0.473,0.442,0.505,0.48,0.398,0.432,0.405,0.399,0.365,0.365,0.358,0.428,0.381,0.329,0.306,0.178,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.231,0.375,0.355,0.38,0.43,0.416,0.401,0.461,0.446,0.407,0.455,0.437,0.398,0.497,0.531,0.536,0.565,0.461,0.505,0.555,0.549,0.532,0.529,0.596,0.619,0.65,0.586,0.591,0.557,0.58,0.522,0.496,0.459,0.419,0.454,0.399,0.456,0.449,0.408,0.334,0.334,0.333,0.348,0.316,0.283,0.216,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.22,0.283,0.338,0.345,0.397,0.391,0.357,0.409,0.468,0.521,0.455,0.549,0.535,0.467,0.453,0.544,0.531,0.493,0.673,0.601,0.575,0.536,0.638,0.729,0.716,0.646,0.707,0.707,0.647,0.626,0.6,0.544,0.497,0.488,0.486,0.47,0.469,0.446,0.45,0.398,0.354,0.397,0.394,0.367,0.333,0.282,0.287,0.239,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.208,0.349,0.324,0.386,0.363,0.39,0.36,0.375,0.433,0.457,0.474,0.48,0.541,0.546,0.574,0.563,0.597,0.662,0.686,0.591,0.754,0.767,0.788,0.818,0.833,0.859,0.827,0.765,0.842,0.765,0.729,0.763,0.637,0.512,0.571,0.492,0.496,0.48,0.443,0.51,0.438,0.385,0.444,0.387,0.374,0.324,0.306,0.321,0.284,0.159,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.116,0.339,0.389,0.39,0.429,0.402,0.432,0.481,0.436,0.481,0.462,0.561,0.549,0.553,0.563,0.57,0.668,0.734,0.753,0.71,0.853,0.82,0.848,0.843,0.847,0.787,0.767,0.827,0.77,0.817,0.844,0.918,0.79,0.751,0.663,0.63,0.558,0.506,0.511,0.523,0.511,0.424,0.341,0.481,0.4,0.36,0.359,0.33,0.377,0.333,0.327,0.122,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.011,0.353,0.375,0.363,0.321,0.386,0.369,0.403,0.476,0.426,0.497,0.486,0.514,0.607,0.598,0.604,0.63,0.691,0.779,0.793,0.916,0.86,0.837,0.842,0.91,0.84,0.893,0.843,0.818,0.925,0.901,0.914,0.786,0.88,0.828,0.88,0.75,0.722,0.665,0.578,0.505,0.47,0.469,0.394,0.5,0.38,0.381,0.329,0.309,0.355,0.32,0.339,0.278,0.007,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.262,0.366,0.391,0.382,0.415,0.388,0.38,0.433,0.518,0.48,0.585,0.592,0.58,0.635,0.724,0.742,0.8,0.827,0.882,0.919,0.846,0.804,0.757,0.707,0.688,0.652,0.713,0.631,0.609,0.725,0.725,0.797,0.898,0.934,0.871,0.916,0.878,0.777,0.727,0.58,0.575,0.533,0.527,0.474,0.497,0.472,0.416,0.398,0.408,0.35,0.369,0.407,0.32,0.304,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.118,0.284,0.319,0.411,0.359,0.381,0.428,0.437,0.476,0.503,0.459,0.584,0.555,0.69,0.637,0.878,0.864,0.806,0.945,0.998,0.791,0.658,0.714,0.689,0.708,0.707,0.78,0.748,0.721,0.719,0.657,0.667,0.714,0.709,0.692,0.812,0.836,0.805,0.811,0.861,0.76,0.689,0.602,0.572,0.486,0.517,0.433,0.411,0.417,0.387,0.339,0.382,0.325,0.3,0.36,0.116,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.379,0.341,0.315,0.389,0.415,0.406,0.423,0.405,0.457,0.507,0.504,0.635,0.744,0.788,0.825,0.785,0.788,0.918,0.758,0.658,0.699,0.68,0.66,0.726,0.792,0.805,0.788,0.852,0.935,0.885,0.854,0.822,0.787,0.712,0.702,0.737,0.708,0.842,0.902,0.912,0.821,0.819,0.704,0.649,0.593,0.582,0.526,0.464,0.402,0.411,0.411,0.398,0.344,0.35,0.345,0.286,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.182,0.319,0.354,0.309,0.355,0.465,0.425,0.476,0.548,0.484,0.631,0.599,0.69,0.819,0.793,0.832,0.925,0.893,0.715,0.712,0.718,0.649,0.768,0.807,0.8,0.745,0.825,0.73,0.711,0.663,0.758,0.762,0.738,0.826,0.836,0.798,0.837,0.747,0.734,0.733,0.94,0.934,0.814,0.879,0.715,0.573,0.564,0.488,0.465,0.456,0.409,0.434,0.341,0.331,0.381,0.326,0.32,0.194,0.0,0.0,0.0],[0.0,0.0,0.0,0.283,0.339,0.361,0.36,0.374,0.478,0.457,0.433,0.494,0.467,0.567,0.584,0.779,0.924,0.799,0.865,0.902,0.69,0.684,0.709,0.707,0.745,0.757,0.729,0.696,0.641,0.576,0.606,0.596,0.581,0.569,0.589,0.614,0.677,0.764,0.729,0.829,0.836,0.804,0.821,0.718,0.952,0.873,0.842,0.757,0.726,0.64,0.554,0.528,0.444,0.452,0.389,0.392,0.395,0.395,0.362,0.375,0.323,0.0,0.0,0.0],[0.0,0.0,0.155,0.337,0.346,0.386,0.387,0.352,0.394,0.431,0.438,0.559,0.507,0.637,0.654,0.869,0.873,0.87,0.928,0.678,0.701,0.612,0.723,0.755,0.753,0.601,0.594,0.599,0.641,0.701,0.636,0.656,0.607,0.611,0.659,0.605,0.576,0.598,0.701,0.716,0.752,0.795,0.838,0.777,0.752,0.917,0.922,0.829,0.823,0.683,0.59,0.562,0.497,0.48,0.431,0.394,0.39,0.402,0.352,0.298,0.355,0.134,0.0,0.0],[0.0,0.0,0.295,0.327,0.348,0.363,0.401,0.436,0.41,0.501,0.52,0.629,0.585,0.625,0.758,0.842,0.914,0.832,0.708,0.635,0.715,0.773,0.712,0.675,0.54,0.632,0.62,0.652,0.65,0.569,0.625,0.527,0.587,0.602,0.552,0.634,0.616,0.6,0.591,0.602,0.643,0.684,0.737,0.769,0.824,0.766,0.933,0.862,0.842,0.787,0.702,0.584,0.514,0.509,0.448,0.446,0.406,0.405,0.374,0.337,0.319,0.316,0.0,0.0],[0.0,0.009,0.41,0.366,0.387,0.383,0.397,0.403,0.509,0.508,0.515,0.593,0.593,0.738,0.851,0.888,0.992,0.767,0.772,0.652,0.769,0.704,0.601,0.615,0.602,0.624,0.591,0.612,0.529,0.478,0.38,0.385,0.419,0.402,0.437,0.474,0.609,0.678,0.665,0.633,0.634,0.63,0.756,0.733,0.802,0.807,0.75,0.976,0.807,0.811,0.703,0.617,0.481,0.451,0.405,0.378,0.49,0.412,0.339,0.332,0.357,0.317,0.019,0.0],[0.0,0.248,0.292,0.356,0.338,0.415,0.381,0.412,0.384,0.484,0.479,0.559,0.613,0.798,0.826,0.989,0.844,0.729,0.679,0.698,0.707,0.633,0.561,0.652,0.604,0.612,0.549,0.41,0.295,0.238,0.23,0.194,0.175,0.252,0.296,0.37,0.405,0.442,0.625,0.595,0.677,0.542,0.67,0.677,0.748,0.834,0.675,0.881,0.88,0.898,0.89,0.695,0.601,0.538,0.459,0.477,0.448,0.372,0.375,0.402,0.366,0.319,0.225,0.0],[0.0,0.208,0.341,0.36,0.409,0.36,0.427,0.49,0.441,0.486,0.552,0.555,0.692,0.828,0.925,0.975,0.738,0.738,0.698,0.731,0.706,0.488,0.638,0.602,0.596,0.44,0.32,0.136,0.086,0.031,0.006,0.0,0.0,0.0,0.028,0.092,0.205,0.348,0.542,0.613,0.657,0.655,0.594,0.683,0.75,0.774,0.743,0.732,0.858,0.884,0.914,0.768,0.574,0.535,0.534,0.523,0.412,0.378,0.365,0.355,0.349,0.314,0.304,0.0],[0.0,0.382,0.337,0.378,0.36,0.374,0.397,0.471,0.505,0.455,0.571,0.62,0.765,0.836,0.914,0.868,0.807,0.711,0.805,0.7,0.533,0.6,0.582,0.557,0.429,0.238,0.097,0.025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.003,0.094,0.235,0.463,0.58,0.625,0.633,0.589,0.703,0.823,0.745,0.721,0.939,0.896,0.878,0.778,0.615,0.627,0.603,0.507,0.436,0.463,0.461,0.355,0.367,0.378,0.329,0.0],[0.063,0.441,0.342,0.309,0.327,0.401,0.429,0.402,0.53,0.547,0.598,0.613,0.825,0.94,1.0,0.792,0.814,0.747,0.722,0.588,0.542,0.543,0.562,0.366,0.304,0.078,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.097,0.224,0.49,0.611,0.598,0.624,0.667,0.74,0.67,0.768,0.789,0.959,0.933,0.834,0.667,0.613,0.582,0.486,0.43,0.405,0.384,0.449,0.353,0.364,0.433,0.036],[0.214,0.272,0.362,0.367,0.411,0.379,0.417,0.423,0.46,0.643,0.617,0.692,0.887,0.805,0.843,0.739,0.905,0.695,0.657,0.539,0.62,0.547,0.46,0.356,0.108,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.094,0.345,0.439,0.648,0.65,0.566,0.693,0.715,0.713,0.784,0.939,0.821,0.895,0.809,0.638,0.574,0.537,0.547,0.492,0.344,0.392,0.411,0.377,0.273,0.215],[0.277,0.309,0.347,0.426,0.337,0.444,0.474,0.507,0.481,0.516,0.593,0.737,0.79,0.89,0.751,0.764,0.886,0.696,0.604,0.597,0.588,0.516,0.366,0.222,0.025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.003,0.241,0.358,0.576,0.616,0.593,0.647,0.739,0.697,0.731,0.863,0.946,0.842,0.8,0.684,0.591,0.516,0.525,0.527,0.491,0.391,0.361,0.307,0.318,0.276],[0.234,0.351,0.356,0.445,0.456,0.411,0.476,0.454,0.432,0.488,0.642,0.795,0.834,0.907,0.757,0.794,0.792,0.765,0.576,0.567,0.61,0.427,0.351,0.083,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.086,0.353,0.457,0.62,0.572,0.605,0.713,0.691,0.703,0.699,0.933,0.9,0.758,0.667,0.59,0.611,0.525,0.53,0.558,0.437,0.297,0.351,0.354,0.3],[0.314,0.391,0.357,0.353,0.44,0.468,0.426,0.428,0.474,0.537,0.589,0.801,0.841,0.914,0.751,0.787,0.747,0.775,0.542,0.652,0.586,0.409,0.288,0.025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.025,0.31,0.415,0.558,0.638,0.594,0.753,0.742,0.674,0.727,0.901,0.849,0.787,0.667,0.591,0.583,0.534,0.519,0.477,0.506,0.51,0.391,0.35,0.226],[0.29,0.382,0.376,0.35,0.385,0.452,0.408,0.433,0.509,0.481,0.647,0.79,0.902,0.855,0.669,0.859,0.683,0.747,0.648,0.569,0.605,0.363,0.219,0.006,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.241,0.388,0.589,0.571,0.529,0.732,0.804,0.658,0.612,0.89,0.917,0.863,0.624,0.576,0.561,0.501,0.425,0.404,0.511,0.526,0.635,0.371,0.233],[0.271,0.335,0.406,0.419,0.414,0.325,0.409,0.545,0.539,0.521,0.621,0.861,0.817,0.875,0.796,0.74,0.828,0.67,0.598,0.664,0.571,0.416,0.136,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.161,0.446,0.559,0.563,0.59,0.641,0.794,0.713,0.646,0.908,0.859,0.817,0.734,0.531,0.465,0.473,0.408,0.436,0.471,0.36,0.404,0.545,0.435],[0.156,0.279,0.351,0.353,0.424,0.435,0.427,0.469,0.525,0.615,0.647,0.772,0.821,0.919,0.656,0.749,0.834,0.688,0.547,0.67,0.607,0.424,0.136,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.155,0.41,0.535,0.669,0.572,0.654,0.754,0.664,0.75,0.878,0.857,0.843,0.696,0.559,0.591,0.417,0.395,0.421,0.421,0.393,0.286,0.27,0.353],[0.271,0.299,0.249,0.339,0.378,0.385,0.376,0.488,0.574,0.583,0.696,0.754,0.8,0.906,0.664,0.759,0.894,0.651,0.619,0.634,0.68,0.415,0.172,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.006,0.202,0.41,0.595,0.64,0.552,0.68,0.778,0.758,0.647,0.84,0.88,0.849,0.631,0.587,0.457,0.482,0.473,0.392,0.371,0.289,0.344,0.369,0.251],[0.27,0.351,0.322,0.262,0.353,0.351,0.422,0.438,0.495,0.648,0.67,0.822,0.801,0.885,0.672,0.723,0.796,0.717,0.556,0.658,0.666,0.478,0.194,0.033,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.028,0.235,0.489,0.591,0.622,0.581,0.716,0.758,0.691,0.684,0.877,0.837,0.781,0.635,0.53,0.535,0.529,0.379,0.363,0.356,0.358,0.333,0.338,0.26],[0.245,0.34,0.313,0.352,0.294,0.308,0.426,0.451,0.45,0.609,0.642,0.8,0.771,0.943,0.716,0.663,0.857,0.754,0.589,0.662,0.62,0.543,0.348,0.078,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.081,0.312,0.532,0.647,0.635,0.67,0.696,0.745,0.695,0.688,0.916,0.788,0.859,0.604,0.522,0.513,0.417,0.412,0.349,0.409,0.365,0.365,0.288,0.232],[0.206,0.25,0.345,0.388,0.378,0.372,0.393,0.4,0.49,0.59,0.612,0.702,0.778,0.879,0.775,0.652,0.718,0.815,0.664,0.586,0.61,0.639,0.441,0.186,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.022,0.141,0.43,0.623,0.636,0.561,0.719,0.795,0.643,0.709,0.728,0.864,0.828,0.698,0.591,0.483,0.459,0.426,0.417,0.483,0.323,0.379,0.34,0.33,0.252],[0.201,0.256,0.278,0.296,0.393,0.435,0.399,0.494,0.506,0.496,0.526,0.646,0.844,0.855,0.818,0.674,0.642,0.858,0.762,0.595,0.57,0.689,0.474,0.384,0.117,0.003,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.108,0.304,0.532,0.594,0.628,0.567,0.68,0.834,0.691,0.665,0.814,0.791,0.789,0.589,0.636,0.478,0.406,0.455,0.388,0.42,0.424,0.348,0.348,0.287,0.269],[0.06,0.347,0.305,0.331,0.36,0.383,0.42,0.485,0.447,0.433,0.635,0.633,0.8,0.806,0.834,0.599,0.651,0.839,0.811,0.67,0.608,0.618,0.562,0.437,0.326,0.125,0.003,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.083,0.257,0.415,0.607,0.624,0.673,0.622,0.755,0.807,0.684,0.599,0.788,0.786,0.733,0.712,0.508,0.566,0.49,0.431,0.41,0.346,0.384,0.402,0.365,0.386,0.045],[0.0,0.264,0.323,0.344,0.349,0.385,0.398,0.453,0.454,0.489,0.529,0.628,0.772,0.837,0.846,0.717,0.593,0.729,0.809,0.686,0.577,0.643,0.59,0.533,0.407,0.307,0.13,0.003,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.025,0.119,0.318,0.393,0.55,0.62,0.626,0.51,0.733,0.775,0.67,0.745,0.696,0.835,0.756,0.736,0.659,0.543,0.569,0.43,0.426,0.403,0.409,0.349,0.371,0.375,0.368,0.0],[0.0,0.275,0.321,0.356,0.368,0.364,0.373,0.399,0.374,0.495,0.476,0.583,0.658,0.835,0.752,0.864,0.639,0.681,0.804,0.751,0.66,0.581,0.595,0.557,0.533,0.44,0.353,0.205,0.078,0.033,0.0,0.0,0.0,0.006,0.025,0.089,0.21,0.334,0.363,0.533,0.626,0.634,0.568,0.655,0.831,0.754,0.705,0.601,0.895,0.816,0.715,0.708,0.657,0.566,0.482,0.464,0.479,0.495,0.357,0.381,0.326,0.387,0.298,0.0],[0.0,0.232,0.346,0.362,0.38,0.379,0.419,0.418,0.443,0.481,0.553,0.593,0.647,0.759,0.887,0.773,0.751,0.649,0.753,0.82,0.767,0.612,0.588,0.583,0.601,0.554,0.444,0.386,0.32,0.196,0.166,0.106,0.097,0.202,0.285,0.351,0.369,0.452,0.557,0.576,0.627,0.623,0.644,0.759,0.859,0.669,0.644,0.793,0.874,0.717,0.72,0.594,0.604,0.497,0.527,0.464,0.391,0.394,0.433,0.331,0.31,0.276,0.263,0.0],[0.0,0.012,0.435,0.358,0.329,0.355,0.423,0.372,0.477,0.51,0.421,0.522,0.549,0.669,0.831,0.884,0.854,0.716,0.721,0.724,0.817,0.716,0.666,0.531,0.643,0.626,0.648,0.579,0.518,0.462,0.426,0.438,0.463,0.405,0.387,0.455,0.506,0.572,0.572,0.614,0.482,0.668,0.717,0.857,0.705,0.637,0.668,0.857,0.75,0.781,0.616,0.589,0.573,0.542,0.393,0.493,0.404,0.379,0.444,0.383,0.286,0.304,0.002,0.0],[0.0,0.0,0.27,0.357,0.365,0.421,0.371,0.421,0.434,0.472,0.45,0.524,0.545,0.567,0.751,0.83,0.832,0.883,0.663,0.736,0.741,0.795,0.786,0.714,0.573,0.611,0.641,0.619,0.596,0.658,0.661,0.587,0.557,0.586,0.605,0.626,0.55,0.633,0.558,0.528,0.738,0.739,0.909,0.758,0.63,0.675,0.836,0.862,0.852,0.73,0.605,0.535,0.448,0.539,0.388,0.424,0.363,0.314,0.315,0.334,0.268,0.224,0.0,0.0],[0.0,0.0,0.138,0.301,0.335,0.379,0.335,0.427,0.459,0.393,0.457,0.534,0.496,0.633,0.639,0.681,0.799,0.908,0.822,0.731,0.756,0.695,0.762,0.736,0.69,0.644,0.542,0.651,0.619,0.615,0.597,0.64,0.675,0.586,0.574,0.542,0.578,0.506,0.606,0.736,0.761,0.814,0.707,0.658,0.671,0.865,0.848,0.805,0.722,0.67,0.521,0.52,0.502,0.5,0.433,0.398,0.361,0.362,0.322,0.376,0.382,0.14,0.0,0.0],[0.0,0.0,0.0,0.274,0.358,0.282,0.374,0.378,0.404,0.385,0.454,0.487,0.478,0.541,0.6,0.615,0.774,0.836,0.843,0.882,0.683,0.746,0.71,0.758,0.784,0.782,0.701,0.64,0.59,0.545,0.577,0.559,0.55,0.608,0.556,0.571,0.624,0.654,0.703,0.791,0.757,0.716,0.663,0.635,0.815,0.894,0.839,0.723,0.65,0.559,0.551,0.532,0.444,0.467,0.406,0.372,0.396,0.357,0.353,0.33,0.36,0.0,0.0,0.0],[0.0,0.0,0.0,0.191,0.348,0.325,0.378,0.393,0.341,0.373,0.418,0.439,0.404,0.545,0.559,0.614,0.634,0.761,0.771,0.852,0.854,0.718,0.639,0.64,0.647,0.722,0.744,0.744,0.691,0.693,0.628,0.672,0.637,0.635,0.731,0.697,0.708,0.766,0.793,0.783,0.761,0.702,0.757,0.798,0.841,0.824,0.774,0.679,0.585,0.538,0.493,0.521,0.413,0.483,0.412,0.411,0.407,0.369,0.357,0.351,0.194,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.294,0.398,0.397,0.37,0.402,0.416,0.442,0.49,0.441,0.501,0.49,0.523,0.53,0.659,0.799,0.772,0.85,0.898,0.843,0.694,0.672,0.7,0.653,0.636,0.785,0.704,0.746,0.743,0.704,0.67,0.703,0.764,0.818,0.858,0.762,0.763,0.707,0.787,0.982,0.85,0.906,0.836,0.667,0.653,0.488,0.533,0.493,0.495,0.411,0.445,0.458,0.394,0.38,0.364,0.335,0.316,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.116,0.4,0.349,0.391,0.412,0.36,0.438,0.442,0.445,0.526,0.464,0.539,0.577,0.581,0.671,0.787,0.798,0.789,0.839,0.891,0.768,0.662,0.707,0.755,0.71,0.751,0.708,0.663,0.726,0.81,0.748,0.77,0.727,0.737,0.745,0.816,0.931,0.921,0.867,0.831,0.788,0.748,0.561,0.588,0.46,0.527,0.454,0.419,0.403,0.39,0.395,0.33,0.315,0.325,0.278,0.11,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.264,0.299,0.309,0.322,0.336,0.373,0.445,0.41,0.449,0.445,0.432,0.515,0.601,0.623,0.687,0.791,0.883,0.83,0.843,0.864,0.908,0.878,0.773,0.675,0.675,0.685,0.711,0.756,0.682,0.748,0.745,0.803,0.781,0.881,0.857,0.748,0.768,0.817,0.716,0.659,0.54,0.536,0.558,0.445,0.429,0.393,0.396,0.373,0.347,0.401,0.314,0.318,0.315,0.262,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.009,0.358,0.345,0.372,0.363,0.389,0.42,0.379,0.437,0.485,0.499,0.517,0.56,0.594,0.68,0.703,0.766,0.827,0.91,0.868,0.779,0.915,0.955,0.942,0.915,0.981,0.939,0.924,0.861,0.923,0.931,0.867,0.815,0.861,0.795,0.79,0.804,0.715,0.607,0.579,0.51,0.526,0.479,0.489,0.492,0.511,0.451,0.396,0.401,0.407,0.387,0.327,0.367,0.012,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.121,0.323,0.333,0.39,0.419,0.401,0.381,0.443,0.427,0.471,0.511,0.469,0.501,0.484,0.601,0.624,0.69,0.684,0.841,0.83,0.864,0.877,0.807,0.853,0.913,0.909,0.842,0.861,0.887,0.786,0.812,0.793,0.828,0.734,0.706,0.625,0.625,0.547,0.468,0.418,0.456,0.42,0.438,0.342,0.37,0.398,0.351,0.364,0.384,0.351,0.302,0.097,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.188,0.319,0.372,0.388,0.353,0.385,0.401,0.414,0.426,0.471,0.401,0.465,0.481,0.557,0.544,0.597,0.655,0.624,0.643,0.566,0.68,0.774,0.817,0.758,0.737,0.874,0.838,0.786,0.815,0.754,0.725,0.636,0.567,0.591,0.552,0.624,0.585,0.519,0.445,0.494,0.419,0.427,0.373,0.345,0.372,0.361,0.351,0.309,0.366,0.201,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.223,0.32,0.327,0.375,0.35,0.379,0.374,0.388,0.423,0.366,0.497,0.45,0.474,0.536,0.546,0.475,0.539,0.622,0.542,0.636,0.642,0.687,0.61,0.683,0.636,0.703,0.622,0.559,0.592,0.605,0.592,0.593,0.618,0.477,0.538,0.502,0.437,0.409,0.475,0.455,0.433,0.362,0.372,0.43,0.364,0.335,0.327,0.255,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.312,0.345,0.349,0.353,0.396,0.363,0.345,0.435,0.385,0.393,0.406,0.482,0.519,0.459,0.493,0.525,0.473,0.551,0.556,0.616,0.576,0.536,0.551,0.571,0.517,0.577,0.514,0.521,0.523,0.55,0.448,0.509,0.482,0.476,0.463,0.434,0.44,0.357,0.399,0.416,0.378,0.307,0.415,0.303,0.306,0.238,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.247,0.297,0.306,0.351,0.312,0.365,0.374,0.384,0.406,0.434,0.392,0.406,0.491,0.383,0.508,0.472,0.555,0.557,0.432,0.43,0.654,0.502,0.54,0.51,0.475,0.459,0.535,0.462,0.457,0.547,0.436,0.419,0.482,0.4,0.354,0.405,0.409,0.413,0.379,0.361,0.298,0.374,0.335,0.224,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.178,0.296,0.339,0.286,0.398,0.355,0.376,0.389,0.379,0.408,0.387,0.43,0.423,0.434,0.589,0.481,0.445,0.485,0.495,0.425,0.504,0.493,0.417,0.453,0.441,0.468,0.419,0.439,0.441,0.496,0.387,0.427,0.378,0.345,0.354,0.288,0.395,0.382,0.328,0.331,0.362,0.23,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.111,0.345,0.296,0.32,0.39,0.355,0.341,0.311,0.398,0.39,0.432,0.414,0.375,0.446,0.485,0.41,0.451,0.442,0.411,0.432,0.406,0.432,0.381,0.459,0.402,0.412,0.469,0.366,0.404,0.373,0.409,0.381,0.39,0.381,0.276,0.349,0.289,0.322,0.282,0.085,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.019,0.275,0.364,0.325,0.287,0.33,0.334,0.411,0.362,0.381,0.39,0.413,0.392,0.428,0.424,0.455,0.42,0.383,0.423,0.372,0.417,0.442,0.378,0.416,0.381,0.393,0.43,0.372,0.383,0.375,0.345,0.341,0.411,0.308,0.347,0.309,0.256,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.115,0.279,0.334,0.365,0.295,0.336,0.356,0.347,0.407,0.369,0.359,0.377,0.422,0.356,0.419,0.446,0.423,0.429,0.427,0.392,0.376,0.32,0.463,0.328,0.38,0.379,0.331,0.367,0.318,0.269,0.333,0.305,0.403,0.13,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.171,0.307,0.309,0.34,0.391,0.316,0.4,0.394,0.317,0.353,0.411,0.386,0.395,0.388,0.335,0.44,0.36,0.317,0.393,0.426,0.332,0.347,0.323,0.348,0.297,0.364,0.318,0.333,0.279,0.139,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.133,0.269,0.41,0.342,0.315,0.394,0.312,0.294,0.399,0.353,0.367,0.372,0.417,0.378,0.351,0.328,0.368,0.363,0.347,0.368,0.323,0.355,0.296,0.357,0.264,0.137,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.009,0.251,0.251,0.283,0.44,0.268,0.277,0.343,0.39,0.386,0.399,0.261,0.313,0.378,0.36,0.325,0.278,0.392,0.373,0.217,0.231,0.012,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.066,0.21,0.221,0.285,0.271,0.32,0.303,0.208,0.274,0.3,0.262,0.268,0.241,0.036,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]],"1.0":[[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.038,0.157,0.27,0.387,0.456,0.498,0.473,0.453,0.646,0.592,0.487,0.398,0.308,0.264,0.224,0.053,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.107,0.315,0.498,0.584,0.626,0.678,0.63,0.605,0.584,0.659,0.674,0.607,0.687,0.725,0.722,0.688,0.582,0.559,0.59,0.472,0.272,0.122,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.025,0.241,0.464,0.599,0.594,0.593,0.68,0.73,0.685,0.783,0.816,0.888,0.928,0.965,0.947,0.887,0.921,0.888,0.861,0.867,0.769,0.655,0.664,0.632,0.557,0.465,0.207,0.018,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.025,0.23,0.487,0.504,0.57,0.644,0.754,0.847,0.86,0.829,0.928,0.844,0.859,0.844,0.814,0.853,0.881,0.912,0.902,0.941,0.935,0.938,0.97,0.933,0.912,0.802,0.754,0.691,0.639,0.512,0.294,0.03,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.003,0.246,0.509,0.609,0.678,0.76,0.89,0.893,0.876,0.81,0.796,0.792,0.697,0.667,0.667,0.645,0.674,0.666,0.645,0.671,0.69,0.734,0.739,0.804,0.81,0.882,0.886,0.918,0.936,0.847,0.746,0.605,0.554,0.548,0.219,0.001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.075,0.456,0.526,0.631,0.751,0.865,0.937,0.891,0.833,0.761,0.694,0.637,0.567,0.543,0.567,0.564,0.572,0.518,0.511,0.472,0.442,0.454,0.477,0.55,0.56,0.62,0.622,0.718,0.788,0.828,0.891,0.96,0.956,0.783,0.601,0.609,0.382,0.075,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.178,0.544,0.622,0.639,0.866,0.86,0.83,0.772,0.683,0.648,0.561,0.569,0.488,0.491,0.532,0.464,0.405,0.359,0.341,0.356,0.358,0.373,0.404,0.373,0.376,0.419,0.471,0.513,0.523,0.555,0.618,0.72,0.802,0.894,0.927,0.856,0.746,0.663,0.564,0.214,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.002,0.301,0.589,0.616,0.717,0.951,0.858,0.816,0.747,0.6,0.564,0.484,0.502,0.412,0.449,0.44,0.345,0.35,0.315,0.352,0.363,0.383,0.356,0.369,0.332,0.363,0.352,0.393,0.405,0.474,0.487,0.508,0.529,0.553,0.619,0.7,0.817,0.902,0.836,0.794,0.662,0.577,0.33,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.006,0.331,0.565,0.698,0.837,0.924,0.877,0.756,0.64,0.528,0.475,0.479,0.455,0.408,0.41,0.334,0.338,0.281,0.28,0.234,0.228,0.155,0.158,0.151,0.173,0.201,0.239,0.265,0.283,0.315,0.321,0.359,0.421,0.484,0.498,0.522,0.563,0.666,0.755,0.829,0.88,0.755,0.651,0.603,0.369,0.011,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.004,0.37,0.628,0.735,0.819,0.888,0.864,0.651,0.546,0.485,0.482,0.463,0.388,0.353,0.352,0.262,0.228,0.142,0.116,0.08,0.052,0.03,0.025,0.021,0.025,0.025,0.032,0.052,0.074,0.115,0.153,0.212,0.279,0.34,0.334,0.418,0.44,0.484,0.54,0.629,0.735,0.86,0.972,0.855,0.665,0.59,0.407,0.011,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.003,0.436,0.574,0.66,0.847,0.878,0.817,0.616,0.553,0.468,0.492,0.413,0.343,0.34,0.276,0.156,0.111,0.053,0.02,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.002,0.016,0.057,0.108,0.18,0.266,0.361,0.381,0.424,0.426,0.496,0.526,0.662,0.836,0.886,0.909,0.719,0.586,0.382,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.285,0.51,0.616,0.918,0.891,0.821,0.607,0.545,0.47,0.459,0.341,0.34,0.29,0.166,0.096,0.027,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.002,0.029,0.09,0.176,0.313,0.359,0.405,0.439,0.505,0.475,0.642,0.822,0.859,0.887,0.683,0.56,0.319,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.148,0.568,0.655,0.82,0.905,0.837,0.6,0.537,0.428,0.395,0.345,0.364,0.216,0.106,0.032,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.002,0.03,0.117,0.237,0.359,0.368,0.459,0.472,0.504,0.631,0.786,0.898,0.887,0.671,0.534,0.188,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.068,0.465,0.647,0.816,0.926,0.841,0.626,0.549,0.437,0.397,0.378,0.316,0.167,0.076,0.005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.005,0.082,0.19,0.351,0.347,0.469,0.465,0.559,0.624,0.774,0.908,0.779,0.682,0.508,0.082,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.411,0.581,0.767,0.908,0.876,0.693,0.516,0.431,0.403,0.343,0.295,0.149,0.041,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.048,0.163,0.322,0.369,0.448,0.484,0.573,0.667,0.866,0.893,0.758,0.612,0.382,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.205,0.535,0.694,0.938,0.876,0.726,0.551,0.451,0.43,0.335,0.311,0.132,0.03,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.036,0.162,0.317,0.346,0.442,0.518,0.571,0.729,0.864,0.853,0.74,0.534,0.203,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.034,0.502,0.668,0.791,0.923,0.802,0.549,0.477,0.453,0.335,0.327,0.144,0.03,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.03,0.167,0.346,0.363,0.427,0.55,0.641,0.744,0.904,0.903,0.583,0.479,0.027,0.0,0.0,0.0],[0.0,0.0,0.0,0.288,0.616,0.676,0.9,0.85,0.635,0.499,0.476,0.357,0.321,0.159,0.046,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.048,0.18,0.347,0.393,0.449,0.562,0.665,0.855,0.969,0.694,0.58,0.281,0.0,0.0,0.0],[0.0,0.0,0.029,0.569,0.6,0.886,0.844,0.735,0.574,0.474,0.385,0.324,0.211,0.071,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.076,0.246,0.35,0.429,0.487,0.603,0.705,0.973,0.839,0.621,0.542,0.03,0.0,0.0],[0.0,0.0,0.262,0.519,0.72,0.9,0.816,0.66,0.516,0.411,0.334,0.284,0.115,0.007,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.007,0.118,0.298,0.371,0.455,0.549,0.631,0.825,0.943,0.721,0.58,0.254,0.0,0.0],[0.0,0.0,0.423,0.649,0.899,0.833,0.703,0.599,0.43,0.407,0.314,0.162,0.036,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.029,0.157,0.349,0.413,0.49,0.568,0.781,0.899,0.805,0.666,0.455,0.0,0.0],[0.0,0.112,0.566,0.72,0.888,0.854,0.672,0.508,0.391,0.358,0.254,0.087,0.004,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.002,0.103,0.259,0.359,0.453,0.529,0.674,0.856,0.897,0.752,0.557,0.104,0.0],[0.0,0.3,0.588,0.8,0.89,0.751,0.555,0.472,0.384,0.329,0.159,0.032,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.029,0.166,0.319,0.425,0.507,0.586,0.834,0.913,0.803,0.629,0.282,0.0],[0.0,0.458,0.707,0.819,0.852,0.719,0.555,0.407,0.352,0.289,0.108,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.113,0.284,0.355,0.441,0.562,0.732,0.906,0.956,0.6,0.469,0.0],[0.037,0.615,0.715,0.881,0.777,0.669,0.494,0.354,0.347,0.232,0.052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.053,0.215,0.318,0.391,0.543,0.644,0.896,0.956,0.654,0.567,0.049],[0.178,0.574,0.768,0.853,0.793,0.598,0.45,0.386,0.347,0.144,0.016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.016,0.152,0.352,0.346,0.442,0.631,0.845,1.0,0.738,0.565,0.203],[0.313,0.597,0.821,0.909,0.654,0.566,0.445,0.316,0.324,0.12,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.002,0.106,0.318,0.371,0.368,0.541,0.829,0.968,0.842,0.673,0.231],[0.394,0.593,0.873,0.832,0.666,0.541,0.443,0.336,0.289,0.082,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.085,0.252,0.365,0.379,0.502,0.746,0.959,0.908,0.654,0.334],[0.447,0.626,0.875,0.833,0.645,0.526,0.404,0.322,0.243,0.052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.048,0.25,0.347,0.354,0.498,0.662,0.88,0.982,0.724,0.431],[0.506,0.653,0.859,0.841,0.656,0.522,0.398,0.348,0.209,0.037,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.03,0.212,0.357,0.373,0.471,0.624,0.846,0.94,0.817,0.501],[0.528,0.649,0.861,0.86,0.622,0.512,0.388,0.342,0.186,0.023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.025,0.164,0.361,0.409,0.497,0.623,0.841,0.876,0.751,0.653],[0.436,0.749,0.886,0.851,0.603,0.482,0.401,0.373,0.149,0.023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.021,0.151,0.351,0.389,0.5,0.577,0.805,0.896,0.581,0.774],[0.414,0.714,0.904,0.845,0.602,0.469,0.45,0.361,0.14,0.021,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.023,0.158,0.355,0.397,0.495,0.603,0.816,0.88,0.611,0.51],[0.441,0.629,0.892,0.875,0.621,0.504,0.439,0.333,0.176,0.023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.021,0.165,0.356,0.416,0.517,0.626,0.81,0.892,0.593,0.445],[0.513,0.544,0.844,0.92,0.619,0.482,0.462,0.335,0.197,0.034,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.032,0.222,0.328,0.419,0.537,0.623,0.806,0.85,0.581,0.425],[0.47,0.488,0.839,0.865,0.694,0.482,0.465,0.341,0.233,0.048,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.05,0.232,0.339,0.461,0.534,0.64,0.832,0.802,0.623,0.353],[0.365,0.634,0.753,0.882,0.683,0.538,0.433,0.379,0.257,0.08,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.076,0.282,0.322,0.482,0.508,0.703,0.818,0.75,0.583,0.338],[0.229,0.628,0.75,0.873,0.72,0.545,0.483,0.403,0.273,0.122,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.002,0.115,0.288,0.379,0.528,0.515,0.687,0.848,0.716,0.511,0.298],[0.191,0.495,0.738,0.907,0.756,0.552,0.489,0.409,0.339,0.151,0.018,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.016,0.142,0.337,0.418,0.493,0.544,0.759,0.838,0.676,0.577,0.152],[0.042,0.523,0.735,0.841,0.846,0.558,0.482,0.472,0.356,0.204,0.052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.05,0.228,0.35,0.429,0.497,0.609,0.78,0.863,0.618,0.546,0.023],[0.0,0.427,0.64,0.884,0.835,0.657,0.487,0.474,0.336,0.314,0.109,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.004,0.108,0.3,0.385,0.399,0.521,0.662,0.818,0.822,0.563,0.455,0.0],[0.0,0.234,0.65,0.69,0.967,0.716,0.524,0.478,0.382,0.354,0.168,0.027,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.027,0.168,0.355,0.403,0.424,0.6,0.669,0.859,0.781,0.5,0.319,0.0],[0.0,0.099,0.596,0.647,0.903,0.836,0.585,0.513,0.432,0.33,0.266,0.09,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.09,0.295,0.344,0.41,0.464,0.606,0.794,0.886,0.64,0.53,0.135,0.0],[0.0,0.0,0.508,0.579,0.855,0.863,0.691,0.524,0.449,0.375,0.376,0.159,0.037,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.034,0.176,0.332,0.364,0.457,0.498,0.672,0.875,0.808,0.618,0.437,0.0,0.0],[0.0,0.0,0.239,0.582,0.754,0.888,0.818,0.597,0.501,0.375,0.346,0.306,0.116,0.007,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.009,0.111,0.264,0.333,0.453,0.456,0.539,0.799,0.898,0.72,0.55,0.219,0.0,0.0],[0.0,0.0,0.021,0.487,0.688,0.877,0.83,0.72,0.549,0.449,0.373,0.346,0.223,0.073,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.066,0.195,0.361,0.398,0.433,0.508,0.711,0.869,0.82,0.652,0.478,0.02,0.0,0.0],[0.0,0.0,0.0,0.237,0.582,0.806,0.829,0.856,0.635,0.497,0.395,0.37,0.326,0.164,0.043,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.041,0.162,0.329,0.329,0.423,0.521,0.588,0.768,0.895,0.724,0.541,0.278,0.0,0.0,0.0],[0.0,0.0,0.0,0.022,0.508,0.628,0.794,0.912,0.772,0.583,0.456,0.421,0.362,0.294,0.151,0.029,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.032,0.13,0.286,0.345,0.397,0.508,0.551,0.707,0.812,0.821,0.613,0.536,0.03,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.218,0.595,0.664,0.907,0.844,0.716,0.504,0.431,0.432,0.315,0.311,0.125,0.029,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.03,0.125,0.282,0.337,0.377,0.479,0.546,0.627,0.826,0.868,0.672,0.604,0.2,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.001,0.397,0.64,0.707,0.939,0.827,0.679,0.537,0.445,0.403,0.312,0.299,0.151,0.037,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.002,0.041,0.126,0.282,0.319,0.368,0.447,0.519,0.616,0.771,0.859,0.8,0.575,0.437,0.001,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.07,0.552,0.583,0.843,0.878,0.804,0.654,0.518,0.493,0.386,0.335,0.295,0.173,0.066,0.009,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.009,0.066,0.152,0.294,0.316,0.385,0.437,0.521,0.634,0.785,0.892,0.834,0.614,0.554,0.067,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.217,0.548,0.596,0.854,0.867,0.736,0.639,0.552,0.454,0.4,0.337,0.311,0.225,0.11,0.032,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.03,0.118,0.197,0.301,0.351,0.361,0.475,0.49,0.638,0.837,0.898,0.778,0.696,0.546,0.198,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.341,0.594,0.714,0.859,0.861,0.687,0.645,0.624,0.463,0.416,0.369,0.317,0.29,0.171,0.09,0.03,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.002,0.03,0.097,0.16,0.25,0.328,0.353,0.38,0.472,0.498,0.65,0.847,0.882,0.836,0.681,0.565,0.262,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.004,0.32,0.621,0.703,0.848,0.871,0.74,0.673,0.569,0.507,0.401,0.403,0.347,0.336,0.26,0.166,0.108,0.055,0.018,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.014,0.05,0.11,0.178,0.257,0.315,0.331,0.363,0.407,0.485,0.571,0.673,0.824,0.899,0.852,0.622,0.533,0.351,0.001,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.006,0.381,0.566,0.739,0.894,0.84,0.821,0.709,0.591,0.535,0.462,0.373,0.384,0.334,0.36,0.295,0.217,0.14,0.11,0.083,0.05,0.036,0.021,0.023,0.02,0.027,0.032,0.052,0.08,0.122,0.149,0.231,0.321,0.334,0.338,0.38,0.407,0.461,0.525,0.568,0.694,0.817,0.886,0.834,0.58,0.544,0.365,0.01,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.011,0.362,0.55,0.65,0.822,0.893,0.908,0.76,0.642,0.548,0.507,0.441,0.407,0.362,0.327,0.368,0.367,0.31,0.273,0.226,0.21,0.159,0.147,0.163,0.183,0.211,0.231,0.288,0.311,0.367,0.354,0.328,0.366,0.393,0.407,0.486,0.517,0.597,0.759,0.811,0.849,0.852,0.616,0.535,0.385,0.005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.004,0.304,0.554,0.577,0.751,0.888,0.935,0.858,0.733,0.632,0.535,0.504,0.473,0.445,0.392,0.371,0.373,0.375,0.338,0.349,0.332,0.353,0.328,0.344,0.332,0.335,0.306,0.368,0.367,0.338,0.368,0.4,0.456,0.518,0.604,0.677,0.813,0.857,0.905,0.778,0.62,0.515,0.269,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.184,0.524,0.506,0.642,0.8,0.913,0.912,0.84,0.737,0.658,0.554,0.523,0.491,0.447,0.429,0.454,0.426,0.445,0.476,0.456,0.464,0.443,0.452,0.476,0.448,0.445,0.444,0.479,0.538,0.574,0.626,0.731,0.824,0.883,0.896,0.82,0.715,0.63,0.454,0.178,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.089,0.424,0.553,0.689,0.729,0.798,0.835,0.9,0.838,0.739,0.683,0.585,0.548,0.53,0.502,0.518,0.492,0.513,0.515,0.501,0.504,0.473,0.468,0.516,0.539,0.582,0.634,0.653,0.742,0.832,0.817,0.862,0.822,0.691,0.588,0.553,0.373,0.056,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.174,0.43,0.571,0.632,0.709,0.775,0.899,0.937,0.859,0.843,0.79,0.715,0.678,0.623,0.581,0.558,0.543,0.557,0.581,0.619,0.67,0.664,0.687,0.76,0.796,0.88,0.886,0.844,0.863,0.662,0.623,0.587,0.549,0.22,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.027,0.265,0.536,0.603,0.617,0.634,0.784,0.897,0.902,0.936,0.908,0.895,0.833,0.816,0.8,0.818,0.769,0.826,0.833,0.786,0.824,0.846,0.866,0.834,0.798,0.732,0.705,0.617,0.567,0.549,0.297,0.026,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.023,0.235,0.485,0.546,0.584,0.603,0.729,0.726,0.789,0.803,0.884,0.879,0.86,0.849,0.839,0.844,0.833,0.856,0.837,0.765,0.704,0.649,0.643,0.563,0.554,0.422,0.253,0.033,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.115,0.264,0.392,0.514,0.525,0.616,0.564,0.562,0.65,0.673,0.656,0.69,0.634,0.593,0.59,0.539,0.534,0.549,0.546,0.446,0.294,0.104,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.034,0.178,0.237,0.403,0.491,0.491,0.518,0.576,0.445,0.467,0.437,0.404,0.35,0.285,0.161,0.042,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]]},"bases":[{"kind":"shape","x0":-0.00040233850729988436,"y0":-0.00014057417532592552,"R":7.019478350616499e-05,"dn":0.001,"edge":3e-06,"a":[0.0,0.017924732250508193,-0.011630684190393658,-0.030851006270675763,-0.013640123555151675,-0.02660866927950688],"b":[0.0,0.08041291473327201,-0.02088255402071204,-0.02149388102618692,0.014695261505555945,0.009576283326389014],"rotation":0.0},{"kind":"shape","x0":6.603533427408527e-06,"y0":0.0004228839439940167,"R":8.516905017964043e-05,"dn":0.001,"edge":3e-06,"a":[-0.0,-0.02745694566241309,-0.08066204951155462,-0.04467089767170225,-0.055252051133751964,-0.006308156999883606],"b":[-0.0,0.01627586152930209,0.006650385378620971,-0.006475477872118511,-0.07550279132461539,-0.014454647209311522],"rotation":0.0}]},"E2":{"layouts":[{"name":"sym4 \u00b7 1 in","ports":[{"angle":0.0,"role":"inout"},{"angle":1.5707963267948966,"role":"out"},{"angle":3.141592653589793,"role":"out"},{"angle":4.71238898038469,"role":"out"}],"n_features":256,"S":[2.134526230475226,1.8971919348341815,1.7593722789067123,1.7869214814752548,1.6726020229467569],"sv":[1.0,0.8564302777334187,0.7485400682657402,0.677566020178371,0.5491922998879816,0.48144444585739593,0.41982251610828625,0.36915840232075176,0.32455842867084683,0.28387490418356576],"r2_ab":[-0.04492840321413072,-0.02329922746415314,-0.06932090893134057,-0.0078039217048169185,-0.02142593048929048],"r2_p":[-0.019761445124108823,-0.007703903558976988,-0.02978521138865098,-0.11714677214571312,-0.052458633574472335]},{"name":"asym4 \u00b7 1 in","ports":[{"angle":0.0,"role":"inout"},{"angle":1.1693705988362009,"role":"out"},{"angle":2.6354471705114375,"role":"out"},{"angle":4.153883619746504,"role":"out"}],"n_features":256,"S":[1.191476900169378,1.110355131128745,0.9510186237871787,0.9460709466346398,0.8982149817071794],"sv":[1.0,0.8225181137834027,0.7477676516929095,0.683523834386081,0.5223011020591278,0.48131602771973503,0.4291009906857587,0.3752240654219095,0.32277436332774595,0.25262919542316215],"r2_ab":[-0.04499654167348499,-0.01827897079884855,-0.06175577917851893,-0.007071305542806772,-0.01916727378820826],"r2_p":[-0.017906078100834444,-0.01040638473403721,-0.04891114836504329,-0.10304260372162055,-0.03146402586648911]},{"name":"sym4 \u00b7 2 in (opposite)","ports":[{"angle":0.0,"role":"inout"},{"angle":1.5707963267948966,"role":"out"},{"angle":3.141592653589793,"role":"inout"},{"angle":4.71238898038469,"role":"out"}],"n_features":512,"S":[2.239229907233195,1.920751448794889,1.8128358638097204,1.7666831722587724,1.528737254811113],"sv":[1.0,0.9071093956856726,0.8593038428262842,0.7000511030835889,0.6464578506417343,0.5813348704142228,0.5020556636159242,0.45830487239052675,0.39619264209568444,0.3450359756266665],"r2_ab":[-0.047317398750643336,-0.018354157671542026,-0.06305500287716892,-0.012192961942574798,-0.022070077412878863],"r2_p":[-0.027638333369310875,-0.0026751826934090506,-0.0393361003198196,-0.1713420941182635,-0.05756456718545011]},{"name":"asym4 \u00b7 2 in","ports":[{"angle":0.0,"role":"inout"},{"angle":1.1693705988362009,"role":"inout"},{"angle":2.6354471705114375,"role":"out"},{"angle":4.153883619746504,"role":"out"}],"n_features":512,"S":[1.4740476408452219,1.3426780678011334,1.1493112493380602,1.0545113000479163,1.0184788495499553],"sv":[1.0,0.8516464875428171,0.7318781766576875,0.6506952821378127,0.5942606590444025,0.49179028319583085,0.4559958364393772,0.4078132308620003,0.393418055942265,0.3183392382303984],"r2_ab":[-0.03731743491234141,-0.014069617230315912,-0.06185105743362129,-0.008348999023565784,-0.027280276401347003],"r2_p":[-0.022775001693503993,-0.007067687828045788,-0.07677645396511257,-0.15693474485314085,-0.06322372569215795]},{"name":"sym4 \u00b7 4 in","ports":[{"angle":0.0,"role":"inout"},{"angle":1.5707963267948966,"role":"inout"},{"angle":3.141592653589793,"role":"inout"},{"angle":4.71238898038469,"role":"inout"}],"n_features":1024,"S":[2.4193683767108602,1.9494336112664892,1.8424364708581646,1.7577798400348734,1.6345827036548328],"sv":[1.0,0.8867790422039656,0.8134731927140162,0.7044383278842942,0.6245569025158011,0.5803328539559451,0.49793742476244796,0.4904026311548068,0.42499339276887804,0.3826390687842352],"r2_ab":[-0.0509362676018561,-0.019348912511836347,-0.06542705522446263,-0.029760232679796328,-0.023960538792471342],"r2_p":[-0.03171188043928841,-0.005941528361405046,-0.054751167818879454,-0.2435336551461329,-0.08663445589785645]},{"name":"sym8 \u00b7 1 in","ports":[{"angle":0.0,"role":"inout"},{"angle":0.7853981633974483,"role":"out"},{"angle":1.5707963267948966,"role":"out"},{"angle":2.356194490192345,"role":"out"},{"angle":3.141592653589793,"role":"out"},{"angle":3.9269908169872414,"role":"out"},{"angle":4.71238898038469,"role":"out"},{"angle":5.497787143782138,"role":"out"}],"n_features":512,"S":[1.2235978099078038,1.1006269742310517,1.1281072567613464,0.993259828755166,0.9093432676791364],"sv":[1.0,0.8251756960330497,0.6954391507518989,0.6174386563301332,0.5794107731629156,0.4826417114567444,0.43177588903974784,0.4060486386491765,0.3602260726091619,0.2962997701783096],"r2_ab":[-0.05343375155934538,-0.024071750746360587,-0.06877798339993785,-0.005593718777958889,-0.025069723096200813],"r2_p":[-0.03958578816481895,0.001021942345672766,-0.05488527931436282,-0.14445956657361814,-0.052758323636698856]}],"N":120},"E3":{"N":200,"cases":[{"name":"fixed position","n_features":512,"r2_ab":{"ridge (linear)":[0.8845418590930583,0.6320064418173892,0.5155249962350056,0.16749334216490241,-0.005164694103447776],"NGRC ridge (lin + quad)":[0.909318088787185,0.5819354944066792,0.48970190656490564,0.3161775551278621,-0.059571722063192056],"linear SVR":[0.8704991555730534,0.5012269003776983,0.39389329349371616,0.12722406119575047,0.006043490110765659],"RBF SVR":[0.7477259110677467,0.5782304197025038,0.4542820650414748,0.2227369704571061,-0.2197568752825454],"image \u2192 ridge (baseline)":[-1272.9435910091986,-325405.56732203986,-256009.13142631145,-2559518.8529759105,-2198189.619912112],"image \u2192 RBF SVR (baseline)":[0.5524022392831013,0.37961744598133296,0.31356686992853083,0.3158124214385197,0.24695075269185013]},"r2_p":{"ridge (linear)":[0.03214507087031904,-0.11877176288057778,-0.013618510377136017,-0.08332276836359465,-0.07280362133469853],"NGRC ridge (lin + quad)":[0.13752261218150696,-0.08096262013170397,-0.03235802517705233,-0.15638571038678606,-0.12979067307764547],"RBF SVR":[0.22260711266867672,-0.05724618863190378,-0.11093988856207937,0.015841971002705124,-0.09404598942912812]},"svc":{"linear":{"accuracy":0.46,"chance":0.64},"rbf":{"accuracy":0.64,"chance":0.64},"image_rbf":{"accuracy":0.64,"chance":0.64}},"scatter":{"true":[0.05198,-0.00957,0.06002,-0.08393,-0.03094,0.05466,0.06875,-0.05659,0.06047,0.00314,0.03657,-0.11349,0.04041,0.10545,0.04487,-0.16003,-0.04893,0.00576,-0.03678,-0.04483,-0.05243,-0.0681,-0.02492,0.12085,0.0866,-0.14012,-0.0185,-0.0877,-0.02582,0.03766,-0.01179,-0.04061,-0.04811,-0.14909,0.01808,-0.01883,0.01619,-0.08302,-0.05581,0.08629,0.07962,-0.18035,0.05665,-0.11666,-0.00941,-0.00974,-0.09382,0.13009,-0.00522,0.02446],"pred":[0.05863,-0.04725,0.08378,-0.09205,0.02551,0.05562,0.0641,-0.04571,0.04405,-0.00738,0.05062,-0.0819,0.06605,0.10624,0.01134,-0.14466,-0.06128,0.01463,-0.02825,-0.05231,-0.05025,-0.06835,-0.00281,0.07308,0.07097,-0.11254,0.01974,-0.07102,-0.00238,0.02549,-0.00533,-0.06345,-0.05094,-0.10116,0.02572,-0.03548,0.00608,-0.04364,-0.04152,0.04712,0.07825,-0.09478,0.04959,-0.09741,-0.01527,-0.03849,-0.0705,0.14584,-0.02694,0.07244],"name":"a2"}},{"name":"random position","n_features":512,"r2_ab":{"ridge (linear)":[-0.06343307660622,-0.03165671285738436,-0.027297389816433704,0.00785297897125431,-0.1233624082673841],"NGRC ridge (lin + quad)":[-0.13920935037016924,-0.07682483231723958,-0.005247150909199971,0.0003088858892483226,-0.1160071624377561],"linear SVR":[-0.8335481808288564,-0.2523592295622419,-0.4882212276735257,-0.4693729173869705,-0.5179341887499135],"RBF SVR":[-0.1988118442483897,-0.07864033707390161,-0.08892626054657538,-0.043891696253904766,-0.13409683948912698],"image \u2192 ridge (baseline)":[-2.0533878550590154e+27,-9.3260146214845e+26,-2.736512046162917e+27,-3.961453459453408e+27,-3.826019660788874e+26],"image \u2192 RBF SVR (baseline)":[-0.10957633315147941,-0.10881013323771282,-0.09438177886715204,-0.06331687156450894,-0.16020336292668935]},"r2_p":{"ridge (linear)":[0.008126059287919984,-0.0019017392243856346,0.005723246828645223,-0.10464629759958499,-0.06307523098705903],"NGRC ridge (lin + quad)":[-0.004702775987739827,0.010290410704382413,0.01240351914569604,-0.208644658537265,-0.16147530032370527],"RBF SVR":[-0.08152245665907398,-0.027826734429856392,-0.04446726341129792,-0.10816532036153692,-0.059981478296017965]},"svc":{"linear":{"accuracy":0.42,"chance":0.54},"rbf":{"accuracy":0.54,"chance":0.54},"image_rbf":{"accuracy":0.54,"chance":0.54}},"scatter":{"true":[0.01979,0.09415,0.11793,-0.00459,0.13585,0.10492,0.10699,0.088,0.01418,0.13145,-0.00738,-0.12195,0.052,-0.07795,-0.12117,-0.00646,-0.03414,-0.01849,-0.01392,0.1594,0.02519,-0.12125,0.04704,-0.09632,-0.01062,0.00109,-0.04935,0.12781,0.00687,0.04134,-0.05754,-0.06161,-0.04618,-0.10572,-0.0362,-0.01285,0.07416,0.02948,0.01171,0.02693,-0.1012,0.03922,-0.14091,-0.10317,0.07979,0.00273,-0.07846,0.03997,-0.0227,0.15252],"pred":[-0.00329,-0.01323,-0.01138,-0.00327,-0.01219,-0.00398,-0.00967,-0.01372,-0.008,-0.00282,-0.00919,-0.00891,-0.00122,-0.01223,-0.00211,-0.00698,-0.00279,0.00103,0.00055,-0.00251,-0.0148,-0.00782,-0.01441,-0.00252,-0.00504,0.00069,-0.01113,-0.01647,-0.00332,-0.00149,-0.01023,-0.0154,-0.00205,-0.00445,-0.00369,-0.01037,-0.00821,-0.00946,-0.00793,-0.00215,-0.01126,0.00282,-0.00785,-0.00763,-0.0143,-0.01158,-0.00232,-0.01458,-0.01112,-0.01331],"name":"a2"}}]},"E4":{"dn":[1e-05,3e-05,0.0001,0.0003,0.001],"corr_phase_vs_curved":[0.9949824875740159,0.9807051286222528,0.966864621091693,0.9255256499008795,0.8397469367793724],"dn_dec":[9.999999999999999e-06,1.778279410038923e-05,3.1622776601683795e-05,5.623413251903491e-05,0.0001,0.00017782794100389227,0.00031622776601683794,0.0005623413251903491,0.001,0.0017782794100389228,0.0031622776601683794,0.005623413251903491,0.01],"corr_vs_unperturbed":[0.9996168809976212,0.9987956060771751,0.9962465143656232,0.9885762433490844,0.9673590905096119,0.9187665142588074,0.8337639822942065,0.7624458056978105,0.8171697998211039,0.640830788542283,0.712622545432787,0.7076498835786538,0.6103847592428748]}};
+const TASKS = [{"id":"T1.1","title":"Package skeleton","status":"done","section":"Foundations","note":""},{"id":"T1.2","title":"Circular cell with multiple ports","status":"done","section":"Foundations","note":""},{"id":"T1.3","title":"Configs and reproducibility","status":"part","section":"Foundations","note":"dataclass configs with dict round trip, seeded generators, ensemble hash. Missing: one JSON run config that regenerates a whole experiment."},{"id":"T2.1","title":"Δn grid","status":"done","section":"Index perturbations as images","note":""},{"id":"T2.2","title":"Image import","status":"done","section":"Index perturbations as images","note":""},{"id":"T2.3","title":"Edge model and validity","status":"part","section":"Index perturbations as images","note":"tanh edges for analytic dots, Gaussian blur for images. Missing: automatic flag when the edge is narrower than λ/n_eff."},{"id":"T2.4","title":"Dot generator","status":"done","section":"Index perturbations as images","note":""},{"id":"T2.5","title":"CHD","status":"done","section":"Index perturbations as images","note":""},{"id":"T3.1","title":"Ray equation in the perturbations","status":"done","section":"Ray engine","note":""},{"id":"T3.2","title":"Wall interaction","status":"done","section":"Ray engine","note":""},{"id":"T3.3","title":"Ports and termination","status":"done","section":"Ray engine","note":""},{"id":"T3.4","title":"Performance","status":"part","section":"Ray engine","note":"batched numpy tracer (≈ 15–30 ms per ray with dots); JS port ≈ 20× faster (0.9 s for 305 curved rays). Missing: run curved-ray datasets through node (or numba) for large N."},{"id":"T4.1","title":"Dynamic ray tracing","status":"done","section":"Complex rays / Gaussian beamlets and the speckle field","note":""},{"id":"T4.2","title":"Source decomposition","status":"part","section":"Complex rays / Gaussian beamlets and the speckle field","note":"a grid of launch positions × angles with a Gaussian aperture weight. Missing: a check that the beamlet sum rebuilds the input mode."},{"id":"T4.3","title":"Coherent sum","status":"done","section":"Complex rays / Gaussian beamlets and the speckle field","note":""},{"id":"T4.4","title":"Energy and reciprocity","status":"part","section":"Complex rays / Gaussian beamlets and the speckle field","note":"power accounting per port and lost rays. Missing: reciprocity test."},{"id":"T4.5","title":"Validity map","status":"todo","section":"Complex rays / Gaussian beamlets and the speckle field","note":""},{"id":"T5.1","title":"Phase-screen model","status":"done","section":"Fast first-order engine and wave reference","note":""},{"id":"T5.2","title":"Wave reference","status":"todo","section":"Fast first-order engine and wave reference","note":""},{"id":"T6.1","title":"Multiplexing","status":"part","section":"Features (the NGRC layer)","note":"several input ports (each its own launch angle and fan) × all output ports. Missing: launch-angle and wavelength stepping as extra virtual nodes."},{"id":"T6.2","title":"NGRC features","status":"done","section":"Features (the NGRC layer)","note":""},{"id":"T6.3","title":"Detector realism","status":"part","section":"Features (the NGRC layer)","note":"`features.add_noise` (shot, relative, floor). Missing: used in the experiments; drift and fabrication noise."},{"id":"T7.1","title":"Datasets","status":"done","section":"Datasets and readouts","note":""},{"id":"T7.2","title":"Readouts","status":"done","section":"Datasets and readouts","note":""},{"id":"T7.3","title":"Baselines","status":"part","section":"Datasets and readouts","note":"the same readouts on the raw Δn image. Missing: single-pass (no multipass) reference."},{"id":"T8.1","title":"Sensitivity","status":"part","section":"Analysis experiments","note":"finite-difference ∂I/∂a_m and singular values vs launch angle and port layout (E1, E2). First result: dots inside the caustic disk R_c sin χ are invisible (zero sensitivity at 57° launch)."},{"id":"T8.2","title":"Learning curves","status":"todo","section":"Analysis experiments","note":""},{"id":"T8.3","title":"Nonlinearity regime","status":"part","section":"Analysis experiments","note":"phase-screen vs curved-ray correlation and speckle decorrelation vs Δn (E4): ray bending matters from Δn ≈ 1e-4."},{"id":"T8.4","title":"Position and rotation invariance","status":"todo","section":"Analysis experiments","note":""},{"id":"T8.5","title":"Robustness","status":"todo","section":"Analysis experiments","note":""},{"id":"T8.6","title":"Other cells","status":"todo","section":"Analysis experiments","note":""},{"id":"T9.1","title":"Explorer applet","status":"done","section":"Integration and output","note":""},{"id":"T9.2","title":"JS port check","status":"done","section":"Integration and output","note":""},{"id":"T9.3","title":"Engine spec","status":"todo","section":"Integration and output","note":""},{"id":"T9.4","title":"Docs","status":"todo","section":"Integration and output","note":""}];
+</script>
+<script>
+(() => {
+'use strict';
+const E = NGRC;
+const $ = id => document.getElementById(id);
+const deg = Math.PI / 180;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v, d = 2) => (v == null || !isFinite(v)) ? '–' : v.toFixed(d);
+
+// ---------------- state ----------------
+const PRESETS = {
+  'sym4 · 1 in': { angles: [0, 90, 180, 270], inputs: [0] },
+  'asym4 · 1 in': { angles: [0, 67, 151, 238], inputs: [0] },
+  'sym4 · 2 in (opposite)': { angles: [0, 90, 180, 270], inputs: [0, 2] },
+  'asym4 · 2 in': { angles: [0, 67, 151, 238], inputs: [0, 1] },
+  'sym4 · 4 in': { angles: [0, 90, 180, 270], inputs: [0, 1, 2, 3] },
+  'sym8 · 1 in': { angles: [0, 45, 90, 135, 180, 225, 270, 315], inputs: [0] },
+  'sym3 · 1 in': { angles: [0, 120, 240], inputs: [0] },
+};
+const S = {
+  cell: { radius: 1e-3, n_eff: 1.8, wavelength: 1.55e-6, reflectance: 0.99, reflection_phase: Math.PI,
+          detector: { distance: 100e-6, width: 400e-6, n_pix: 64 }, ports: [] },
+  preset: 'asym4 · 2 in', portW: 20e-6, launch: 20 * deg, fan: 23 * deg,
+  shapes: [
+    { x0: 250e-6, y0: 100e-6, R: 80e-6, dn: 1e-3, edge: 3e-6, a: [0, 0.06, 0.03, 0, 0, 0], b: [0, 0, 0, 0.02, 0, 0] },
+    { x0: -300e-6, y0: -220e-6, R: 60e-6, dn: 1e-3, edge: 3e-6, a: [0, 0, 0, 0, 0, 0], b: [0, 0.05, 0, 0, 0, 0] },
+  ],
+  sel: 0, mode: 'curved', nPos: 3, nAng: 61, waist: 5e-6, nShow: 12, density: true,
+  result: null, runs: [], scTarget: 'a2',
+};
+function applyPreset(name) {
+  const p = PRESETS[name]; if (!p) return;
+  S.preset = name;
+  S.cell.ports = p.angles.map((a, i) => ({ angle: a * deg, width: S.portW, role: p.inputs.includes(i) ? 'inout' : 'out', launch: S.launch, fan: S.fan, label: 'P' + i }));
+}
+applyPreset(S.preset);
+
+// ---------------- workers ----------------
+function workerMain() {
+  const N = self.NGRC;
+  const plain = f => { const o = {}; for (const k in f) o[k] = { re: Array.from(f[k].re), im: Array.from(f[k].im) }; return o; };
+  function corr(a, b) { let r = 0, i = 0, na = 0, nb = 0; for (let k = 0; k < a.re.length; k++) { r += a.re[k] * b.re[k] + a.im[k] * b.im[k]; i += a.re[k] * b.im[k] - a.im[k] * b.re[k]; na += a.re[k] ** 2 + a.im[k] ** 2; nb += b.re[k] ** 2 + b.im[k] ** 2; } return Math.hypot(r, i) / Math.sqrt(na * nb); }
+  function density(cell, chords, n) {
+    const H = new Float32Array(n * n), Rc = cell.radius; let mx = 0;
+    for (const ch of chords) for (let c = 0; c < ch.length; c += 5) {
+      const ns = Math.max(2, Math.ceil(ch[c + 4] / (2 * Rc / n) * 1.5));
+      for (let q = 0; q < ns; q++) {
+        const s = (q + 0.5) / ns * ch[c + 4], x = ch[c] + s * ch[c + 2], y = ch[c + 1] + s * ch[c + 3];
+        const ix = Math.floor((x + Rc) / (2 * Rc) * n), iy = Math.floor((y + Rc) / (2 * Rc) * n);
+        if (ix >= 0 && iy >= 0 && ix < n && iy < n) { const k = iy * n + ix; H[k] += ch[c + 4] / ns; if (H[k] > mx) mx = H[k]; }
+      }
+    }
+    for (let k = 0; k < H.length; k++) H[k] /= mx || 1;
+    return H;
+  }
+  let stop = false;
+  self.onmessage = ev => {
+    const m = ev.data;
+    if (m.type === 'stop') { stop = true; return; }
+    try {
+      if (m.type === 'explore') {
+        const t0 = Date.now(), cell = m.cell, shapes = m.shapes.map(N.makeShape);
+        const opt = { nPos: m.opt.nPos, nAng: m.opt.nAng, waist: m.opt.waist };
+        const inputs = cell.ports.map((p, i) => N.isIn(p) ? i : -1).filter(i => i >= 0);
+        const nR = opt.nPos * opt.nAng, want = [];
+        for (let k = 0; k < Math.min(m.nShow, nR); k++) want.push(Math.round(k * (nR - 1) / Math.max(1, Math.min(m.nShow, nR) - 1)));
+        const ref = {}, pert = {}, stats = [];
+        let paths = [], dens = null;
+        inputs.forEach((ip, idx) => {
+          const tr0 = N.trace(cell, ip, [], Object.assign({ mode: 'none', recordChords: idx === 0 && m.density, pathIds: idx === 0 && m.opt.mode !== 'curved' ? want : null }, opt));
+          const f0 = N.detectorFields(cell, tr0);
+          for (const o in f0) ref[ip + ',' + o] = f0[o];
+          if (idx === 0 && m.density) dens = density(cell, tr0.chords, 128);
+          let tr = tr0;
+          if (m.opt.mode === 'curved' && shapes.length) {
+            tr = N.trace(cell, ip, shapes, Object.assign({ mode: 'curved', pathIds: idx === 0 ? want : null }, opt));
+            const f = N.detectorFields(cell, tr); for (const o in f) pert[ip + ',' + o] = f[o];
+          }
+          if (idx === 0) paths = (m.opt.mode === 'curved' && shapes.length ? tr : tr0).paths.map(p => Array.from(p.pts));
+          const pw = cell.ports.map(() => 0); let nb = 0;
+          tr.exits.forEach(e => { pw[e.port] += e.amp * e.amp; nb += e.nb; });
+          stats.push({ port: ip, launched: tr.nLaunched, exits: tr.exits.length, lost: tr.lost, power: pw, meanBounces: tr.exits.length ? nb / tr.exits.length : 0 });
+        });
+        if (m.opt.mode === 'phase' && shapes.length) Object.assign(pert, new N.PhaseScreen(cell, opt).fields(shapes));
+        if (m.opt.mode === 'none' || !shapes.length) Object.assign(pert, ref);
+        const rho = {}; for (const k in ref) rho[k] = corr(ref[k], pert[k]);
+        self.postMessage({ type: 'explore', id: m.id, ref: plain(ref), pert: plain(pert), rho, paths, density: dens, stats, ms: Date.now() - t0 });
+      } else if (m.type === 'dataset') {
+        stop = false;
+        const t0 = Date.now(), cell = m.cell, d = m.ds, g = N.rng(d.seed), mMax = 6;
+        const opt = { nPos: 3, nAng: d.nAng, waist: 5e-6 };
+        const ps = d.mode === 'phase' ? new N.PhaseScreen(cell, opt) : null;
+        const ref = ps ? ps.fields([]) : N.curvedFields(cell, [], Object.assign({ mode: 'none' }, opt));
+        const X = [], Y = [];
+        for (let i = 0; i < d.N; i++) {
+          if (stop) { self.postMessage({ type: 'stopped', id: m.id }); return; }
+          const s = N.randomShape(g, cell.radius, { mMax, sigma: d.sigma, decay: 0.5, Rrange: [d.Rmin, d.Rmax], dnRange: [d.dn, d.dn], centre: d.centre, placeRadius: d.place });
+          const f = ps ? ps.fields([s]) : N.curvedFields(cell, [s], Object.assign({ mode: 'curved' }, opt));
+          X.push(N.stackRelative(f, ref));
+          const a = Array.from(s.a).slice(1, mMax), b = Array.from(s.b).slice(1, mMax);
+          Y.push([...a, ...b, ...a.map((v, k) => v * v + b[k] * b[k])]);
+          if ((i + 1) % 5 === 0 || i + 1 === d.N) self.postMessage({ type: 'progress', id: m.id, done: i + 1, total: d.N, ms: Date.now() - t0 });
+        }
+        self.postMessage({ type: 'progress', id: m.id, done: d.N, total: d.N, ms: Date.now() - t0, fitting: true });
+        const idx = [...Array(d.N).keys()], gg = N.rng(d.seed + 7);
+        for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(gg.uniform() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+        const nt = Math.round(0.25 * d.N), te = idx.slice(0, nt), tr = idx.slice(nt);
+        const Xtr = tr.map(i => X[i]), Ytr = tr.map(i => Y[i]), Xte = te.map(i => X[i]), Yte = te.map(i => Y[i]);
+        const alpha = N.ridgeCV(Xtr, Ytr, [1e-1, 1, 1e1, 1e2, 1e3, 1e4, 1e5], d.seed);
+        const P = N.ridgeFitPredict(Xtr, Ytr, Xte, alpha);
+        const r2 = N.r2(Yte, P), k = mMax - 1;
+        const r2ab = [...Array(k).keys()].map(i => (r2[i] + r2[k + i]) / 2), r2p = r2.slice(2 * k);
+        const names = [...Array(k).keys()].map(i => 'a' + (i + 2)).concat([...Array(k).keys()].map(i => 'b' + (i + 2)), [...Array(k).keys()].map(i => 'p' + (i + 2)));
+        self.postMessage({ type: 'dataset', id: m.id, r2, r2ab, r2p, names, alpha, nFeatures: X[0].length, Yte, P, ms: Date.now() - t0 });
+      }
+    } catch (err) { self.postMessage({ type: 'error', id: m.id, message: String(err && err.message || err) }); }
+  };
+}
+const engineSrc = document.getElementById('engine').textContent;
+function makeWorker() {
+  try {
+    const url = URL.createObjectURL(new Blob([engineSrc + '\n;(' + workerMain.toString() + ')();'], { type: 'text/javascript' }));
+    return new Worker(url);
+  } catch (e) { return null; }
+}
+// Fallback: run the worker body on the main thread when Workers are unavailable.
+function inlineWorker() {
+  const fake = { onmessage: null, postMessage(msg) { setTimeout(() => self_.onmessage({ data: msg }), 0); }, terminate() {} };
+  const self_ = { NGRC: E, postMessage: d => setTimeout(() => fake.onmessage && fake.onmessage({ data: d }), 0), onmessage: null };
+  new Function('self', '(' + workerMain.toString() + ')();').call(null, self_);
+  return fake;
+}
+let wExp = makeWorker() || inlineWorker();
+let wLab = makeWorker() || inlineWorker();
+
+// ---------------- explorer compute ----------------
+let reqId = 0, busy = false, pending = false, timer = null;
+function schedule(delay = 120) { clearTimeout(timer); timer = setTimeout(compute, delay); }
+function compute() {
+  if (busy) { pending = true; return; }
+  busy = true; pending = false;
+  const id = ++reqId;
+  $('status').textContent = S.mode === 'curved' ? 'tracing curved rays…' : 'tracing…';
+  wExp.postMessage({ type: 'explore', id, cell: S.cell, shapes: S.shapes, opt: { mode: S.mode, nPos: S.nPos, nAng: S.nAng, waist: S.waist }, nShow: S.nShow, density: S.density });
+}
+wExp.onmessage = ev => {
+  const m = ev.data; busy = false;
+  if (m.type === 'error') { $('status').textContent = 'error: ' + m.message; }
+  else if (m.type === 'explore') { S.result = m; drawCell(); drawSpeckle(); drawStats(); $('status').textContent = `${m.ms} ms`; }
+  if (pending) compute();
+};
+
+// ---------------- cell canvas ----------------
+const cv = $('cellCanvas'), ctx = cv.getContext('2d');
+let view = { scale: 1, cx: 0, cy: 0 };
+function worldExtent() { return S.cell.radius + S.cell.detector.distance + 70e-6; }
+function toPx(x, y) { return [view.cx + x * view.scale, view.cy - y * view.scale]; }
+function toWorld(px, py) { return [(px - view.cx) / view.scale, -(py - view.cy) / view.scale]; }
+function sizeCanvas() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.width * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  view.cx = r.width / 2; view.cy = r.width / 2; view.scale = r.width / 2 / worldExtent();
+}
+function shapePath(s, n = 180) {
+  const sh = E.makeShape(s), pts = [];
+  for (let k = 0; k <= n; k++) {
+    const th = 2 * Math.PI * k / n; let r = 0;
+    for (let i = 0; i < sh.M; i++) r += sh.a[i] * Math.cos((i + 1) * (th - sh.rotation)) + sh.b[i] * Math.sin((i + 1) * (th - sh.rotation));
+    r = sh.R * (1 + r); pts.push(toPx(sh.x0 + r * Math.cos(th), sh.y0 + r * Math.sin(th)));
+  }
+  return pts;
+}
+let densCanvas = null;
+function buildDensity() {
+  const d = S.result && S.result.density; if (!d) { densCanvas = null; return; }
+  const n = Math.round(Math.sqrt(d.length)), c = document.createElement('canvas'); c.width = c.height = n;
+  const g = c.getContext('2d'), img = g.createImageData(n, n);
+  const col = hex(css('--accent'));
+  for (let iy = 0; iy < n; iy++) for (let ix = 0; ix < n; ix++) {
+    const v = Math.pow(d[iy * n + ix], 0.5), k = ((n - 1 - iy) * n + ix) * 4;
+    img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = Math.round(150 * v);
+  }
+  g.putImageData(img, 0, 0); densCanvas = c;
+}
+function hex(h) { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function drawCell() {
+  sizeCanvas();
+  const W = cv.getBoundingClientRect().width, Rc = S.cell.radius;
+  ctx.clearRect(0, 0, W, W);
+  const [ox, oy] = toPx(0, 0), rpx = Rc * view.scale;
+  ctx.fillStyle = css('--slab'); ctx.beginPath(); ctx.arc(ox, oy, rpx, 0, 2 * Math.PI); ctx.fill();
+  if (S.density) { buildDensity(); if (densCanvas) { ctx.save(); ctx.beginPath(); ctx.arc(ox, oy, rpx, 0, 2 * Math.PI); ctx.clip(); ctx.imageSmoothingEnabled = true; ctx.drawImage(densCanvas, ox - rpx, oy - rpx, 2 * rpx, 2 * rpx); ctx.restore(); } }
+  // rays
+  if (S.result && S.result.paths) {
+    ctx.strokeStyle = css('--ray'); ctx.lineWidth = 0.7; ctx.globalAlpha = Math.max(0.1, Math.min(0.5, 4 / Math.max(1, S.result.paths.length)));
+    for (const pts of S.result.paths) {
+      ctx.beginPath();
+      for (let k = 0; k < pts.length; k += 2) { const [x, y] = toPx(pts[k], pts[k + 1]); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // shapes
+  const dnCol = css('--dn');
+  S.shapes.forEach((s, i) => {
+    const p = shapePath(s);
+    ctx.beginPath(); p.forEach(([x, y], k) => k ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+    ctx.globalAlpha = Math.min(0.85, 0.45 + Math.abs(s.dn) / 4e-3); ctx.fillStyle = dnCol; ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = i === S.sel ? css('--ink') : dnCol; ctx.lineWidth = i === S.sel ? 1.8 : 1.2; ctx.stroke();
+    if (i === S.sel) {
+      const [cx, cy] = toPx(s.x0, s.y0), b = E.makeShape(s).bound * view.scale;
+      ctx.setLineDash([3, 3]); ctx.strokeStyle = css('--muted'); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, b, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
+  // wall with gaps
+  const gaps = S.cell.ports.map(p => [p.angle, Math.asin(Math.min(1, p.width / (2 * Rc)))]).sort((a, b) => a[0] - b[0]);
+  ctx.strokeStyle = css('--wall'); ctx.lineWidth = 3; ctx.lineCap = 'butt';
+  const minHalf = 2.5 / rpx;
+  if (!gaps.length) { ctx.beginPath(); ctx.arc(ox, oy, rpx, 0, 2 * Math.PI); ctx.stroke(); }
+  gaps.forEach((g, i) => {
+    const nx = gaps[(i + 1) % gaps.length], a0 = g[0] + Math.max(g[1], minHalf), a1 = nx[0] - Math.max(nx[1], minHalf) + (i + 1 === gaps.length ? 2 * Math.PI : 0);
+    ctx.beginPath(); ctx.arc(ox, oy, rpx, -a0, -a1, true); ctx.stroke();
+  });
+  // ports, fans, detectors
+  ctx.font = '500 11px ' + css('--f-mono');
+  S.cell.ports.forEach((p, i) => {
+    const c = Math.cos(p.angle), s = Math.sin(p.angle);
+    const inp = E.isIn(p), out = E.isOut(p);
+    if (inp) {
+      const base = Math.atan2(-s, -c) + p.launch, L = 0.22 * Rc;
+      ctx.fillStyle = css('--ray'); ctx.globalAlpha = 0.18; ctx.beginPath();
+      const [px0, py0] = toPx(Rc * c, Rc * s); ctx.moveTo(px0, py0);
+      for (let k = 0; k <= 12; k++) { const a = base - p.fan / 2 + p.fan * k / 12; const [x, y] = toPx(Rc * c + L * Math.cos(a), Rc * s + L * Math.sin(a)); ctx.lineTo(x, y); }
+      ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = css('--ray'); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(px0, py0);
+      const [ex, ey] = toPx(Rc * c + L * Math.cos(base), Rc * s + L * Math.sin(base)); ctx.lineTo(ex, ey); ctx.stroke();
+    }
+    if (out) {
+      const pts = E.detectorPoints(S.cell, i), a = toPx(...pts[0]), b = toPx(...pts[pts.length - 1]);
+      ctx.strokeStyle = css('--det'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+    }
+    const [mx, my] = toPx(Rc * c, Rc * s);
+    ctx.fillStyle = inp ? css('--ray') : css('--accent'); ctx.beginPath(); ctx.arc(mx, my, 5, 0, 2 * Math.PI); ctx.fill();
+    ctx.strokeStyle = css('--panel'); ctx.lineWidth = 1.5; ctx.stroke();
+    const [lx, ly] = toPx((Rc + 0.07 * Rc + S.cell.detector.distance * 0.2) * c, (Rc + 0.07 * Rc) * s);
+    ctx.fillStyle = css('--ink'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('P' + i, lx, ly);
+  });
+  // scale bar
+  const bar = Rc >= 800e-6 ? 200e-6 : 100e-6, bpx = bar * view.scale, y0 = W - 14;
+  ctx.strokeStyle = css('--ink'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(12, y0); ctx.lineTo(12 + bpx, y0); ctx.stroke();
+  ctx.fillStyle = css('--muted'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(`${Math.round(bar * 1e6)} µm`, 12, y0 - 4);
+}
+
+// drag shapes and ports
+let drag = null;
+cv.addEventListener('pointerdown', ev => {
+  const r = cv.getBoundingClientRect(), [x, y] = toWorld(ev.clientX - r.left, ev.clientY - r.top), Rc = S.cell.radius;
+  let best = null;
+  S.cell.ports.forEach((p, i) => { const d = Math.hypot(x - Rc * Math.cos(p.angle), y - Rc * Math.sin(p.angle)) * view.scale; if (d < 14 && (!best || d < best.d)) best = { kind: 'port', i, d }; });
+  if (!best) S.shapes.forEach((s, i) => { const d = Math.hypot(x - s.x0, y - s.y0); if (d < Math.max(s.R, 25 / view.scale) && (!best || d < best.d)) best = { kind: 'shape', i, d, ox: x - s.x0, oy: y - s.y0 }; });
+  if (!best) return;
+  drag = best; cv.setPointerCapture(ev.pointerId);
+  if (best.kind === 'shape') { S.sel = best.i; syncShapeUI(); }
+});
+cv.addEventListener('pointermove', ev => {
+  if (!drag) return;
+  const r = cv.getBoundingClientRect(), [x, y] = toWorld(ev.clientX - r.left, ev.clientY - r.top);
+  if (drag.kind === 'port') { S.cell.ports[drag.i].angle = (Math.atan2(y, x) + 2 * Math.PI) % (2 * Math.PI); S.preset = 'custom'; syncPortUI(); }
+  else {
+    const s = S.shapes[drag.i], b = E.makeShape(s).bound;
+    let nx = x - drag.ox, ny = y - drag.oy; const lim = S.cell.radius - b - 5e-6, d = Math.hypot(nx, ny);
+    if (d > lim) { nx *= lim / d; ny *= lim / d; }
+    s.x0 = nx; s.y0 = ny; syncShapeUI(false);
+  }
+  drawCell();
+  if (S.mode === 'phase') schedule(60);
+});
+cv.addEventListener('pointerup', () => { if (drag) { drag = null; schedule(10); } });
+
+// ---------------- explorer UI ----------------
+function syncPortUI() {
+  $('preset').value = PRESETS[S.preset] ? S.preset : 'custom';
+  const tb = $('portRows'); tb.innerHTML = '';
+  S.cell.ports.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>P${i}</td><td><input id="pa${i}" type="number" step="1" value="${(p.angle / deg).toFixed(0)}"></td>
+      <td><select id="pr${i}"><option value="inout">in+out</option><option value="out">out</option><option value="in">in</option></select></td>
+      <td><input id="pl${i}" type="number" step="1" value="${(p.launch / deg).toFixed(0)}"></td>
+      <td><input id="pf${i}" type="number" step="1" min="0" value="${(p.fan / deg).toFixed(0)}"></td>
+      <td><button class="btn" id="px${i}" aria-label="Remove port P${i}" style="padding:2px 7px">×</button></td>`;
+    tb.appendChild(tr);
+    $('pr' + i).value = p.role;
+    const upd = () => { p.angle = (+$('pa' + i).value) * deg; p.role = $('pr' + i).value; p.launch = (+$('pl' + i).value) * deg; p.fan = Math.max(0, +$('pf' + i).value) * deg; S.preset = 'custom'; $('preset').value = 'custom'; drawCell(); schedule(); };
+    ['pa', 'pr', 'pl', 'pf'].forEach(k => $(k + i).addEventListener('change', upd));
+    $('px' + i).addEventListener('click', () => { if (S.cell.ports.length > 1) { S.cell.ports.splice(i, 1); S.preset = 'custom'; syncPortUI(); drawCell(); schedule(); } });
+  });
+}
+function presetOptions() {
+  const sel = $('preset'); sel.innerHTML = '';
+  [...Object.keys(PRESETS), 'custom'].forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o); });
+}
+const HARM_M = [2, 3, 4, 5, 6];
+function buildHarmSliders() {
+  const box = $('harmSliders'); box.innerHTML = '';
+  for (const m of HARM_M) for (const c of ['a', 'b']) {
+    const l = document.createElement('label'); l.className = 'f';
+    l.style.cssText = 'display:grid;grid-template-columns:34px 1fr 52px;align-items:center;gap:6px';
+    l.innerHTML = `<span style="font-family:var(--f-mono)">${c}<sub>${m}</sub></span><input type="range" id="h${c}${m}" min="-0.15" max="0.15" step="0.005"><span class="stats" id="h${c}${m}v"></span>`;
+    box.appendChild(l);
+    $('h' + c + m).addEventListener('input', () => {
+      const s = S.shapes[S.sel]; if (!s) return; const arr = s[c]; while (arr.length < m) arr.push(0);
+      arr[m - 1] = +$('h' + c + m).value; $('h' + c + m + 'v').textContent = (+arr[m - 1]).toFixed(3);
+      clampShape(s); drawCell(); drawCHD(); schedule(S.mode === 'phase' ? 80 : 250);
+    });
+  }
+}
+function clampShape(s) {
+  const b = E.makeShape(s).bound, lim = S.cell.radius - b - 5e-6, d = Math.hypot(s.x0, s.y0);
+  if (lim <= 0) { s.R = Math.max(5e-6, s.R * 0.5); return clampShape(s); }
+  if (d > lim) { s.x0 *= lim / d; s.y0 *= lim / d; }
+}
+function syncShapeUI(full = true) {
+  const sel = $('shapeSel'); sel.innerHTML = '';
+  S.shapes.forEach((s, i) => { const o = document.createElement('option'); o.value = i; o.textContent = `Dot ${i + 1}`; sel.appendChild(o); });
+  sel.value = S.sel;
+  const s = S.shapes[S.sel];
+  ['sx', 'sy', 'sR', 'sdn', 'sedge'].forEach(id => $(id).disabled = !s);
+  if (!s) { drawCHD(); return; }
+  $('sx').value = (s.x0 * 1e6).toFixed(0); $('sy').value = (s.y0 * 1e6).toFixed(0); $('sR').value = (s.R * 1e6).toFixed(0);
+  $('sdn').value = (s.dn * 1e3).toFixed(2); $('sedge').value = (s.edge * 1e6).toFixed(1);
+  if (full) for (const m of HARM_M) for (const c of ['a', 'b']) { const v = s[c][m - 1] || 0; $('h' + c + m).value = v; $('h' + c + m + 'v').textContent = v.toFixed(3); }
+  if (full) drawCHD();
+}
+function bindExplorer() {
+  presetOptions(); syncPortUI(); buildHarmSliders(); syncShapeUI();
+  $('preset').addEventListener('change', () => { if (PRESETS[$('preset').value]) { applyPreset($('preset').value); syncPortUI(); drawCell(); schedule(); } });
+  $('portW').addEventListener('change', () => { S.portW = Math.max(2, +$('portW').value) * 1e-6; S.cell.ports.forEach(p => p.width = S.portW); drawCell(); schedule(); });
+  $('launchAll').addEventListener('change', () => { S.launch = (+$('launchAll').value) * deg; S.cell.ports.forEach(p => { if (E.isIn(p)) p.launch = S.launch; }); syncPortUI(); drawCell(); schedule(); });
+  $('fanAll').addEventListener('change', () => { S.fan = Math.max(0, +$('fanAll').value) * deg; S.cell.ports.forEach(p => { if (E.isIn(p)) p.fan = S.fan; }); syncPortUI(); drawCell(); schedule(); });
+  $('addPort').addEventListener('click', () => {
+    const used = S.cell.ports.map(p => p.angle).sort((a, b) => a - b); let best = 0, gap = -1;
+    used.forEach((a, i) => { const nx = i + 1 < used.length ? used[i + 1] : used[0] + 2 * Math.PI; if (nx - a > gap) { gap = nx - a; best = a + gap / 2; } });
+    S.cell.ports.push({ angle: best % (2 * Math.PI), width: S.portW, role: 'out', launch: S.launch, fan: S.fan, label: '' });
+    S.preset = 'custom'; syncPortUI(); drawCell(); schedule();
+  });
+  const cellIn = () => {
+    S.cell.radius = Math.max(200, +$('radius').value) * 1e-6; S.cell.n_eff = +$('neff').value; S.cell.wavelength = (+$('lambda').value) * 1e-9;
+    S.cell.reflectance = Math.min(1, Math.max(0, +$('Rwall').value / 100)); S.shapes.forEach(clampShape); drawCell(); schedule();
+  };
+  ['radius', 'neff', 'lambda', 'Rwall'].forEach(id => $(id).addEventListener('change', cellIn));
+  const rayIn = () => { S.mode = $('mode').value; S.waist = Math.max(1, +$('waist').value) * 1e-6; S.nPos = Math.max(1, Math.round(+$('nPos').value)); S.nAng = Math.max(1, Math.round(+$('nAng').value)); schedule(); };
+  ['mode', 'waist', 'nPos', 'nAng'].forEach(id => $(id).addEventListener('change', rayIn));
+  $('nShow').addEventListener('input', () => { S.nShow = +$('nShow').value; $('nShowV').textContent = S.nShow; schedule(150); });
+  $('density').addEventListener('change', () => { S.density = $('density').checked; S.density ? schedule() : drawCell(); });
+  $('shapeSel').addEventListener('change', () => { S.sel = +$('shapeSel').value; syncShapeUI(); drawCell(); });
+  const shapeIn = () => {
+    const s = S.shapes[S.sel]; if (!s) return;
+    s.x0 = +$('sx').value * 1e-6; s.y0 = +$('sy').value * 1e-6; s.R = Math.max(5, +$('sR').value) * 1e-6;
+    s.dn = +$('sdn').value * 1e-3; s.edge = Math.max(0.5, +$('sedge').value) * 1e-6; clampShape(s); syncShapeUI(false); drawCell(); drawCHD(); schedule();
+  };
+  ['sx', 'sy', 'sR', 'sdn', 'sedge'].forEach(id => $(id).addEventListener('change', shapeIn));
+  const g = E.rng(12345);
+  const rnd = (keepPos) => {
+    const s0 = S.shapes[S.sel];
+    const r = E.randomShape(g, S.cell.radius, { mMax: 6, sigma: 0.08, decay: 0.5, centre: keepPos && s0 ? [s0.x0, s0.y0] : null, placeRadius: 0.6 * S.cell.radius });
+    return { x0: r.x0, y0: r.y0, R: r.R, dn: r.dn, edge: r.edge, a: Array.from(r.a), b: Array.from(r.b) };
+  };
+  $('addShape').addEventListener('click', () => { S.shapes.push(rnd(false)); S.sel = S.shapes.length - 1; clampShape(S.shapes[S.sel]); syncShapeUI(); drawCell(); schedule(); });
+  $('delShape').addEventListener('click', () => { if (!S.shapes.length) return; S.shapes.splice(S.sel, 1); S.sel = Math.max(0, S.sel - 1); syncShapeUI(); drawCell(); schedule(); });
+  $('randShape').addEventListener('click', () => { if (!S.shapes[S.sel]) return; const s = rnd(true); S.shapes[S.sel] = Object.assign(S.shapes[S.sel], { a: s.a, b: s.b, R: s.R }); clampShape(S.shapes[S.sel]); syncShapeUI(); drawCell(); schedule(); });
+  $('imgBtn').addEventListener('click', () => $('imgFile').click());
+  $('imgFile').addEventListener('change', ev => { const f = ev.target.files[0]; if (f) importImage(f); ev.target.value = ''; });
+}
+
+// image → contour CHD → shape
+function importImage(file) {
+  const img = new Image(), url = URL.createObjectURL(file);
+  img.onload = () => {
+    const n = 256, sc = n / Math.max(img.width, img.height), w = Math.max(8, Math.round(img.width * sc)), h = Math.max(8, Math.round(img.height * sc));
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+    g.drawImage(img, 0, 0, w, h); const d = g.getImageData(0, 0, w, h).data;
+    const grey = new Float32Array(w * h); let mn = 1, mx = 0, border = 0, nb = 0;
+    for (let i = 0; i < w * h; i++) { const a = d[4 * i + 3] / 255; grey[i] = ((d[4 * i] + d[4 * i + 1] + d[4 * i + 2]) / 765) * a + (1 - a); mn = Math.min(mn, grey[i]); mx = Math.max(mx, grey[i]); }
+    for (let x = 0; x < w; x++) { border += grey[x] + grey[(h - 1) * w + x]; nb += 2; }
+    for (let y = 0; y < h; y++) { border += grey[y * w] + grey[y * w + w - 1]; nb += 2; }
+    const invert = border / nb > (mn + mx) / 2, thr = (mn + mx) / 2;
+    const mask = new Float32Array(w * h); for (let i = 0; i < w * h; i++) mask[i] = (invert ? grey[i] < thr : grey[i] > thr) ? 1 : 0;
+    const val = (x, y) => {   // bilinear, y up
+      const fx = x, fy = h - 1 - y; const ix = Math.floor(fx), iy = Math.floor(fy);
+      if (ix < 0 || iy < 0 || ix >= w - 1 || iy >= h - 1) return 0;
+      const tx = fx - ix, ty = fy - iy, k = iy * w + ix;
+      return mask[k] * (1 - tx) * (1 - ty) + mask[k + 1] * tx * (1 - ty) + mask[k + w] * (1 - tx) * ty + mask[k + w + 1] * tx * ty;
+    };
+    const fit = E.chdContour(val, w / 2, h / 2, Math.max(w, h) / 2 * 1.42, 10, 256, 400, 0.5);
+    if (!(fit.R0 > 1)) { $('imgNote').textContent = 'No blob found in that image. Use a single dark or light shape on a plain background.'; return; }
+    const um = Math.max(20, +$('imgW').value) * 1e-6 / w, s0 = S.shapes[S.sel];
+    const shape = { x0: s0 ? s0.x0 : 0.3 * S.cell.radius, y0: s0 ? s0.y0 : 0, R: fit.R0 * um, dn: s0 ? s0.dn : 1e-3, edge: 3e-6,
+      a: [0, ...fit.a.slice(1)], b: [0, ...fit.b.slice(1)] };
+    S.shapes.push(shape); S.sel = S.shapes.length - 1; clampShape(shape); syncShapeUI(); drawCell(); schedule();
+    $('imgNote').textContent = `Inserted "${file.name}": R₀ = ${(shape.R * 1e6).toFixed(0)} µm, contour fitted up to m = 10 (largest |c_m| at m = ${1 + fit.a.reduce((bi, v, i) => Math.hypot(v, fit.b[i]) > Math.hypot(fit.a[bi], fit.b[bi]) && i > 0 ? i : bi, 1)}).`;
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { $('imgNote').textContent = 'That file could not be read as an image.'; };
+  img.src = url;
+}
+
+// ---------------- charts (SVG) ----------------
+const tip = $('tip');
+document.addEventListener('pointerover', ev => { const t = ev.target.closest && ev.target.closest('[data-tip]'); if (t) { tip.textContent = t.getAttribute('data-tip'); tip.hidden = false; } });
+document.addEventListener('pointermove', ev => { if (!tip.hidden) { const x = Math.min(ev.clientX + 12, window.innerWidth - tip.offsetWidth - 8); tip.style.left = x + 'px'; tip.style.top = (ev.clientY + 14) + 'px'; } });
+document.addEventListener('pointerout', ev => { const t = ev.target.closest && ev.target.closest('[data-tip]'); if (t) tip.hidden = true; });
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+function niceTicks(lo, hi, n = 4) {
+  const span = hi - lo || 1, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(f => f * mag).find(s => s >= step0) || mag * 10;
+  const t = []; for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) t.push(+v.toFixed(10)); return t;
+}
+function lineChart(el, o) {
+  const W = o.width || 420, H = o.height || 220, m = { l: 44, r: 12, t: 10, b: 34 };
+  const xs = o.x, xl = o.xlog ? xs.map(Math.log10) : xs;
+  const x0 = Math.min(...xl), x1 = Math.max(...xl);
+  const all = o.series.flatMap(s => s.y.filter(isFinite));
+  let y0 = o.ylim ? o.ylim[0] : Math.min(0, ...all), y1 = o.ylim ? o.ylim[1] : Math.max(...all) * 1.08 || 1;
+  const X = v => m.l + (v - x0) / (x1 - x0 || 1) * (W - m.l - m.r), Y = v => H - m.b - (v - y0) / (y1 - y0 || 1) * (H - m.t - m.b);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(o.label || '')}">`;
+  for (const t of niceTicks(y0, y1)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--gridline)"/><text x="${m.l - 6}" y="${Y(t) + 3.5}" text-anchor="end">${t}</text>`;
+  const xt = o.xticks || (o.xlog ? xs : niceTicks(x0, x1, 5));
+  for (const t of xt) { const v = o.xlog ? Math.log10(t) : t; s += `<text x="${X(v)}" y="${H - m.b + 15}" text-anchor="middle">${o.xfmt ? o.xfmt(t) : t}</text>`; }
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" stroke="var(--line)"/>`;
+  if (o.xlabel) s += `<text x="${(m.l + W - m.r) / 2}" y="${H - 4}" text-anchor="middle">${esc(o.xlabel)}</text>`;
+  o.series.forEach(se => {
+    const pts = xl.map((v, i) => isFinite(se.y[i]) ? `${X(v).toFixed(1)},${Y(se.y[i]).toFixed(1)}` : null).filter(Boolean);
+    s += `<polyline fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" points="${pts.join(' ')}"${se.dash ? ' stroke-dasharray="4 3"' : ''}/>`;
+    if (!se.noDots) xl.forEach((v, i) => { if (!isFinite(se.y[i])) return; s += `<circle cx="${X(v)}" cy="${Y(se.y[i])}" r="3.5" fill="${se.color}" stroke="var(--panel)" stroke-width="1.5"/><circle cx="${X(v)}" cy="${Y(se.y[i])}" r="9" fill="transparent" data-tip="${esc(se.name)}\n${o.xname || 'x'} = ${o.xfmt ? o.xfmt(xs[i]) : xs[i]}\n${o.yname || 'y'} = ${fmt(se.y[i], 3)}"/>`; });
+  });
+  s += '</svg>';
+  el.innerHTML = s + legend(o.series);
+}
+function legend(series) { return series.length > 1 ? `<div class="legend">${series.map(se => `<span><i style="background:${se.color}"></i>${esc(se.name)}</span>`).join('')}</div>` : ''; }
+function barChart(el, o) {
+  const W = o.width || 420, H = o.height || 220, m = { l: 40, r: 10, t: 10, b: 30 };
+  const nC = o.cats.length, nS = o.series.length;
+  const all = o.series.flatMap(s => s.y.filter(isFinite));
+  const y0 = o.ylim ? o.ylim[0] : Math.min(0, ...all), y1 = o.ylim ? o.ylim[1] : Math.max(0.01, ...all) * 1.1;
+  const Y = v => H - m.b - (Math.max(y0, Math.min(y1, v)) - y0) / (y1 - y0) * (H - m.t - m.b);
+  const gw = (W - m.l - m.r) / nC, bw = Math.max(3, Math.min(22, (gw - 10) / nS - 2));
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(o.label || '')}">`;
+  for (const t of niceTicks(y0, y1)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="${t === 0 ? 'var(--line)' : 'var(--gridline)'}"/><text x="${m.l - 6}" y="${Y(t) + 3.5}" text-anchor="end">${t}</text>`;
+  o.cats.forEach((c, i) => {
+    const gx = m.l + i * gw + (gw - nS * (bw + 2)) / 2;
+    s += `<text x="${m.l + (i + 0.5) * gw}" y="${H - m.b + 15}" text-anchor="middle">${esc(c)}</text>`;
+    o.series.forEach((se, j) => {
+      const v = se.y[i]; if (!isFinite(v)) return;
+      const top = Y(Math.max(v, 0)), bot = Y(Math.min(v, 0)), x = gx + j * (bw + 2);
+      const hgt = Math.max(1, bot - top);
+      s += `<rect x="${x}" y="${top}" width="${bw}" height="${hgt}" rx="2" fill="${se.color}"/>`;
+      s += `<rect x="${x - 1}" y="${m.t}" width="${bw + 2}" height="${H - m.t - m.b}" fill="transparent" data-tip="${esc(se.name)}\n${esc(o.catName || '')} ${esc(c)}\n${o.yname || 'value'} = ${fmt(v, 3)}${v < y0 ? ' (below axis)' : ''}"/>`;
+    });
+  });
+  s += '</svg>';
+  el.innerHTML = s + legend(o.series);
+}
+function scatter(el, o) {
+  const W = 420, H = 260, m = { l: 48, r: 12, t: 10, b: 34 };
+  const all = o.x.concat(o.y), lo = Math.min(...all), hi = Math.max(...all), pad = (hi - lo) * 0.06 || 0.01;
+  const a = lo - pad, b = hi + pad, X = v => m.l + (v - a) / (b - a) * (W - m.l - m.r), Y = v => H - m.b - (v - a) / (b - a) * (H - m.t - m.b);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="predicted vs true">`;
+  for (const t of niceTicks(a, b)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--gridline)"/><text x="${m.l - 6}" y="${Y(t) + 3.5}" text-anchor="end">${t}</text><text x="${X(t)}" y="${H - m.b + 15}" text-anchor="middle">${t}</text>`;
+  s += `<line x1="${X(a)}" y1="${Y(a)}" x2="${X(b)}" y2="${Y(b)}" stroke="var(--faint)" stroke-dasharray="4 3"/>`;
+  o.x.forEach((v, i) => s += `<circle cx="${X(v)}" cy="${Y(o.y[i])}" r="4" fill="var(--s1)" fill-opacity=".75" stroke="var(--panel)" stroke-width="1" data-tip="true ${fmt(v, 4)}\npredicted ${fmt(o.y[i], 4)}"/>`);
+  s += `<text x="${(m.l + W - m.r) / 2}" y="${H - 4}" text-anchor="middle">true ${esc(o.name)}</text></svg>`;
+  el.innerHTML = s;
+}
+
+// ---------------- explorer outputs ----------------
+function drawSpeckle() {
+  const r = S.result; if (!r) return;
+  const box = $('speckle'); box.innerHTML = '';
+  for (const k of Object.keys(r.ref).sort()) {
+    const [i, o] = k.split(','), f0 = r.ref[k], f = r.pert[k];
+    const I0 = f0.re.map((v, j) => v * v + f0.im[j] ** 2), I = f.re.map((v, j) => v * v + f.im[j] ** 2);
+    const mean = I0.reduce((p, q) => p + q, 0) / I0.length || 1;
+    const fig = document.createElement('figure');
+    fig.innerHTML = `<figcaption><span>P${i} → P${o}</span><b>ρ = ${fmt(r.rho[k], 3)}</b></figcaption><div></div>`;
+    box.appendChild(fig);
+    const x = I0.map((_, j) => j);
+    lineChart(fig.lastChild, { x, width: 260, height: 120, series: [
+      { name: 'no dots', y: I0.map(v => v / mean), color: 'var(--faint)', noDots: true },
+      { name: 'with dots', y: I.map(v => v / mean), color: 'var(--s1)', noDots: true }], xticks: [0, 32, 63], label: `speckle P${i} to P${o}` });
+    fig.querySelector('.legend') && fig.querySelector('.legend').remove();
+  }
+}
+function drawStats() {
+  const r = S.result; if (!r) return;
+  $('stats').innerHTML = r.stats.map(s => {
+    const tot = s.power.reduce((a, b) => a + b, 0);
+    return `P${s.port} in: <b>${s.launched}</b> rays, <b>${s.exits}</b> exit, mean <b>${s.meanBounces.toFixed(0)}</b> bounces, power out ${s.power.map((p, i) => `P${i} <b>${(100 * p).toFixed(0)}%</b>`).join(' ')} (wall loss ${(100 * (1 - tot)).toFixed(0)}%)`;
+  }).join('<br>');
+}
+function drawCHD() {
+  const s = S.shapes[S.sel];
+  if (!s) { $('chdChart').innerHTML = '<p class="note">Add a dot to see its harmonics.</p>'; $('chdTable').innerHTML = ''; return; }
+  const sh = E.makeShape(s), mMax = 8;
+  const tru = E.chdShape(sh, mMax);
+  const meas = E.chdContour((x, y) => E.shapeValue(sh, x, y), sh.x0, sh.y0, sh.bound, mMax, 192, 300);
+  const cats = [], t = [], mm = [];
+  for (let m = 2; m <= mMax; m++) { cats.push('m=' + m); t.push(Math.hypot(tru.a[m - 1], tru.b[m - 1])); mm.push(Math.hypot(meas.a[m - 1], meas.b[m - 1])); }
+  barChart($('chdChart'), { cats, catName: '', yname: '|c_m|', height: 170, series: [{ name: 'defined contour', y: t, color: 'var(--s7)' }, { name: 'measured from the Δn map', y: mm, color: 'var(--s3)' }], label: 'CHD of the selected dot' });
+  let h = '<thead><tr><th>m</th>' + cats.map((c, i) => `<th class="num">${i + 2}</th>`).join('') + '</tr></thead><tbody>';
+  h += '<tr><td>a<sub>m</sub></td>' + cats.map((c, i) => `<td class="num">${fmt(tru.a[i + 1], 3)}</td>`).join('') + '</tr>';
+  h += '<tr><td>b<sub>m</sub></td>' + cats.map((c, i) => `<td class="num">${fmt(tru.b[i + 1], 3)}</td>`).join('') + '</tr></tbody>';
+  $('chdTable').innerHTML = h;
+}
+
+// ---------------- readout lab ----------------
+const RUNCOL = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s7)'];
+let labQueue = [], labBusy = false, labId = 0;
+function dsParams(cell) {
+  const s0 = S.shapes[S.sel] || { x0: 0.25e-3, y0: 0.1e-3 };
+  return { N: Math.max(40, Math.round(+$('dsN').value)), mode: $('dsMode').value, seed: Math.round(+$('dsSeed').value),
+    centre: $('dsPos').value === 'fixed' ? [s0.x0, s0.y0] : null, place: Math.max(0, +$('dsPlace').value) * 1e-6,
+    dn: +$('dsDn').value * 1e-3, sigma: +$('dsSigma').value, Rmin: +$('dsRmin').value * 1e-6, Rmax: Math.max(+$('dsRmin').value, +$('dsRmax').value) * 1e-6,
+    nAng: Math.max(5, Math.round(+$('dsAng').value)) };
+}
+function runLab(list) {
+  labQueue = list; $('dsRun').disabled = $('dsRunAll').disabled = true; $('dsStop').disabled = false; nextLab();
+}
+function nextLab() {
+  const job = labQueue.shift();
+  if (!job) { labBusy = false; $('dsRun').disabled = $('dsRunAll').disabled = false; $('dsStop').disabled = true; return; }
+  labBusy = true; job.id = ++labId; S.currentJob = job;
+  $('dsStatus').textContent = `${job.name}: generating ${job.ds.N} samples…`;
+  wLab.postMessage({ type: 'dataset', id: job.id, cell: job.cell, ds: job.ds });
+}
+wLab.onmessage = ev => {
+  const m = ev.data, job = S.currentJob;
+  if (m.type === 'progress') { $('dsBar').style.width = (100 * m.done / m.total) + '%'; $('dsStatus').textContent = m.fitting ? `${job.name}: fitting the ridge readout…` : `${job.name}: ${m.done}/${m.total} samples, ${(m.ms / 1000).toFixed(1)} s`; }
+  else if (m.type === 'dataset') {
+    S.runs.push({ name: job.name, ds: job.ds, nIn: job.cell.ports.filter(E.isIn).length, nOut: job.cell.ports.filter(E.isOut).length, ...m });
+    $('dsStatus').textContent = `${job.name}: done in ${(m.ms / 1000).toFixed(1)} s, ${m.nFeatures} features, α = ${m.alpha}`;
+    drawLab(); nextLab();
+  } else if (m.type === 'stopped') { $('dsStatus').textContent = 'Stopped.'; labQueue = []; nextLab(); }
+  else if (m.type === 'error') { $('dsStatus').textContent = 'Error: ' + m.message; labQueue = []; nextLab(); }
+};
+function drawLab() {
+  const runs = S.runs.slice(-4);
+  if (!runs.length) {
+    $('labAB').innerHTML = $('labP').innerHTML = $('labScatter').innerHTML = '<p class="note">No runs yet. Pick dataset settings and press Run. A 240-sample phase-screen run takes a few seconds.</p>';
+    $('runTable').innerHTML = ''; return;
+  }
+  const cats = ['m=2', 'm=3', 'm=4', 'm=5', 'm=6'];
+  const ser = (key) => runs.map((r, i) => ({ name: `#${S.runs.length - runs.length + i + 1} ${r.name}`, y: r[key], color: RUNCOL[i] }));
+  barChart($('labAB'), { cats, yname: 'R²', ylim: [-0.2, 1], series: ser('r2ab'), label: 'R² of a_m and b_m' });
+  barChart($('labP'), { cats, yname: 'R²', ylim: [-0.2, 1], series: ser('r2p'), label: 'R² of p_m' });
+  const last = S.runs[S.runs.length - 1];
+  const seg = $('scSel'); seg.innerHTML = '';
+  ['a2', 'b2', 'a3', 'a4', 'p2'].forEach(t => { const b = document.createElement('button'); b.textContent = t; b.setAttribute('aria-pressed', S.scTarget === t); b.onclick = () => { S.scTarget = t; drawLab(); }; seg.appendChild(b); });
+  const j = last.names.indexOf(S.scTarget);
+  scatter($('labScatter'), { x: last.Yte.map(r => r[j]), y: last.P.map(r => r[j]), name: S.scTarget });
+  let h = '<thead><tr><th>#</th><th>Layout</th><th>Engine</th><th>Position</th><th class="num">N</th><th class="num">Features</th>' + cats.map(c => `<th class="num">R² ${c}</th>`).join('') + '<th class="num">s</th></tr></thead><tbody>';
+  S.runs.forEach((r, i) => { h += `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.ds.mode}</td><td>${r.ds.centre ? 'fixed' : 'random'}</td><td class="num">${r.ds.N}</td><td class="num">${r.nFeatures}</td>${r.r2ab.map(v => `<td class="num">${fmt(v, 2)}</td>`).join('')}<td class="num">${(r.ms / 1000).toFixed(1)}</td></tr>`; });
+  $('runTable').innerHTML = h + '</tbody>';
+}
+function bindLab() {
+  $('dsRun').addEventListener('click', () => runLab([{ name: PRESETS[S.preset] ? S.preset : 'custom layout', cell: JSON.parse(JSON.stringify(S.cell)), ds: dsParams() }]));
+  $('dsRunAll').addEventListener('click', () => runLab(Object.keys(PRESETS).map(name => {
+    const p = PRESETS[name], cell = JSON.parse(JSON.stringify(S.cell));
+    cell.ports = p.angles.map((a, i) => ({ angle: a * deg, width: S.portW, role: p.inputs.includes(i) ? 'inout' : 'out', launch: S.launch, fan: S.fan }));
+    return { name, cell, ds: dsParams() };
+  })));
+  $('dsStop').addEventListener('click', () => { labQueue = []; wLab.postMessage({ type: 'stop' }); });
+  drawLab();
+}
+
+// ---------------- progress ----------------
+function drawProgress() {
+  // tasks
+  const groups = {}; TASKS.forEach(t => (groups[t.section] = groups[t.section] || []).push(t));
+  const cnt = s => TASKS.filter(t => t.status === s).length;
+  $('taskKpis').innerHTML = `<span><b>${cnt('done')}</b>done</span><span><b>${cnt('part')}</b>in progress</span><span><b>${cnt('todo')}</b>to do</span>` +
+    (PROGRESS && PROGRESS.tests ? `<span><b style="color:${PROGRESS.tests.ok ? 'var(--good)' : 'var(--s8)'}">${PROGRESS.tests.ok ? '✓' : '✗'}</b>pytest: ${esc(PROGRESS.tests.summary)}</span>` : '');
+  const lbl = { done: 'done', part: 'partial', todo: 'to do' };
+  $('taskList').innerHTML = Object.entries(groups).map(([sec, ts]) => `<h3>${esc(sec)}</h3><ul class="tasks">${ts.map(t => `<li><code>${esc(t.id)}</code><span>${esc(t.title)}${t.note ? `<br><span class="note">${esc(t.note)}</span>` : ''}</span><span class="pill ${t.status}">${lbl[t.status]}</span></li>`).join('')}</ul>`).join('');
+  if (!PROGRESS) { $('pyMeta').textContent = 'No Python results embedded yet.'; return; }
+  const P = PROGRESS, mc = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s7)'];
+  $('pyMeta').innerHTML = `Run ${esc(P.meta.date)}${P.meta.quick ? ' (quick mode, small samples)' : ''}, ${Math.round(P.meta.runtime_s)} s. Circular cell R<sub>c</sub> = ${P.meta.cell.radius * 1e6} µm, n<sub>eff</sub> = ${P.meta.cell.n_eff}, λ = ${P.meta.cell.wavelength * 1e9} nm, wall R = ${P.meta.cell.R}, ports ${P.meta.cell.port_width * 1e6} µm wide, ${P.meta.source.n_pos} × ${P.meta.source.n_ang} rays per input. All runs use the phase-screen engine except E4.`;
+  if (P.E1) {
+    lineChart($('e1chart'), { x: P.E1.launch.map(v => +(v / deg).toFixed(1)), xname: 'launch °', yname: 'S_m', xlabel: 'launch angle (°)', series: P.meta.m.map((m, k) => ({ name: 'm = ' + m, y: P.E1.S.map(r => r[k]), color: mc[k] })), label: 'sensitivity vs launch angle' });
+    const occ = $('e1occ'); occ.innerHTML = '';
+    Object.entries(P.E1.occupancy).forEach(([la, grid]) => {
+      const f = document.createElement('figure'); const c = document.createElement('canvas'); const n = grid.length; c.width = c.height = n;
+      const g = c.getContext('2d'), img = g.createImageData(n, n), col = hex(css('--accent')), bg = hex(css('--slab'));
+      for (let iy = 0; iy < n; iy++) for (let ix = 0; ix < n; ix++) { const v = Math.sqrt(grid[iy][ix]), k = ((n - 1 - iy) * n + ix) * 4, inside = Math.hypot(ix - n / 2 + .5, iy - n / 2 + .5) < n / 2; for (let q = 0; q < 3; q++) img.data[k + q] = Math.round(bg[q] + (col[q] - bg[q]) * v); img.data[k + 3] = inside ? 255 : 0; }
+      g.putImageData(img, 0, 0); f.appendChild(c);
+      const cap = document.createElement('figcaption'); cap.textContent = `launch ${(+la / deg).toFixed(0)}°`; f.appendChild(cap); occ.appendChild(f);
+    });
+  }
+  if (P.E2) {
+    const cell = v => { const a = Math.max(0, Math.min(1, v)); return `<td class="heat" style="background:color-mix(in srgb, var(--s1) ${Math.round(a * 55)}%, transparent)">${fmt(v, 2)}</td>`; };
+    let h = `<thead><tr><th>Layout</th><th class="num">features</th><th class="num">mean S</th>${P.meta.m.map(m => `<th class="num">R² m=${m}</th>`).join('')}</tr></thead><tbody>`;
+    P.E2.layouts.forEach(L => { h += `<tr><td>${esc(L.name)}</td><td class="num">${L.n_features}</td><td class="num">${fmt(L.S.reduce((a, b) => a + b, 0) / L.S.length, 2)}</td>${L.r2_ab.map(cell).join('')}</tr>`; });
+    $('e2table').innerHTML = h + '</tbody>';
+    $('e2note').innerHTML = `Ridge readout of a<sub>m</sub>, b<sub>m</sub> (R² averaged over the pair) from ${P.E2.N} random dots at one fixed position; S is the mean sensitivity of E1 for each layout. Launch 20°, fan ±11.5°.`;
+  }
+  if (P.E3) {
+    const seg = $('e3sel'); seg.innerHTML = '';
+    const show = (ci) => {
+      [...seg.children].forEach((b, i) => b.setAttribute('aria-pressed', i === ci));
+      const C = P.E3.cases[ci], names = Object.keys(C.r2_ab), cols = ['var(--s1)', 'var(--s3)', 'var(--s4)', 'var(--s2)', 'var(--faint)', 'var(--s5)'];
+      barChart($('e3chart'), { cats: P.meta.m.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: names.map((n, i) => ({ name: n, y: C.r2_ab[n], color: cols[i % cols.length] })), label: 'readouts' });
+      $('e3svc').innerHTML = `${P.E3.N} samples, ${C.n_features} speckle features (asym4 · 2 in). Dominant-order classification (SVC): linear ${fmt(C.svc.linear.accuracy * 100, 0)}%, RBF ${fmt(C.svc.rbf.accuracy * 100, 0)}%, RBF on the raw image ${fmt(C.svc.image_rbf.accuracy * 100, 0)}% (majority class ${fmt(C.svc.rbf.chance * 100, 0)}%).`;
+    };
+    P.E3.cases.forEach((C, i) => { const b = document.createElement('button'); b.textContent = C.name; b.onclick = () => show(i); seg.appendChild(b); });
+    show(0);
+  }
+  if (P.E4) {
+    const xs = P.E4.dn_dec, interp = P.E4.dn.map(d => d);
+    lineChart($('e4chart'), { x: xs, xlog: true, xticks: [1e-5, 1e-4, 1e-3, 1e-2], xfmt: v => v.toExponential(0), xname: 'Δn', yname: 'ρ', ylim: [0, 1], xlabel: 'Δn of the dot', series: [
+      { name: 'perturbed vs unperturbed speckle', y: P.E4.corr_vs_unperturbed, color: 'var(--s1)' },
+      { name: 'phase screen vs curved rays', y: xs.map(x => { const i = interp.findIndex(d => Math.abs(Math.log10(d / x)) < 0.02); return i >= 0 ? P.E4.corr_phase_vs_curved[i] : NaN; }), color: 'var(--s2)' }], label: 'validity of the phase-screen model' });
+  }
+}
+
+// ---------------- tabs, theme ----------------
+function showTab(t) {
+  document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
+  $('view-explore').hidden = t !== 'explore'; $('view-lab').hidden = t !== 'lab'; $('view-progress').hidden = t !== 'progress';
+  if (t === 'explore') drawCell();
+  if (t === 'progress') drawProgress();
+  try { localStorage.setItem('ngrc-tab', t); } catch (e) {}
+}
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+const redrawAll = () => { if (!$('view-explore').hidden) drawCell(); if (!$('view-progress').hidden) drawProgress(); };
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll);
+new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+window.addEventListener('resize', () => { if (!$('view-explore').hidden) drawCell(); });
+
+bindExplorer(); bindLab();
+let start = 'explore';
+const h = (location.hash || '').slice(1);
+if (['explore', 'lab', 'progress'].includes(h)) start = h; else { try { start = localStorage.getItem('ngrc-tab') || 'explore'; } catch (e) {} }
+showTab(start);
+drawCell(); compute();
+})();
+</script>

@@ -5,9 +5,11 @@ from __future__ import annotations
 import numpy as np
 
 
-def standardize(Xtr, Xte):
+def standardize(Xtr, Xte, floor=1e-3):
+    """z-score with the training statistics; columns with sd < floor · mean sd (e.g. image pixels that are
+    almost always zero) are scaled by that floor instead, so they cannot blow up on the test set."""
     mu, sd = Xtr.mean(0), Xtr.std(0)
-    sd[sd == 0] = 1
+    sd = np.maximum(sd, floor * (sd.mean() or 1.0))
     return (Xtr - mu) / sd, (Xte - mu) / sd
 
 

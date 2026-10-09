@@ -1,0 +1,920 @@
+<title>CMPC Speckle Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument-panel app. Header with tabs; Explorer = controls | cell view | outputs (stacks on phones). */
+:root {
+  --bg: #f3f5f8; --panel: #ffffff; --ink: #101820; --muted: #566273; --faint: #8a95a3; --line: #dbe1e8;
+  --slab: #e6edf5; --wall: #1d2835; --accent: #2a78d6; --ray: #eb6834; --dn: #4a3aa7; --det: #1baf7a;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --good: #1a7f37; --warn: #9a6700; --todo: #8a95a3; --gridline: #e7ebf0; --chip: #eef2f6;
+  --f-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
+  --f-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --panel: #151c24; --ink: #e6ebf1; --muted: #9ba7b6; --faint: #6c7988; --line: #263241;
+    --slab: #18222e; --wall: #c8d3df; --accent: #3987e5; --ray: #f07a45; --dn: #9085e9; --det: #199e70;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good: #3fb950; --warn: #d29922; --todo: #6c7988; --gridline: #1e2833; --chip: #1c2530; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --panel: #151c24; --ink: #e6ebf1; --muted: #9ba7b6; --faint: #6c7988; --line: #263241;
+  --slab: #18222e; --wall: #c8d3df; --accent: #3987e5; --ray: #f07a45; --dn: #9085e9; --det: #199e70;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good: #3fb950; --warn: #d29922; --todo: #6c7988; --gridline: #1e2833; --chip: #1c2530; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-body); }
+.wrap { max-width: 1480px; margin: 0 auto; padding-inline: 16px; padding-block: 14px 40px; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-block: 6px 14px; border-bottom: 1px solid var(--line); }
+h1 { font: 700 26px/1.1 var(--f-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 70ch; }
+nav { display: flex; gap: 4px; background: var(--chip); padding: 3px; border-radius: 999px; }
+nav button { border: 0; background: transparent; color: var(--muted); font: 500 13px var(--f-body); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+nav button[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h2 { font: 600 15px/1.3 var(--f-body); margin: 0 0 8px; }
+h3 { font: 600 12px/1.3 var(--f-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; min-width: 0; }
+.explorer { display: grid; grid-template-columns: 300px minmax(0, 1fr) minmax(0, 420px); gap: 14px; margin-top: 14px; align-items: start; }
+@media (max-width: 1180px) { .explorer { grid-template-columns: 300px minmax(0, 1fr); } .explorer .outputs { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .explorer { grid-template-columns: minmax(0, 1fr); } }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+label.f { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); min-width: 0; }
+input[type=number], select { width: 100%; font: 13px var(--f-mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.btn { font: 500 12.5px var(--f-body); border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 11.5px; }
+td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.ports td input, .ports td select { padding: 3px 4px; font-size: 12px; width: 4.4em; }
+.ports td select { width: 5.6em; }
+.ports td, .ports th { padding: 3px 3px; }
+.scroll { overflow-x: auto; }
+.cellwrap { position: relative; }
+#cellCanvas { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; touch-action: none; cursor: crosshair; border-radius: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.legend i.sq { height: 10px; width: 10px; }
+.stats { font: 12px/1.6 var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats b { color: var(--ink); font-weight: 500; }
+.status { font: 12px var(--f-mono); color: var(--muted); min-height: 1.4em; }
+.spk { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.spk figure { margin: 0; min-width: 0; }
+.spk figcaption { font: 11.5px var(--f-mono); color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+.spk figcaption b { color: var(--ink); font-weight: 500; }
+svg text { font-family: var(--f-mono); font-size: 10.5px; fill: var(--muted); }
+svg .ttl { fill: var(--ink); font-family: var(--f-body); font-size: 12px; font-weight: 600; }
+#tip { position: fixed; pointer-events: none; z-index: 10; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--f-mono); box-shadow: 0 4px 14px rgba(0,0,0,.18); white-space: pre; }
+.note { font-size: 12.5px; color: var(--muted); max-width: 72ch; }
+.note b { color: var(--ink); font-weight: 600; }
+.lab { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+@media (max-width: 860px) { .lab { grid-template-columns: minmax(0, 1fr); } }
+.charts2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.prog { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+@media (max-width: 980px) { .prog { grid-template-columns: minmax(0, 1fr); } }
+.tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.tasks li { display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px dashed var(--line); font-size: 12.5px; }
+.tasks li code { font: 11.5px var(--f-mono); color: var(--muted); }
+.pill { font: 500 10.5px var(--f-mono); padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.done { color: var(--good); } .pill.part { color: var(--warn); } .pill.todo { color: var(--todo); }
+.kpis { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.kpis b { font: 600 18px var(--f-mono); color: var(--ink); margin-right: 4px; }
+.occ { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.occ figure { margin: 0; } .occ canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 50%; }
+.occ figcaption { font: 11px var(--f-mono); color: var(--muted); text-align: center; margin-top: 3px; }
+td.heat { font-family: var(--f-mono); text-align: right; }
+.seg { display: inline-flex; gap: 2px; background: var(--chip); padding: 2px; border-radius: 6px; }
+.seg button { border: 0; background: transparent; color: var(--muted); font: 12px var(--f-body); padding: 3px 9px; border-radius: 4px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>CMPC Speckle Lab</h1>
+      <p class="sub">Rays and Gaussian beamlets in a circular on-chip multipass cell with Δn<sub>eff</sub> dots. The speckle at the output ports is the reservoir; a trained readout tries to recover the circular-harmonic decomposition (CHD) of the dots.</p>
+    </div>
+    <nav role="tablist" aria-label="Views">
+      <button role="tab" id="tab-explore" aria-selected="true" data-tab="explore">Explorer</button>
+      <button role="tab" id="tab-lab" aria-selected="false" data-tab="lab">Readout lab</button>
+      <button role="tab" id="tab-progress" aria-selected="false" data-tab="progress">Progress</button>
+    </nav>
+  </header>
+
+  <!-- ===================== EXPLORER ===================== -->
+  <section id="view-explore" class="explorer">
+    <aside class="panel">
+      <h2>Cell and ports</h2>
+      <div class="row">
+        <label class="f">Layout<select id="preset"></select></label>
+        <label class="f">Port width (µm)<input id="portW" type="number" step="1" min="2" value="20"></label>
+      </div>
+      <div class="row">
+        <label class="f">Launch (°, all inputs)<input id="launchAll" type="number" step="1" value="20"></label>
+        <label class="f">Fan (°, all inputs)<input id="fanAll" type="number" step="1" min="0" value="23"></label>
+      </div>
+      <div class="scroll" style="margin-top:8px">
+        <table class="ports"><thead><tr><th>Port</th><th>Angle °</th><th>Role</th><th>Launch °</th><th>Fan °</th><th></th></tr></thead><tbody id="portRows"></tbody></table>
+      </div>
+      <div class="btns"><button class="btn" id="addPort">Add port</button><span class="note" style="align-self:center">Drag a port along the wall in the view.</span></div>
+
+      <h3>Slab and wall</h3>
+      <div class="row">
+        <label class="f">Radius (µm)<input id="radius" type="number" step="50" min="200" value="1000"></label>
+        <label class="f">Effective index<input id="neff" type="number" step="0.01" min="1" value="1.80"></label>
+        <label class="f">λ (nm)<input id="lambda" type="number" step="1" value="1550"></label>
+        <label class="f">Wall R (%)<input id="Rwall" type="number" step="0.1" max="100" value="99"></label>
+      </div>
+      <h3>Rays</h3>
+      <div class="row">
+        <label class="f">Engine<select id="mode"><option value="curved">Curved rays (full)</option><option value="phase">Phase screen (1st order)</option><option value="none">Unperturbed</option></select></label>
+        <label class="f">Beamlet waist (µm)<input id="waist" type="number" step="0.5" min="1" value="5"></label>
+        <label class="f">Positions / port<input id="nPos" type="number" min="1" max="15" value="3"></label>
+        <label class="f">Angles / port<input id="nAng" type="number" min="1" max="301" value="61"></label>
+      </div>
+      <label class="f" style="margin-top:6px">Rays drawn: <span id="nShowV">12</span><input id="nShow" type="range" min="0" max="200" value="12"></label>
+      <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:4px"><input type="checkbox" id="density" checked> Ray density (unperturbed)</label>
+
+      <h3>Δn dots</h3>
+      <div class="row">
+        <label class="f">Selected<select id="shapeSel"></select></label>
+        <div class="btns" style="margin-top:16px"><button class="btn" id="addShape">Add</button><button class="btn" id="delShape">Remove</button></div>
+      </div>
+      <div class="row3">
+        <label class="f">x (µm)<input id="sx" type="number" step="10"></label>
+        <label class="f">y (µm)<input id="sy" type="number" step="10"></label>
+        <label class="f">R (µm)<input id="sR" type="number" step="5" min="5"></label>
+        <label class="f">Δn (×10⁻³)<input id="sdn" type="number" step="0.1"></label>
+        <label class="f">Edge (µm)<input id="sedge" type="number" step="0.5" min="0.5"></label>
+        <label class="f">&nbsp;<button class="btn" id="randShape">Randomise</button></label>
+      </div>
+      <div id="harmSliders" style="margin-top:6px"></div>
+      <h3>Insert from image</h3>
+      <div class="row">
+        <label class="f">Image width (µm)<input id="imgW" type="number" step="10" min="20" value="240"></label>
+        <label class="f">&nbsp;<button class="btn" id="imgBtn">Choose image…</button></label>
+      </div>
+      <input type="file" id="imgFile" accept="image/*" hidden>
+      <p class="note" id="imgNote">A dark or light blob on a plain background. Its contour is fitted with circular harmonics (m ≤ 10) and inserted as a dot at the selected dot's position.</p>
+    </aside>
+
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+        <h2>Cell view</h2><span class="status" id="status">tracing…</span>
+      </div>
+      <div class="cellwrap"><canvas id="cellCanvas" aria-label="Cell with ports, rays and Δn dots"></canvas></div>
+      <div class="legend">
+        <span><i style="background:var(--ray)"></i>rays (curved)</span>
+        <span><i class="sq" style="background:var(--dn);opacity:.6"></i>Δn dot</span>
+        <span><i style="background:var(--ray);height:8px;width:8px;border-radius:50%"></i>input port</span>
+        <span><i style="background:var(--accent);height:8px;width:8px;border-radius:50%"></i>output port</span>
+        <span><i style="background:var(--det)"></i>detector line</span>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div class="panel outputs">
+      <h2>Speckle at the detectors</h2>
+      <p class="note">Intensity along each detector line (64 pixels, 100 µm outside the port), divided by the mean unperturbed intensity. Grey: no dots. Blue: with dots. ρ is the field correlation between the two.</p>
+      <div class="spk" id="speckle"></div>
+      <h3>CHD of the selected dot</h3>
+      <div id="chdChart"></div>
+      <div class="scroll"><table id="chdTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ===================== READOUT LAB ===================== -->
+  <section id="view-lab" class="lab" hidden>
+    <aside class="panel">
+      <h2>Dataset</h2>
+      <p class="note">Random deformed dots r(θ) = R[1 + Σ a<sub>m</sub> cos mθ + b<sub>m</sub> sin mθ], m = 2…6, traced through the cell and ports set in the Explorer. Features: relative speckle intensity I/I₀ − 1 on every detector pixel, for every input port. Readout: ridge regression (the NGRC readout) on a 75/25 split, penalty chosen by validation.</p>
+      <div class="row">
+        <label class="f">Samples<input id="dsN" type="number" step="20" min="40" max="1200" value="240"></label>
+        <label class="f">Engine<select id="dsMode"><option value="phase">Phase screen (fast)</option><option value="curved">Curved rays (slow)</option></select></label>
+        <label class="f">Position<select id="dsPos"><option value="fixed">Fixed (selected dot)</option><option value="random">Random</option></select></label>
+        <label class="f">Place radius (µm)<input id="dsPlace" type="number" step="50" value="600"></label>
+        <label class="f">Δn (×10⁻³)<input id="dsDn" type="number" step="0.1" value="1"></label>
+        <label class="f">σ (a₂ spread)<input id="dsSigma" type="number" step="0.01" value="0.08"></label>
+        <label class="f">R min (µm)<input id="dsRmin" type="number" step="5" value="60"></label>
+        <label class="f">R max (µm)<input id="dsRmax" type="number" step="5" value="110"></label>
+        <label class="f">Rays / port (angles)<input id="dsAng" type="number" step="2" min="5" value="41"></label>
+        <label class="f">Seed<input id="dsSeed" type="number" step="1" value="1"></label>
+      </div>
+      <div class="btns"><button class="btn primary" id="dsRun">Run on current layout</button><button class="btn" id="dsRunAll">Run every preset layout</button><button class="btn" id="dsStop" disabled>Stop</button></div>
+      <div class="bar"><div id="dsBar"></div></div>
+      <div class="status" id="dsStatus">Ready.</div>
+    </aside>
+    <div style="display:grid;gap:14px;min-width:0">
+      <div class="charts2">
+        <div class="panel"><h2>R² of a<sub>m</sub>, b<sub>m</sub> per harmonic order</h2><div id="labAB"></div></div>
+        <div class="panel"><h2>R² of the power p<sub>m</sub> = a<sub>m</sub>² + b<sub>m</sub>²</h2><div id="labP"></div></div>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>Latest run: predicted vs true</h2>
+          <div class="seg" id="scSel" role="group" aria-label="Target"></div>
+          <div id="labScatter"></div></div>
+        <div class="panel"><h2>Runs</h2><div class="scroll"><table id="runTable"></table></div>
+          <p class="note">Bars show the four most recent runs. R² ≤ 0 means the readout does no better than predicting the mean.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PROGRESS ===================== -->
+  <section id="view-progress" class="prog" hidden>
+    <div class="panel">
+      <h2>Task list</h2>
+      <div class="kpis" id="taskKpis"></div>
+      <div id="taskList"></div>
+    </div>
+    <div style="display:grid;gap:14px;min-width:0">
+      <div class="panel">
+        <h2>Python engine results</h2>
+        <p class="note" id="pyMeta"></p>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>E1 · Sensitivity per order vs launch angle</h2><div id="e1chart"></div>
+          <p class="note">rms ∂I/∂a<sub>m</sub> over all detector pixels (per unit coefficient, ÷ mean I₀), four symmetric ports, one input, fan ±11.5°, dots within 600 µm of the centre. A ray with incidence angle χ never comes closer to the centre than R<sub>c</sub> sin χ, so steep launches cannot see central dots.</p></div>
+        <div class="panel"><h2>E1 · Where the rays go</h2><div class="occ" id="e1occ"></div>
+          <p class="note">Unperturbed ray density for each launch angle. The dark core is the caustic disk that the rays never enter.</p></div>
+      </div>
+      <div class="panel"><h2>E2 · Port layouts</h2><div class="scroll"><table id="e2table"></table></div>
+        <p class="note" id="e2note"></p></div>
+      <div class="charts2">
+        <div class="panel"><h2>E3 · Readouts</h2>
+          <div class="seg" id="e3sel" role="group" aria-label="Case"></div>
+          <div id="e3chart"></div><div class="note" id="e3svc"></div></div>
+        <div class="panel"><h2>E4 · Validity of the phase-screen model</h2><div id="e4chart"></div>
+          <p class="note">Field correlation of the first-order (phase-screen) speckle with full curved-ray tracing, and of the perturbed speckle with the unperturbed one, against Δn of one 80 µm dot.</p></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="tip" hidden></div>
+
+<script id="engine">/*__ENGINE__*/</script>
+<script>
+const PROGRESS = /*__PROGRESS__*/null;
+const TASKS = /*__TASKS__*/[];
+</script>
+<script>
+(() => {
+'use strict';
+const E = NGRC;
+const $ = id => document.getElementById(id);
+const deg = Math.PI / 180;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v, d = 2) => (v == null || !isFinite(v)) ? '–' : v.toFixed(d);
+
+// ---------------- state ----------------
+const PRESETS = {
+  'sym4 · 1 in': { angles: [0, 90, 180, 270], inputs: [0] },
+  'asym4 · 1 in': { angles: [0, 67, 151, 238], inputs: [0] },
+  'sym4 · 2 in (opposite)': { angles: [0, 90, 180, 270], inputs: [0, 2] },
+  'asym4 · 2 in': { angles: [0, 67, 151, 238], inputs: [0, 1] },
+  'sym4 · 4 in': { angles: [0, 90, 180, 270], inputs: [0, 1, 2, 3] },
+  'sym8 · 1 in': { angles: [0, 45, 90, 135, 180, 225, 270, 315], inputs: [0] },
+  'sym3 · 1 in': { angles: [0, 120, 240], inputs: [0] },
+};
+const S = {
+  cell: { radius: 1e-3, n_eff: 1.8, wavelength: 1.55e-6, reflectance: 0.99, reflection_phase: Math.PI,
+          detector: { distance: 100e-6, width: 400e-6, n_pix: 64 }, ports: [] },
+  preset: 'asym4 · 2 in', portW: 20e-6, launch: 20 * deg, fan: 23 * deg,
+  shapes: [
+    { x0: 250e-6, y0: 100e-6, R: 80e-6, dn: 1e-3, edge: 3e-6, a: [0, 0.06, 0.03, 0, 0, 0], b: [0, 0, 0, 0.02, 0, 0] },
+    { x0: -300e-6, y0: -220e-6, R: 60e-6, dn: 1e-3, edge: 3e-6, a: [0, 0, 0, 0, 0, 0], b: [0, 0.05, 0, 0, 0, 0] },
+  ],
+  sel: 0, mode: 'curved', nPos: 3, nAng: 61, waist: 5e-6, nShow: 12, density: true,
+  result: null, runs: [], scTarget: 'a2',
+};
+function applyPreset(name) {
+  const p = PRESETS[name]; if (!p) return;
+  S.preset = name;
+  S.cell.ports = p.angles.map((a, i) => ({ angle: a * deg, width: S.portW, role: p.inputs.includes(i) ? 'inout' : 'out', launch: S.launch, fan: S.fan, label: 'P' + i }));
+}
+applyPreset(S.preset);
+
+// ---------------- workers ----------------
+function workerMain() {
+  const N = self.NGRC;
+  const plain = f => { const o = {}; for (const k in f) o[k] = { re: Array.from(f[k].re), im: Array.from(f[k].im) }; return o; };
+  function corr(a, b) { let r = 0, i = 0, na = 0, nb = 0; for (let k = 0; k < a.re.length; k++) { r += a.re[k] * b.re[k] + a.im[k] * b.im[k]; i += a.re[k] * b.im[k] - a.im[k] * b.re[k]; na += a.re[k] ** 2 + a.im[k] ** 2; nb += b.re[k] ** 2 + b.im[k] ** 2; } return Math.hypot(r, i) / Math.sqrt(na * nb); }
+  function density(cell, chords, n) {
+    const H = new Float32Array(n * n), Rc = cell.radius; let mx = 0;
+    for (const ch of chords) for (let c = 0; c < ch.length; c += 5) {
+      const ns = Math.max(2, Math.ceil(ch[c + 4] / (2 * Rc / n) * 1.5));
+      for (let q = 0; q < ns; q++) {
+        const s = (q + 0.5) / ns * ch[c + 4], x = ch[c] + s * ch[c + 2], y = ch[c + 1] + s * ch[c + 3];
+        const ix = Math.floor((x + Rc) / (2 * Rc) * n), iy = Math.floor((y + Rc) / (2 * Rc) * n);
+        if (ix >= 0 && iy >= 0 && ix < n && iy < n) { const k = iy * n + ix; H[k] += ch[c + 4] / ns; if (H[k] > mx) mx = H[k]; }
+      }
+    }
+    for (let k = 0; k < H.length; k++) H[k] /= mx || 1;
+    return H;
+  }
+  let stop = false;
+  self.onmessage = ev => {
+    const m = ev.data;
+    if (m.type === 'stop') { stop = true; return; }
+    try {
+      if (m.type === 'explore') {
+        const t0 = Date.now(), cell = m.cell, shapes = m.shapes.map(N.makeShape);
+        const opt = { nPos: m.opt.nPos, nAng: m.opt.nAng, waist: m.opt.waist };
+        const inputs = cell.ports.map((p, i) => N.isIn(p) ? i : -1).filter(i => i >= 0);
+        const nR = opt.nPos * opt.nAng, want = [];
+        for (let k = 0; k < Math.min(m.nShow, nR); k++) want.push(Math.round(k * (nR - 1) / Math.max(1, Math.min(m.nShow, nR) - 1)));
+        const ref = {}, pert = {}, stats = [];
+        let paths = [], dens = null;
+        inputs.forEach((ip, idx) => {
+          const tr0 = N.trace(cell, ip, [], Object.assign({ mode: 'none', recordChords: idx === 0 && m.density, pathIds: idx === 0 && m.opt.mode !== 'curved' ? want : null }, opt));
+          const f0 = N.detectorFields(cell, tr0);
+          for (const o in f0) ref[ip + ',' + o] = f0[o];
+          if (idx === 0 && m.density) dens = density(cell, tr0.chords, 128);
+          let tr = tr0;
+          if (m.opt.mode === 'curved' && shapes.length) {
+            tr = N.trace(cell, ip, shapes, Object.assign({ mode: 'curved', pathIds: idx === 0 ? want : null }, opt));
+            const f = N.detectorFields(cell, tr); for (const o in f) pert[ip + ',' + o] = f[o];
+          }
+          if (idx === 0) paths = (m.opt.mode === 'curved' && shapes.length ? tr : tr0).paths.map(p => Array.from(p.pts));
+          const pw = cell.ports.map(() => 0); let nb = 0;
+          tr.exits.forEach(e => { pw[e.port] += e.amp * e.amp; nb += e.nb; });
+          stats.push({ port: ip, launched: tr.nLaunched, exits: tr.exits.length, lost: tr.lost, power: pw, meanBounces: tr.exits.length ? nb / tr.exits.length : 0 });
+        });
+        if (m.opt.mode === 'phase' && shapes.length) Object.assign(pert, new N.PhaseScreen(cell, opt).fields(shapes));
+        if (m.opt.mode === 'none' || !shapes.length) Object.assign(pert, ref);
+        const rho = {}; for (const k in ref) rho[k] = corr(ref[k], pert[k]);
+        self.postMessage({ type: 'explore', id: m.id, ref: plain(ref), pert: plain(pert), rho, paths, density: dens, stats, ms: Date.now() - t0 });
+      } else if (m.type === 'dataset') {
+        stop = false;
+        const t0 = Date.now(), cell = m.cell, d = m.ds, g = N.rng(d.seed), mMax = 6;
+        const opt = { nPos: 3, nAng: d.nAng, waist: 5e-6 };
+        const ps = d.mode === 'phase' ? new N.PhaseScreen(cell, opt) : null;
+        const ref = ps ? ps.fields([]) : N.curvedFields(cell, [], Object.assign({ mode: 'none' }, opt));
+        const X = [], Y = [];
+        for (let i = 0; i < d.N; i++) {
+          if (stop) { self.postMessage({ type: 'stopped', id: m.id }); return; }
+          const s = N.randomShape(g, cell.radius, { mMax, sigma: d.sigma, decay: 0.5, Rrange: [d.Rmin, d.Rmax], dnRange: [d.dn, d.dn], centre: d.centre, placeRadius: d.place });
+          const f = ps ? ps.fields([s]) : N.curvedFields(cell, [s], Object.assign({ mode: 'curved' }, opt));
+          X.push(N.stackRelative(f, ref));
+          const a = Array.from(s.a).slice(1, mMax), b = Array.from(s.b).slice(1, mMax);
+          Y.push([...a, ...b, ...a.map((v, k) => v * v + b[k] * b[k])]);
+          if ((i + 1) % 5 === 0 || i + 1 === d.N) self.postMessage({ type: 'progress', id: m.id, done: i + 1, total: d.N, ms: Date.now() - t0 });
+        }
+        self.postMessage({ type: 'progress', id: m.id, done: d.N, total: d.N, ms: Date.now() - t0, fitting: true });
+        const idx = [...Array(d.N).keys()], gg = N.rng(d.seed + 7);
+        for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(gg.uniform() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+        const nt = Math.round(0.25 * d.N), te = idx.slice(0, nt), tr = idx.slice(nt);
+        const Xtr = tr.map(i => X[i]), Ytr = tr.map(i => Y[i]), Xte = te.map(i => X[i]), Yte = te.map(i => Y[i]);
+        const alpha = N.ridgeCV(Xtr, Ytr, [1e-1, 1, 1e1, 1e2, 1e3, 1e4, 1e5], d.seed);
+        const P = N.ridgeFitPredict(Xtr, Ytr, Xte, alpha);
+        const r2 = N.r2(Yte, P), k = mMax - 1;
+        const r2ab = [...Array(k).keys()].map(i => (r2[i] + r2[k + i]) / 2), r2p = r2.slice(2 * k);
+        const names = [...Array(k).keys()].map(i => 'a' + (i + 2)).concat([...Array(k).keys()].map(i => 'b' + (i + 2)), [...Array(k).keys()].map(i => 'p' + (i + 2)));
+        self.postMessage({ type: 'dataset', id: m.id, r2, r2ab, r2p, names, alpha, nFeatures: X[0].length, Yte, P, ms: Date.now() - t0 });
+      }
+    } catch (err) { self.postMessage({ type: 'error', id: m.id, message: String(err && err.message || err) }); }
+  };
+}
+const engineSrc = document.getElementById('engine').textContent;
+function makeWorker() {
+  try {
+    const url = URL.createObjectURL(new Blob([engineSrc + '\n;(' + workerMain.toString() + ')();'], { type: 'text/javascript' }));
+    return new Worker(url);
+  } catch (e) { return null; }
+}
+// Fallback: run the worker body on the main thread when Workers are unavailable.
+function inlineWorker() {
+  const fake = { onmessage: null, postMessage(msg) { setTimeout(() => self_.onmessage({ data: msg }), 0); }, terminate() {} };
+  const self_ = { NGRC: E, postMessage: d => setTimeout(() => fake.onmessage && fake.onmessage({ data: d }), 0), onmessage: null };
+  new Function('self', '(' + workerMain.toString() + ')();').call(null, self_);
+  return fake;
+}
+let wExp = makeWorker() || inlineWorker();
+let wLab = makeWorker() || inlineWorker();
+
+// ---------------- explorer compute ----------------
+let reqId = 0, busy = false, pending = false, timer = null;
+function schedule(delay = 120) { clearTimeout(timer); timer = setTimeout(compute, delay); }
+function compute() {
+  if (busy) { pending = true; return; }
+  busy = true; pending = false;
+  const id = ++reqId;
+  $('status').textContent = S.mode === 'curved' ? 'tracing curved rays…' : 'tracing…';
+  wExp.postMessage({ type: 'explore', id, cell: S.cell, shapes: S.shapes, opt: { mode: S.mode, nPos: S.nPos, nAng: S.nAng, waist: S.waist }, nShow: S.nShow, density: S.density });
+}
+wExp.onmessage = ev => {
+  const m = ev.data; busy = false;
+  if (m.type === 'error') { $('status').textContent = 'error: ' + m.message; }
+  else if (m.type === 'explore') { S.result = m; drawCell(); drawSpeckle(); drawStats(); $('status').textContent = `${m.ms} ms`; }
+  if (pending) compute();
+};
+
+// ---------------- cell canvas ----------------
+const cv = $('cellCanvas'), ctx = cv.getContext('2d');
+let view = { scale: 1, cx: 0, cy: 0 };
+function worldExtent() { return S.cell.radius + S.cell.detector.distance + 70e-6; }
+function toPx(x, y) { return [view.cx + x * view.scale, view.cy - y * view.scale]; }
+function toWorld(px, py) { return [(px - view.cx) / view.scale, -(py - view.cy) / view.scale]; }
+function sizeCanvas() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.width * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  view.cx = r.width / 2; view.cy = r.width / 2; view.scale = r.width / 2 / worldExtent();
+}
+function shapePath(s, n = 180) {
+  const sh = E.makeShape(s), pts = [];
+  for (let k = 0; k <= n; k++) {
+    const th = 2 * Math.PI * k / n; let r = 0;
+    for (let i = 0; i < sh.M; i++) r += sh.a[i] * Math.cos((i + 1) * (th - sh.rotation)) + sh.b[i] * Math.sin((i + 1) * (th - sh.rotation));
+    r = sh.R * (1 + r); pts.push(toPx(sh.x0 + r * Math.cos(th), sh.y0 + r * Math.sin(th)));
+  }
+  return pts;
+}
+let densCanvas = null;
+function buildDensity() {
+  const d = S.result && S.result.density; if (!d) { densCanvas = null; return; }
+  const n = Math.round(Math.sqrt(d.length)), c = document.createElement('canvas'); c.width = c.height = n;
+  const g = c.getContext('2d'), img = g.createImageData(n, n);
+  const col = hex(css('--accent'));
+  for (let iy = 0; iy < n; iy++) for (let ix = 0; ix < n; ix++) {
+    const v = Math.pow(d[iy * n + ix], 0.5), k = ((n - 1 - iy) * n + ix) * 4;
+    img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = Math.round(150 * v);
+  }
+  g.putImageData(img, 0, 0); densCanvas = c;
+}
+function hex(h) { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function drawCell() {
+  sizeCanvas();
+  const W = cv.getBoundingClientRect().width, Rc = S.cell.radius;
+  ctx.clearRect(0, 0, W, W);
+  const [ox, oy] = toPx(0, 0), rpx = Rc * view.scale;
+  ctx.fillStyle = css('--slab'); ctx.beginPath(); ctx.arc(ox, oy, rpx, 0, 2 * Math.PI); ctx.fill();
+  if (S.density) { buildDensity(); if (densCanvas) { ctx.save(); ctx.beginPath(); ctx.arc(ox, oy, rpx, 0, 2 * Math.PI); ctx.clip(); ctx.imageSmoothingEnabled = true; ctx.drawImage(densCanvas, ox - rpx, oy - rpx, 2 * rpx, 2 * rpx); ctx.restore(); } }
+  // rays
+  if (S.result && S.result.paths) {
+    ctx.strokeStyle = css('--ray'); ctx.lineWidth = 0.7; ctx.globalAlpha = Math.max(0.1, Math.min(0.5, 4 / Math.max(1, S.result.paths.length)));
+    for (const pts of S.result.paths) {
+      ctx.beginPath();
+      for (let k = 0; k < pts.length; k += 2) { const [x, y] = toPx(pts[k], pts[k + 1]); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // shapes
+  const dnCol = css('--dn');
+  S.shapes.forEach((s, i) => {
+    const p = shapePath(s);
+    ctx.beginPath(); p.forEach(([x, y], k) => k ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+    ctx.globalAlpha = Math.min(0.85, 0.45 + Math.abs(s.dn) / 4e-3); ctx.fillStyle = dnCol; ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = i === S.sel ? css('--ink') : dnCol; ctx.lineWidth = i === S.sel ? 1.8 : 1.2; ctx.stroke();
+    if (i === S.sel) {
+      const [cx, cy] = toPx(s.x0, s.y0), b = E.makeShape(s).bound * view.scale;
+      ctx.setLineDash([3, 3]); ctx.strokeStyle = css('--muted'); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, b, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
+  // wall with gaps
+  const gaps = S.cell.ports.map(p => [p.angle, Math.asin(Math.min(1, p.width / (2 * Rc)))]).sort((a, b) => a[0] - b[0]);
+  ctx.strokeStyle = css('--wall'); ctx.lineWidth = 3; ctx.lineCap = 'butt';
+  const minHalf = 2.5 / rpx;
+  if (!gaps.length) { ctx.beginPath(); ctx.arc(ox, oy, rpx, 0, 2 * Math.PI); ctx.stroke(); }
+  gaps.forEach((g, i) => {
+    const nx = gaps[(i + 1) % gaps.length], a0 = g[0] + Math.max(g[1], minHalf), a1 = nx[0] - Math.max(nx[1], minHalf) + (i + 1 === gaps.length ? 2 * Math.PI : 0);
+    ctx.beginPath(); ctx.arc(ox, oy, rpx, -a0, -a1, true); ctx.stroke();
+  });
+  // ports, fans, detectors
+  ctx.font = '500 11px ' + css('--f-mono');
+  S.cell.ports.forEach((p, i) => {
+    const c = Math.cos(p.angle), s = Math.sin(p.angle);
+    const inp = E.isIn(p), out = E.isOut(p);
+    if (inp) {
+      const base = Math.atan2(-s, -c) + p.launch, L = 0.22 * Rc;
+      ctx.fillStyle = css('--ray'); ctx.globalAlpha = 0.18; ctx.beginPath();
+      const [px0, py0] = toPx(Rc * c, Rc * s); ctx.moveTo(px0, py0);
+      for (let k = 0; k <= 12; k++) { const a = base - p.fan / 2 + p.fan * k / 12; const [x, y] = toPx(Rc * c + L * Math.cos(a), Rc * s + L * Math.sin(a)); ctx.lineTo(x, y); }
+      ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = css('--ray'); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(px0, py0);
+      const [ex, ey] = toPx(Rc * c + L * Math.cos(base), Rc * s + L * Math.sin(base)); ctx.lineTo(ex, ey); ctx.stroke();
+    }
+    if (out) {
+      const pts = E.detectorPoints(S.cell, i), a = toPx(...pts[0]), b = toPx(...pts[pts.length - 1]);
+      ctx.strokeStyle = css('--det'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+    }
+    const [mx, my] = toPx(Rc * c, Rc * s);
+    ctx.fillStyle = inp ? css('--ray') : css('--accent'); ctx.beginPath(); ctx.arc(mx, my, 5, 0, 2 * Math.PI); ctx.fill();
+    ctx.strokeStyle = css('--panel'); ctx.lineWidth = 1.5; ctx.stroke();
+    const [lx, ly] = toPx((Rc + 0.07 * Rc + S.cell.detector.distance * 0.2) * c, (Rc + 0.07 * Rc) * s);
+    ctx.fillStyle = css('--ink'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('P' + i, lx, ly);
+  });
+  // scale bar
+  const bar = Rc >= 800e-6 ? 200e-6 : 100e-6, bpx = bar * view.scale, y0 = W - 14;
+  ctx.strokeStyle = css('--ink'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(12, y0); ctx.lineTo(12 + bpx, y0); ctx.stroke();
+  ctx.fillStyle = css('--muted'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(`${Math.round(bar * 1e6)} µm`, 12, y0 - 4);
+}
+
+// drag shapes and ports
+let drag = null;
+cv.addEventListener('pointerdown', ev => {
+  const r = cv.getBoundingClientRect(), [x, y] = toWorld(ev.clientX - r.left, ev.clientY - r.top), Rc = S.cell.radius;
+  let best = null;
+  S.cell.ports.forEach((p, i) => { const d = Math.hypot(x - Rc * Math.cos(p.angle), y - Rc * Math.sin(p.angle)) * view.scale; if (d < 14 && (!best || d < best.d)) best = { kind: 'port', i, d }; });
+  if (!best) S.shapes.forEach((s, i) => { const d = Math.hypot(x - s.x0, y - s.y0); if (d < Math.max(s.R, 25 / view.scale) && (!best || d < best.d)) best = { kind: 'shape', i, d, ox: x - s.x0, oy: y - s.y0 }; });
+  if (!best) return;
+  drag = best; cv.setPointerCapture(ev.pointerId);
+  if (best.kind === 'shape') { S.sel = best.i; syncShapeUI(); }
+});
+cv.addEventListener('pointermove', ev => {
+  if (!drag) return;
+  const r = cv.getBoundingClientRect(), [x, y] = toWorld(ev.clientX - r.left, ev.clientY - r.top);
+  if (drag.kind === 'port') { S.cell.ports[drag.i].angle = (Math.atan2(y, x) + 2 * Math.PI) % (2 * Math.PI); S.preset = 'custom'; syncPortUI(); }
+  else {
+    const s = S.shapes[drag.i], b = E.makeShape(s).bound;
+    let nx = x - drag.ox, ny = y - drag.oy; const lim = S.cell.radius - b - 5e-6, d = Math.hypot(nx, ny);
+    if (d > lim) { nx *= lim / d; ny *= lim / d; }
+    s.x0 = nx; s.y0 = ny; syncShapeUI(false);
+  }
+  drawCell();
+  if (S.mode === 'phase') schedule(60);
+});
+cv.addEventListener('pointerup', () => { if (drag) { drag = null; schedule(10); } });
+
+// ---------------- explorer UI ----------------
+function syncPortUI() {
+  $('preset').value = PRESETS[S.preset] ? S.preset : 'custom';
+  const tb = $('portRows'); tb.innerHTML = '';
+  S.cell.ports.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>P${i}</td><td><input id="pa${i}" type="number" step="1" value="${(p.angle / deg).toFixed(0)}"></td>
+      <td><select id="pr${i}"><option value="inout">in+out</option><option value="out">out</option><option value="in">in</option></select></td>
+      <td><input id="pl${i}" type="number" step="1" value="${(p.launch / deg).toFixed(0)}"></td>
+      <td><input id="pf${i}" type="number" step="1" min="0" value="${(p.fan / deg).toFixed(0)}"></td>
+      <td><button class="btn" id="px${i}" aria-label="Remove port P${i}" style="padding:2px 7px">×</button></td>`;
+    tb.appendChild(tr);
+    $('pr' + i).value = p.role;
+    const upd = () => { p.angle = (+$('pa' + i).value) * deg; p.role = $('pr' + i).value; p.launch = (+$('pl' + i).value) * deg; p.fan = Math.max(0, +$('pf' + i).value) * deg; S.preset = 'custom'; $('preset').value = 'custom'; drawCell(); schedule(); };
+    ['pa', 'pr', 'pl', 'pf'].forEach(k => $(k + i).addEventListener('change', upd));
+    $('px' + i).addEventListener('click', () => { if (S.cell.ports.length > 1) { S.cell.ports.splice(i, 1); S.preset = 'custom'; syncPortUI(); drawCell(); schedule(); } });
+  });
+}
+function presetOptions() {
+  const sel = $('preset'); sel.innerHTML = '';
+  [...Object.keys(PRESETS), 'custom'].forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o); });
+}
+const HARM_M = [2, 3, 4, 5, 6];
+function buildHarmSliders() {
+  const box = $('harmSliders'); box.innerHTML = '';
+  for (const m of HARM_M) for (const c of ['a', 'b']) {
+    const l = document.createElement('label'); l.className = 'f';
+    l.style.cssText = 'display:grid;grid-template-columns:34px 1fr 52px;align-items:center;gap:6px';
+    l.innerHTML = `<span style="font-family:var(--f-mono)">${c}<sub>${m}</sub></span><input type="range" id="h${c}${m}" min="-0.15" max="0.15" step="0.005"><span class="stats" id="h${c}${m}v"></span>`;
+    box.appendChild(l);
+    $('h' + c + m).addEventListener('input', () => {
+      const s = S.shapes[S.sel]; if (!s) return; const arr = s[c]; while (arr.length < m) arr.push(0);
+      arr[m - 1] = +$('h' + c + m).value; $('h' + c + m + 'v').textContent = (+arr[m - 1]).toFixed(3);
+      clampShape(s); drawCell(); drawCHD(); schedule(S.mode === 'phase' ? 80 : 250);
+    });
+  }
+}
+function clampShape(s) {
+  const b = E.makeShape(s).bound, lim = S.cell.radius - b - 5e-6, d = Math.hypot(s.x0, s.y0);
+  if (lim <= 0) { s.R = Math.max(5e-6, s.R * 0.5); return clampShape(s); }
+  if (d > lim) { s.x0 *= lim / d; s.y0 *= lim / d; }
+}
+function syncShapeUI(full = true) {
+  const sel = $('shapeSel'); sel.innerHTML = '';
+  S.shapes.forEach((s, i) => { const o = document.createElement('option'); o.value = i; o.textContent = `Dot ${i + 1}`; sel.appendChild(o); });
+  sel.value = S.sel;
+  const s = S.shapes[S.sel];
+  ['sx', 'sy', 'sR', 'sdn', 'sedge'].forEach(id => $(id).disabled = !s);
+  if (!s) { drawCHD(); return; }
+  $('sx').value = (s.x0 * 1e6).toFixed(0); $('sy').value = (s.y0 * 1e6).toFixed(0); $('sR').value = (s.R * 1e6).toFixed(0);
+  $('sdn').value = (s.dn * 1e3).toFixed(2); $('sedge').value = (s.edge * 1e6).toFixed(1);
+  if (full) for (const m of HARM_M) for (const c of ['a', 'b']) { const v = s[c][m - 1] || 0; $('h' + c + m).value = v; $('h' + c + m + 'v').textContent = v.toFixed(3); }
+  if (full) drawCHD();
+}
+function bindExplorer() {
+  presetOptions(); syncPortUI(); buildHarmSliders(); syncShapeUI();
+  $('preset').addEventListener('change', () => { if (PRESETS[$('preset').value]) { applyPreset($('preset').value); syncPortUI(); drawCell(); schedule(); } });
+  $('portW').addEventListener('change', () => { S.portW = Math.max(2, +$('portW').value) * 1e-6; S.cell.ports.forEach(p => p.width = S.portW); drawCell(); schedule(); });
+  $('launchAll').addEventListener('change', () => { S.launch = (+$('launchAll').value) * deg; S.cell.ports.forEach(p => { if (E.isIn(p)) p.launch = S.launch; }); syncPortUI(); drawCell(); schedule(); });
+  $('fanAll').addEventListener('change', () => { S.fan = Math.max(0, +$('fanAll').value) * deg; S.cell.ports.forEach(p => { if (E.isIn(p)) p.fan = S.fan; }); syncPortUI(); drawCell(); schedule(); });
+  $('addPort').addEventListener('click', () => {
+    const used = S.cell.ports.map(p => p.angle).sort((a, b) => a - b); let best = 0, gap = -1;
+    used.forEach((a, i) => { const nx = i + 1 < used.length ? used[i + 1] : used[0] + 2 * Math.PI; if (nx - a > gap) { gap = nx - a; best = a + gap / 2; } });
+    S.cell.ports.push({ angle: best % (2 * Math.PI), width: S.portW, role: 'out', launch: S.launch, fan: S.fan, label: '' });
+    S.preset = 'custom'; syncPortUI(); drawCell(); schedule();
+  });
+  const cellIn = () => {
+    S.cell.radius = Math.max(200, +$('radius').value) * 1e-6; S.cell.n_eff = +$('neff').value; S.cell.wavelength = (+$('lambda').value) * 1e-9;
+    S.cell.reflectance = Math.min(1, Math.max(0, +$('Rwall').value / 100)); S.shapes.forEach(clampShape); drawCell(); schedule();
+  };
+  ['radius', 'neff', 'lambda', 'Rwall'].forEach(id => $(id).addEventListener('change', cellIn));
+  const rayIn = () => { S.mode = $('mode').value; S.waist = Math.max(1, +$('waist').value) * 1e-6; S.nPos = Math.max(1, Math.round(+$('nPos').value)); S.nAng = Math.max(1, Math.round(+$('nAng').value)); schedule(); };
+  ['mode', 'waist', 'nPos', 'nAng'].forEach(id => $(id).addEventListener('change', rayIn));
+  $('nShow').addEventListener('input', () => { S.nShow = +$('nShow').value; $('nShowV').textContent = S.nShow; schedule(150); });
+  $('density').addEventListener('change', () => { S.density = $('density').checked; S.density ? schedule() : drawCell(); });
+  $('shapeSel').addEventListener('change', () => { S.sel = +$('shapeSel').value; syncShapeUI(); drawCell(); });
+  const shapeIn = () => {
+    const s = S.shapes[S.sel]; if (!s) return;
+    s.x0 = +$('sx').value * 1e-6; s.y0 = +$('sy').value * 1e-6; s.R = Math.max(5, +$('sR').value) * 1e-6;
+    s.dn = +$('sdn').value * 1e-3; s.edge = Math.max(0.5, +$('sedge').value) * 1e-6; clampShape(s); syncShapeUI(false); drawCell(); drawCHD(); schedule();
+  };
+  ['sx', 'sy', 'sR', 'sdn', 'sedge'].forEach(id => $(id).addEventListener('change', shapeIn));
+  const g = E.rng(12345);
+  const rnd = (keepPos) => {
+    const s0 = S.shapes[S.sel];
+    const r = E.randomShape(g, S.cell.radius, { mMax: 6, sigma: 0.08, decay: 0.5, centre: keepPos && s0 ? [s0.x0, s0.y0] : null, placeRadius: 0.6 * S.cell.radius });
+    return { x0: r.x0, y0: r.y0, R: r.R, dn: r.dn, edge: r.edge, a: Array.from(r.a), b: Array.from(r.b) };
+  };
+  $('addShape').addEventListener('click', () => { S.shapes.push(rnd(false)); S.sel = S.shapes.length - 1; clampShape(S.shapes[S.sel]); syncShapeUI(); drawCell(); schedule(); });
+  $('delShape').addEventListener('click', () => { if (!S.shapes.length) return; S.shapes.splice(S.sel, 1); S.sel = Math.max(0, S.sel - 1); syncShapeUI(); drawCell(); schedule(); });
+  $('randShape').addEventListener('click', () => { if (!S.shapes[S.sel]) return; const s = rnd(true); S.shapes[S.sel] = Object.assign(S.shapes[S.sel], { a: s.a, b: s.b, R: s.R }); clampShape(S.shapes[S.sel]); syncShapeUI(); drawCell(); schedule(); });
+  $('imgBtn').addEventListener('click', () => $('imgFile').click());
+  $('imgFile').addEventListener('change', ev => { const f = ev.target.files[0]; if (f) importImage(f); ev.target.value = ''; });
+}
+
+// image → contour CHD → shape
+function importImage(file) {
+  const img = new Image(), url = URL.createObjectURL(file);
+  img.onload = () => {
+    const n = 256, sc = n / Math.max(img.width, img.height), w = Math.max(8, Math.round(img.width * sc)), h = Math.max(8, Math.round(img.height * sc));
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+    g.drawImage(img, 0, 0, w, h); const d = g.getImageData(0, 0, w, h).data;
+    const grey = new Float32Array(w * h); let mn = 1, mx = 0, border = 0, nb = 0;
+    for (let i = 0; i < w * h; i++) { const a = d[4 * i + 3] / 255; grey[i] = ((d[4 * i] + d[4 * i + 1] + d[4 * i + 2]) / 765) * a + (1 - a); mn = Math.min(mn, grey[i]); mx = Math.max(mx, grey[i]); }
+    for (let x = 0; x < w; x++) { border += grey[x] + grey[(h - 1) * w + x]; nb += 2; }
+    for (let y = 0; y < h; y++) { border += grey[y * w] + grey[y * w + w - 1]; nb += 2; }
+    const invert = border / nb > (mn + mx) / 2, thr = (mn + mx) / 2;
+    const mask = new Float32Array(w * h); for (let i = 0; i < w * h; i++) mask[i] = (invert ? grey[i] < thr : grey[i] > thr) ? 1 : 0;
+    const val = (x, y) => {   // bilinear, y up
+      const fx = x, fy = h - 1 - y; const ix = Math.floor(fx), iy = Math.floor(fy);
+      if (ix < 0 || iy < 0 || ix >= w - 1 || iy >= h - 1) return 0;
+      const tx = fx - ix, ty = fy - iy, k = iy * w + ix;
+      return mask[k] * (1 - tx) * (1 - ty) + mask[k + 1] * tx * (1 - ty) + mask[k + w] * (1 - tx) * ty + mask[k + w + 1] * tx * ty;
+    };
+    const fit = E.chdContour(val, w / 2, h / 2, Math.max(w, h) / 2 * 1.42, 10, 256, 400, 0.5);
+    if (!(fit.R0 > 1)) { $('imgNote').textContent = 'No blob found in that image. Use a single dark or light shape on a plain background.'; return; }
+    const um = Math.max(20, +$('imgW').value) * 1e-6 / w, s0 = S.shapes[S.sel];
+    const shape = { x0: s0 ? s0.x0 : 0.3 * S.cell.radius, y0: s0 ? s0.y0 : 0, R: fit.R0 * um, dn: s0 ? s0.dn : 1e-3, edge: 3e-6,
+      a: [0, ...fit.a.slice(1)], b: [0, ...fit.b.slice(1)] };
+    S.shapes.push(shape); S.sel = S.shapes.length - 1; clampShape(shape); syncShapeUI(); drawCell(); schedule();
+    $('imgNote').textContent = `Inserted "${file.name}": R₀ = ${(shape.R * 1e6).toFixed(0)} µm, contour fitted up to m = 10 (largest |c_m| at m = ${1 + fit.a.reduce((bi, v, i) => Math.hypot(v, fit.b[i]) > Math.hypot(fit.a[bi], fit.b[bi]) && i > 0 ? i : bi, 1)}).`;
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { $('imgNote').textContent = 'That file could not be read as an image.'; };
+  img.src = url;
+}
+
+// ---------------- charts (SVG) ----------------
+const tip = $('tip');
+document.addEventListener('pointerover', ev => { const t = ev.target.closest && ev.target.closest('[data-tip]'); if (t) { tip.textContent = t.getAttribute('data-tip'); tip.hidden = false; } });
+document.addEventListener('pointermove', ev => { if (!tip.hidden) { const x = Math.min(ev.clientX + 12, window.innerWidth - tip.offsetWidth - 8); tip.style.left = x + 'px'; tip.style.top = (ev.clientY + 14) + 'px'; } });
+document.addEventListener('pointerout', ev => { const t = ev.target.closest && ev.target.closest('[data-tip]'); if (t) tip.hidden = true; });
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+function niceTicks(lo, hi, n = 4) {
+  const span = hi - lo || 1, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(f => f * mag).find(s => s >= step0) || mag * 10;
+  const t = []; for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) t.push(+v.toFixed(10)); return t;
+}
+function lineChart(el, o) {
+  const W = o.width || 420, H = o.height || 220, m = { l: 44, r: 12, t: 10, b: 34 };
+  const xs = o.x, xl = o.xlog ? xs.map(Math.log10) : xs;
+  const x0 = Math.min(...xl), x1 = Math.max(...xl);
+  const all = o.series.flatMap(s => s.y.filter(isFinite));
+  let y0 = o.ylim ? o.ylim[0] : Math.min(0, ...all), y1 = o.ylim ? o.ylim[1] : Math.max(...all) * 1.08 || 1;
+  const X = v => m.l + (v - x0) / (x1 - x0 || 1) * (W - m.l - m.r), Y = v => H - m.b - (v - y0) / (y1 - y0 || 1) * (H - m.t - m.b);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(o.label || '')}">`;
+  for (const t of niceTicks(y0, y1)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--gridline)"/><text x="${m.l - 6}" y="${Y(t) + 3.5}" text-anchor="end">${t}</text>`;
+  const xt = o.xticks || (o.xlog ? xs : niceTicks(x0, x1, 5));
+  for (const t of xt) { const v = o.xlog ? Math.log10(t) : t; s += `<text x="${X(v)}" y="${H - m.b + 15}" text-anchor="middle">${o.xfmt ? o.xfmt(t) : t}</text>`; }
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" stroke="var(--line)"/>`;
+  if (o.xlabel) s += `<text x="${(m.l + W - m.r) / 2}" y="${H - 4}" text-anchor="middle">${esc(o.xlabel)}</text>`;
+  o.series.forEach(se => {
+    const pts = xl.map((v, i) => isFinite(se.y[i]) ? `${X(v).toFixed(1)},${Y(se.y[i]).toFixed(1)}` : null).filter(Boolean);
+    s += `<polyline fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" points="${pts.join(' ')}"${se.dash ? ' stroke-dasharray="4 3"' : ''}/>`;
+    if (!se.noDots) xl.forEach((v, i) => { if (!isFinite(se.y[i])) return; s += `<circle cx="${X(v)}" cy="${Y(se.y[i])}" r="3.5" fill="${se.color}" stroke="var(--panel)" stroke-width="1.5"/><circle cx="${X(v)}" cy="${Y(se.y[i])}" r="9" fill="transparent" data-tip="${esc(se.name)}\n${o.xname || 'x'} = ${o.xfmt ? o.xfmt(xs[i]) : xs[i]}\n${o.yname || 'y'} = ${fmt(se.y[i], 3)}"/>`; });
+  });
+  s += '</svg>';
+  el.innerHTML = s + legend(o.series);
+}
+function legend(series) { return series.length > 1 ? `<div class="legend">${series.map(se => `<span><i style="background:${se.color}"></i>${esc(se.name)}</span>`).join('')}</div>` : ''; }
+function barChart(el, o) {
+  const W = o.width || 420, H = o.height || 220, m = { l: 40, r: 10, t: 10, b: 30 };
+  const nC = o.cats.length, nS = o.series.length;
+  const all = o.series.flatMap(s => s.y.filter(isFinite));
+  const y0 = o.ylim ? o.ylim[0] : Math.min(0, ...all), y1 = o.ylim ? o.ylim[1] : Math.max(0.01, ...all) * 1.1;
+  const Y = v => H - m.b - (Math.max(y0, Math.min(y1, v)) - y0) / (y1 - y0) * (H - m.t - m.b);
+  const gw = (W - m.l - m.r) / nC, bw = Math.max(3, Math.min(22, (gw - 10) / nS - 2));
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(o.label || '')}">`;
+  for (const t of niceTicks(y0, y1)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="${t === 0 ? 'var(--line)' : 'var(--gridline)'}"/><text x="${m.l - 6}" y="${Y(t) + 3.5}" text-anchor="end">${t}</text>`;
+  o.cats.forEach((c, i) => {
+    const gx = m.l + i * gw + (gw - nS * (bw + 2)) / 2;
+    s += `<text x="${m.l + (i + 0.5) * gw}" y="${H - m.b + 15}" text-anchor="middle">${esc(c)}</text>`;
+    o.series.forEach((se, j) => {
+      const v = se.y[i]; if (!isFinite(v)) return;
+      const top = Y(Math.max(v, 0)), bot = Y(Math.min(v, 0)), x = gx + j * (bw + 2);
+      const hgt = Math.max(1, bot - top);
+      s += `<rect x="${x}" y="${top}" width="${bw}" height="${hgt}" rx="2" fill="${se.color}"/>`;
+      s += `<rect x="${x - 1}" y="${m.t}" width="${bw + 2}" height="${H - m.t - m.b}" fill="transparent" data-tip="${esc(se.name)}\n${esc(o.catName || '')} ${esc(c)}\n${o.yname || 'value'} = ${fmt(v, 3)}${v < y0 ? ' (below axis)' : ''}"/>`;
+    });
+  });
+  s += '</svg>';
+  el.innerHTML = s + legend(o.series);
+}
+function scatter(el, o) {
+  const W = 420, H = 260, m = { l: 48, r: 12, t: 10, b: 34 };
+  const all = o.x.concat(o.y), lo = Math.min(...all), hi = Math.max(...all), pad = (hi - lo) * 0.06 || 0.01;
+  const a = lo - pad, b = hi + pad, X = v => m.l + (v - a) / (b - a) * (W - m.l - m.r), Y = v => H - m.b - (v - a) / (b - a) * (H - m.t - m.b);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="predicted vs true">`;
+  for (const t of niceTicks(a, b)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--gridline)"/><text x="${m.l - 6}" y="${Y(t) + 3.5}" text-anchor="end">${t}</text><text x="${X(t)}" y="${H - m.b + 15}" text-anchor="middle">${t}</text>`;
+  s += `<line x1="${X(a)}" y1="${Y(a)}" x2="${X(b)}" y2="${Y(b)}" stroke="var(--faint)" stroke-dasharray="4 3"/>`;
+  o.x.forEach((v, i) => s += `<circle cx="${X(v)}" cy="${Y(o.y[i])}" r="4" fill="var(--s1)" fill-opacity=".75" stroke="var(--panel)" stroke-width="1" data-tip="true ${fmt(v, 4)}\npredicted ${fmt(o.y[i], 4)}"/>`);
+  s += `<text x="${(m.l + W - m.r) / 2}" y="${H - 4}" text-anchor="middle">true ${esc(o.name)}</text></svg>`;
+  el.innerHTML = s;
+}
+
+// ---------------- explorer outputs ----------------
+function drawSpeckle() {
+  const r = S.result; if (!r) return;
+  const box = $('speckle'); box.innerHTML = '';
+  for (const k of Object.keys(r.ref).sort()) {
+    const [i, o] = k.split(','), f0 = r.ref[k], f = r.pert[k];
+    const I0 = f0.re.map((v, j) => v * v + f0.im[j] ** 2), I = f.re.map((v, j) => v * v + f.im[j] ** 2);
+    const mean = I0.reduce((p, q) => p + q, 0) / I0.length || 1;
+    const fig = document.createElement('figure');
+    fig.innerHTML = `<figcaption><span>P${i} → P${o}</span><b>ρ = ${fmt(r.rho[k], 3)}</b></figcaption><div></div>`;
+    box.appendChild(fig);
+    const x = I0.map((_, j) => j);
+    lineChart(fig.lastChild, { x, width: 260, height: 120, series: [
+      { name: 'no dots', y: I0.map(v => v / mean), color: 'var(--faint)', noDots: true },
+      { name: 'with dots', y: I.map(v => v / mean), color: 'var(--s1)', noDots: true }], xticks: [0, 32, 63], label: `speckle P${i} to P${o}` });
+    fig.querySelector('.legend') && fig.querySelector('.legend').remove();
+  }
+}
+function drawStats() {
+  const r = S.result; if (!r) return;
+  $('stats').innerHTML = r.stats.map(s => {
+    const tot = s.power.reduce((a, b) => a + b, 0);
+    return `P${s.port} in: <b>${s.launched}</b> rays, <b>${s.exits}</b> exit, mean <b>${s.meanBounces.toFixed(0)}</b> bounces, power out ${s.power.map((p, i) => `P${i} <b>${(100 * p).toFixed(0)}%</b>`).join(' ')} (wall loss ${(100 * (1 - tot)).toFixed(0)}%)`;
+  }).join('<br>');
+}
+function drawCHD() {
+  const s = S.shapes[S.sel];
+  if (!s) { $('chdChart').innerHTML = '<p class="note">Add a dot to see its harmonics.</p>'; $('chdTable').innerHTML = ''; return; }
+  const sh = E.makeShape(s), mMax = 8;
+  const tru = E.chdShape(sh, mMax);
+  const meas = E.chdContour((x, y) => E.shapeValue(sh, x, y), sh.x0, sh.y0, sh.bound, mMax, 192, 300);
+  const cats = [], t = [], mm = [];
+  for (let m = 2; m <= mMax; m++) { cats.push('m=' + m); t.push(Math.hypot(tru.a[m - 1], tru.b[m - 1])); mm.push(Math.hypot(meas.a[m - 1], meas.b[m - 1])); }
+  barChart($('chdChart'), { cats, catName: '', yname: '|c_m|', height: 170, series: [{ name: 'defined contour', y: t, color: 'var(--s7)' }, { name: 'measured from the Δn map', y: mm, color: 'var(--s3)' }], label: 'CHD of the selected dot' });
+  let h = '<thead><tr><th>m</th>' + cats.map((c, i) => `<th class="num">${i + 2}</th>`).join('') + '</tr></thead><tbody>';
+  h += '<tr><td>a<sub>m</sub></td>' + cats.map((c, i) => `<td class="num">${fmt(tru.a[i + 1], 3)}</td>`).join('') + '</tr>';
+  h += '<tr><td>b<sub>m</sub></td>' + cats.map((c, i) => `<td class="num">${fmt(tru.b[i + 1], 3)}</td>`).join('') + '</tr></tbody>';
+  $('chdTable').innerHTML = h;
+}
+
+// ---------------- readout lab ----------------
+const RUNCOL = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s7)'];
+let labQueue = [], labBusy = false, labId = 0;
+function dsParams(cell) {
+  const s0 = S.shapes[S.sel] || { x0: 0.25e-3, y0: 0.1e-3 };
+  return { N: Math.max(40, Math.round(+$('dsN').value)), mode: $('dsMode').value, seed: Math.round(+$('dsSeed').value),
+    centre: $('dsPos').value === 'fixed' ? [s0.x0, s0.y0] : null, place: Math.max(0, +$('dsPlace').value) * 1e-6,
+    dn: +$('dsDn').value * 1e-3, sigma: +$('dsSigma').value, Rmin: +$('dsRmin').value * 1e-6, Rmax: Math.max(+$('dsRmin').value, +$('dsRmax').value) * 1e-6,
+    nAng: Math.max(5, Math.round(+$('dsAng').value)) };
+}
+function runLab(list) {
+  labQueue = list; $('dsRun').disabled = $('dsRunAll').disabled = true; $('dsStop').disabled = false; nextLab();
+}
+function nextLab() {
+  const job = labQueue.shift();
+  if (!job) { labBusy = false; $('dsRun').disabled = $('dsRunAll').disabled = false; $('dsStop').disabled = true; return; }
+  labBusy = true; job.id = ++labId; S.currentJob = job;
+  $('dsStatus').textContent = `${job.name}: generating ${job.ds.N} samples…`;
+  wLab.postMessage({ type: 'dataset', id: job.id, cell: job.cell, ds: job.ds });
+}
+wLab.onmessage = ev => {
+  const m = ev.data, job = S.currentJob;
+  if (m.type === 'progress') { $('dsBar').style.width = (100 * m.done / m.total) + '%'; $('dsStatus').textContent = m.fitting ? `${job.name}: fitting the ridge readout…` : `${job.name}: ${m.done}/${m.total} samples, ${(m.ms / 1000).toFixed(1)} s`; }
+  else if (m.type === 'dataset') {
+    S.runs.push({ name: job.name, ds: job.ds, nIn: job.cell.ports.filter(E.isIn).length, nOut: job.cell.ports.filter(E.isOut).length, ...m });
+    $('dsStatus').textContent = `${job.name}: done in ${(m.ms / 1000).toFixed(1)} s, ${m.nFeatures} features, α = ${m.alpha}`;
+    drawLab(); nextLab();
+  } else if (m.type === 'stopped') { $('dsStatus').textContent = 'Stopped.'; labQueue = []; nextLab(); }
+  else if (m.type === 'error') { $('dsStatus').textContent = 'Error: ' + m.message; labQueue = []; nextLab(); }
+};
+function drawLab() {
+  const runs = S.runs.slice(-4);
+  if (!runs.length) {
+    $('labAB').innerHTML = $('labP').innerHTML = $('labScatter').innerHTML = '<p class="note">No runs yet. Pick dataset settings and press Run. A 240-sample phase-screen run takes a few seconds.</p>';
+    $('runTable').innerHTML = ''; return;
+  }
+  const cats = ['m=2', 'm=3', 'm=4', 'm=5', 'm=6'];
+  const ser = (key) => runs.map((r, i) => ({ name: `#${S.runs.length - runs.length + i + 1} ${r.name}`, y: r[key], color: RUNCOL[i] }));
+  barChart($('labAB'), { cats, yname: 'R²', ylim: [-0.2, 1], series: ser('r2ab'), label: 'R² of a_m and b_m' });
+  barChart($('labP'), { cats, yname: 'R²', ylim: [-0.2, 1], series: ser('r2p'), label: 'R² of p_m' });
+  const last = S.runs[S.runs.length - 1];
+  const seg = $('scSel'); seg.innerHTML = '';
+  ['a2', 'b2', 'a3', 'a4', 'p2'].forEach(t => { const b = document.createElement('button'); b.textContent = t; b.setAttribute('aria-pressed', S.scTarget === t); b.onclick = () => { S.scTarget = t; drawLab(); }; seg.appendChild(b); });
+  const j = last.names.indexOf(S.scTarget);
+  scatter($('labScatter'), { x: last.Yte.map(r => r[j]), y: last.P.map(r => r[j]), name: S.scTarget });
+  let h = '<thead><tr><th>#</th><th>Layout</th><th>Engine</th><th>Position</th><th class="num">N</th><th class="num">Features</th>' + cats.map(c => `<th class="num">R² ${c}</th>`).join('') + '<th class="num">s</th></tr></thead><tbody>';
+  S.runs.forEach((r, i) => { h += `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.ds.mode}</td><td>${r.ds.centre ? 'fixed' : 'random'}</td><td class="num">${r.ds.N}</td><td class="num">${r.nFeatures}</td>${r.r2ab.map(v => `<td class="num">${fmt(v, 2)}</td>`).join('')}<td class="num">${(r.ms / 1000).toFixed(1)}</td></tr>`; });
+  $('runTable').innerHTML = h + '</tbody>';
+}
+function bindLab() {
+  $('dsRun').addEventListener('click', () => runLab([{ name: PRESETS[S.preset] ? S.preset : 'custom layout', cell: JSON.parse(JSON.stringify(S.cell)), ds: dsParams() }]));
+  $('dsRunAll').addEventListener('click', () => runLab(Object.keys(PRESETS).map(name => {
+    const p = PRESETS[name], cell = JSON.parse(JSON.stringify(S.cell));
+    cell.ports = p.angles.map((a, i) => ({ angle: a * deg, width: S.portW, role: p.inputs.includes(i) ? 'inout' : 'out', launch: S.launch, fan: S.fan }));
+    return { name, cell, ds: dsParams() };
+  })));
+  $('dsStop').addEventListener('click', () => { labQueue = []; wLab.postMessage({ type: 'stop' }); });
+  drawLab();
+}
+
+// ---------------- progress ----------------
+function drawProgress() {
+  // tasks
+  const groups = {}; TASKS.forEach(t => (groups[t.section] = groups[t.section] || []).push(t));
+  const cnt = s => TASKS.filter(t => t.status === s).length;
+  $('taskKpis').innerHTML = `<span><b>${cnt('done')}</b>done</span><span><b>${cnt('part')}</b>in progress</span><span><b>${cnt('todo')}</b>to do</span>` +
+    (PROGRESS && PROGRESS.tests ? `<span><b style="color:${PROGRESS.tests.ok ? 'var(--good)' : 'var(--s8)'}">${PROGRESS.tests.ok ? '✓' : '✗'}</b>pytest: ${esc(PROGRESS.tests.summary)}</span>` : '');
+  const lbl = { done: 'done', part: 'partial', todo: 'to do' };
+  $('taskList').innerHTML = Object.entries(groups).map(([sec, ts]) => `<h3>${esc(sec)}</h3><ul class="tasks">${ts.map(t => `<li><code>${esc(t.id)}</code><span>${esc(t.title)}${t.note ? `<br><span class="note">${esc(t.note)}</span>` : ''}</span><span class="pill ${t.status}">${lbl[t.status]}</span></li>`).join('')}</ul>`).join('');
+  if (!PROGRESS) { $('pyMeta').textContent = 'No Python results embedded yet.'; return; }
+  const P = PROGRESS, mc = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s7)'];
+  $('pyMeta').innerHTML = `Run ${esc(P.meta.date)}${P.meta.quick ? ' (quick mode, small samples)' : ''}, ${Math.round(P.meta.runtime_s)} s. Circular cell R<sub>c</sub> = ${P.meta.cell.radius * 1e6} µm, n<sub>eff</sub> = ${P.meta.cell.n_eff}, λ = ${P.meta.cell.wavelength * 1e9} nm, wall R = ${P.meta.cell.R}, ports ${P.meta.cell.port_width * 1e6} µm wide, ${P.meta.source.n_pos} × ${P.meta.source.n_ang} rays per input. All runs use the phase-screen engine except E4.`;
+  if (P.E1) {
+    lineChart($('e1chart'), { x: P.E1.launch.map(v => +(v / deg).toFixed(1)), xname: 'launch °', yname: 'S_m', xlabel: 'launch angle (°)', series: P.meta.m.map((m, k) => ({ name: 'm = ' + m, y: P.E1.S.map(r => r[k]), color: mc[k] })), label: 'sensitivity vs launch angle' });
+    const occ = $('e1occ'); occ.innerHTML = '';
+    Object.entries(P.E1.occupancy).forEach(([la, grid]) => {
+      const f = document.createElement('figure'); const c = document.createElement('canvas'); const n = grid.length; c.width = c.height = n;
+      const g = c.getContext('2d'), img = g.createImageData(n, n), col = hex(css('--accent')), bg = hex(css('--slab'));
+      for (let iy = 0; iy < n; iy++) for (let ix = 0; ix < n; ix++) { const v = Math.sqrt(grid[iy][ix]), k = ((n - 1 - iy) * n + ix) * 4, inside = Math.hypot(ix - n / 2 + .5, iy - n / 2 + .5) < n / 2; for (let q = 0; q < 3; q++) img.data[k + q] = Math.round(bg[q] + (col[q] - bg[q]) * v); img.data[k + 3] = inside ? 255 : 0; }
+      g.putImageData(img, 0, 0); f.appendChild(c);
+      const cap = document.createElement('figcaption'); cap.textContent = `launch ${(+la / deg).toFixed(0)}°`; f.appendChild(cap); occ.appendChild(f);
+    });
+  }
+  if (P.E2) {
+    const cell = v => { const a = Math.max(0, Math.min(1, v)); return `<td class="heat" style="background:color-mix(in srgb, var(--s1) ${Math.round(a * 55)}%, transparent)">${fmt(v, 2)}</td>`; };
+    let h = `<thead><tr><th>Layout</th><th class="num">features</th><th class="num">mean S</th>${P.meta.m.map(m => `<th class="num">R² m=${m}</th>`).join('')}</tr></thead><tbody>`;
+    P.E2.layouts.forEach(L => { h += `<tr><td>${esc(L.name)}</td><td class="num">${L.n_features}</td><td class="num">${fmt(L.S.reduce((a, b) => a + b, 0) / L.S.length, 2)}</td>${L.r2_ab.map(cell).join('')}</tr>`; });
+    $('e2table').innerHTML = h + '</tbody>';
+    $('e2note').innerHTML = `Ridge readout of a<sub>m</sub>, b<sub>m</sub> (R² averaged over the pair) from ${P.E2.N} random dots at one fixed position; S is the mean sensitivity of E1 for each layout. Launch 20°, fan ±11.5°.`;
+  }
+  if (P.E3) {
+    const seg = $('e3sel'); seg.innerHTML = '';
+    const show = (ci) => {
+      [...seg.children].forEach((b, i) => b.setAttribute('aria-pressed', i === ci));
+      const C = P.E3.cases[ci], names = Object.keys(C.r2_ab), cols = ['var(--s1)', 'var(--s3)', 'var(--s4)', 'var(--s2)', 'var(--faint)', 'var(--s5)'];
+      barChart($('e3chart'), { cats: P.meta.m.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: names.map((n, i) => ({ name: n, y: C.r2_ab[n], color: cols[i % cols.length] })), label: 'readouts' });
+      $('e3svc').innerHTML = `${P.E3.N} samples, ${C.n_features} speckle features (asym4 · 2 in). Dominant-order classification (SVC): linear ${fmt(C.svc.linear.accuracy * 100, 0)}%, RBF ${fmt(C.svc.rbf.accuracy * 100, 0)}%, RBF on the raw image ${fmt(C.svc.image_rbf.accuracy * 100, 0)}% (majority class ${fmt(C.svc.rbf.chance * 100, 0)}%).`;
+    };
+    P.E3.cases.forEach((C, i) => { const b = document.createElement('button'); b.textContent = C.name; b.onclick = () => show(i); seg.appendChild(b); });
+    show(0);
+  }
+  if (P.E4) {
+    const xs = P.E4.dn_dec, interp = P.E4.dn.map(d => d);
+    lineChart($('e4chart'), { x: xs, xlog: true, xticks: [1e-5, 1e-4, 1e-3, 1e-2], xfmt: v => v.toExponential(0), xname: 'Δn', yname: 'ρ', ylim: [0, 1], xlabel: 'Δn of the dot', series: [
+      { name: 'perturbed vs unperturbed speckle', y: P.E4.corr_vs_unperturbed, color: 'var(--s1)' },
+      { name: 'phase screen vs curved rays', y: xs.map(x => { const i = interp.findIndex(d => Math.abs(Math.log10(d / x)) < 0.02); return i >= 0 ? P.E4.corr_phase_vs_curved[i] : NaN; }), color: 'var(--s2)' }], label: 'validity of the phase-screen model' });
+  }
+}
+
+// ---------------- tabs, theme ----------------
+function showTab(t) {
+  document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
+  $('view-explore').hidden = t !== 'explore'; $('view-lab').hidden = t !== 'lab'; $('view-progress').hidden = t !== 'progress';
+  if (t === 'explore') drawCell();
+  if (t === 'progress') drawProgress();
+  try { localStorage.setItem('ngrc-tab', t); } catch (e) {}
+}
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+const redrawAll = () => { if (!$('view-explore').hidden) drawCell(); if (!$('view-progress').hidden) drawProgress(); };
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll);
+new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+window.addEventListener('resize', () => { if (!$('view-explore').hidden) drawCell(); });
+
+bindExplorer(); bindLab();
+let start = 'explore';
+const h = (location.hash || '').slice(1);
+if (['explore', 'lab', 'progress'].includes(h)) start = h; else { try { start = localStorage.getItem('ngrc-tab') || 'explore'; } catch (e) {} }
+showTab(start);
+drawCell(); compute();
+})();
+</script>

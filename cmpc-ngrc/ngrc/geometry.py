@@ -37,10 +37,14 @@ class Port:
 
 @dataclass
 class Detector:
-    """Line of point detectors outside an output port, perpendicular to its outward normal."""
-    distance: float = 100e-6     # from the port centre along the outward normal (m)
-    width: float = 400e-6        # length of the line (m)
+    """Detectors of an output port: far field (default; n_pix directions, sin θ uniform in ±max_sin about the outward
+    normal) or a line of points at `distance`, perpendicular to the outward normal."""
+    distance: float = 100e-6     # line: from the port centre along the outward normal (m)
+    width: float = 400e-6        # line: length (m)
     n_pix: int = 64
+    farfield: bool = True
+    max_sin: float = 0.9
+    ff_radius: float = 20e-3     # gbs model: far-field directions sampled on an arc of this radius
 
 
 @dataclass
@@ -89,9 +93,17 @@ class CircularCell:
         nrm = np.array([np.cos(a), np.sin(a)])
         return self.radius * nrm, nrm, np.array([-nrm[1], nrm[0]])
 
+    def detector_sines(self):
+        return np.linspace(-1, 1, self.detector.n_pix) * self.detector.max_sin
+
     def detector_points(self, i):
-        """(n_pix, 2) detector coordinates for output port i and the coordinate along the line (m)."""
+        """(n_pix, 2) detector coordinates for output port i and the coordinate along the line (m); far field: points
+        on an arc of radius ff_radius in the detector directions (sin θ returned as the coordinate)."""
         c, nrm, tan = self.port_frame(i)
+        if self.detector.farfield:
+            sn = self.detector_sines()
+            cs = np.sqrt(1 - sn**2)
+            return c + self.detector.ff_radius * (cs[:, None] * nrm + sn[:, None] * tan), sn
         u = np.linspace(-0.5, 0.5, self.detector.n_pix) * self.detector.width
         return c + self.detector.distance * nrm + u[:, None] * tan, u
 

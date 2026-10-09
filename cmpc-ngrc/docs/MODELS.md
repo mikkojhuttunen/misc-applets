@@ -23,56 +23,85 @@ cell frame). For any Δn map: the half-maximum contour r(θ_k) along N rays from
 centroid, then c_m = (1/N) Σ_k r_k e^{−imθ_k}, R₀ = c₀, a_m = 2 Re c_m / R₀, b_m = −2 Im c_m / R₀.
 The rotation-invariant power is p_m = a_m² + b_m².
 
-## 2. Rays and beamlets (`rays.trace`)
+## 2. Rays (`rays.trace`)
 
-Between perturbations the slab is uniform and rays are straight lines. Inside the bounding circles the
-ray equation and the paraxial (dynamic) ray system are integrated in arclength s with RK4:
+Between perturbations the slab is uniform and rays are straight. Inside the dots' bounding circles the ray
+equation and the paraxial (dynamic) ray system are integrated in arclength s with RK4:
 
     dr/ds = t,  dp/ds = ∇n  (p = n t, |p| = n),  dL/ds = n
     dQ/ds = P / n,  dP/ds = (n_nn − 2 n_n² / n) Q
 
-n_n and n_nn are the first and second derivatives of n along the ray normal e = (−t_y, t_x). This is
-Červený's 2D dynamic ray tracing written for n instead of the velocity v = 1/n (dQ/ds = vP,
-dP/ds = −v⁻² v_nn Q). The step is ds = w/2 in the edge zones; flat interiors are crossed in larger steps
-that stop short of the next edge zone. |p| − n converges at 4th order (tests).
+n_n and n_nn are the first and second derivatives of n along the ray normal (Červený's 2D dynamic ray tracing
+written for n). The step is ds = w/2 in the dots' edge zones; flat interiors are crossed in larger steps.
+At the wall: specular reflection, amplitude × √R, phase + φ_R, and the mirror acts on (Q, P) as the tangential
+lens P → P − 2 n₀ Q κ / cos χ (κ = 1/R_c in the circle, −κ_element for `gmpc.planar` walls).
 
-Each ray carries a Gaussian beamlet. Its field at normal offset q from the ray is
+## 3. Field: frozen Gaussians (Herman–Kluk), the default (`cell.model = "fga"`)
 
-    E = A sqrt(Q₀/Q) exp(i k₀ [L + ½ (P/Q) q²]),   P₀/Q₀ = i n₀ / z_R,  z_R = k₀ n₀ w_b² / 2
+The input beam at a port (waist w_in = λ/(π n₀ tan(fan/2)), launch angle φ₀, seen on the port line with width
+w_in / cos φ₀) is expanded in coherent states g_{q,p}(x) = (γ/π)^¼ exp(−γ(x − q)²/2 + i k₀ p (x − q)) on a grid of
+positions q (automatic, spacing w_f/2) × directions φ (p = n₀ sin φ), with γ = 2/w_f² (w_f = `Source.frozen`,
+20 µm by default). Each grid point launches one ray with weight
 
-with arg Q followed continuously, which gives the Gouy phase. In uniform slab Q → Q + P s/n₀.
+    W = ⟨g_{q,p} | E₀⟩ Δq Δp k₀ / 2π.
 
-**Wall.** Specular reflection t → t − 2(t·n)n, amplitude × √R(χ), phase + φ_R. The curved mirror acts on the
-beamlet as the tangential oblique-incidence lens P → P − 2 n₀ Q κ / cos χ, with κ = 1/R_c for the circle
-and −κ_element for `gmpc.planar` walls (`geometry.WallCell`). A hit inside a port aperture ends the ray
-with an exit record. Rays are dropped after a bounce limit or below an amplitude floor (both counted).
+The ray carries its optical path L and the stability matrix, read from Q = A + iβB, P = C + iβD (two real
+solutions of the dynamic system packed into one complex one). At a port opening the coherent state is
+re-expressed on the opening (A/cos χ, B/cos χ, C cos χ, D cos χ) and contributes
 
-**Source.** Each input port launches a grid of n_pos positions across 90 % of the aperture × n_ang
-angles (launch ± fan/2 about the inward normal). Amplitudes follow a Gaussian aperture weight and are
-normalised to Σ A² = 1.
+    W · R · e^{i k₀ L + iφ} · (γ/π)^¼ exp(−γ (x − x_t)²/2) · e^{i k₀ n₀ t·(r − r_hit)},
+    R = sqrt(½ (A + D − i(γ/k₀) B + i(k₀/γ) C)),
 
-**Detector field** (`field.beamlet_matrix`). The exit rays of a port are continued straight to a
-64-pixel line at 100 µm outside the port, and the beamlets are summed coherently: E = G @ 1, with
-G[pixel, ray] the beamlet field.
+the Herman–Kluk prefactor, with its branch followed continuously along the ray. The frozen Gaussians keep their
+width, so a dot only changes the rays that cross it. That locality is what the earlier Gaussian-beam
+summation lacked: in the circle, a degenerate (concentric-type) mirror system, its beamlets grew to millimetres.
 
-## 3. Phase-screen model (`perturbative.PhaseScreenModel`)
+**Ports.** Every wall hit within w/2 + 3w_f of an opening is an exit record. The ray reflects with amplitude
+× sqrt(1 − T), where T = ½[erf(√2(w/2 − d)/w_f) + erf(√2(w/2 + d)/w_f)] is the part of its footprint that falls
+in the opening. The response is therefore smooth in the ray geometry, and wide-angle leakage is included.
+The field across each opening (samples every λ/3n₀) is propagated to the detectors. The default detector is the
+far field: E(θ) = sqrt(k/2πi) Σ_k A_k e^{−ik d̂(θ)·r_k} cos θ du, with 64 directions at sin θ uniform in ±0.9. A
+line of points at a given distance is also available (2D Rayleigh–Sommerfeld, kR ≫ 1).
 
-Trace the unperturbed cell once and keep every chord. A set of dots only adds ΔL_j = ∫Δn ds along the
-unperturbed chords of ray j (midpoint rule; the integrand is smooth and zero at both ends, so it
-converges spectrally). Then E = G @ exp(i k₀ ΔL). This is identical to the tracer with straight rays
-(`mode="straight"`), and it is the Δn → 0 limit of the curved result.
+**Sampling.** Convergence needs rays landing within ~w_f of every point of the openings after the last
+relevant bounce. ∂q/∂p grows with the path, so the number of launch directions grows with the bounce count.
+At R = 0.97, w_f = 20 µm and a 1 mm cell: 4000 directions give field correlation 0.90–0.99 with 8000. Records
+weaker than 2 % of the strongest are pruned (correlation ≥ 0.998).
 
-It neglects ray bending and beamlet focusing by the dots. For multipass speckle that matters from
-Δn ≈ 1e-4: the field correlation with curved rays is 0.97 at 1e-4 and 0.84 at 1e-3 (E4). Over a single
-pass both agree with BPM (E9), so the difference builds up over the many passes.
+**Chaotic cells.** In the stadium the stability matrix grows like e^{λn} (λ ≈ 1 per bounce). The prefactors
+explode while their contributions should cancel, and the semiclassical field is only reliable up to the
+Ehrenfest time ln(kL)/λ ≈ 9 bounces. Rays are dropped once |z| > 10⁴. In the circle |z| grows linearly (a few
+hundred after 300 bounces) and the cut-off never acts.
 
-## 4. Wave reference (`wave_ref`)
+**Validation** (`tests/test_fga.py`, E9). Against an exact Gaussian beam, the clipped single pass gives field
+correlation 1.0000 and power within 0.1 %, independent of w_f. Triangle and pentagon orbits through 2 and 4 oblique
+mirror reflections give correlation ≥ 0.9997 and power within 0.2 %. For a dot (Δn up to 1e-2) crossed by a
+beam and observed after 1.4 mm, the scattered field agrees with split-step BPM to correlation 0.9997–0.9998.
 
-Split-step Fourier BPM of the paraxial scalar equation ∂E/∂z = (i/2k) ∂²E/∂y² + i k₀ Δn E, with absorbing
-edges. It is compared with a Gaussian-beam summation of the same beam (parallel beamlets spaced
-w_b/1.5) traced through one dot with the engine, curved or straight. The metric is the scattered field
-ΔE = E(dot) − E(no dot). A full-wave model of a whole 1 mm cell (≈ 2300 wavelengths across) is not
-attempted.
+The legacy model (`cell.model = "gbs"`): evolving Gaussian beamlets about each ray, hard ports (a ray leaves when
+its centre hits an opening), beamlets continued straight to the detectors. It is kept for comparison; its
+results are archived in results/progress_gbs.json.
+
+## 4. Phase-screen model (`perturbative.PhaseScreenModel`, JS `PhaseScreen`)
+
+Trace the unperturbed cell once and keep every chord. A set of dots only adds ΔL = ∫Δn ds along the chords
+travelled before each exit record (prefix sums per ray). Then E = K (B · e^{i k₀ ΔL}), where B holds the
+records' aperture fields and K the propagation to the detectors. The line integrals come from each dot's
+Radon table, ∫Δn along direction α at offset p, about 260 × 270 entries. Those entries are computed by Newton
+crossings of the contour plus 12-point Gauss–Legendre windows over the tanh edges, or 32-point
+Gauss–Legendre for grazing lines. Every chord crossing reads the table by bilinear interpolation
+(|k₀ ΔL| error ≲ 2e-3 rad). This is identical to the straight-ray tracer, and the Δn → 0 limit of curved
+rays. Ray bending matters from Δn ≈ 3e-4 (field correlation with curved rays: 0.99 at 1e-4, 0.95 at 3e-4,
+0.84 at 1e-3, E4).
+
+Cost (JS, circle, R = 0.97, 6000 directions, two inputs): about 1 s per sample after a one-off 30–60 s trace
+per worker. Datasets run through node on all cores (`ngrc.jsengine.node_fields`).
+
+## 4b. Wave reference (`wave_ref`)
+
+Split-step Fourier BPM of the paraxial scalar equation ∂E/∂z = (i/2k) ∂²E/∂y² + i k₀ Δn E with absorbing edges,
+for one pass through a dot. A full-wave model of the whole 1 mm cell (≈ 2300 wavelengths across) is not
+attempted; the multi-bounce physics is checked against exact Gaussian beams through the mirrors (above).
 
 ## 5. Features and readouts (`features`, `readout`)
 
@@ -90,10 +119,12 @@ Targets are a_m, b_m (R² averaged over the pair), p_m and the dominant m.
 ## 6. Known limits
 
 - 2D scalar TE model; no polarisation or mode conversion; wall reflectance constant or R(cos χ).
-- Ports are holes in the ray picture: a ray exits or reflects depending on where its centre hits, so
-  single rays switch discontinuously at port edges, and aperture diffraction is missing.
-- Beamlet summation is asymptotic: beamlets much wider than the dots or the mirror curvature scale lose
-  accuracy (E9 error ≈ 10 % at 6 mm, 2–5 % at 20–60 mm).
+- Ray (semiclassical) model: valid while dots, edges and openings are many wavelengths; edge widths ≳ λ/n.
+  Chaotic cells only to about the Ehrenfest time (prefactor cut-off).
+- FGA needs many rays for long paths (the launch grid scales with the number of bounces); results at
+  finite sampling are a consistent but not fully converged ray field (stated per experiment).
+- Openings are treated as soft apertures (Gaussian footprint overlap for the reflected power, exact
+  sampling of the transmitted field); wall curvature across an opening is ignored in the far-field kernel.
 - The circle is integrable: a launch angle χ leaves a caustic disk of radius R_c sin χ that no ray
   enters. The stadium is chaotic and has no such disk.
 

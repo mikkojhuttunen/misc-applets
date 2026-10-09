@@ -108,7 +108,7 @@ td.heat { font-family: var(--f-mono); text-align: right; }
   <header>
     <div>
       <h1>CMPC Speckle Lab</h1>
-      <p class="sub">Rays and Gaussian beamlets in a circular on-chip multipass cell with Δn<sub>eff</sub> dots. The speckle at the output ports is the reservoir; a trained readout tries to recover the circular-harmonic decomposition (CHD) of the dots.</p>
+      <p class="sub">Rays carrying frozen Gaussians (Herman–Kluk) in a circular on-chip multipass cell with Δn<sub>eff</sub> dots. The speckle at the output ports is the reservoir; a trained readout tries to recover the circular-harmonic decomposition (CHD) of the dots.</p>
     </div>
     <nav role="tablist" aria-label="Views">
       <button role="tab" id="tab-explore" aria-selected="true" data-tab="explore">Explorer</button>
@@ -139,14 +139,13 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <label class="f">Radius (µm)<input id="radius" type="number" step="50" min="200" value="1000"></label>
         <label class="f">Effective index<input id="neff" type="number" step="0.01" min="1" value="1.80"></label>
         <label class="f">λ (nm)<input id="lambda" type="number" step="1" value="1550"></label>
-        <label class="f">Wall R (%)<input id="Rwall" type="number" step="0.1" max="100" value="99"></label>
+        <label class="f">Wall R (%)<input id="Rwall" type="number" step="0.1" max="100" value="97"></label>
       </div>
       <h3>Rays</h3>
       <div class="row">
-        <label class="f">Engine<select id="mode"><option value="curved">Curved rays (full)</option><option value="phase">Phase screen (1st order)</option><option value="none">Unperturbed</option></select></label>
-        <label class="f">Beamlet waist (µm)<input id="waist" type="number" step="0.5" min="1" value="5"></label>
-        <label class="f">Positions / port<input id="nPos" type="number" min="1" max="15" value="3"></label>
-        <label class="f">Angles / port<input id="nAng" type="number" min="1" max="301" value="61"></label>
+        <label class="f">Engine<select id="mode"><option value="phase">Phase screen (fast)</option><option value="curved">Curved rays (slow)</option><option value="none">Unperturbed</option></select></label>
+        <label class="f">Frozen width (µm)<input id="frozen" type="number" step="1" min="5" value="20"></label>
+        <label class="f">Angles / input<input id="nAng" type="number" step="250" min="200" max="8000" value="1500"></label>
       </div>
       <label class="f" style="margin-top:6px">Rays drawn: <span id="nShowV">12</span><input id="nShow" type="range" min="0" max="200" value="12"></label>
       <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:4px"><input type="checkbox" id="density" checked> Ray density (unperturbed)</label>
@@ -184,14 +183,14 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <span><i class="sq" style="background:var(--dn);opacity:.6"></i>Δn dot</span>
         <span><i style="background:var(--ray);height:8px;width:8px;border-radius:50%"></i>input port</span>
         <span><i style="background:var(--accent);height:8px;width:8px;border-radius:50%"></i>output port</span>
-        <span><i style="background:var(--det)"></i>detector line</span>
+        <span><i style="background:var(--det)"></i>far-field detector (angles)</span>
       </div>
       <div class="stats" id="stats"></div>
     </div>
 
     <div class="panel outputs">
       <h2>Speckle at the detectors</h2>
-      <p class="note">Intensity along each detector line (64 pixels, 100 µm outside the port), divided by the mean unperturbed intensity. Grey: no dots. Blue: with dots. ρ is the field correlation between the two.</p>
+      <p class="note">Far-field intensity of each output port against sin θ (64 directions, θ from the port normal), from the frozen-Gaussian field across the opening, divided by the mean unperturbed intensity. Grey: no dots. Blue: with dots. ρ is the field correlation between the two.</p>
       <div class="spk" id="speckle"></div>
       <h3>CHD of the selected dot</h3>
       <div id="chdChart"></div>
@@ -213,7 +212,7 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <label class="f">σ (a₂ spread)<input id="dsSigma" type="number" step="0.01" value="0.08"></label>
         <label class="f">R min (µm)<input id="dsRmin" type="number" step="5" value="60"></label>
         <label class="f">R max (µm)<input id="dsRmax" type="number" step="5" value="110"></label>
-        <label class="f">Rays / port (angles)<input id="dsAng" type="number" step="2" min="5" value="41"></label>
+        <label class="f">Angles / input<input id="dsAng" type="number" step="250" min="200" value="1500"></label>
         <label class="f">Seed<input id="dsSeed" type="number" step="1" value="1"></label>
       </div>
       <div class="btns"><button class="btn primary" id="dsRun">Run on current layout</button><button class="btn" id="dsRunAll">Run every preset layout</button><button class="btn" id="dsStop" disabled>Stop</button></div>
@@ -260,7 +259,7 @@ td.heat { font-family: var(--f-mono); text-align: right; }
           <div class="seg" id="e3sel" role="group" aria-label="Case"></div>
           <div id="e3chart"></div><div class="note" id="e3svc"></div></div>
         <div class="panel"><h2>E4 · Validity of the phase-screen model</h2><div id="e4chart"></div>
-          <p class="note">Field correlation of the first-order (phase-screen) speckle with full curved-ray tracing, and of the perturbed speckle with the unperturbed one, against Δn of one 80 µm dot.</p></div>
+          <p class="note">Field correlation of the first-order (phase-screen) speckle with full curved-ray tracing (same 1500-angle ray set), and of the perturbed speckle with the unperturbed one, against Δn of one 80 µm dot.</p></div>
       </div>
       <div class="charts2">
         <div class="panel"><h2>E5 · How far may a dot move?</h2><div id="e5shift"></div>
@@ -290,7 +289,7 @@ td.heat { font-family: var(--f-mono); text-align: right; }
       <div class="panel"><h2>E12 · Which Δn works? Readout quality vs dot index contrast</h2><div id="e12chart"></div>
         <p class="note" id="e12note"></p></div>
       <div class="panel"><h2>E9 · Wave check: one pass through a dot, beamlet sums vs BPM</h2><div class="scroll"><table id="e9table"></table></div>
-        <p class="note">Gaussian beam (60 µm) through a 50 µm dot (edge 3 µm) at z = 1 mm. ΔE is the scattered field E(dot) − E(no dot), the part that carries the dot's shape; correlation and relative error of ΔE against split-step BPM.</p></div>
+        <p class="note">A beam crossing the cell (2 mm) through a 50 µm dot (edge 3 µm), observed beyond the far wall. ΔE is the scattered field E(dot) − E(no dot), the part that carries the dot's shape; correlation and relative error (after the best complex scale) of ΔE against split-step BPM. The FGA also matches exact Gaussian beams through clipping apertures and oblique mirror reflections (tests/test_fga.py).</p></div>
     </div>
   </section>
 </div>
@@ -321,14 +320,14 @@ const PRESETS = {
   'sym3 · 1 in': { angles: [0, 120, 240], inputs: [0] },
 };
 const S = {
-  cell: { radius: 1e-3, n_eff: 1.8, wavelength: 1.55e-6, reflectance: 0.99, reflection_phase: Math.PI,
-          detector: { distance: 100e-6, width: 400e-6, n_pix: 64 }, ports: [] },
+  cell: { radius: 1e-3, n_eff: 1.8, wavelength: 1.55e-6, reflectance: 0.97, reflection_phase: Math.PI,
+          detector: { distance: 100e-6, width: 400e-6, n_pix: 64, farfield: true, max_sin: 0.9, ff_radius: 20e-3 }, ports: [] },
   preset: 'asym4 · 2 in', portW: 20e-6, launch: 20 * deg, fan: 23 * deg,
   shapes: [
     { x0: 250e-6, y0: 100e-6, R: 80e-6, dn: 1e-3, edge: 3e-6, a: [0, 0.06, 0.03, 0, 0, 0], b: [0, 0, 0, 0.02, 0, 0] },
     { x0: -300e-6, y0: -220e-6, R: 60e-6, dn: 1e-3, edge: 3e-6, a: [0, 0, 0, 0, 0, 0], b: [0, 0.05, 0, 0, 0, 0] },
   ],
-  sel: 0, mode: 'curved', nPos: 3, nAng: 61, waist: 5e-6, nShow: 12, density: true,
+  sel: 0, mode: 'phase', nAng: 1500, frozen: 20e-6, nShow: 12, density: true,
   result: null, runs: [], scTarget: 'a2',
 };
 function applyPreset(name) {
@@ -343,18 +342,35 @@ function workerMain() {
   const N = self.NGRC;
   const plain = f => { const o = {}; for (const k in f) o[k] = { re: Array.from(f[k].re), im: Array.from(f[k].im) }; return o; };
   function corr(a, b) { let r = 0, i = 0, na = 0, nb = 0; for (let k = 0; k < a.re.length; k++) { r += a.re[k] * b.re[k] + a.im[k] * b.im[k]; i += a.re[k] * b.im[k] - a.im[k] * b.re[k]; na += a.re[k] ** 2 + a.im[k] ** 2; nb += b.re[k] ** 2 + b.im[k] ** 2; } return Math.hypot(r, i) / Math.sqrt(na * nb); }
-  function density(cell, chords, n) {
-    const H = new Float32Array(n * n), Rc = cell.radius; let mx = 0;
-    for (const ch of chords) for (let c = 0; c < ch.length; c += 5) {
-      const ns = Math.max(2, Math.ceil(ch[c + 4] / (2 * Rc / n) * 1.5));
+  function density(cell, t, n) {   // ray density from a PhaseScreen table's flat chords (Float32 x, y, tx, ty, len)
+    const H = new Float32Array(n * n), Rc = cell.radius, C = t.C, nc = t.start[t.nR]; let mx = 0;
+    const stride = Math.max(1, Math.floor(nc / 400000));
+    for (let i = 0; i < nc; i += stride) {
+      const o = i * 5, ln = C[o + 4], ns = Math.max(2, Math.ceil(ln / (2 * Rc / n) * 1.5));
       for (let q = 0; q < ns; q++) {
-        const s = (q + 0.5) / ns * ch[c + 4], x = ch[c] + s * ch[c + 2], y = ch[c + 1] + s * ch[c + 3];
+        const sq = (q + 0.5) / ns * ln, x = C[o] + sq * C[o + 2], y = C[o + 1] + sq * C[o + 3];
         const ix = Math.floor((x + Rc) / (2 * Rc) * n), iy = Math.floor((y + Rc) / (2 * Rc) * n);
-        if (ix >= 0 && iy >= 0 && ix < n && iy < n) { const k = iy * n + ix; H[k] += ch[c + 4] / ns; if (H[k] > mx) mx = H[k]; }
+        if (ix >= 0 && iy >= 0 && ix < n && iy < n) { const k = iy * n + ix; H[k] += ln / ns; if (H[k] > mx) mx = H[k]; }
       }
     }
     for (let k = 0; k < H.length; k++) H[k] /= mx || 1;
     return H;
+  }
+  function tablePaths(t, n) {   // polylines of n rays spread over the launch grid, from the flat chords
+    const out = [], have = [];
+    for (let r = 0; r < t.nR; r++) if (t.start[r + 1] > t.start[r]) have.push(r);
+    for (let k = 0; k < Math.min(n, have.length); k++) {
+      const r = have[Math.round(k * (have.length - 1) / Math.max(1, Math.min(n, have.length) - 1))], pts = [];
+      for (let i = t.start[r]; i < t.start[r + 1]; i++) { const o = i * 5; pts.push(t.C[o], t.C[o + 1]); if (i === t.start[r + 1] - 1) pts.push(t.C[o] + t.C[o + 4] * t.C[o + 2], t.C[o + 1] + t.C[o + 4] * t.C[o + 3]); }
+      out.push(pts);
+    }
+    return out;
+  }
+  let psCache = { key: null, ps: null }, curvedRef = { key: null, f: null };
+  function screen(cell, opt) {
+    const key = JSON.stringify([cell, opt]);
+    if (psCache.key !== key) { psCache = { key, ps: new N.PhaseScreen(cell, opt) }; }
+    return psCache.ps;
   }
   let stop = false;
   self.onmessage = ev => {
@@ -362,37 +378,33 @@ function workerMain() {
     if (m.type === 'stop') { stop = true; return; }
     try {
       if (m.type === 'explore') {
-        const t0 = Date.now(), cell = m.cell, shapes = m.shapes.map(N.makeShape);
-        const opt = { nPos: m.opt.nPos, nAng: m.opt.nAng, waist: m.opt.waist };
-        const inputs = cell.ports.map((p, i) => N.isIn(p) ? i : -1).filter(i => i >= 0);
-        const nR = opt.nPos * opt.nAng, want = [];
-        for (let k = 0; k < Math.min(m.nShow, nR); k++) want.push(Math.round(k * (nR - 1) / Math.max(1, Math.min(m.nShow, nR) - 1)));
-        const ref = {}, pert = {}, stats = [];
-        let paths = [], dens = null;
-        inputs.forEach((ip, idx) => {
-          const tr0 = N.trace(cell, ip, [], Object.assign({ mode: 'none', recordChords: idx === 0 && m.density, pathIds: idx === 0 && m.opt.mode !== 'curved' ? want : null }, opt));
-          const f0 = N.detectorFields(cell, tr0);
-          for (const o in f0) ref[ip + ',' + o] = f0[o];
-          if (idx === 0 && m.density) dens = density(cell, tr0.chords, 128);
-          let tr = tr0;
-          if (m.opt.mode === 'curved' && shapes.length) {
-            tr = N.trace(cell, ip, shapes, Object.assign({ mode: 'curved', pathIds: idx === 0 ? want : null }, opt));
+        const t0 = Date.now(), cell = m.cell, shapes = m.shapes.map(N.makeShape), opt = m.opt;
+        const ps = screen(cell, opt), tBuild = Date.now() - t0;
+        let ref = ps.fields([]), pert, paths;
+        if (opt.mode === 'curved' && shapes.length) {
+          const key = JSON.stringify([cell, opt]);
+          if (curvedRef.key !== key) curvedRef = { key, f: N.curvedFields(cell, [], Object.assign({}, opt, { mode: 'none' })) };
+          ref = curvedRef.f;
+          pert = {};
+          const inputs = cell.ports.map((p, i) => N.isIn(p) ? i : -1).filter(i => i >= 0);
+          inputs.forEach((ip, idx) => {
+            const tr = N.trace(cell, ip, shapes, Object.assign({}, opt, { mode: 'curved', pathIds: idx === 0 ? [...Array(m.nShow).keys()].map(k => Math.round(k * 997.3) % Math.max(1, ps.tables[0].nLaunched)) : null }));
             const f = N.detectorFields(cell, tr); for (const o in f) pert[ip + ',' + o] = f[o];
-          }
-          if (idx === 0) paths = (m.opt.mode === 'curved' && shapes.length ? tr : tr0).paths.map(p => Array.from(p.pts));
-          const pw = cell.ports.map(() => 0); let nb = 0;
-          tr.exits.forEach(e => { pw[e.port] += e.amp * e.amp; nb += e.nb; });
-          stats.push({ port: ip, launched: tr.nLaunched, exits: tr.exits.length, lost: tr.lost, power: pw, meanBounces: tr.exits.length ? nb / tr.exits.length : 0 });
-        });
-        if (m.opt.mode === 'phase' && shapes.length) Object.assign(pert, new N.PhaseScreen(cell, opt).fields(shapes));
-        if (m.opt.mode === 'none' || !shapes.length) Object.assign(pert, ref);
+            if (idx === 0) paths = tr.paths.map(p => Array.from(p.pts));
+          });
+        } else {
+          pert = opt.mode === 'none' || !shapes.length ? ref : ps.fields(shapes);
+          paths = tablePaths(ps.tables[0], m.nShow);
+        }
+        const dens = m.density ? density(cell, ps.tables[0], 128) : null;
+        const stats = ps.tables.map(t => ({ port: t.port, launched: t.nLaunched, records: Object.values(t.ops).reduce((a, o) => a + o.idx.length, 0), lost: t.lost }));
         const rho = {}; for (const k in ref) rho[k] = corr(ref[k], pert[k]);
-        self.postMessage({ type: 'explore', id: m.id, ref: plain(ref), pert: plain(pert), rho, paths, density: dens, stats, ms: Date.now() - t0 });
+        self.postMessage({ type: 'explore', id: m.id, ref: plain(ref), pert: plain(pert), rho, paths, density: dens, stats, ms: Date.now() - t0, build: tBuild });
       } else if (m.type === 'dataset') {
         stop = false;
         const t0 = Date.now(), cell = m.cell, d = m.ds, g = N.rng(d.seed), mMax = 6;
-        const opt = { nPos: 3, nAng: d.nAng, waist: 5e-6 };
-        const ps = d.mode === 'phase' ? new N.PhaseScreen(cell, opt) : null;
+        const opt = Object.assign({}, m.opt, { nAng: d.nAng });
+        const ps = d.mode === 'phase' ? screen(cell, opt) : null;
         const ref = ps ? ps.fields([]) : N.curvedFields(cell, [], Object.assign({ mode: 'none' }, opt));
         const X = [], Y = [];
         for (let i = 0; i < d.N; i++) {
@@ -437,14 +449,15 @@ let wExp = makeWorker() || inlineWorker();
 let wLab = makeWorker() || inlineWorker();
 
 // ---------------- explorer compute ----------------
+function engineOpt() { return { mode: S.mode, nPos: null, nAng: S.nAng, frozen: S.frozen, ampMin: 0.02, maxBounces: 300, prune: 0.02 }; }
 let reqId = 0, busy = false, pending = false, timer = null;
 function schedule(delay = 120) { clearTimeout(timer); timer = setTimeout(compute, delay); }
 function compute() {
   if (busy) { pending = true; return; }
   busy = true; pending = false;
   const id = ++reqId;
-  $('status').textContent = S.mode === 'curved' ? 'tracing curved rays…' : 'tracing…';
-  wExp.postMessage({ type: 'explore', id, cell: S.cell, shapes: S.shapes, opt: { mode: S.mode, nPos: S.nPos, nAng: S.nAng, waist: S.waist }, nShow: S.nShow, density: S.density });
+  $('status').textContent = S.mode === 'curved' ? 'tracing curved rays (about a minute)…' : 'computing…';
+  wExp.postMessage({ type: 'explore', id, cell: S.cell, shapes: S.shapes, opt: engineOpt(), nShow: S.nShow, density: S.density });
 }
 wExp.onmessage = ev => {
   const m = ev.data; busy = false;
@@ -539,9 +552,14 @@ function drawCell() {
       ctx.strokeStyle = css('--ray'); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(px0, py0);
       const [ex, ey] = toPx(Rc * c + L * Math.cos(base), Rc * s + L * Math.sin(base)); ctx.lineTo(ex, ey); ctx.stroke();
     }
-    if (out) {
-      const pts = E.detectorPoints(S.cell, i), a = toPx(...pts[0]), b = toPx(...pts[pts.length - 1]);
-      ctx.strokeStyle = css('--det'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+    if (out) {   // far-field detector: the angular range it covers, drawn as a fan outside the port
+      const th = Math.asin(S.cell.detector.max_sin ?? 0.9), L = 0.16 * Rc, o = toPx(Rc * c, Rc * s);
+      ctx.strokeStyle = css('--det'); ctx.lineWidth = 1.5; ctx.beginPath();
+      for (let k = 0; k <= 24; k++) { const a = p.angle - th + 2 * th * k / 24, [x, y] = toPx(Rc * c + L * Math.cos(a), Rc * s + L * Math.sin(a)); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.stroke();
+      ctx.globalAlpha = 0.4; ctx.beginPath();
+      for (const a of [p.angle - th, p.angle + th]) { ctx.moveTo(...o); ctx.lineTo(...toPx(Rc * c + L * Math.cos(a), Rc * s + L * Math.sin(a))); }
+      ctx.stroke(); ctx.globalAlpha = 1;
     }
     const [mx, my] = toPx(Rc * c, Rc * s);
     ctx.fillStyle = inp ? css('--ray') : css('--accent'); ctx.beginPath(); ctx.arc(mx, my, 5, 0, 2 * Math.PI); ctx.fill();
@@ -652,8 +670,8 @@ function bindExplorer() {
     S.cell.reflectance = Math.min(1, Math.max(0, +$('Rwall').value / 100)); S.shapes.forEach(clampShape); drawCell(); schedule();
   };
   ['radius', 'neff', 'lambda', 'Rwall'].forEach(id => $(id).addEventListener('change', cellIn));
-  const rayIn = () => { S.mode = $('mode').value; S.waist = Math.max(1, +$('waist').value) * 1e-6; S.nPos = Math.max(1, Math.round(+$('nPos').value)); S.nAng = Math.max(1, Math.round(+$('nAng').value)); schedule(); };
-  ['mode', 'waist', 'nPos', 'nAng'].forEach(id => $(id).addEventListener('change', rayIn));
+  const rayIn = () => { S.mode = $('mode').value; S.frozen = Math.max(5, +$('frozen').value) * 1e-6; S.nAng = Math.max(200, Math.round(+$('nAng').value)); schedule(); };
+  ['mode', 'frozen', 'nAng'].forEach(id => $(id).addEventListener('change', rayIn));
   $('nShow').addEventListener('input', () => { S.nShow = +$('nShow').value; $('nShowV').textContent = S.nShow; schedule(150); });
   $('density').addEventListener('change', () => { S.density = $('density').checked; S.density ? schedule() : drawCell(); });
   $('shapeSel').addEventListener('change', () => { S.sel = +$('shapeSel').value; syncShapeUI(); drawCell(); });
@@ -787,19 +805,18 @@ function drawSpeckle() {
     const fig = document.createElement('figure');
     fig.innerHTML = `<figcaption><span>P${i} → P${o}</span><b>ρ = ${fmt(r.rho[k], 3)}</b></figcaption><div></div>`;
     box.appendChild(fig);
-    const x = I0.map((_, j) => j);
+    const ms = S.cell.detector.max_sin ?? 0.9, x = I0.map((_, j) => +(-ms + 2 * ms * j / (I0.length - 1)).toFixed(3));
     lineChart(fig.lastChild, { x, width: 260, height: 120, series: [
       { name: 'no dots', y: I0.map(v => v / mean), color: 'var(--faint)', noDots: true },
-      { name: 'with dots', y: I.map(v => v / mean), color: 'var(--s1)', noDots: true }], xticks: [0, 32, 63], label: `speckle P${i} to P${o}` });
+      { name: 'with dots', y: I.map(v => v / mean), color: 'var(--s1)', noDots: true }], xticks: [-ms, 0, ms], label: `speckle P${i} to P${o}` });
     fig.querySelector('.legend') && fig.querySelector('.legend').remove();
   }
 }
 function drawStats() {
   const r = S.result; if (!r) return;
-  $('stats').innerHTML = r.stats.map(s => {
-    const tot = s.power.reduce((a, b) => a + b, 0);
-    return `P${s.port} in: <b>${s.launched}</b> rays, <b>${s.exits}</b> exit, mean <b>${s.meanBounces.toFixed(0)}</b> bounces, power out ${s.power.map((p, i) => `P${i} <b>${(100 * p).toFixed(0)}%</b>`).join(' ')} (wall loss ${(100 * (1 - tot)).toFixed(0)}%)`;
-  }).join('<br>');
+  $('stats').innerHTML = r.stats.map(s => `P${s.port} in: <b>${s.launched}</b> frozen Gaussians, <b>${s.records}</b> port records kept` +
+    (s.lost && s.lost.prefactor ? `, ${s.lost.prefactor} dropped by the prefactor cut-off` : '')).join('<br>') +
+    `<br>unperturbed trace ${r.build > 50 ? (r.build / 1000).toFixed(1) + ' s (cached until the cell or rays change)' : 'cached'}`;
 }
 function drawCHD() {
   const s = S.shapes[S.sel];
@@ -824,7 +841,7 @@ function dsParams(cell) {
   return { N: Math.max(40, Math.round(+$('dsN').value)), mode: $('dsMode').value, seed: Math.round(+$('dsSeed').value),
     centre: $('dsPos').value === 'fixed' ? [s0.x0, s0.y0] : null, place: Math.max(0, +$('dsPlace').value) * 1e-6,
     dn: +$('dsDn').value * 1e-3, sigma: +$('dsSigma').value, Rmin: +$('dsRmin').value * 1e-6, Rmax: Math.max(+$('dsRmin').value, +$('dsRmax').value) * 1e-6,
-    nAng: Math.max(5, Math.round(+$('dsAng').value)) };
+    nAng: Math.max(200, Math.round(+$('dsAng').value)) };
 }
 function runLab(list) {
   labQueue = list; $('dsRun').disabled = $('dsRunAll').disabled = true; $('dsStop').disabled = false; nextLab();
@@ -834,7 +851,7 @@ function nextLab() {
   if (!job) { labBusy = false; $('dsRun').disabled = $('dsRunAll').disabled = false; $('dsStop').disabled = true; return; }
   labBusy = true; job.id = ++labId; S.currentJob = job;
   $('dsStatus').textContent = `${job.name}: generating ${job.ds.N} samples…`;
-  wLab.postMessage({ type: 'dataset', id: job.id, cell: job.cell, ds: job.ds });
+  wLab.postMessage({ type: 'dataset', id: job.id, cell: job.cell, ds: job.ds, opt: engineOpt() });
 }
 wLab.onmessage = ev => {
   const m = ev.data, job = S.currentJob;
@@ -887,7 +904,8 @@ function drawProgress() {
   $('taskList').innerHTML = Object.entries(groups).map(([sec, ts]) => `<h3>${esc(sec)}</h3><ul class="tasks">${ts.map(t => `<li><code>${esc(t.id)}</code><span>${esc(t.title)}${t.note ? `<br><span class="note">${esc(t.note)}</span>` : ''}</span><span class="pill ${t.status}">${lbl[t.status]}</span></li>`).join('')}</ul>`).join('');
   if (!PROGRESS) { $('pyMeta').textContent = 'No Python results embedded yet.'; return; }
   const P = PROGRESS, mc = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s7)'];
-  $('pyMeta').innerHTML = `Run ${esc(P.meta.date)}${P.meta.quick ? ' (quick mode, small samples)' : ''}, ${Math.round(P.meta.runtime_s)} s. Circular cell R<sub>c</sub> = ${P.meta.cell.radius * 1e6} µm, n<sub>eff</sub> = ${P.meta.cell.n_eff}, λ = ${P.meta.cell.wavelength * 1e9} nm, wall R = ${P.meta.cell.R}, ports ${P.meta.cell.port_width * 1e6} µm wide, ${P.meta.source.n_pos} × ${P.meta.source.n_ang} rays per input. All runs use the phase-screen engine except E4.`;
+  const M = P.meta || {}, src = M.source || {};
+  $('pyMeta').innerHTML = `Frozen-Gaussian (Herman–Kluk) model, run ${esc(M.date || '')}${M.quick ? ' (quick mode, small samples)' : ''}. Circular cell R<sub>c</sub> = ${(M.cell || {}).radius * 1e6} µm, n<sub>eff</sub> = ${(M.cell || {}).n_eff}, λ = ${(M.cell || {}).wavelength * 1e9} nm, wall R = ${(M.cell || {}).R}, ports ${(M.cell || {}).port_width * 1e6} µm wide; ${src.n_ang} launch angles × automatic positions per input, frozen width ${src.frozen_um} µm. Datasets come from the JS engine run through node on all cores; phase screen unless noted (E4, E7: curved rays at 1500 angles). The earlier results from the wide-beamlet model with hard ports are archived in results/progress_gbs.json.`;
   if (P.E1) {
     lineChart($('e1chart'), { x: P.E1.launch.map(v => +(v / deg).toFixed(1)), xname: 'launch °', yname: 'S_m', xlabel: 'launch angle (°)', series: P.meta.m.map((m, k) => ({ name: 'm = ' + m, y: P.E1.S.map(r => r[k]), color: mc[k] })), label: 'sensitivity vs launch angle' });
     const occ = $('e1occ'); occ.innerHTML = '';
@@ -972,21 +990,24 @@ function drawProgress2() {
     const D = P.E11.drift;
     lineChart($('e11drift'), { x: D.dn.map(v => Math.max(v, 3e-9)), xlog: true, xticks: [1e-8, 1e-7, 1e-6], xfmt: v => v.toExponential(0), xname: 'δn', yname: 'value', ylim: [-0.2, 1], xlabel: 'uniform index change δn',
       series: [{ name: 'readout mean R²', y: D.r2.map(mean), color: 'var(--s1)' }, { name: 'speckle correlation with δn = 0', y: D.corr_ref, color: 'var(--s3)' }], label: 'drift' });
-    $('e11note').innerHTML = `Readout trained at δn = 0, tested after a uniform change δn of the slab index. Mean geometric path ${fmt(P.E11.mean_path_mm, 0)} mm, so δn = 1e-7 shifts the phases by ~${fmt(2 * Math.PI / 1.55e-6 * 1e-7 * P.E11.mean_path_mm * 1e-3, 1)} rad. For SiN, dn/dT ≈ 2×10⁻⁵ /K: δn = 1e-7 is 5 mK. The leftmost point is δn = 0.`;
+    $('e11note').innerHTML = `Readout trained at δn = 0, tested after a uniform change δn of the slab index (every optical path changes by δn × its length; at R = 0.97 a typical path is 0.1–0.2 m, so δn = 1e-7 shifts phases by roughly 0.05–0.1 rad). For SiN, dn/dT ≈ 2×10⁻⁵ /K: δn = 1e-7 is 5 mK. The leftmost point is δn = 0.`;
   }
   if (P.E12) {
     const E = P.E12, ser = [];
     if (E.phase) ser.push({ name: 'phase screen', y: E.phase.clean.map(mean), color: 'var(--s1)' }, { name: 'phase screen, 1 % noise', y: E.phase.noisy.map(mean), color: 'var(--s1)', dash: true });
-    if (E['node-curved']) ser.push({ name: 'curved rays', y: E['node-curved'].clean.map(mean), color: 'var(--s2)' }, { name: 'curved rays, 1 % noise', y: E['node-curved'].noisy.map(mean), color: 'var(--s2)', dash: true });
+    if (E['node-curved'] && E['node-curved'].clean.length) {
+      const at = (rows) => E.dn.map(d => { const i = (E.curved_dn || E.dn).findIndex(c => Math.abs(Math.log10(c / d)) < 0.01); return i >= 0 ? mean(rows[i]) : NaN; });
+      ser.push({ name: 'curved rays (1500 angles)', y: at(E['node-curved'].clean), color: 'var(--s2)' }, { name: 'curved rays, 1 % noise', y: at(E['node-curved'].noisy), color: 'var(--s2)', dash: true });
+    }
     lineChart($('e12chart'), { x: E.dn, xlog: true, xticks: E.dn, xfmt: v => v.toExponential(0), xname: 'Δn', yname: 'mean R²', ylim: [-0.1, 1], xlabel: 'Δn of the dots', series: ser, label: 'R² vs Δn' });
-    $('e12note').innerHTML = `${E.N} dots at one position, asym4 · 2 in, linear readout, mean R² over m = 2…6. Dashed: additive detector noise of ${E.sigma * 100}% of the mean intensity, readout trained with the noise. The phase screen ignores ray bending; the curved-ray reservoir is the physical one.`;
+    $('e12note').innerHTML = `${E.N} dots at one position (phase screen, 6000 angles), asym4 · 2 in, linear readout, mean R² over m = 2…6. Dashed: additive detector noise of ${E.sigma * 100}% of the mean intensity, readout trained with the noise. Curved rays: ${P.E7 ? P.E7.N : ''} dots at the same 1500-angle ray set as their own phase-screen comparison in E7. The phase screen ignores ray bending; the curved-ray reservoir is the physical one.`;
   }
   if (P.E10) {
     const S = P.E10.sensitivity;
-    lineChart($('e10sens'), { x: S.launch.map(v => +(v / deg).toFixed(0)), xname: 'launch °', yname: 'mean S', xlabel: 'launch angle (°)', height: 180,
+    if (S) lineChart($('e10sens'), { x: S.launch.map(v => +(v / deg).toFixed(0)), xname: 'launch °', yname: 'mean S', xlabel: 'launch angle (°)', height: 180,
       series: [{ name: 'circle', y: S.circle.map(mean), color: 'var(--s1)' }, { name: 'stadium', y: S.stadium.map(mean), color: 'var(--s2)' }], label: 'sensitivity stadium vs circle' });
     barChart($('e10bars'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], height: 180, series: P.E10.readout.map((r, i) => ({ name: `${r.name} (${fmt(r.mean_bounces, 0)} bounces)`, y: r.r2, color: i ? 'var(--s2)' : 'var(--s1)' })), label: 'readout stadium vs circle' });
-    $('e10note').innerHTML = `Top: mean sensitivity over m for dots within 400 µm of the centre, one input. Bottom: linear readout of a<sub>m</sub>, b<sub>m</sub>, ${P.E10.N} dots at one position, two inputs. Stadium: half-circles of 600 µm joined by 1.2 mm straights.`;
+    $('e10note').innerHTML = `Linear readout of a<sub>m</sub>, b<sub>m</sub>, ${P.E10.N} dots at one position, two inputs, Python FGA phase screen. Stadium: half-circles of 600 µm joined by 1.2 mm straights. In the chaotic stadium the frozen-Gaussian prefactors grow like e<sup>λn</sup>; rays are cut after |z| > 10⁴ (about the Ehrenfest time, ~10 bounces), so its field keeps only the early bounces.`;
   }
 }
 

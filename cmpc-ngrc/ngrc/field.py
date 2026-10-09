@@ -22,11 +22,19 @@ def beamlet_matrix(cell, exits, port, points=None):
 
 def propagation_matrix(cell, port, ap, du, points=None):
     """K[pixel, k]: field at the detector pixels from aperture samples ap (spacing du), 2D Rayleigh–Sommerfeld in
-    the asymptotic form sqrt(k/(2π i R)) e^{ikR} cos θ du, k = k0 n0, θ from the port's outward normal."""
+    the asymptotic form sqrt(k/(2π i R)) e^{ikR} cos θ du, k = k0 n0, θ from the port's outward normal.
+    Far-field detector (default): sqrt(k/(2π i)) e^{−ik d̂·r} cos θ du per direction d̂ (the 1/sqrt(R) e^{ikR} of a
+    common distance dropped)."""
+    _, nrm, tan = cell.port_frame(port)
+    k = cell.k0 * cell.n_eff
+    if points is None and cell.detector.farfield:
+        sn = cell.detector_sines()
+        cs = np.sqrt(1 - sn**2)
+        dx, dy = cs * nrm[0] + sn * tan[0], cs * nrm[1] + sn * tan[1]
+        ph = -k * (dx[:, None] * ap[None, :, 0] + dy[:, None] * ap[None, :, 1])
+        return np.sqrt(k / (2j * np.pi)) * np.exp(1j * ph) * cs[:, None] * du
     if points is None:
         points, _ = cell.detector_points(port)
-    _, nrm, _ = cell.port_frame(port)
-    k = cell.k0 * cell.n_eff
     dx = points[:, None, 0] - ap[None, :, 0]
     dy = points[:, None, 1] - ap[None, :, 1]
     R = np.hypot(dx, dy)

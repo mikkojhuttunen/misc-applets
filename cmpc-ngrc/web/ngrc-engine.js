@@ -356,9 +356,17 @@
   }
 
   // ---------- detector field ----------
+  function detectorSines(cell) {
+    const d = cell.detector, n = d.n_pix, ms = d.max_sin ?? 0.9;
+    return [...Array(n).keys()].map(i => (n > 1 ? -1 + 2 * i / (n - 1) : 0) * ms);
+  }
   function detectorPoints(cell, port) {
     const a = cell.ports[port].angle, nx = Math.cos(a), ny = Math.sin(a);
     const d = cell.detector || { distance: 100e-6, width: 400e-6, n_pix: 64 };
+    if (d.farfield ?? true) {
+      const R = d.ff_radius ?? 20e-3, cx = cell.radius * nx, cy = cell.radius * ny;
+      return detectorSines(cell).map(sn => { const cs = Math.sqrt(1 - sn * sn); return [cx + R * (cs * nx - sn * ny), cy + R * (cs * ny + sn * nx)]; });
+    }
     const cx = cell.radius * nx + d.distance * nx, cy = cell.radius * ny + d.distance * ny;
     const pts = [];
     for (let i = 0; i < d.n_pix; i++) {
@@ -369,8 +377,17 @@
   }
   // K[pixel, k] from aperture samples: 2D Rayleigh–Sommerfeld sqrt(k/(2π i R)) e^{ikR} cos θ du
   function propagationMatrix(cell, port, ap) {
-    const f = portFrame(cell, port), pts = detectorPoints(cell, port), k = TAU / cell.wavelength * cell.n_eff;
-    const n = ap.pts.length, re = new Float64Array(pts.length * n), im = new Float64Array(pts.length * n);
+    const f = portFrame(cell, port), k = TAU / cell.wavelength * cell.n_eff, n = ap.pts.length;
+    if (cell.detector.farfield ?? true) {   // far field: sqrt(k/(2π i)) e^{−ik d̂·r} cos θ du
+      const sns = detectorSines(cell), re = new Float64Array(sns.length * n), im = new Float64Array(sns.length * n), amp0 = Math.sqrt(k / TAU) * ap.du;
+      sns.forEach((sn, i) => {
+        const cs = Math.sqrt(1 - sn * sn), dx = cs * f.nx + sn * f.tx, dy = cs * f.ny + sn * f.ty;
+        ap.pts.forEach((q, j) => { const ph = -k * (dx * q[0] + dy * q[1]) - Math.PI / 4; re[i * n + j] = amp0 * cs * Math.cos(ph); im[i * n + j] = amp0 * cs * Math.sin(ph); });
+      });
+      return { re, im, np: sns.length, n };
+    }
+    const pts = detectorPoints(cell, port);
+    const re = new Float64Array(pts.length * n), im = new Float64Array(pts.length * n);
     pts.forEach((p, i) => ap.pts.forEach((q, j) => {
       const dx = p[0] - q[0], dy = p[1] - q[1], Rr = Math.hypot(dx, dy);
       const cs = Math.max((dx * f.nx + dy * f.ny) / Rr, 0), mag = Math.sqrt(k / (TAU * Rr)) * cs * ap.du, ph = k * Rr - Math.PI / 4;

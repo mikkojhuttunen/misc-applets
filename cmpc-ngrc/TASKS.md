@@ -69,7 +69,7 @@ Status: `[x]` done, `[~]` partly done (*Now:* says what is there), `[ ]` to do. 
 - [~] **T8.1 Sensitivity.** *Now:* finite-difference ∂I/∂a_m and singular values vs launch angle and port layout (E1, E2). First result: dots inside the caustic disk R_c sin χ are invisible (zero sensitivity at 57° launch).
 - [ ] **T8.2 Learning curves.** R² vs samples, number of detectors, input ports, wall reflectance.
 - [~] **T8.3 Nonlinearity regime.** *Now:* phase-screen vs curved-ray correlation and speckle decorrelation vs Δn (E4): ray bending matters from Δn ≈ 1e-4.
-- [ ] **T8.4 Position and rotation invariance.** First result: at a fixed position a linear ridge readout recovers a_2 (R² ≈ 0.9) to a_4; with random positions nothing is learned at N ≤ 800. Next: translation-invariant features, more samples, position as an extra target.
+- [~] **T8.4 Position and rotation invariance.** *Now:* at a fixed position (800 dots) NGRC ridge recovers a_m, b_m with R² 0.96 / 0.86 / 0.83 / 0.76 / 0.73 (m = 2…6), above the raw-image baseline; with random positions nothing is learned at N = 800. Next: translation-invariant features, more samples, position as an extra target.
 - [ ] **T8.5 Robustness.** Noise, fabrication errors, drift; retraining cost.
 - [ ] **T8.6 Other cells.** Repeat E1–E3 in a stadium (chaotic) and a segmented circle.
 

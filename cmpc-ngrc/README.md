@@ -86,6 +86,11 @@ F = PhaseScreenModel(cell, [Source(i) for i in cell.inputs]).fields(dots)   # fa
   of the centre) are inside the caustic disk.
 - **Port layout (E2, dot at one position, 400 samples):** two input ports beat one. Asymmetric 2-input:
   R² of a_m, b_m = 0.91 / 0.79 / 0.60 / 0.67 / 0.56 for m = 2…6. Symmetric 1-input: 0.83 / 0.61 / 0.45 / 0.42 / 0.29.
-- **Random dot positions:** nothing is learned with ≤ 800 samples; the position change dominates the
+  Four inputs: 0.86 / 0.84 / 0.74 / 0.66 / 0.69. Eight symmetric ports, one input: 0.91 / 0.78 / 0.70 / 0.66 / 0.68.
+- **Readouts (E3, asym4 · 2 in, 800 dots at one position):** NGRC ridge 0.96 / 0.86 / 0.83 / 0.76 / 0.73,
+  linear ridge and linear SVR within 0.01–0.04 of that, RBF SVR similar. The same readouts on the raw Δn
+  image reach only 0.74 / 0.64 / 0.52 / 0.43 / 0.33, so the speckle is a better feature map than the
+  pixels.
+- **Power p_m:** RBF SVR recovers p₂ (R² 0.62); linear readouts reach 0.3 for p₂ and nothing for m ≥ 3.
+- **Random dot positions:** nothing is learned with 800 samples; the position change dominates the
   speckle. Translation-invariant features are the next task (T8.4).
-- **Power p_m:** not recovered by linear readouts so far (R² ≈ 0).

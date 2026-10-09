@@ -95,7 +95,8 @@ svg .ttl { fill: var(--ink); font-family: var(--f-body); font-size: 12px; font-w
 .kpis { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
 .kpis b { font: 600 18px var(--f-mono); color: var(--ink); margin-right: 4px; }
 .occ { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.occ figure { margin: 0; } .occ canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 50%; }
+.occ figure { margin: 0; }
+#e12chart svg, #e12chart .legend { max-width: 560px; } .occ canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 50%; }
 .occ figcaption { font: 11px var(--f-mono); color: var(--muted); text-align: center; margin-top: 3px; }
 td.heat { font-family: var(--f-mono); text-align: right; }
 .seg { display: inline-flex; gap: 2px; background: var(--chip); padding: 2px; border-radius: 6px; }
@@ -743,7 +744,7 @@ function lineChart(el, o) {
   const x0 = Math.min(...xl), x1 = Math.max(...xl);
   const all = o.series.flatMap(s => s.y.filter(isFinite));
   let y0 = o.ylim ? o.ylim[0] : Math.min(0, ...all), y1 = o.ylim ? o.ylim[1] : Math.max(...all) * 1.08 || 1;
-  const X = v => m.l + (v - x0) / (x1 - x0 || 1) * (W - m.l - m.r), Y = v => H - m.b - (v - y0) / (y1 - y0 || 1) * (H - m.t - m.b);
+  const X = v => m.l + (v - x0) / (x1 - x0 || 1) * (W - m.l - m.r), Y = v => H - m.b - (Math.max(y0, Math.min(y1, v)) - y0) / (y1 - y0 || 1) * (H - m.t - m.b);
   let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(o.label || '')}">`;
   for (const t of niceTicks(y0, y1)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--gridline)"/><text x="${m.l - 6}" y="${Y(t) + 3.5}" text-anchor="end">${t}</text>`;
   const xt = o.xticks || (o.xlog ? xs : niceTicks(x0, x1, 5));
@@ -968,7 +969,8 @@ function drawProgress2() {
       barChart($('e7chart'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: [
         { name: 'phase screen · linear', y: C.phase.linear, color: 'var(--s1)' }, { name: 'phase screen · NGRC poly2', y: C.phase.poly2, color: 'var(--s3)' },
         { name: 'curved rays · linear', y: C['node-curved'].linear, color: 'var(--s2)' }, { name: 'curved rays · NGRC poly2', y: C['node-curved'].poly2, color: 'var(--s4)' }], label: 'engines' });
-      $('e7note').innerHTML = `${P.E7.N} dots, asym4 · 2 in. Curved rays traced with the JS engine through node (${fmt(C['node-curved'].seconds, 0)} s for the dataset, phase screen ${fmt(C.phase.seconds, 0)} s).`;
+      const d = P.E7b ? ` Diagnosis (E7b): for a 0.02 change of a₂ the curved and phase-screen changes of the field correlate only ${P.E7b.n_ang.map((n, i) => `${fmt(P.E7b.corr_dE[i], 2)} at ${n}`).join(', ')} directions. At Δn = 1e-4 that change shifts optical paths by ~6e-4 rad, while bending moves ray endpoints by ~0.1 µm, a 1e-2 effect on frozen Gaussians of width 20 µm that only cancels in a converged sum. The curved-ray readout here is limited by sampling, not physics.` : '';
+      $('e7note').innerHTML = `${P.E7.N} dots, asym4 · 2 in, both engines with the same 1500-direction ray set. Curved rays traced with the JS engine through node (${fmt(C['node-curved'].seconds / 60, 0)} min for the dataset, phase screen ${fmt(C.phase.seconds, 0)} s).` + d;
     };
     P.E7.cases.forEach((C, i) => { const b = document.createElement('button'); b.textContent = C.name; b.onclick = () => show(i); seg.appendChild(b); });
     show(0);
@@ -1006,8 +1008,8 @@ function drawProgress2() {
     const S = P.E10.sensitivity;
     if (S) lineChart($('e10sens'), { x: S.launch.map(v => +(v / deg).toFixed(0)), xname: 'launch °', yname: 'mean S', xlabel: 'launch angle (°)', height: 180,
       series: [{ name: 'circle', y: S.circle.map(mean), color: 'var(--s1)' }, { name: 'stadium', y: S.stadium.map(mean), color: 'var(--s2)' }], label: 'sensitivity stadium vs circle' });
-    barChart($('e10bars'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], height: 180, series: P.E10.readout.map((r, i) => ({ name: `${r.name} (${fmt(r.mean_bounces, 0)} bounces)`, y: r.r2, color: i ? 'var(--s2)' : 'var(--s1)' })), label: 'readout stadium vs circle' });
-    $('e10note').innerHTML = `Linear readout of a<sub>m</sub>, b<sub>m</sub>, ${P.E10.N} dots at one position, two inputs, Python FGA phase screen. Stadium: half-circles of 600 µm joined by 1.2 mm straights. In the chaotic stadium the frozen-Gaussian prefactors grow like e<sup>λn</sup>; rays are cut after |z| > 10⁴ (about the Ehrenfest time, ~10 bounces), so its field keeps only the early bounces.`;
+    barChart($('e10bars'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], height: 220, series: P.E10.readout.map((r, i) => ({ name: r.name, y: r.r2, color: ['var(--s1)', 'var(--s3)', 'var(--s2)'][i % 3] })), label: 'readout stadium vs circle' });
+    $('e10note').innerHTML = `Linear readout of a<sub>m</sub>, b<sub>m</sub>, ${P.E10.N} dots 180 µm from the centre, two inputs, Python FGA phase screen (2000 directions). Stadium: half-circles of 600 µm joined by 1.2 mm straights. In the chaotic stadium the frozen-Gaussian prefactors grow like e<sup>λn</sup>; rays are cut after |z| > 10⁴ (about the Ehrenfest time, ~10 bounces), so its field keeps only the early bounces. The circle with R = 0.80 is the short-path control: shorter paths read out better, and chaotic mixing adds to that.`;
   }
 }
 

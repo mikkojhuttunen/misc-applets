@@ -44,6 +44,7 @@ R_WALL = 0.97
 FIXED = (0.25e-3, 0.1e-3)
 FGA = dict(frozen=20e-6, n_ang=6000, amp_min=0.02, max_bounces=300)
 FGA_CURVED = dict(frozen=20e-6, n_ang=1500, amp_min=0.02, max_bounces=300)
+CURVED_DN = (1e-4,)          # curved-ray datasets are ~70 min each (200 dots, two inputs, 1500 directions)
 CACHE = ROOT / "results" / "cache_fga"
 ASYM = [0, 67, 151, 238]
 
@@ -312,7 +313,7 @@ def e7_e12(q):
     vs curved rays; with and without 1 % detector noise."""
     cell = cell_with(layouts()["asym4 · 2 in"])
     N = 160 if q else 400
-    Nc = 120 if q else 240
+    Nc = 120 if q else 200
     dns = [3e-5, 1e-4, 3e-4, 1e-3, 3e-3]
     rng = np.random.default_rng(9)
     e12 = dict(N=N, dn=dns, sigma=0.01)
@@ -334,7 +335,7 @@ def e7_e12(q):
     e12["phase"] = rows
     e7 = dict(N=Nc, cases=[])
     crow = dict(clean=[], noisy=[])
-    for dn in (1e-4, 1e-3):
+    for dn in CURVED_DN:
         row = dict(name=f"Δn = {dn:g}, fixed position")
         for mode in ("phase", "curved"):
             D = dataset(cell, ens(Nc, 93, centre=FIXED, dn=dn), mode, FGA_CURVED)
@@ -345,7 +346,7 @@ def e7_e12(q):
                 crow["noisy"].append(n_)
         e7["cases"].append(row)
         print(f"E7 Δn={dn:g}: phase {np.round(row['phase']['linear'], 2)} / curved {np.round(row['node-curved']['linear'], 2)}", flush=True)
-    e12["curved_dn"] = [1e-4, 1e-3]
+    e12["curved_dn"] = list(CURVED_DN)
     e12["node-curved"] = crow
     return e7, e12
 
@@ -428,23 +429,27 @@ def e10(q):
     from ngrc.geometry import WallCell, stadium, wall_ports
     from ngrc.perturbative import PhaseScreenModel
     from ngrc.rays import Source
-    N = 200 if q else 600
-    src = lambda i: Source(i, n_pos=None, n_ang=4000 if not q else 2000, frozen=20e-6)
+    N = 150 if q else 300
+    src = lambda i: Source(i, n_pos=None, n_ang=2000 if not q else 1000, frozen=20e-6)
     st = stadium(0.6e-3, 1.2e-3)
+    short = cell_with(layouts()["asym4 · 2 in"])
+    short.reflectance = 0.80
     cells = {"circle": cell_with(layouts()["asym4 · 2 in"]),
+             "circle, R = 0.80 (short paths)": short,
              "stadium": WallCell(wall=st, n_eff=1.8, wavelength=1.55e-6, reflectance=R_WALL,
                                  ports=wall_ports(st, [0.05, 0.27, 0.52, 0.78], inputs=(0, 1), width=PORT_W, launch=0.35,
                                                   fan=0.4))}
     rows = []
     for name, cell in cells.items():
-        f = CACHE / f"e10_{name}_{N}.npz"
+        f = CACHE / f"e10_{name.split(',')[0]}{'_short' if ',' in name else ''}_{N}.npz"
         if f.exists():
             z = np.load(f)
             X, Yab, Yp = z["X"], z["Yab"], z["Yp"]
         else:
             t0 = time.time()
             m = PhaseScreenModel(cell, [src(i) for i in cell.inputs], max_bounces=300, amp_min=0.02)
-            D = build(cell, ens(N, 81, centre=(0.15e-3, 0.1e-3)), model=m)
+            print(f"  {name}: model built in {time.time() - t0:.0f} s", flush=True)
+            D = build(cell, ens(N, 81, centre=(0.15e-3, 0.1e-3)), model=m, progress=50)
             names = D["names"]
             Yab = D["Y"][:, [i for i, s in enumerate(names) if s[0] in "ab"]]
             Yp = D["Y"][:, [i for i, s in enumerate(names) if s[0] == "p"]]
@@ -505,13 +510,39 @@ def e11(q):
     return dict(N=N, noise=noise, drift=drift)
 
 
-EXPS = {"E1": e1, "E2": e2, "E3": e3, "E4": e4, "E5": e5, "E6": e6, "E8": e8, "E9": e9, "E10": e10, "E11": e11}
+def e7b(q):
+    """Is the gap between curved rays and the phase screen physics or FGA sampling? For a dot and the same dot
+    with a_2 + 0.02 (Δn = 1e-4), correlate the change of the field ΔE (and of the intensity ΔI) between the two
+    engines as the number of launch directions grows. Sampling noise falls with more directions; physics would not."""
+    cell = cell_with(layouts()["asym4 · 2 in"])
+    s1 = Shape(FIXED[0], FIXED[1], 80e-6, 1e-4, 3e-6, a=[0, 0.06, 0.03, 0, 0, 0], b=[0, 0, 0, 0.02, 0, 0])
+    s2 = copy.deepcopy(s1)
+    s2.a = s2.a.copy()
+    s2.a[1] += 0.02
+    batch = [Perturbation([s1]), Perturbation([s2])]
+    out = dict(n_ang=[], corr_dE=[], corr_dI=[], dn=1e-4)
+    for na in ((500, 1500) if q else (750, 1500, 3000, 6000)):
+        cfg = dict(FGA_CURVED, n_ang=na)
+        Fp, Fc = fields(cell, batch, "phase", cfg), fields(cell, batch, "curved", cfg)
+        keys = sorted(Fp[0])
+        dEp = np.concatenate([Fp[1][k] - Fp[0][k] for k in keys])
+        dEc = np.concatenate([Fc[1][k] - Fc[0][k] for k in keys])
+        dIp = np.concatenate([np.abs(Fp[1][k]) ** 2 - np.abs(Fp[0][k]) ** 2 for k in keys])
+        dIc = np.concatenate([np.abs(Fc[1][k]) ** 2 - np.abs(Fc[0][k]) ** 2 for k in keys])
+        out["n_ang"].append(na)
+        out["corr_dE"].append(field_correlation(dEp, dEc))
+        out["corr_dI"].append(float(np.corrcoef(dIp, dIc)[0, 1]))
+        print(f"E7b {na} directions: corr ΔE {out['corr_dE'][-1]:.3f}, corr ΔI {out['corr_dI'][-1]:.3f}", flush=True)
+    return out
+
+
+EXPS = {"E7b": e7b, "E1": e1, "E2": e2, "E3": e3, "E4": e4, "E5": e5, "E6": e6, "E8": e8, "E9": e9, "E10": e10, "E11": e11}
 
 
 def main(only, quick):
     pj = ROOT / "results" / "progress.json"
     t0 = time.time()
-    order = ["E9", "E4", "E1", "E3", "E6", "E5", "E11", "E2", "E7", "E8", "E10"]
+    order = ["E9", "E4", "E1", "E3", "E6", "E5", "E11", "E2", "E7", "E7b", "E8", "E10"]
     for name in order:
         if only and name not in only and not (name == "E7" and "E12" in only):
             continue

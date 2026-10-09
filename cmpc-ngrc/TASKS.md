@@ -69,9 +69,9 @@ Status: `[x]` done, `[~]` partly done (*Now:* says what is there), `[ ]` to do. 
 - [~] **T8.1 Sensitivity.** *Now:* finite-difference ∂I/∂a_m and singular values vs launch angle and port layout (E1, E2). First result: dots inside the caustic disk R_c sin χ are invisible (zero sensitivity at 57° launch).
 - [x] **T8.2 Learning curves.** E6: R² vs number of training dots.
 - [x] **T8.3 Nonlinearity regime.** E4 (speckle correlation phase screen vs curved rays, decorrelation vs Δn) and E7/E12 (readout quality vs Δn, curved rays vs phase screen, with detector noise).
-- [~] **T8.4 Position and rotation invariance.** *Now:* at a fixed position (800 dots) NGRC ridge recovers a_m, b_m with R² 0.96 / 0.86 / 0.83 / 0.76 / 0.73 (m = 2…6), above the raw-image baseline; with random positions nothing is learned at N = 800. Next: translation-invariant features, more samples, position as an extra target.
+- [~] **T8.4 Position and rotation invariance.** *Now:* a readout is tied to one dot position: a 2 µm shift costs little, higher orders are lost by 5–10 µm; training with placement jitter keeps a_2 at R² 0.80 for 10 µm; dots anywhere in the central 600 µm are not learned with 1600 dots (E5). Rotation-invariant powers p_m need quadratic readouts (p_2 R² 0.65–0.73, E3). Next: sites (an array of fixed dot positions, one readout each) or translation-invariant optics.
 - [~] **T8.5 Robustness.** *Now:* detector noise and temperature drift (E11). Missing: fabrication errors (wall tilts), retraining cost.
-- [~] **T8.6 Other cells.** *Now:* any `gmpc.planar` wall (`geometry.WallCell`), stadium vs circle readout (E10, Python FGA with the prefactor cut-off). Missing: segmented circle; stadium in the JS engine.
+- [~] **T8.6 Other cells.** *Now:* any `gmpc.planar` wall (`geometry.WallCell`), stadium vs circle readout (E10, Python FGA with the prefactor cut-off: the chaotic cell's semiclassical field is only reliable to about the Ehrenfest time; with a short-path circle control, shorter paths read out better and chaotic mixing adds to that). Missing: segmented circle; walls in the JS engine.
 
 ## 9. Integration and output
 
@@ -80,8 +80,10 @@ Status: `[x]` done, `[~]` partly done (*Now:* says what is there), `[ ]` to do. 
 - [ ] **T9.3 Engine spec** in `math-engines` (`spec.yaml` + test vectors) for the propagation core.
 - [x] **T9.4 Docs.** `docs/MODELS.md`: equations, frozen-Gaussian model, ports and detectors, phase screen, validation, limits, references.
 
+- [ ] **T8.7 Curved rays at convergence.** E7b: the effect of ray bending on learnability is hidden by frozen-Gaussian sampling noise at affordable ray counts. Options: a linearised bending correction to the phase screen (trajectory shifts from first-order perturbation of the ray equation), or far denser launch grids for a few hundred dots.
+
 ## Suggested order of the next steps
 
-T8.4 (invariant features: speckle autocorrelation / far-field power, or position-aware readout) →
-T8.2 learning curves on the best layout → T3.4 node-based curved datasets → T6.1 angle/λ multiplexing →
-T5.2 wave reference → T8.6 other cells.
+T8.7 (bending at convergence: linearised correction) → T8.4 sites array (several fixed positions, one readout
+each) → T6.1 wavelength multiplexing as the main source of virtual nodes (E8) → T8.5 fabrication errors →
+T5.2 full-wave check in a small cell → T8.6 walls in the JS engine.

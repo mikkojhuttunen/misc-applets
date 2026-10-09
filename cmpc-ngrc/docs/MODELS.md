@@ -123,6 +123,10 @@ Targets are a_m, b_m (R² averaged over the pair), p_m and the dominant m.
   Chaotic cells only to about the Ehrenfest time (prefactor cut-off).
 - FGA needs many rays for long paths (the launch grid scales with the number of bounces); results at
   finite sampling are a consistent but not fully converged ray field (stated per experiment).
+- Curved rays vs the phase screen (E7b): ray bending moves the frozen Gaussians' endpoints (~0.1 µm after a
+  0.15 m path at Δn = 1e-4). In a converged sum that cancels, but at a few thousand directions the residual
+  (~δx/w_f ≈ 1e-2) exceeds the shape signal (~6e-4 rad for Δa₂ = 0.02). Curved-ray datasets are therefore
+  dominated by sampling noise, and the phase screen (exact Δn → 0 limit) is used for the readout studies.
 - Openings are treated as soft apertures (Gaussian footprint overlap for the reflected power, exact
   sampling of the transmitted field); wall curvature across an opening is ignored in the far-field kernel.
 - The circle is integrable: a launch angle χ leaves a caustic disk of radius R_c sin χ that no ray

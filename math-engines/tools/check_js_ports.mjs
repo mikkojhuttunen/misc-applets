@@ -20,7 +20,7 @@ const close = (label, got, want, rel, abs = 0) => {
   const ctx = vm.createContext({ Math, Float64Array, Array, Number, Map, Set, Object, JSON });
   vm.runInContext(fs.readFileSync(path.join(repo, 'dbr-structures/dbr-engine.js'), 'utf8') +
     '\n;HANDLE.__vec = () => globalThis.__handle;' +
-    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU, profileFn, sampleProfile, tableAt, neffProfile, fourier, radiation, farField };', ctx);
+    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU, profileFn, sampleProfile, tableAt, neffProfile, fourier, radiation, farField, crigfAt, findResonance };', ctx);
   const e = ctx.__e, um = x => x * 1e6;
   const key = { sio2: 'sio2', si3n4: 'si3n4', ln_e: 'lne', ln_o: 'lno', lt_e: 'lte' };
   for (const r of V.materials) close(`dbr n(${r.material}, ${r.wavelength})`, e.nIdx({ mat: key[r.material] }, um(r.wavelength), {}), r.n, 1e-12);
@@ -65,6 +65,30 @@ const close = (label, got, want, rel, abs = 0) => {
     if (rad.beta) {
       const ff = e.farField(rad, gS, Lam, r.periods, rad.alphaTot, r.n_clad, r.theta.map(x => x * 180 / Math.PI));
       r.far_up.forEach((v, i) => close(`${id} far field θ=${r.theta[i]}`, ff[i], v, rel, 1e-12 * Math.max(...r.far_up)));
+    }
+  }
+  /* crigf: DBR | spacer | coupler | spacer | DBR fed by a Gaussian beam (crigfAt, findResonance); the port takes
+     lengths in µm, the angle in degrees and the propagation loss in 1/µm */
+  const crKey = { R: 'R', T: 'T', Rd: 'Rd', escL: 'escL', escR: 'escR', lat_loss: 'latLoss', U_max: 'Umax', alpha_rad: 'alphaRad' };
+  for (const r of V.crigf) {
+    const C = n => ({ mat: 'custom', n1: n, n2: n }), lam0 = um(1.55e-6);
+    const st = { lam0, lamP: lam0, layers: { sub: C(r.n_sub), core: C(r.n_core), clad: C(r.n_clad) }, t: um(r.thickness),
+      h: um(r.dbr_etch_depth), f: r.dbr_fill, profile: r.profile, sw: r.sidewall_angle * 180 / Math.PI, sig: 0, pol: r.polarization,
+      under: r.handle ? { mode: '__vec', tbox: um(r.box_thickness) } : { mode: 'none' } };
+    const g = { ND: r.dbr_periods, LamD: um(r.dbr_period), NG: r.gc_periods, LamG: um(r.gc_period), hG: um(r.gc_etch_depth), fG: r.gc_fill,
+      sp: um(r.spacer), Ls: um(r.straight), theta: r.theta * 180 / Math.PI, w0: um(r.w0), alphaProp: r.alpha_prop * 1e-6,
+      oy: r.overlap_y, etaB: r.bounce_eta };
+    ctx.__handle = r.handle;
+    const id = `dbr crigf ${r.profile} ${r.polarization} ND=${r.dbr_periods} NG=${r.gc_periods} θ=${r.theta.toFixed(3)}`;
+    r.wavelengths.forEach((l, i) => {
+      const o = e.crigfAt(st, g, um(l), false);
+      for (const [k, jk] of Object.entries(crKey)) close(`${id} ${k} λ=${l}`, o[jk], r.out[k][i], 1e-8, 1e-13);
+    });
+    if (r.resonance) {
+      const q = r.resonance, o = e.findResonance(st, g, um(q.lam_c), um(q.fsr), q.n, false);
+      close(`${id} resonance λ`, o.lam * 1e-6, q.wavelength, 0, 1e-13);
+      close(`${id} resonance U`, o.Umax, q.U_max, 1e-8);
+      close(`${id} resonance FWHM`, o.fwhm * 1e-6, q.fwhm, 1e-6, 1e-13);
     }
   }
 }

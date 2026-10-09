@@ -1024,6 +1024,263 @@
    }
   },
   {
+   "engine": "crigf",
+   "version": 1,
+   "title": "CRIGF (DBR | grating coupler | DBR)",
+   "description": "Power budget of a cavity-resonant integrated grating filter fed by a Gaussian beam - reflection into the beam, transmission, guided escape through the DBRs, other radiation, circulating power.",
+   "requires": [],
+   "references": [
+    "R. Kazarinov and C. Henry, IEEE J. Quantum Electron. 21, 144 (1985)",
+    "H. Kogelnik, in Guided-Wave Optoelectronics, ed. T. Tamir (Springer, 1988) (coupled-mode theory)"
+   ],
+   "files": [
+    "engines/crigf/__init__.py",
+    "engines/crigf/engine.py",
+    "engines/grating_coupler/__init__.py",
+    "engines/grating_coupler/engine.py",
+    "engines/slab_waveguide/__init__.py",
+    "engines/slab_waveguide/engine.py"
+   ],
+   "functions": {
+    "crigf_response": {
+     "title": "CRIGF power budget at one wavelength",
+     "equations": [
+      "R' = -(ρ|G₁|² + α/2) R - ρ G₁² e^{2iDζ} S + i k N₂ e^{2iDζ} S + i a G₁ e^{iDζ} E_in",
+      "S' = (ρ|G₁|² + α/2) S + ρ G₋₁² e^{-2iDζ} R - i k N₋₂ e^{-2iDζ} R - i a G₋₁ e^{-iDζ} E_in",
+      "R(0) = r_L S(0), S(L) = r_R e^{2iβL} R(L)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550.1,
+       "min": 100
+      },
+      {
+       "name": "n_sub",
+       "label": "Substrate (BOX) index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1
+      },
+      {
+       "name": "n_core",
+       "label": "Core index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.138,
+       "min": 1
+      },
+      {
+       "name": "n_clad",
+       "label": "Cladding index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1
+      },
+      {
+       "name": "thickness",
+       "label": "Core thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 600,
+       "min": 1
+      },
+      {
+       "name": "dbr_etch_depth",
+       "label": "DBR etch depth",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 100,
+       "min": 0
+      },
+      {
+       "name": "dbr_period",
+       "label": "DBR period",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 400.88,
+       "min": 1
+      },
+      {
+       "name": "dbr_periods",
+       "label": "DBR periods",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 60,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "gc_etch_depth",
+       "label": "Coupler etch depth",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 50,
+       "min": 0
+      },
+      {
+       "name": "gc_period",
+       "label": "Coupler period",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 796.37,
+       "min": 1
+      },
+      {
+       "name": "gc_periods",
+       "label": "Coupler periods",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 30,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "dbr_fill",
+       "label": "DBR tooth fill",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "gc_fill",
+       "label": "Coupler tooth fill",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "spacer",
+       "label": "Phase spacer (each side)",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 99,
+       "min": 0
+      },
+      {
+       "name": "theta",
+       "label": "Beam angle in the cladding",
+       "ui_unit": "°",
+       "scale": 0.017453292519943295,
+       "default": 0,
+       "min": -60,
+       "max": 60
+      },
+      {
+       "name": "w0",
+       "label": "Beam radius w₀ (1/e²)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 12,
+       "min": 0.5
+      },
+      {
+       "name": "alpha_prop",
+       "label": "Propagation loss (power)",
+       "ui_unit": "1/cm",
+       "scale": 100.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "handle",
+       "label": "Handle under the BOX",
+       "type": "choice",
+       "choices": [
+        "none",
+        "si",
+        "au"
+       ],
+       "default": "none"
+      },
+      {
+       "name": "box_thickness",
+       "label": "BOX thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "R",
+       "label": "Reflected into the beam mode",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "T",
+       "label": "Transmitted into the substrate beam",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "Rd",
+       "label": "Bare-slab reflectance",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "escL",
+       "label": "Guided escape, left DBR",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "escR",
+       "label": "Guided escape, right DBR",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "other",
+       "label": "Other modes and absorption",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "U_max",
+       "label": "Peak guided power / beam power",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "alpha_rad",
+       "label": "Coupler radiation loss",
+       "ui_unit": "1/mm",
+       "scale": 1000.0
+      },
+      {
+       "name": "R_dbr",
+       "label": "DBR reflectance seen from the coupler",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "fringe_averaging",
    "version": 1,
    "title": "Fringe washout by dithering and averaging",

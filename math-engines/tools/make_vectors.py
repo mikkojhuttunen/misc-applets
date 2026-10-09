@@ -21,6 +21,7 @@ from engines.ray_phase import engine as rp  # noqa: E402
 from engines.cell_mirror import engine as cmir  # noqa: E402
 from engines.fringe_averaging import engine as fav  # noqa: E402
 from engines.grating_coupler import engine as gcp  # noqa: E402
+from engines.crigf import engine as crg  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
@@ -125,7 +126,47 @@ def build() -> dict:
                             "V": [float(x) for x in fav.residual_visibility(f, A, np.array(Ts), drift, coh, kind)],
                             "floor": fav.static_floor(f, A, drift, coh), "n_groups": int(f.size)})
     v["grating_coupler"] = [_grating_vector(*c) for c in _GRATING_CASES]
+    v["crigf"] = [_crigf_vector(**c) for c in _CRIGF_CASES]
     return v
+
+
+# DBR on a slab (profile, fill, etch) with its first-order Bragg period at 1550 nm; coupler period locked to theta
+_CRIGF_CASES = [
+    dict(),
+    dict(spacer=0.099e-6, resonance=True),
+    dict(profile="trap", sidewall=np.radians(75), handle=(3.476, 0.0), box=2e-6, theta=np.radians(3), straight=20e-6,
+         alpha_prop=20.0, eta=0.98, oy=0.9),
+    dict(handle=(0.52, 10.7), box=1.8e-6, ND=0, NG=60),
+    dict(pol="TM", fD=0.4, fG=0.6, ND=120, NG=20, hG=0.08e-6, w0=8e-6),
+]
+
+
+def _crigf_vector(profile="rect", sidewall=np.pi / 2, handle=None, box=0.0, theta=0.0, ND=60, NG=30, hD=0.1e-6, hG=0.05e-6,
+                  spacer=0.3e-6, straight=0.0, w0=12e-6, alpha_prop=0.0, oy=1.0, eta=1.0, pol="TE", fD=0.5, fG=0.5,
+                  resonance=False):
+    lam, stack = 1.55e-6, (1.444, 2.138, 1.0, 0.6e-6)
+    nh = None if handle is None else complex(*handle)
+    d = gcp.SurfaceGrating(*stack, hD, 0.4e-6, fD, profile, sidewall, 0.0, pol, nh, box)
+    LamD = lam / (2 * np.mean(d.neff_profile(lam)))
+    d = gcp.SurfaceGrating(*stack, hD, LamD, fD, profile, sidewall, 0.0, pol, nh, box)
+    LamG = lam / (np.mean(gcp.SurfaceGrating(*stack, hG, 0.8e-6, fG, polarization=pol).neff_profile(lam)) - np.sin(theta))
+    c = crg.CRIGF(d, ND, LamG, NG, hG, fG, spacer, straight, theta, w0, alpha_prop, 0.0, oy, eta)
+    lams = [1.546e-6, 1.549e-6, 1.5501e-6, 1.5502e-6, 1.553e-6]
+    keys = ("R", "T", "Rd", "escL", "escR", "lat_loss", "U_max", "alpha_rad")
+    out = {"n_sub": stack[0], "n_core": stack[1], "n_clad": stack[2], "thickness": stack[3], "profile": profile,
+           "sidewall_angle": float(sidewall), "handle": None if handle is None else list(handle), "box_thickness": box,
+           "polarization": pol, "dbr_etch_depth": hD, "dbr_period": float(LamD), "dbr_fill": fD, "dbr_periods": ND,
+           "gc_etch_depth": hG, "gc_period": float(LamG), "gc_fill": fG, "gc_periods": NG, "spacer": spacer,
+           "straight": straight, "theta": float(theta), "w0": w0, "alpha_prop": alpha_prop, "overlap_y": oy, "bounce_eta": eta,
+           "wavelengths": lams, "out": {k: [] for k in keys}}
+    for l in lams:
+        r = c.response(l)
+        for k in keys:
+            out["out"][k].append(float(r[k]))
+    if resonance:
+        res = c.find_resonance(lam, 4e-9)
+        out["resonance"] = {"lam_c": lam, "fsr": 4e-9, "n": 40, **{k: float(v) for k, v in res.items()}}
+    return out
 
 
 # (n_sub, n_core, n_clad, t, h, period, fill, profile, sidewall_angle, edge_sigma, pol, handle, box, wavelength, periods)

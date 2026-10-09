@@ -8,14 +8,17 @@ Python reference engines in `math-engines/`, tested:
 - `bragg_grating` v2: κ of rectangular gratings, tanh²(κL), bandwidth, effective length, coupled-mode spectrum, Abelès stacks at normal and oblique incidence (s/p, TIR), `TrenchDBR`, `double_resonant_orders`.
 - `slab_waveguide` (three-layer, multilayer), `anisotropic_slab`, `materials`, `qpm_shg`, `gaussian_beam`, `membrane_mode`, `cell_mirror`.
 - `grating_coupler` v1 (A1): arbitrary etch profiles, local n_eff table, Fourier κ, out-of-plane radiation per diffraction order with the vertical stack (BOX, Si or Au handle), far field. Reference for `radiation`, `farField`, `profileFn`, `tableAt`, `modeParams` and `planeWave` in `dbr-engine.js`.
+- `crigf` v1 (A2): DBR | coupler | DBR fed by a Gaussian beam, Kazarinov–Henry coupler, transfer-matrix DBRs, power budget, resonance finder. Reference for `crigfSetup`, `crigfAt`, `findResonance`.
 
-`dbr-engine.js` only (no Python reference yet): CRIGF coupled-mode cavity (`crigfAt`), resonance finder and phase tuning, SHG in the grating, QPM chirp/apodisation optimiser, pump depletion, ridge effective-index lateral model, curved-DBR Gaussian bounce.
+`dbr-engine.js` only (no Python reference yet): phase tuning (`tunePhase`), field map along the cavity, SHG in the grating, QPM chirp/apodisation optimiser, pump depletion, ridge effective-index lateral model, curved-DBR Gaussian bounce.
 
 ## A. Validation and infrastructure
 
 - [x] A1. `grating_coupler` engine: profile κ, radiation per order, directionality, far field; spec, vectors, JS port check (9 cases, port agrees to 1e-9, 1e-5 for the rounded profile).
   Fixed in `dbr-engine.js` on the way: rectangular teeth sampled as exact cell averages (the fill was rounded to 1/1024, κ off by up to ~2 % near a zero of sin(πmf)); far field block-averages instead of picking 1 sample in 8; the radiation-order loop covers orders reaching a Si handle.
-- [ ] A2. `crigf` engine: Python port of `crigfAt`; tests: energy conservation, ND = 0 gives the bare coupler, h → 0 gives the bare slab, mirror symmetry at normal incidence; vectors and JS check.
+- [x] A2. `crigf` engine: Python port of `crigfAt` and `findResonance`; spec, vectors (5 cases, one through a resonance), JS check (port agrees to 1e-8).
+  Independent checks: coupler radiation = `grating_coupler` q = 1 radiation (1e-9); RK4 = matrix exponential in the rotating frame; θ → −θ swaps the escape; no etch = bare slab; strong DBRs return all guided light; passivity; Lorentzian resonance.
+  Findings: the coupler alone leaves up to 4e-4 in other modes for a 5 µm beam (the applet note said 1e-4, corrected); on a cavity resonance a few percent go into other modes because the radiated profile follows the cavity decay; at oblique incidence the backward guided wave radiates at −θ and is counted as "other" (B11).
 - [ ] A3. Rigorous 1D-periodic RCWA/FMM engine (TE/TM, multilayer): benchmark radiation loss, κ, directionality and CRIGF spectra; replaces the "factor of a few" accuracy statement.
 - [ ] A4. Complex-β Floquet–Bloch (leaky-mode) solver of the grating section: band edges, bright/dark modes at normal incidence, Q.
 - [ ] A5. `dbr-engine.js` in SI; material table generated from `materials` (LiTaO₃ Bond refits, temperature-dependent LN).
@@ -35,6 +38,7 @@ Python reference engines in `math-engines/`, tested:
 - [ ] B8. Beam effects: angular spectrum of a finite waist, tilt and offset tolerance, SMF-28 mode coupling.
 - [ ] B9. DBR phase, group delay and dispersion; Q, FSR and finesse as outputs.
 - [ ] B10. Thermo-optic, Kerr and photorefractive resonance shift.
+- [ ] B11. Oblique CRIGF: report the beam the backward guided wave radiates at −θ as its own channel instead of "other"; overlap of the radiated cavity profile with the input beam (beam-shape optimisation, supports C2).
 
 ## C. Design and optimisation
 

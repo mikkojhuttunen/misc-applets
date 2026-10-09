@@ -1,0 +1,55 @@
+engine: onchip_herriott
+version: 1
+title: On-chip Herriott cell, Gaussian-beam path and volume budget
+description: Effective path, absorption-weighted mode volume, angles of incidence and throughput of an integrated (in-plane) Herriott cell with constant or etched-trench DBR mirrors, the beam's angular spectrum, and Gaussian clipping at the mirror ends and the window.
+references:
+  - "D. Herriott, H. Kogelnik, R. Kompfner, Appl. Opt. 3, 523 (1964) (off-axis paths in spherical mirror interferometers)"
+  - "H. Kogelnik, T. Li, Appl. Opt. 5, 1550 (1966) (laser beams and resonators)"
+  - "P. Yeh, Optical Waves in Layered Media (Wiley, 1988) (transfer matrices at oblique incidence)"
+functions:
+  path_budget:
+    title: Path, volume and angle budget
+    equations: ["zR = √(d(2R − d))/2, w0² = λm zR/π, w(x) = w0 √(1 + x²/zR²)", "I_j = I_{j−1} R(χ_j) c_j", "L_eff = Σ I_{j−1} ℓ_j", "V_eff = h_eff Σ I_{j−1} ∫ w √(π/2) ds", "⟨|χ|⟩ = Σ I_{j−1}|χ_j| / Σ I_{j−1}"]
+    inputs:
+      - {name: R, label: "Mirror radius of curvature R", ui_unit: mm, scale: 1.0e-3, default: 10}
+      - {name: N, label: "Hits to re-entrance N (even)", ui_unit: "", scale: 1.0, default: 20, min: 4, step: 1}
+      - {name: M, label: "Pattern turns M", ui_unit: "", scale: 1.0, default: 3, min: 1, step: 1}
+      - {name: A, label: "Pattern half width A", ui_unit: mm, scale: 1.0e-3, default: 1}
+      - {name: phase, label: "Pattern phase φ", ui_unit: rad, scale: 1.0, default: 0}
+      - {name: port_width, label: "Window width", ui_unit: µm, scale: 1.0e-6, default: 100}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550}
+      - {name: n_eff, label: "Slab n_eff", ui_unit: "", scale: 1.0, default: 2.479, min: 1}
+      - {name: h_eff, label: "Slab effective height h_eff", ui_unit: µm, scale: 1.0e-6, default: 0.3}
+      - {name: mirror, label: "Mirror model", type: choice, choices: [dbr, constant], default: dbr}
+      - {name: R_mirror, label: "Constant reflectance", ui_unit: "", scale: 1.0, default: 0.999, min: 0, max: 1}
+      - {name: polarization, label: "Slab polarisation (DBR)", type: choice, choices: [TM, TE], default: TM}
+      - {name: periods, label: "DBR periods", ui_unit: "", scale: 1.0, default: 4, min: 1, step: 1}
+      - {name: sin_design, label: "sin of the DBR design angle", ui_unit: "", scale: 1.0, default: 0, min: 0}
+      - {name: beam_average, label: "Average R over the beam's angular spectrum (1/0)", ui_unit: "", scale: 1.0, default: 1, min: 0, max: 1, step: 1}
+      - {name: scatter, label: "Extra loss per bounce", ui_unit: ppm, scale: 1.0e-6, default: 0, min: 0}
+      - {name: clip, label: "Gaussian clipping at mirror ends and window (1/0)", ui_unit: "", scale: 1.0, default: 1, min: 0, max: 1, step: 1}
+      - {name: exit_mode, label: "Exit", type: choice, choices: [window, closed], default: window}
+      - {name: dR2, label: "Radius error of M2", ui_unit: µm, scale: 1.0e-6, default: 0}
+      - {name: tilt2, label: "Tilt of M2", ui_unit: mrad, scale: 1.0e-3, default: 0}
+      - {name: spacing_error, label: "Spacing error", ui_unit: µm, scale: 1.0e-6, default: 0}
+      - {name: dtheta, label: "Launch-angle offset", ui_unit: mrad, scale: 1.0e-3, default: 0}
+    outputs:
+      - {name: T_out, label: "Throughput (in through the window, out after N)", ui_unit: "", scale: 1.0}
+      - {name: eta_window, label: "Window coupling of the Gaussian", ui_unit: "", scale: 1.0}
+      - {name: L_eff, label: "Effective path Σ I ℓ", ui_unit: cm, scale: 1.0e-2}
+      - {name: L_geom, label: "Geometric path", ui_unit: cm, scale: 1.0e-2}
+      - {name: V_eff, label: "Effective mode volume", ui_unit: nL, scale: 1.0e-12}
+      - {name: A_eff, label: "Mean effective cross-section", ui_unit: µm², scale: 1.0e-12}
+      - {name: w_eff_mean, label: "Mean effective width w√(π/2)", ui_unit: µm, scale: 1.0e-6}
+      - {name: chi_mean_deg, label: "Mean |χ| (power-weighted)", ui_unit: deg, scale: 1.0}
+      - {name: chi_rms_deg, label: "RMS |χ|", ui_unit: deg, scale: 1.0}
+      - {name: chi_max_deg, label: "Largest |χ|", ui_unit: deg, scale: 1.0}
+      - {name: R_mean, label: "Mean mirror reflectance (power-weighted)", ui_unit: "", scale: 1.0}
+      - {name: clip_loss, label: "Clipping loss over the path", ui_unit: "", scale: 1.0}
+      - {name: reflections, label: "Reflections", ui_unit: "", scale: 1.0}
+      - {name: exits, label: "Leaves through the window", ui_unit: "", scale: 1.0}
+      - {name: w0, label: "Waist w0", ui_unit: µm, scale: 1.0e-6}
+      - {name: w_mirror, label: "Beam radius on the mirrors", ui_unit: µm, scale: 1.0e-6}
+      - {name: theta0_deg, label: "Beam half-angle θ0", ui_unit: deg, scale: 1.0}
+      - {name: d, label: "Mirror spacing", ui_unit: mm, scale: 1.0e-3}
+      - {name: R_dbr_normal, label: "Mirror R at normal incidence", ui_unit: "", scale: 1.0}

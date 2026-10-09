@@ -1,0 +1,1193 @@
+<title>On-chip Herriott Cell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument panel. Controls in a left rail; the budget numbers first, then the cell with its Gaussian beam, then the sweeps against mirror reflectance. */
+:root {
+  --bg: #eef1f0;
+  --surface: #ffffff;
+  --ink: #142026;
+  --muted: #5a6a6f;
+  --line: #d3dcdc;
+  --mirror: #6d8188;
+  --sel: #b86e00;
+  --port-in: #1f8a4c;
+  --port-out: #c43d2a;
+  --accent: #1d5f86;
+  --beam-l: 42%;
+  --beam-s: 78%;
+  --font-display: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+    --mirror: #9db3ba; --sel: #ffb547; --port-in: #4fd18a; --port-out: #ff7a63; --accent: #6cb8e6;
+    --beam-l: 64%; --beam-s: 85%; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+  --mirror: #9db3ba; --sel: #ffb547; --port-in: #4fd18a; --port-out: #ff7a63; --accent: #6cb8e6;
+  --beam-l: 64%; --beam-s: 85%; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); padding-inline: 16px; padding-block: 16px 32px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+h1 { font: 700 22px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 75ch; }
+.main { display: grid; grid-template-columns: minmax(270px, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.rail { display: grid; gap: 12px; }
+fieldset { margin: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 10px 12px 12px; display: grid; gap: 10px; min-width: 0; }
+legend { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+.ctl { display: grid; gap: 3px; }
+.ctl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { font-weight: 500; }
+.ctl output, .mono { font-family: var(--font-data); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+input[type="number"] { width: 5.5em; font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button { font: 500 13px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; gap: 6px; align-items: center; }
+.check input { accent-color: var(--accent); }
+.views { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; display: grid; gap: 8px; }
+.panel h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.cellview { position: relative; width: 100%; max-width: 100%; aspect-ratio: var(--cell-aspect, 2); max-height: 78vh; margin: 0 auto; }
+[hidden] { display: none !important; }
+canvas { display: block; width: 100%; height: 100%; }
+#cell { cursor: crosshair; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 640px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+.chart { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; }
+.chart.wide { aspect-ratio: 3 / 1; }
+@media (max-width: 640px) { .chart.wide { aspect-ratio: 3 / 2; } }
+.phasectl { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 18px; }
+.phasectl select { max-width: 100%; }
+.phasectl .ctl > select { width: 100%; }
+.sub { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.tablewrap { overflow-x: auto; }
+#mirTable { border-collapse: collapse; font-size: 12.5px; min-width: 520px; width: 100%; }
+#mirTable th, #mirTable td { padding: 4px 10px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+#mirTable th:first-child, #mirTable td:first-child { text-align: left; font-family: var(--font-body); }
+#mirTable thead th { color: var(--muted); font-weight: 500; font-family: var(--font-body); }
+#mirTable td.bad { color: var(--port-out); }
+#mirTable td.good { color: var(--port-in); }
+.explain { border-left: 3px solid var(--accent); background: var(--bg); padding: 8px 12px; border-radius: 0 4px 4px 0; display: grid; gap: 4px; font-size: 13px; }
+.explain .eq { font-family: var(--font-data); font-size: 12.5px; overflow-wrap: anywhere; }
+.explain .note { color: var(--muted); }
+.explain .warn { color: var(--port-out); }
+.status { color: var(--muted); font: 12px var(--font-data); }
+details.how { border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; }
+details.how summary { cursor: pointer; font-weight: 600; }
+details.how ul { margin: 8px 0 4px; padding-left: 18px; display: grid; gap: 4px; max-width: 95ch; }
+.sub h3 { font: 500 12.5px var(--font-body); margin: 0; color: var(--ink); }
+select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; }
+.stat { display: grid; gap: 1px; }
+.stat span:first-child { color: var(--muted); font-size: 12px; }
+.stat span:last-child { font: 500 15px var(--font-data); font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.manual { font: 12px var(--font-data); color: var(--muted); min-height: 1.2em; overflow-wrap: anywhere; }
+footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
+.rail select { width: 100%; max-width: 100%; }
+.rail .btns select { width: auto; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>On-chip Herriott Cell</h1>
+    <p>Two concave mirrors etched into a membrane, light guided in the slab between them. The cell's Gaussian mode rides on the traced ray; each bounce keeps the mirror's reflectance (constant, or an etched-trench DBR at the angle it meets) and the share of the beam that stays on the mirror and off the window. Read off the effective path, the mode volume the light samples, the angles at the mirrors and the throughput, and see how they change with the mirror reflectance.</p>
+  </header>
+
+  <div class="main">
+    <div class="rail">
+      <fieldset>
+        <legend>Cell</legend>
+        <div class="ctl"><div class="row"><label for="R">Mirror radius of curvature R</label><output id="ROut"></output></div>
+          <input id="R" type="range" min="1" max="50" step="0.1" value="10"></div>
+        <div class="ctl"><div class="row"><label for="N">Passes to re-entrance N</label><output id="NOut"></output></div>
+          <input id="N" type="range" min="4" max="80" step="2" value="20"></div>
+        <div class="ctl"><div class="row"><label for="M">Turns M</label><output id="MOut"></output></div>
+          <input id="M" type="range" min="1" max="9" step="1" value="3"></div>
+        <div class="ctl"><div class="row"><label for="A">Pattern half width A</label><output id="AOut"></output></div>
+          <input id="A" type="range" min="0.05" max="4" step="0.01" value="1"></div>
+        <div class="ctl"><div class="row"><label for="phMode">Spot pattern y<sub>n</sub> = A cos(nθ + φ)</label></div>
+          <select id="phMode"><option value="edge" selected>φ = 0: window at the mirror edge</option><option value="distinct">φ = π/N: all spots distinct</option></select></div>
+        <div class="ctl"><div class="row"><label for="pw">Window width</label><output id="pwOut"></output></div>
+          <input id="pw" type="range" min="5" max="400" step="1" value="100"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Slab and beam</legend>
+        <div class="ctl"><div class="row"><label for="preset">Membrane slab mode</label></div>
+          <select id="preset">
+            <option value="2.8138|TE|0.204|0.062">Si 220 nm, TE0</option>
+            <option value="2.011|TM|0.139|0.641">Si 250 nm, TM0</option>
+            <option value="2.4792|TM|0.160|0.277" selected>Si 300 nm, TM0</option>
+            <option value="2.9321|TM|0.208|0.089">Si 400 nm, TM0</option>
+            <option value="1.6706|TE|0.384|0.115">Si₃N₄ 400 nm, TE0</option>
+            <option value="1.7928|TM|0.444|0.094">Si₃N₄ 800 nm, TM0</option>
+            <option value="custom">custom (sliders below)</option>
+          </select></div>
+        <div class="ctl"><div class="row"><label for="lam">Wavelength</label><output id="lamOut"></output></div>
+          <input id="lam" type="range" min="700" max="5000" step="1" value="1550"></div>
+        <div class="ctl"><div class="row"><label for="neff">Slab n<sub>eff</sub></label><output id="neffOut"></output></div>
+          <input id="neff" type="range" min="1.3" max="3.6" step="0.001" value="2.4792"></div>
+        <div class="ctl"><div class="row"><label for="pol">Slab polarisation</label></div>
+          <select id="pol"><option value="TM" selected>TM: s-pol on the trench walls</option><option value="TE">TE: p-pol on the trench walls</option></select></div>
+        <div class="ctl"><div class="row"><label for="heff">Slab effective height h<sub>eff</sub></label><output id="heffOut"></output></div>
+          <input id="heff" type="range" min="0.05" max="3" step="0.001" value="0.160">
+          <p class="hint">∫f²dz / max f² of the slab mode profile (f = E<sub>y</sub> for TE, H<sub>y</sub> for TM); presets from the <span class="mono">membrane_mode</span> engine at 1550 nm.</p></div>
+        <div class="ctl"><div class="row"><label for="gam">Evanescent factor Γ (gas overlap)</label><output id="gamOut"></output></div>
+          <input id="gam" type="range" min="0" max="1" step="0.001" value="0.277"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Mirrors</legend>
+        <div class="ctl"><div class="row"><label for="model">Mirror model</label></div>
+          <select id="model"><option value="dbr" selected>etched-trench DBR, R(χ)</option><option value="constant">constant reflectance</option></select></div>
+        <div class="ctl only-const"><div class="row"><label for="Rc">Reflectance R</label><output id="RcOut"></output></div>
+          <input id="Rc" type="range" min="0" max="5" step="0.01" value="3">
+          <p class="hint">Logarithmic in 1 − R: from 0.9 to 0.99999.</p></div>
+        <div class="ctl only-dbr"><div class="row"><label for="np">DBR periods</label><output id="npOut"></output></div>
+          <input id="np" type="range" min="1" max="12" step="1" value="4"></div>
+        <div class="ctl only-dbr"><div class="row"><label for="mg">Gap / tooth quarter-wave orders</label></div>
+          <div class="btns"><select id="mg" aria-label="Gap order"><option>1</option><option>3</option><option>5</option></select>
+            <select id="mt" aria-label="Tooth order"><option>1</option><option>3</option><option>5</option></select></div></div>
+        <div class="ctl only-dbr"><div class="row"><label for="des">Design angle χ<sub>d</sub></label><output id="desOut"></output></div>
+          <input id="des" type="range" min="0" max="20" step="0.05" value="0">
+          <div class="btns"><button id="desMean" type="button">Design for the mean |χ|</button></div></div>
+        <label class="check only-dbr" for="avg"><input id="avg" type="checkbox" checked> Average R over the beam's angular spectrum</label>
+        <div class="ctl"><div class="row"><label for="sc">Extra loss per bounce (scatter)</label><output id="scOut"></output></div>
+          <input id="sc" type="range" min="0" max="5000" step="10" value="0"></div>
+        <label class="check" for="clip"><input id="clip" type="checkbox" checked> Gaussian clipping at the mirror ends and the window</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Errors and exit</legend>
+        <div class="ctl"><div class="row"><label for="dR2">Radius error of M2</label><output id="dR2Out"></output></div>
+          <input id="dR2" type="range" min="-300" max="300" step="1" value="0"></div>
+        <div class="ctl"><div class="row"><label for="tilt">Tilt of M2</label><output id="tiltOut"></output></div>
+          <input id="tilt" type="range" min="-5" max="5" step="0.01" value="0"></div>
+        <div class="ctl"><div class="row"><label for="dd">Spacing error</label><output id="ddOut"></output></div>
+          <input id="dd" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="ctl"><div class="row"><label for="exit">Exit</label></div>
+          <select id="exit"><option value="window" selected>through the window after N passes</option><option value="closed">closed cell: light circulates until absorbed</option></select></div>
+        <label class="check" for="stretch"><input id="stretch" type="checkbox" checked> Stretch the transverse axis in the cell view</label>
+      </fieldset>
+    </div>
+
+    <div class="views">
+      <section class="panel">
+        <h2>Budget</h2>
+        <div class="explain" id="notes"></div>
+        <div class="stats" id="stats"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Cell and Gaussian beam</h2>
+        <div class="cellview" id="cellview"><canvas id="cell" aria-label="Cell with the Gaussian beam on every pass"></canvas></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--accent)"></i>beam, 1/e² radius w(x), opacity ∝ power</span>
+          <span><i class="sw" style="background:var(--port-in)"></i>window (in and out)</span>
+          <span><i class="sw" style="background:var(--mirror)"></i>mirrors</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Against mirror reflectance</h2>
+        <div class="duo">
+          <div class="sub"><h3>Effective path L<sub>eff</sub> and mode volume V<sub>eff</sub></h3>
+            <canvas class="chart" id="swL" aria-label="Effective path and volume versus mirror reflectance"></canvas></div>
+          <div class="sub"><h3>Throughput and mean angle of incidence</h3>
+            <canvas class="chart" id="swT" aria-label="Throughput and mean angle versus mirror reflectance"></canvas></div>
+        </div>
+        <p class="hint">Constant mirror reflectance swept from 0.9 to 0.99999, everything else as set (clipping, scatter, errors). Ring: the current setting (for the DBR, at its power-weighted mean reflectance). The angles hardly depend on R: the geometry fixes them, R only reweights the passes. L<sub>eff</sub> and V<sub>eff</sub> scale together because every pass has the same beam width.</p>
+        <div class="duo only-dbr">
+          <div class="sub"><h3>DBR periods: mean reflectance and effective path</h3>
+            <canvas class="chart" id="swP" aria-label="Mean reflectance and effective path versus DBR periods"></canvas></div>
+          <div class="sub"><h3>DBR reflectance against angle</h3>
+            <canvas class="chart" id="dbrChart" aria-label="DBR reflectance versus angle of incidence"></canvas></div>
+        </div>
+        <p class="hint only-dbr">Left: the DBR with 1 to 12 periods in this cell. Right: 1 − R(χ) of the DBR (log), at the ray angle (line) and averaged over the beam's angular spectrum (dashed); ticks mark the angles the beam meets, the band the beam's half-angle θ<sub>0</sub>.</p>
+        <div class="status" id="swStatus"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Pass by pass</h2>
+        <canvas class="chart wide" id="perHit" aria-label="Power and angle of incidence per pass"></canvas>
+        <p class="hint">Bars: angle of incidence |χ| at each reflection (right axis). Line: power left after each reflection (left axis; logarithmic once it drops below 20 %), including the window coupling and clipping. The last pass leaves through the window.</p>
+      </section>
+
+      <details class="how">
+        <summary>Model and definitions</summary>
+        <ul>
+          <li><b>Beam</b>: the symmetric cell's Gaussian mode in the slab, λ<sub>m</sub> = λ/n<sub>eff</sub>, z<sub>R</sub> = √(d(2R − d))/2, w<sub>0</sub>² = λ<sub>m</sub>z<sub>R</sub>/π, w(x) = w<sub>0</sub>√(1 + x²/z<sub>R</sub>²) along the cell axis. A mode-matched input keeps this width on every pass.</li>
+          <li><b>Effective path</b> L<sub>eff</sub> = Σ I<sub>j</sub> ℓ<sub>j</sub>, with I<sub>j</sub> the power on pass j (window coupling, reflectance and clipping of the hits before it). A weak absorber α removes α L<sub>eff</sub> of the input power.</li>
+          <li><b>Mode volume</b> V<sub>eff</sub> = h<sub>eff</sub> Σ I<sub>j</sub> ∫ w(x)√(π/2) ds: the effective cross-section w√(π/2) × h<sub>eff</sub> times the effective path. A<sub>eff</sub> = V<sub>eff</sub>/L<sub>eff</sub>. Coverage: share of the area between the mirrors within one beam radius of the pattern.</li>
+          <li><b>Angles</b>: ⟨|χ|⟩ and the RMS value are weighted by the power arriving at each reflection.</li>
+          <li><b>DBR</b>: membrane | [air gap, tooth] × N | air, quarter-wave at the design angle, exact transfer matrix for the slab's lateral polarisation (TE → p, TM → s). Beam average: R(|χ| + α) weighted by the angular spectrum exp(−2α²/θ<sub>0</sub>²), θ<sub>0</sub> = λ<sub>m</sub>/(π w<sub>0</sub>).</li>
+          <li><b>Clipping</b>: the 1D Gaussian share of each spot on the mirror (|y| below the half aperture) and, on M1 before the last pass, off the window. Throughput includes the window coupling in and out.</li>
+          <li><b>Not included</b>: diffraction at the mirror ends beyond clipping, slab propagation loss (add it as scatter per bounce: α<sub>slab</sub> × chord), mode conversion at the trenches.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+  <footer>JavaScript port of misc-applets <span class="mono">math-engines/engines/onchip_herriott</span> on <span class="mono">planar_cell</span> and <span class="mono">bragg_grating</span>, checked against the Python engines' test vectors (<span class="mono">tools/check_js_ports.mjs</span>). 2D ray optics with a paraxial Gaussian beam.</footer>
+</div>
+
+<script id="app">
+/* engine:begin  JS ports of math-engines/engines/onchip_herriott (OnchipEngine) and planar_cell (Cell2D, builders, tracing) with the ray_phase, bragg_grating
+   (stack_R_oblique, TrenchDBR) and cell_mirror functions it uses; checked by math-engines/tools/check_js_ports.mjs */
+const PlanarEngine = (() => {
+  /* planar_cell.Cell2D: elements [{A: [x, y], B: [x, y], kappa, ext, label}] in counter-clockwise order */
+  function makeCell(els, opts = {}) {
+    const E = els.length;
+    const c = { els, E, name: opts.name || "cell", meta: Object.assign({}, opts.meta || {}),
+      Ax: new Float64Array(E), Ay: new Float64Array(E), Bx: new Float64Array(E), By: new Float64Array(E),
+      kappa: new Float64Array(E), ext: new Float64Array(E), labels: els.map(e => e.label || ""),
+      h: new Float64Array(E), tx: new Float64Array(E), ty: new Float64Array(E), nx: new Float64Array(E), ny: new Float64Array(E),
+      Mx: new Float64Array(E), My: new Float64Array(E), R: new Float64Array(E).fill(Infinity), Cx: new Float64Array(E).fill(NaN),
+      Cy: new Float64Array(E).fill(NaN), L: new Float64Array(E), sense: new Float64Array(E).fill(1), s0: new Float64Array(E) };
+    for (let k = 0; k < E; k++) {
+      const e = els[k];
+      c.Ax[k] = e.A[0]; c.Ay[k] = e.A[1]; c.Bx[k] = e.B[0]; c.By[k] = e.B[1]; c.kappa[k] = e.kappa || 0; c.ext[k] = e.ext || 0;
+      const chx = c.Bx[k] - c.Ax[k], chy = c.By[k] - c.Ay[k];
+      c.h[k] = 0.5 * Math.hypot(chx, chy);
+      c.tx[k] = chx / (2 * c.h[k]); c.ty[k] = chy / (2 * c.h[k]);
+      c.nx[k] = c.ty[k]; c.ny[k] = -c.tx[k];
+      c.Mx[k] = 0.5 * (c.Ax[k] + c.Bx[k]); c.My[k] = 0.5 * (c.Ay[k] + c.By[k]);
+      c.L[k] = 2 * c.h[k];
+      if (c.kappa[k] !== 0) {
+        const R = 1 / Math.abs(c.kappa[k]);
+        if (R < c.h[k] * (1 - 1e-12)) throw new Error(`element ${k}: radius smaller than half its chord`);
+        const d0 = Math.sqrt(Math.max(R * R - c.h[k] ** 2, 0));
+        c.R[k] = R;
+        const sg = c.kappa[k] < 0 ? -1 : 1;
+        c.Cx[k] = c.Mx[k] + sg * d0 * c.nx[k]; c.Cy[k] = c.My[k] + sg * d0 * c.ny[k];
+        c.L[k] = 2 * R * Math.asin(Math.min(c.h[k] / R, 1));
+        const vAx = c.Ax[k] - c.Cx[k], vAy = c.Ay[k] - c.Cy[k], vBx = c.Bx[k] - c.Cx[k], vBy = c.By[k] - c.Cy[k];
+        c.sense[k] = Math.sign(vAx * vBy - vAy * vBx) || 1;
+      }
+    }
+    let acc = 0;
+    for (let k = 0; k < E; k++) { c.s0[k] = acc; acc += c.L[k]; }
+    c.perimeter = acc;
+    let a = 0, gapMax = 0;
+    for (let k = 0; k < E; k++) {
+      const j = (k + 1) % E;
+      a += 0.5 * (c.Ax[k] * c.By[k] - c.Bx[k] * c.Ay[k]);
+      gapMax = Math.max(gapMax, Math.hypot(c.Ax[j] - c.Bx[k], c.Ay[j] - c.By[k]));
+    }
+    for (let k = 0; k < E; k++) { const j = (k + 1) % E; a += 0.5 * (c.Bx[k] * c.Ay[j] - c.Ax[j] * c.By[k]); }
+    for (let k = 0; k < E; k++) {
+      if (c.kappa[k] === 0) continue;
+      const R = c.R[k], al = Math.asin(Math.min(c.h[k] / R, 1)), seg = R * R * (al - Math.sin(al) * Math.cos(al));
+      a += c.kappa[k] < 0 ? seg : -seg;
+    }
+    c.area = a;
+    c.closed = gapMax <= 1e-6 * c.perimeter;
+    c.meanChord = Math.PI * a / c.perimeter;
+    c.sIn = opts.sIn === undefined || opts.sIn === null ? c.L[0] / 2 : opts.sIn;
+    c.sOut = opts.sOut === undefined ? null : opts.sOut;
+    return c;
+  }
+
+  function arcElements(cx, cy, r, phi0, phi1, n, faceted, ext, label) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const a = i === 0 ? phi0 : phi0 + i * ((phi1 - phi0) / n), b = i + 1 === n ? phi1 : phi0 + (i + 1) * ((phi1 - phi0) / n);
+      out.push({ A: [cx + r * Math.cos(a), cy + r * Math.sin(a)], B: [cx + r * Math.cos(b), cy + r * Math.sin(b)],
+        kappa: faceted ? 0 : -1 / r, ext: faceted ? ext : 0, label });
+    }
+    return out;
+  }
+
+  function polygonCell(r, N, ext = 0.15) {
+    const els = [];
+    for (let k = 0; k < N; k++) {
+      const a = 2 * Math.PI * k / N - Math.PI / N, b = 2 * Math.PI * k / N + Math.PI / N;
+      els.push({ A: [r * Math.cos(a), r * Math.sin(a)], B: [r * Math.cos(b), r * Math.sin(b)], kappa: 0, ext, label: `facet${k}` });
+    }
+    return makeCell(els, { name: `polygon N=${N}` });
+  }
+
+  function circleCell(r, nArcs = 4) {
+    return makeCell(arcElements(0, 0, r, -Math.PI / nArcs, 2 * Math.PI - Math.PI / nArcs, nArcs, false, 0, "circle"), { name: "circle" });
+  }
+
+  function stadiumCell(r, a, capFacets = null, straightSegments = 1, ext = 0.15) {
+    const ns = straightSegments, els = [];
+    const xs = Array.from({ length: ns + 1 }, (_, i) => i === ns ? a / 2 : -a / 2 + i * (a / ns));
+    const segExt = ns > 1 || capFacets ? ext : 0;
+    if (a > 0) for (let i = 0; i < ns; i++) els.push({ A: [xs[i], -r], B: [xs[i + 1], -r], kappa: 0, ext: segExt, label: "straight_bottom" });
+    const faceted = capFacets !== null && capFacets !== undefined, npc = faceted ? capFacets : 2;
+    els.push(...arcElements(a / 2, 0, r, -Math.PI / 2, Math.PI / 2, npc, faceted, ext, "cap_right"));
+    if (a > 0) for (let i = 0; i < ns; i++) els.push({ A: [xs[ns - i], r], B: [xs[ns - i - 1], r], kappa: 0, ext: segExt, label: "straight_top" });
+    els.push(...arcElements(-a / 2, 0, r, Math.PI / 2, 3 * Math.PI / 2, npc, faceted, ext, "cap_left"));
+    return makeCell(els, { name: "stadium", sIn: a > 0 ? a / 2 : null });
+  }
+
+  /* planar_cell integrated Herriott design helpers */
+  const thetaOf = (R, d) => { const c = 1 - d / R; return c > -1 && c < 1 ? Math.acos(c) : NaN; };
+  const reentrantSpacing = (R, N, M) => R * (1 - Math.cos(2 * Math.PI * M / N));
+  const modeRadius = (R, d, lam, n = 1) => { const g = 1 - d / R; return Math.sqrt(lam / n * d / Math.PI / Math.sqrt(1 - g * g)); };
+
+  function herriottPlanarCell(R, N, M, A, { portW = null, aperture = null, R2 = null, d = null, phase = 0 } = {}) {
+    if (N < 4 || N % 2) throw new Error("N must be even and >= 4");
+    if (!(M > 0 && M < N / 2)) throw new Error("need 0 < M < N/2");
+    d = d === null ? reentrantSpacing(R, N, M) : d;
+    R2 = R2 === null ? R : R2;
+    const w = portW === null ? A / 10 : portW, a = aperture === null ? A + w : aperture, y0 = A * Math.cos(phase);
+    if (a >= Math.min(R, R2)) throw new Error("aperture must be smaller than the mirror radii");
+    if (a < Math.max(A, Math.abs(y0) + w / 2)) throw new Error("aperture must hold the spot pattern and the window");
+    const p1 = Math.asin(a / R), p2 = Math.asin(a / R2);
+    const els = [...arcElements(-d / 2 + R, 0, R, Math.PI - p1, Math.PI + p1, 1, false, 0, "M1"), ...arcElements(d / 2 - R2, 0, R2, -p2, p2, 1, false, 0, "M2")];
+    const sIn = R * (p1 - Math.asin(y0 / R));
+    const thLaunch = phase ? Math.atan(-A * Math.sin(phase) * Math.sqrt((2 * R - d) / d) / R) : 0;
+    return makeCell(els, { name: "integrated Herriott", sIn, sOut: sIn,
+      meta: { R, R2, d, N, M, A, aperture: a, portW: w, theta: thetaOf(R, d), phase, y0, thetaLaunch: thLaunch } });
+  }
+
+  /* planar_cell.herriott_planar_spots: design spots per mirror, closest spots, window clearance */
+  function herriottSpots(m) {
+    const y1 = [], y2 = [];
+    for (let n = 1; n < m.N; n++) (n % 2 ? y2 : y1).push(m.A * Math.cos(n * m.theta + m.phase));
+    const minSep = arr => { let s = Infinity; for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) s = Math.min(s, Math.abs(arr[i] - arr[j])); return s; };
+    let clear = Infinity; for (const y of y1) clear = Math.min(clear, Math.abs(y - m.y0));
+    return { y1, y2, spacing: Math.min(minSep(y1.concat([m.y0])), minSep(y2)), clearance: clear - m.portW / 2 };
+  }
+
+  /* planar_cell.perturb with explicit per-element arrays (null = 0): tilt about the chord midpoint, shift along the
+     outward normal, curvature change; ports and meta kept */
+  function perturb(c, tilts, offsets, curvatures) {
+    const els = c.els.map((e, k) => {
+      const tl = tilts ? tilts[k] : 0, of = offsets ? offsets[k] : 0, cu = curvatures ? curvatures[k] : 0;
+      const M0x = c.Mx[k], M0y = c.My[k], Mx = M0x + of * c.nx[k], My = M0y + of * c.ny[k];
+      const co = Math.cos(tl), si = Math.sin(tl);
+      const rot = P => [Mx + co * (P[0] - M0x) - si * (P[1] - M0y), My + si * (P[0] - M0x) + co * (P[1] - M0y)];
+      return { A: rot(e.A), B: rot(e.B), kappa: (e.kappa || 0) + cu, ext: e.ext || 0, label: e.label };
+    });
+    return makeCell(els, { name: c.name + " (perturbed)", sIn: c.sIn, sOut: c.sOut, meta: c.meta });
+  }
+
+  const modP = (s, P) => ((s % P) + P) % P;
+  function segmentOf(c, s) {
+    s = modP(s, c.perimeter);
+    let k = 0; while (k + 1 < c.E && c.s0[k + 1] <= s) k++;
+    return k;
+  }
+
+  function pointAt(c, s) {
+    s = modP(s, c.perimeter);
+    const k = segmentOf(c, s), loc = s - c.s0[k];
+    if (c.kappa[k] === 0) {
+      const f = loc / c.L[k];
+      return [c.Ax[k] + f * (c.Bx[k] - c.Ax[k]), c.Ay[k] + f * (c.By[k] - c.Ay[k]), c.nx[k], c.ny[k]];
+    }
+    const ang = loc / c.R[k] * c.sense[k], vx = c.Ax[k] - c.Cx[k], vy = c.Ay[k] - c.Cy[k];
+    const co = Math.cos(ang), sn = Math.sin(ang), px = vx * co - vy * sn, py = vx * sn + vy * co, sg = c.kappa[k] < 0 ? 1 : -1;
+    return [c.Cx[k] + px, c.Cy[k] + py, sg * px / c.R[k], sg * py / c.R[k]];
+  }
+
+  /* planar_cell.Cell2D.hit_k */
+  function hit(c, px, py, dx, dy) {
+    const eps = 1e-12 * c.perimeter;
+    let bt = Infinity, bnx = 0, bny = 0, bs = 0, bk = -1;
+    for (let k = 0; k < c.E; k++) {
+      const hh = c.h[k] * (1 + c.ext[k]), Mx = c.Mx[k], My = c.My[k], tx = c.tx[k], ty = c.ty[k], nkx = c.nx[k], nky = c.ny[k];
+      let t, ok, nx_, ny_, sl;
+      if (c.kappa[k] === 0) {
+        const dn = dx * nkx + dy * nky;
+        t = ((Mx - px) * nkx + (My - py) * nky) / dn;
+        const u = (px + t * dx - Mx) * tx + (py + t * dy - My) * ty;
+        ok = dn > 1e-12 && t > eps && Math.abs(u) <= hh;
+        nx_ = nkx; ny_ = nky; sl = Math.min(Math.max(u, -c.h[k]), c.h[k]) + c.h[k];
+      } else {
+        const R = c.R[k], cx = c.Cx[k], cy = c.Cy[k], ox = px - cx, oy = py - cy;
+        const b = ox * dx + oy * dy, disc = b * b - (ox * ox + oy * oy - R * R), sq = Math.sqrt(Math.max(disc, 0));
+        t = c.kappa[k] < 0 ? -b + sq : -b - sq;
+        const hx = px + t * dx, hy = py + t * dy;
+        const side = ((hx - cx) * nkx + (hy - cy) * nky) * (-Math.sign(c.kappa[k])) > 0;
+        const u = (hx - Mx) * tx + (hy - My) * ty;
+        ok = disc >= 0 && t > eps && side && Math.abs(u) <= hh;
+        if (!ok) continue;
+        const sg = c.kappa[k] < 0 ? 1 : -1;
+        nx_ = sg * (hx - cx) / R; ny_ = sg * (hy - cy) / R;
+        const vAx = c.Ax[k] - cx, vAy = c.Ay[k] - cy, vHx = hx - cx, vHy = hy - cy;
+        const ang = Math.atan2(vAx * vHy - vAy * vHx, vAx * vHx + vAy * vHy) * c.sense[k];
+        sl = Math.min(Math.max(R * ang, 0), c.L[k]);
+      }
+      if (ok && t < bt) { bt = t; bnx = nx_; bny = ny_; bs = c.s0[k] + sl; bk = k; }
+    }
+    return { t: bt, nx: bnx, ny: bny, s: bs, k: bk };
+  }
+
+  function reflect(dx, dy, nx, ny) {
+    const dn = dx * nx + dy * ny;
+    const rx = dx - 2 * dn * nx, ry = dy - 2 * dn * ny, nn = Math.hypot(rx, ry);
+    return [rx / nn, ry / nn];
+  }
+
+  function launch(c, s, theta) {
+    const [x, y, nx, ny] = pointAt(c, s);
+    const ux = -nx, uy = -ny;
+    return [x, y, ux * Math.cos(theta) - uy * Math.sin(theta), ux * Math.sin(theta) + uy * Math.cos(theta)];
+  }
+
+  function inWindow(s, s0, w, P) { const d = modP(s - s0 + P / 2, P) - P / 2; return Math.abs(d) <= w / 2; }
+
+  /* trace up to nHits; ports = {sIn, sOut, w} or null (output window checked first, as trace_rays).
+     exit: 1 output, 0 input, -1 still inside, -2 left through a gap or past an open wall (dir: the leaving direction) */
+  function trace(c, start, nHits, ports) {
+    let [x, y, dx, dy] = start;
+    const xs = [x], ys = [y], S = [], SC = [], K = [];
+    let L = 0, exit = -1;
+    for (let j = 0; j < nHits; j++) {
+      const h = hit(c, x, y, dx, dy);
+      if (!Number.isFinite(h.t)) { exit = -2; break; }
+      x += h.t * dx; y += h.t * dy; L += h.t;
+      xs.push(x); ys.push(y); S.push(h.s); SC.push(dx * h.ny - dy * h.nx); K.push(h.k);
+      if (ports) {
+        if (inWindow(h.s, ports.sOut, ports.w, c.perimeter)) { exit = 1; break; }
+        if (inWindow(h.s, ports.sIn, ports.w, c.perimeter)) { exit = 0; break; }
+      }
+      [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+    }
+    return { xs, ys, s: S, sinchi: SC, elem: K, L, exit, dir: [dx, dy] };
+  }
+
+  /* planar_cell.herriott_planar_trace: the centre ray from the window until it leaves */
+  function herriottTrace(c, dtheta = 0, nMax = 2000) {
+    const m = c.meta, theta = m.thetaLaunch + dtheta, w = m.portW;
+    const tr = trace(c, launch(c, c.sIn, theta), nMax, { sIn: c.sIn, sOut: c.sIn, w });
+    const n = tr.s.length, out = { tr, nHits: n, path: tr.L, theta };
+    if (tr.exit === 1) {
+      out.exit = "port"; out.reflections = n - 1;
+      const P = c.perimeter; out.exitOffset = modP(tr.s[n - 1] - c.sIn + P / 2, P) - P / 2;
+      out.exitAngle = Math.asin(Math.min(Math.max(tr.sinchi[n - 1], -1), 1)) - theta;
+    } else { out.exit = tr.exit === -2 ? "leak" : "trapped"; out.reflections = n; }
+    return out;
+  }
+
+  function reflectionWeightedPath(chords, R) {
+    let I = 1, L = 0, Leff = 0;
+    for (let j = 0; j < chords.length; j++) { const c = chords[j]; L += c; Leff += I * c; I *= Array.isArray(R) ? R[j] : R; }
+    return { L, Leff, Iend: I };
+  }
+
+  /* ray_phase.path_lengths: cumulative path per hit and a path id (hash of the element sequence, -1 once gone) */
+  const HASH_M = 2147483647;
+  function pathLengths(c, thetas, nPass, sIn, withIds) {
+    const Ls = [], IDs = [];
+    for (const th of thetas) {
+      let [x, y, dx, dy] = launch(c, sIn === undefined ? c.sIn : sIn, th);
+      const L = new Float64Array(nPass), ids = new Float64Array(nPass);
+      let acc = 0, pid = 0;
+      for (let j = 0; j < nPass; j++) {
+        if (pid < 0) { L[j] = NaN; ids[j] = -1; continue; }
+        const h = hit(c, x, y, dx, dy);
+        if (!Number.isFinite(h.t)) { pid = -1; L[j] = NaN; ids[j] = -1; continue; }
+        pid = (pid * 1000003 + h.k + 1) % HASH_M; ids[j] = pid;
+        acc += h.t; L[j] = acc;
+        x += h.t * dx; y += h.t * dy;
+        [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+      }
+      Ls.push(L); IDs.push(ids);
+    }
+    return withIds ? { L: Ls, ids: IDs } : Ls;
+  }
+
+  function ditherOffsets(A, n, waveform) {
+    const d = new Float64Array(n);
+    for (let j = 0; j < n; j++) { const t = (j + 0.5) / n; d[j] = waveform === "sine" ? A * Math.sin(2 * Math.PI * t) : A * (2 * t - 1); }
+    return d;
+  }
+
+  function visibility(dphi) {
+    let re = 0, im = 0, n = 0;
+    for (const v of dphi) if (Number.isFinite(v)) { re += Math.cos(v); im += Math.sin(v); n++; }
+    return n ? Math.hypot(re, im) / n : NaN;
+  }
+
+  const X_V09 = { sine: 0.6406308771588489, triangle: 0.786683072049212 };
+  const X_V05 = { sine: 1.521144057668765, triangle: 1.8954942670340231 };
+  const X_V0 = { sine: 2.404825557695807, triangle: Math.PI };
+  function modelVisibility(x, waveform) {
+    if (!Number.isFinite(x)) return NaN;
+    if (waveform !== "sine") return x === 0 ? 1 : Math.abs(Math.sin(x) / x);
+    const n = Math.max(64, Math.ceil(Math.abs(x)) + 64);
+    let s = 0;
+    for (let j = 0; j < n; j++) s += Math.cos(x * Math.sin(2 * Math.PI * ((j + 0.5) / n)));
+    return Math.abs(s / n);
+  }
+
+  /* ray_phase.phase_derivatives and dither_analysis for any path function pf(thetas, nPass) -> {L, ids} */
+  function phaseDerivatives(pf, thetaC, nPass, lam, nIdx, h1 = 1e-9, h2 = 1e-6) {
+    const k = 2 * Math.PI * nIdx / lam;
+    const { L, ids } = pf([thetaC - h2, thetaC - h1, thetaC, thetaC + h1, thetaC + h2], nPass);
+    const a = new Float64Array(nPass), b = new Float64Array(nPass);
+    for (let p = 0; p < nPass; p++) {
+      const s1 = ids[1][p] === ids[2][p] && ids[3][p] === ids[2][p], s2 = ids[0][p] === ids[2][p] && ids[4][p] === ids[2][p];
+      a[p] = s1 ? k * (L[3][p] - L[1][p]) / (2 * h1) : NaN;
+      b[p] = s2 ? k * (L[4][p] - 2 * L[2][p] + L[0][p]) / (h2 * h2) : NaN;
+    }
+    return { a, b };
+  }
+
+  function ditherAnalysis(pf, thetaC, A, nPass, lam, nIdx, waveform, nMin = 401, nMax = 12801, stepTol = Math.PI / 2, onProgress) {
+    const k = 2 * Math.PI * nIdx / lam;
+    const c0 = pf([thetaC], nPass), L0 = c0.L[0], id0 = c0.ids[0];
+    const { a, b } = phaseDerivatives(pf, thetaC, nPass, lam, nIdx);
+    const x = Array.from(a, v => Math.abs(v) * A);
+    const base = {
+      a, b, x, L0, Vmodel: x.map(v => modelVisibility(v, waveform)), q: Array.from(b, v => 0.5 * Math.abs(v) * A * A),
+      A09: Array.from(a, v => X_V09[waveform] / Math.abs(v)), A05: Array.from(a, v => X_V05[waveform] / Math.abs(v)),
+      A0: Array.from(a, v => X_V0[waveform] / Math.abs(v)),
+    };
+    let n = nMin, res;
+    for (;;) {
+      const d = ditherOffsets(A, n, waveform);
+      const { L, ids } = pf(Array.from(d, v => thetaC + v), nPass);
+      const order = Array.from(d.keys()).sort((i, j) => d[i] - d[j]);
+      const V = new Float64Array(nPass), maxStep = new Float64Array(nPass), same = new Float64Array(nPass);
+      const ph = new Float64Array(n);
+      let worst = 0;
+      for (let p = 0; p < nPass; p++) {
+        let cnt = 0;
+        for (let i = 0; i < n; i++) { ph[i] = k * (L[i][p] - L0[p]); if (ids[i][p] === id0[p]) cnt++; }
+        V[p] = visibility(ph); same[p] = cnt / n;
+        let m = 0;
+        for (let q = 1; q < n; q++) {
+          const i = order[q], j = order[q - 1];
+          if (ids[i][p] === ids[j][p] && ids[i][p] >= 0) { const st = Math.abs(ph[i] - ph[j]); if (st > m) m = st; }
+        }
+        maxStep[p] = m; if (m > worst) worst = m;
+      }
+      res = Object.assign({}, base, { V, maxStep, same, resolved: Array.from(maxStep, v => v <= stepTol), nUsed: n,
+        noiseFloor: Math.sqrt(Math.PI) / (2 * Math.sqrt(n)) });
+      const done = worst <= stepTol || n >= nMax;
+      if (onProgress) onProgress(res, done);
+      if (done) return res;
+      n = Math.min(nMax, Math.max(2 * n - 1, Math.ceil(n * worst / stepTol * 1.25)));
+      n += 1 - n % 2;
+    }
+  }
+  const cellPaths = (c, sIn) => (th, n) => pathLengths(c, th, n, sIn, true);
+
+  /* bragg_grating.stack_R_oblique for real indices: tilted admittances (s: n cos θ, p: n / cos θ), Im(cos θ) >= 0 */
+  const cx = (re, im) => ({ re, im });
+  const cmul = (a, b) => cx(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+  const cadd = (a, b) => cx(a.re + b.re, a.im + b.im);
+  const csub = (a, b) => cx(a.re - b.re, a.im - b.im);
+  const cdiv = (a, b) => { const d = b.re * b.re + b.im * b.im; return cx((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d); };
+  function stackROblique(lam, sinIn, nIn, layers, nOut, pol) {
+    const s = nIn * Math.min(Math.abs(sinIn), 1 - 1e-9), k = 2 * Math.PI / lam;
+    const cosOf = n => { const q = 1 - (s / n) ** 2; return q >= 0 ? cx(Math.sqrt(q), 0) : cx(0, Math.sqrt(-q)); };
+    const adm = n => { const c = cosOf(n); return pol === "s" ? cx(n * c.re, n * c.im) : cdiv(cx(n, 0), c); };
+    let A = cx(1, 0), B = cx(0, 0), C = cx(0, 0), D = cx(1, 0);
+    for (const [n, d] of layers) {
+      const c = cosOf(n), q = adm(n);
+      const dr = k * n * d * c.re, di = k * n * d * c.im;
+      const cs = cx(Math.cos(dr) * Math.cosh(di), -Math.sin(dr) * Math.sinh(di));
+      const sn = cx(Math.sin(dr) * Math.cosh(di), Math.cos(dr) * Math.sinh(di));
+      const isn = cx(sn.im, -sn.re);
+      const L01 = cdiv(isn, q), L10 = cmul(isn, q);
+      const nA = cadd(cmul(A, cs), cmul(B, L10)), nB = cadd(cmul(A, L01), cmul(B, cs));
+      const nC = cadd(cmul(C, cs), cmul(D, L10)), nD = cadd(cmul(C, L01), cmul(D, cs));
+      const m = Math.max(Math.hypot(nA.re, nA.im), Math.hypot(nB.re, nB.im), Math.hypot(nC.re, nC.im), Math.hypot(nD.re, nD.im)) || 1;
+      A = cx(nA.re / m, nA.im / m); B = cx(nB.re / m, nB.im / m); C = cx(nC.re / m, nC.im / m); D = cx(nD.re / m, nD.im / m);
+    }
+    const qi = adm(nIn), qo = adm(nOut);
+    const x = cmul(qi, cadd(A, cmul(B, qo))), y = cadd(C, cmul(D, qo));
+    const r = cdiv(csub(x, y), cadd(x, y));
+    return r.re * r.re + r.im * r.im;
+  }
+
+  /* bragg_grating.TrenchDBR: membrane | [gap, tooth] x N | gap, quarter-wave orders at the design angle */
+  const LATERAL_POL = { TE: "p", TM: "s" };
+  function trenchDBR({ nTooth, lam, N, mGap = 1, mTooth = 1, nGap = 1, loss = 0, slabPol = "TM", sinDesign = 0 }) {
+    const sCrit = nGap / nTooth;
+    if (!(sinDesign >= 0 && sinDesign < sCrit)) throw new Error(`design angle beyond the critical angle (sin < ${sCrit.toFixed(4)})`);
+    const dGap = mGap * lam / (4 * nGap * Math.sqrt(1 - (nTooth * sinDesign / nGap) ** 2));
+    const dTooth = mTooth * lam / (4 * nTooth * Math.sqrt(1 - sinDesign * sinDesign));
+    const layers = []; for (let i = 0; i < N; i++) layers.push([nGap, dGap], [nTooth, dTooth]);
+    const pol = LATERAL_POL[slabPol];
+    return { dGap, dTooth, sCrit, sinDesign, R: (l, s) => stackROblique(l, s, nTooth, layers, nGap, pol) * (1 - loss) };
+  }
+
+  /* cell_mirror.hit_angles: |sin χ| and chord per hit, NaN once a ray has left */
+  function hitAngles(c, thetas, nHits, sIn) {
+    const S = [], C = [];
+    for (const th of thetas) {
+      let [x, y, dx, dy] = launch(c, sIn === undefined ? c.sIn : sIn, th);
+      const s = new Float64Array(nHits).fill(NaN), ch = new Float64Array(nHits).fill(NaN);
+      for (let j = 0; j < nHits; j++) {
+        const h = hit(c, x, y, dx, dy);
+        if (!Number.isFinite(h.t)) break;
+        s[j] = Math.abs(dx * h.ny - dy * h.nx); ch[j] = h.t;
+        x += h.t * dx; y += h.t * dy;
+        [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+      }
+      S.push(s); C.push(ch);
+    }
+    return { S, C };
+  }
+
+  function weightedQuantile(values, weights, q) {
+    const o = Array.from(values.keys()).sort((i, j) => values[i] - values[j]);
+    let tot = 0; for (const w of weights) tot += w;
+    let cw = 0;
+    for (const i of o) { cw += weights[i]; if (cw >= q * tot) return values[i]; }
+    return values[o[o.length - 1]];
+  }
+
+  /* cell_mirror.weighted_stats: exact R at every hit; I_j = product of the R met before hit j */
+  function weightedStats(S, C, Rf, binDeg = 1) {
+    const nb = Math.round(90 / binDeg), hist = new Float64Array(nb);
+    const chis = [], ws = [], perRay = [];
+    let W = 0, WR = 0, nHit = 0, sumIend = 0, sumLeff = 0, sumL = 0, chiMax = -Infinity;
+    for (let r = 0; r < S.length; r++) {
+      let cum = 0, Leff = 0, L = 0;
+      const Iray = [];
+      for (let j = 0; j < S[r].length; j++) {
+        const s = S[r][j];
+        if (!Number.isFinite(s)) continue;
+        const R = Rf(s), lr = Math.log(Math.min(Math.max(R, 1e-300), 1));
+        const I = Math.exp(cum);
+        W += I; WR += I * Math.exp(lr); nHit++;
+        Leff += I * C[r][j]; L += C[r][j];
+        const chi = Math.asin(Math.min(Math.max(s, 0), 1)) * 180 / Math.PI;
+        chis.push(chi); ws.push(I); if (chi > chiMax) chiMax = chi;
+        hist[Math.min(Math.floor(chi / binDeg), nb - 1)] += I;
+        Iray.push(I);
+        cum += lr;
+      }
+      sumIend += Math.exp(cum); sumLeff += Leff; sumL += L;
+      perRay.push({ I: Iray, Iend: Math.exp(cum) });
+    }
+    const nR = S.length;
+    return { R_mean: WR / W, R_eff: S[0] && S[0].length ? (sumIend / nR) ** (nR / Math.max(nHit, 1)) : 1, I_end: sumIend / nR, L_eff: sumLeff / nR, L_geom: sumL / nR,
+      chi_50: weightedQuantile(chis, ws, 0.5), chi_95: weightedQuantile(chis, ws, 0.95), chi_max: chiMax,
+      hist: Array.from(hist, v => v / W), n_hits: nHit, perRay };
+  }
+
+  function uniformAverage(Rf, n = 4097) {
+    let acc = 0, prev = Rf(0);
+    for (let i = 1; i < n; i++) { const s = i / (n - 1), R = Rf(s); acc += 0.5 * (R + prev) / (n - 1); prev = R; }
+    return acc;
+  }
+
+  function launchAngles(thetaC, fan, nBeams) {
+    return nBeams === 1 ? [thetaC] : Array.from({ length: nBeams }, (_, i) => thetaC + fan * (i / (nBeams - 1) - 0.5));
+  }
+
+  function cellMirrorStats(c, thetaC, fan, nBeams, nHits, dbr, lam, withUniform = true) {
+    const Rf = s => dbr.R(lam, s);
+    const { S, C } = hitAngles(c, launchAngles(thetaC, fan, nBeams), nHits);
+    const out = weightedStats(S, C, Rf);
+    out.R_design = dbr.R(lam, dbr.sinDesign);
+    out.R_uniform = withUniform ? uniformAverage(Rf) : NaN;
+    return out;
+  }
+
+  /* planar_cell.trace_rays + evaluate with a constant R (mulberry32 draws, not numpy's): T, mean path, histogram */
+  function portStatistics(c, { portW, sIn, sOut, nRays, nBounce, theta0, thetaC = 0, R = 1, seed = 1, alpha = 0, nBins = 40 }) {
+    let a = seed >>> 0;
+    const u = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const ports = { sIn, sOut, w: portW };
+    const det = [], cnt = { 1: 0, 0: 0, [-1]: 0, [-2]: 0 };
+    for (let i = 0; i < nRays; i++) {
+      const s = sIn + (u() - 0.5) * portW, th = thetaC + (u() * 2 - 1) * theta0;
+      const tr = trace(c, launch(c, s, th), nBounce, ports);
+      cnt[tr.exit]++;
+      if (tr.exit === 1) det.push({ L: tr.L, W: R ** (tr.s.length - 1) * Math.exp(-alpha * tr.L) });
+    }
+    let SW = 0, SWL = 0, SWLL = 0, SW2 = 0, Lmax = 0;
+    for (const d of det) { SW += d.W; SWL += d.W * d.L; SWLL += d.W * d.L * d.L; SW2 += d.W * d.W; Lmax = Math.max(Lmax, d.L); }
+    const Lm = SWL / SW, varL = SWLL / SW - Lm * Lm, nk = SW * SW / SW2;
+    const hist = new Float64Array(nBins), top = Lmax * 1.0001 || 1;
+    for (const d of det) hist[Math.min(Math.floor(d.L / top * nBins), nBins - 1)] += d.W / Math.max(SW, 1e-300);
+    const ell = c.meanChord, eta = portW / c.perimeter, surv = (1 - 2 * eta) * R * Math.exp(-alpha * ell);
+    return { T: SW / nRays, Lmean: Lm, Lerr: Math.sqrt(Math.max(varL, 0) / Math.max(nk, 1)), nDet: det.length, counts: cnt, hist, Ltop: top,
+      mf: { T: eta * Math.exp(-alpha * ell) / (1 - surv), L: ell / (1 - surv) } };
+  }
+
+  /* planar_cell.lyapunov_fit (scale: sqrt(area)) */
+  function lyapunovFit(sep, scale, lo = 1e-10, hi = 1e-2, minPts = 6) {
+    const pts = sep.map((v, j) => [j + 1, v]).filter(([, v]) => v > lo * scale && v < hi * scale);
+    if (pts.length < minPts) return null;
+    const n = pts.length, mx = pts.reduce((a, [x]) => a + x, 0) / n, my = pts.reduce((a, [, v]) => a + Math.log(v), 0) / n;
+    let sxy = 0, sxx = 0; pts.forEach(([x, v]) => { sxy += (x - mx) * (Math.log(v) - my); sxx += (x - mx) ** 2; });
+    return { lam: sxy / sxx, a: my - sxy / sxx * mx, x0: pts[0][0], x1: pts[n - 1][0] };
+  }
+
+  return { makeCell, arcElements, polygonCell, circleCell, stadiumCell, herriottPlanarCell, herriottSpots, thetaOf, reentrantSpacing,
+    modeRadius, perturb, segmentOf, pointAt, hit, reflect, launch, inWindow, trace, herriottTrace, reflectionWeightedPath, pathLengths,
+    cellPaths, ditherOffsets, visibility, modelVisibility, phaseDerivatives, ditherAnalysis, X_V09, X_V05, X_V0, stackROblique, trenchDBR,
+    hitAngles, weightedQuantile, weightedStats, uniformAverage, launchAngles, cellMirrorStats, portStatistics, lyapunovFit };
+})();
+/* JS port of math-engines/engines/onchip_herriott (Gaussian-beam path, volume and angle budget); uses PlanarEngine */
+const OnchipEngine = (() => {
+  const Pl = PlanarEngine;
+  const N_ANGLE = 31, N_CHORD = 17;
+
+  /* erf: Taylor series for |x| < 2, continued fraction for erfc beyond (|error| < 1e-14) */
+  function erf(x) {
+    const ax = Math.abs(x);
+    if (ax < 2) {
+      let term = x, sum = x;
+      for (let n = 1; n < 80; n++) { term *= -x * x / n; const t = term / (2 * n + 1); sum += t; if (Math.abs(t) < 1e-17 * Math.abs(sum)) break; }
+      return 2 / Math.sqrt(Math.PI) * sum;
+    }
+    if (ax > 6) return Math.sign(x);
+    let f = ax, C = ax, D = 0;                      /* Lentz: erfc(x) = e^{-x²}/√π / (x + (1/2)/(x + 1/(x + (3/2)/(x + ...)))) */
+    for (let k = 1; k < 200; k++) {
+      const an = k / 2;
+      D = ax + an * D; D = 1 / D; C = ax + an / C;
+      const del = C * D; f *= del; if (Math.abs(del - 1) < 1e-16) break;
+    }
+    const erfc = Math.exp(-ax * ax) / Math.sqrt(Math.PI) / f;
+    return Math.sign(x) * (1 - erfc);
+  }
+
+  function modeProfile(R, d, lam, nEff = 1) {
+    const lamM = lam / nEff, zR = Math.sqrt(d * (2 * R - d)) / 2, w0 = Math.sqrt(lamM * zR / Math.PI);
+    return { lamM, zR, w0, wMirror: w0 * Math.sqrt(1 + (d / 2 / zR) ** 2), theta0: lamM / (Math.PI * w0) };
+  }
+  const beamWidth = (x, m) => m.w0 * Math.sqrt(1 + (x / m.zR) ** 2);
+
+  function chordWidthIntegral(x0, y0, x1, y1, m, n = N_CHORD) {
+    let s = 0;
+    for (let i = 0; i < n; i++) {
+      const f = i === n - 1 ? 1 : i / (n - 1), c = i === 0 || i === n - 1 ? 1 : i % 2 ? 4 : 2;
+      s += beamWidth(x0 + f * (x1 - x0), m) * c;
+    }
+    return Math.hypot(x1 - x0, y1 - y0) * s / (3 * (n - 1));
+  }
+
+  function gaussFraction(lo, hi, y, w) { const s = Math.SQRT2 / w; return 0.5 * (erf(s * (hi - y)) - erf(s * (lo - y))); }
+
+  function angleWeights(theta0, n = N_ANGLE) {
+    const a = [], wt = [];
+    let tot = 0;
+    for (let k = 0; k < n; k++) { const v = 1.5 * theta0 * (2 * k / (n - 1) - 1); a.push(v); const w = Math.exp(-2 * (v / theta0) ** 2); wt.push(w); tot += w; }
+    return { a, wt: wt.map(w => w / tot) };
+  }
+
+  /* R(|χ|) per hit: constant, or a trench DBR at the ray angle or averaged over the beam's angular spectrum; × (1 − scatter) */
+  function mirrorFunction({ model = "constant", R = 0.999, dbr = null, lam = 1.55e-6, theta0 = 0, beamAverage = false, scatter = 0 }) {
+    if (model === "constant") return () => R * (1 - scatter);
+    if (beamAverage && theta0 > 0) {
+      const { a, wt } = angleWeights(theta0);
+      return chi => { let s = 0; for (let k = 0; k < a.length; k++) s += wt[k] * dbr.R(lam, Math.abs(Math.sin(Math.abs(chi) + a[k]))); return s * (1 - scatter); };
+    }
+    return chi => dbr.R(lam, Math.abs(Math.sin(chi))) * (1 - scatter);
+  }
+
+  function traceHits(c, dtheta = 0, exitMode = "window", nMax = 4000) {
+    if (exitMode === "window") {
+      const h = Pl.herriottTrace(c, dtheta, nMax), t = h.tr;
+      return { x: t.xs, y: t.ys, elem: t.elem, chi: t.sinchi.map(v => Math.asin(Math.min(Math.max(v, -1), 1))), exit: h.exit === "port" };
+    }
+    const t = Pl.trace(c, Pl.launch(c, c.sIn, c.meta.thetaLaunch + dtheta), nMax, null);
+    return { x: t.xs, y: t.ys, elem: t.elem, chi: t.sinchi.map(v => Math.asin(Math.min(Math.max(v, -1), 1))), exit: false };
+  }
+
+  /* onchip_herriott.budget */
+  function budget(c, { lam = 1.55e-6, nEff = 2.479, hEff = 0.3e-6, Rf = null, dtheta = 0, exitMode = "window", clip = true, nMax = 4000, stopBelow = 1e-6 } = {}) {
+    const m = c.meta, mode = modeProfile(m.R, m.d, lam, nEff), wm = mode.wMirror;
+    const h = traceHits(c, dtheta, exitMode, nMax);
+    let n = h.elem.length;
+    const a = m.aperture, lo = m.y0 - m.portW / 2, hi = m.y0 + m.portW / 2;
+    const eta = exitMode === "window" ? gaussFraction(lo, hi, m.y0, wm) : 1;
+    const R = Rf || (() => 1);
+    const I = [eta], Rj = [], cj = [], chords = [], wint = [];
+    let last = h.exit ? n - 1 : n;
+    for (let j = 0; j < n; j++) {
+      chords.push(Math.hypot(h.x[j + 1] - h.x[j], h.y[j + 1] - h.y[j]));
+      wint.push(chordWidthIntegral(h.x[j], h.y[j], h.x[j + 1], h.y[j + 1], mode) * Math.sqrt(Math.PI / 2));
+      let r = 1, cc = 1;
+      if (j < last) {
+        r = R(Math.abs(h.chi[j]));
+        if (clip) {
+          const on = gaussFraction(-a, a, h.y[j + 1], wm), off = exitMode === "window" && h.elem[j] === 0 ? gaussFraction(lo, hi, h.y[j + 1], wm) : 0;
+          cc = Math.max(on - off, 0);
+        }
+      }
+      Rj.push(r); cj.push(cc);
+      I.push(I[j] * (j < last ? r * cc : 1));
+      if (exitMode === "closed" && I[j + 1] < stopBelow * I[0]) { n = last = j + 1; break; }
+    }
+    let L = 0, Leff = 0, V = 0, Vg = 0, W = 0, WC = 0, WC2 = 0, WR = 0, cmax = -Infinity, cprod = 1;
+    for (let j = 0; j < n; j++) { L += chords[j]; Leff += I[j] * chords[j]; V += I[j] * wint[j]; Vg += wint[j]; }
+    for (let j = 0; j < last; j++) {
+      const x = Math.abs(h.chi[j]); W += I[j]; WC += I[j] * x; WC2 += I[j] * x * x; WR += I[j] * Rj[j]; cmax = Math.max(cmax, x); cprod *= cj[j];
+    }
+    V *= hEff;
+    return { mode, nHits: n, reflections: last, exits: h.exit, etaWindow: eta, T_out: h.exit ? I[n - 1] * eta : 0, I_end: I[last],
+      L_geom: L, L_eff: Leff, V_eff: V, A_eff: V / Leff, wEffMean: V / Leff / hEff, V_geom: hEff * Vg,
+      chi_mean: WC / W, chi_rms: Math.sqrt(WC2 / W), chi_max: cmax, R_mean: WR / W, clip_loss: 1 - cprod,
+      I: I.slice(0, n + 1), R: Rj.slice(0, n), c: cj.slice(0, n), chords: chords.slice(0, n), wInt: wint.slice(0, n), chi: h.chi.slice(0, n),
+      elem: h.elem.slice(0, n), x: h.x.slice(0, n + 1), y: h.y.slice(0, n + 1) };
+  }
+
+  /* planar_cell.Cell2D.inside on the sampled outline (16 points per element), as the Python helper */
+  function insideFn(c) {
+    const ox = [], oy = [];
+    for (let k = 0; k < c.E; k++) for (let q = 0; q < 16; q++) {
+      const [x, y] = Pl.pointAt(c, c.s0[k] + (q === 15 ? c.L[k] * (1 - 1e-12) : q * (c.L[k] * (1 - 1e-12) / 15)));
+      ox.push(x); oy.push(y);
+    }
+    return (x, y) => {
+      let ins = false;
+      for (let i = 0, j = ox.length - 1; i < ox.length; j = i++)
+        if ((oy[i] > y) !== (oy[j] > y) && x < (ox[j] - ox[i]) * (y - oy[i]) / (oy[j] - oy[i] + 1e-300) + ox[i]) ins = !ins;
+      return ins;
+    };
+  }
+
+  /* onchip_herriott.footprint_fraction: share of the cell area within one beam radius w(x) of one round of the pattern */
+  function footprintFraction(c, lam = 1.55e-6, nEff = 2.479, dtheta = 0, nx = 240, ny = 120) {
+    const m = c.meta, mode = modeProfile(m.R, m.d, lam, nEff), h = traceHits(c, dtheta, "window"), ins = insideFn(c);
+    let tot = 0, cov = 0;
+    for (let i = 0; i < nx; i++) for (let k = 0; k < ny; k++) {
+      const X = i === nx - 1 ? m.d / 2 : -m.d / 2 + i * (m.d / (nx - 1)), Y = k === ny - 1 ? m.aperture : -m.aperture + k * (2 * m.aperture / (ny - 1));
+      if (!ins(X, Y)) continue;
+      tot++;
+      for (let s = 0; s + 1 < h.x.length; s++) {
+        const ax = h.x[s], ay = h.y[s], vx = h.x[s + 1] - ax, vy = h.y[s + 1] - ay;
+        const t = Math.min(Math.max(((X - ax) * vx + (Y - ay) * vy) / (vx * vx + vy * vy), 0), 1), qx = ax + t * vx, qy = ay + t * vy;
+        if (Math.hypot(X - qx, Y - qy) <= beamWidth(qx, mode)) { cov++; break; }
+      }
+    }
+    return tot ? cov / tot : NaN;
+  }
+
+  return { erf, modeProfile, beamWidth, chordWidthIntegral, gaussFraction, angleWeights, mirrorFunction, traceHits, budget, footprintFraction };
+})();
+/* engine:end */
+
+(() => {
+  const $ = id => document.getElementById(id);
+  const E = PlanarEngine, O = OnchipEngine;
+
+  const P = () => {
+    const N = +$("N").value;
+    return {
+      R: +$("R").value * 1e-3, N, M: Math.min(+$("M").value, N / 2 - 1), A: +$("A").value * 1e-3, phase: $("phMode").value === "distinct" ? Math.PI / N : 0,
+      pw: +$("pw").value * 1e-6, lam: +$("lam").value * 1e-9, neff: +$("neff").value, pol: $("pol").value, heff: +$("heff").value * 1e-6, gam: +$("gam").value,
+      model: $("model").value, Rc: 1 - 10 ** (-1 - +$("Rc").value), np: +$("np").value, mg: +$("mg").value, mt: +$("mt").value,
+      des: +$("des").value * Math.PI / 180, avg: $("avg").checked, sc: +$("sc").value * 1e-6, clip: $("clip").checked,
+      dR2: +$("dR2").value * 1e-6, tilt: +$("tilt").value * 1e-3, dd: +$("dd").value * 1e-6, exit: $("exit").value, stretch: $("stretch").checked,
+    };
+  };
+
+  /* onchip_herriott._cell: design launch and mode, M2 radius/tilt and spacing errors */
+  function buildCell(p) {
+    const c0 = E.herriottPlanarCell(p.R, p.N, p.M, p.A, { portW: p.pw, phase: p.phase });
+    let c = E.herriottPlanarCell(p.R, p.N, p.M, p.A, { portW: p.pw, phase: p.phase, R2: p.R + p.dR2, d: c0.meta.d + p.dd });
+    c.meta.thetaLaunch = c0.meta.thetaLaunch; c.meta.d = c0.meta.d;
+    if (p.tilt) c = E.perturb(c, [0, p.tilt], null, null);
+    return c;
+  }
+  function dbrOf(p, N = p.np) {
+    const sDes = Math.min(Math.sin(p.des), 0.999 / p.neff);
+    return E.trenchDBR({ nTooth: p.neff, lam: p.lam, N, mGap: p.mg, mTooth: p.mt, slabPol: p.pol, sinDesign: sDes });
+  }
+  const mirrorOf = (p, mode, dbr) => O.mirrorFunction({ model: p.model, R: p.Rc, dbr, lam: p.lam, theta0: mode.theta0, beamAverage: p.avg, scatter: p.sc });
+
+  let state = null;
+  function compute() {
+    const p = P();
+    let cell;
+    try { cell = buildCell(p); } catch (err) { state = { error: String(err.message || err) }; return false; }
+    const mode = O.modeProfile(cell.meta.R, cell.meta.d, p.lam, p.neff);
+    const dbr = p.model === "dbr" ? dbrOf(p) : null;
+    const b = O.budget(cell, { lam: p.lam, nEff: p.neff, hEff: p.heff, Rf: mirrorOf(p, mode, dbr), exitMode: p.exit, clip: p.clip, nMax: p.exit === "closed" ? 30000 : 4000 });
+    const spots = E.herriottSpots(cell.meta);
+    state = { p, cell, mode, dbr, b, spots };
+    sweepRunner.request({ p, els: cell.els, sIn: cell.sIn, sOut: cell.sOut, meta: cell.meta });
+    return true;
+  }
+
+  /* sweeps (constant R list, DBR periods, coverage) in a worker */
+  const appText = $("app").textContent;
+  const WORKER_SRC = appText.slice(appText.indexOf("/* engine:begin"), appText.indexOf("/* engine:end */")) + `
+onmessage = e => { postMessage({ id: e.data.id, res: sweeps(e.data) }); };
+${sweeps.toString()}`;
+  function sweeps(j) {
+    const Pe = PlanarEngine, Oe = OnchipEngine, p = j.p;
+    const cell = Pe.makeCell(j.els, { sIn: j.sIn, sOut: j.sOut, meta: j.meta });
+    const mode = Oe.modeProfile(cell.meta.R, cell.meta.d, p.lam, p.neff);
+    const opts = Rf => ({ lam: p.lam, nEff: p.neff, hEff: p.heff, Rf, exitMode: p.exit, clip: p.clip, nMax: p.exit === "closed" ? 30000 : 4000 });
+    const Rs = [], rows = [];
+    for (let k = 0; k <= 32; k++) Rs.push(1 - 10 ** (-1 - 4 * k / 32));
+    for (const R of Rs) { const b = Oe.budget(cell, opts(() => R * (1 - p.sc))); rows.push({ R, L: b.L_eff, V: b.V_eff, T: b.T_out, chi: b.chi_mean }); }
+    const per = [];
+    if (p.model === "dbr") {
+      const sDes = Math.min(Math.sin(p.des), 0.999 / p.neff);
+      for (let N = 1; N <= 12; N++) {
+        const dbr = Pe.trenchDBR({ nTooth: p.neff, lam: p.lam, N, mGap: p.mg, mTooth: p.mt, slabPol: p.pol, sinDesign: sDes });
+        const Rf = Oe.mirrorFunction({ model: "dbr", dbr, lam: p.lam, theta0: mode.theta0, beamAverage: p.avg, scatter: p.sc });
+        const b = Oe.budget(cell, Object.assign(opts(Rf), { nMax: p.exit === "closed" ? 8000 : 4000 }));
+        per.push({ N, Rm: b.R_mean, L: b.L_eff, T: b.T_out });
+      }
+    }
+    return { rows, per, cover: Oe.footprintFraction(cell, p.lam, p.neff, 0, 160, 80) };
+  }
+  let workerUrl = null, useWorker = true, sw = null;
+  const sweepRunner = (() => {
+    let worker = null, busy = false, id = 0, lastKey = "";
+    const done = (jid, res) => { if (jid !== id) return; busy = false; sw = res; if (state && !state.error) { drawSweeps(); drawStats(); } };
+    return {
+      busy: () => busy,
+      request(j) {
+        const key = JSON.stringify(j); if (key === lastKey) return; lastKey = key; j.id = ++id;
+        if (useWorker) {
+          try {
+            if (worker && busy) { worker.terminate(); worker = null; }
+            if (!worker) {
+              workerUrl = workerUrl || URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+              worker = new Worker(workerUrl);
+              worker.onmessage = e => done(e.data.id, e.data.res);
+              worker.onerror = () => { useWorker = false; worker = null; lastKey = ""; update(); };
+            }
+            busy = true; worker.postMessage(j); return;
+          } catch (err) { useWorker = false; }
+        }
+        done(j.id, sweeps(j));
+      },
+    };
+  })();
+
+  /* ---------------------------------------------------------------- drawing */
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function fit(canvas) {
+    const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    const g = canvas.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    return [g, w, h];
+  }
+  function axes(g, w, h, m, xl, yl, xt, yt, xr, yr) {
+    g.font = `10.5px ${css("--font-data")}`; g.fillStyle = css("--muted"); g.strokeStyle = css("--line"); g.lineWidth = 1;
+    const X = v => m.l + (v - xr[0]) / (xr[1] - xr[0]) * (w - m.l - m.r), Y = v => h - m.b - (v - yr[0]) / (yr[1] - yr[0]) * (h - m.t - m.b);
+    g.textAlign = "center"; g.textBaseline = "top";
+    xt.forEach(([v, s]) => { g.beginPath(); g.moveTo(X(v), m.t); g.lineTo(X(v), h - m.b); g.stroke(); g.fillText(s, X(v), h - m.b + 4); });
+    g.textAlign = "right"; g.textBaseline = "middle";
+    yt.forEach(([v, s]) => { g.beginPath(); g.moveTo(m.l, Y(v)); g.lineTo(w - m.r, Y(v)); g.stroke(); g.fillText(s, m.l - 5, Y(v)); });
+    g.textAlign = "center"; g.textBaseline = "bottom"; g.fillText(xl, (m.l + w - m.r) / 2, h - 2);
+    g.save(); g.translate(11, (m.t + h - m.b) / 2); g.rotate(-Math.PI / 2); g.textBaseline = "middle"; g.fillText(yl, 0, 0); g.restore();
+    return [X, Y];
+  }
+  function rightAxis(g, w, h, m, ticks, Y2, lab, col) {
+    g.fillStyle = col; g.font = `10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "middle";
+    ticks.forEach(([v, s]) => g.fillText(s, w - m.r + 5, Y2(v)));
+    g.save(); g.translate(w - 8, (m.t + h - m.b) / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText(lab, 0, 0); g.restore();
+  }
+  const niceTicks = (a, b, n) => { const s = 10 ** Math.floor(Math.log10((b - a) / n)), f = (b - a) / n / s, st = (f > 5 ? 10 : f > 2 ? 5 : f > 1 ? 2 : 1) * s; const t = []; for (let v = Math.ceil(a / st) * st; v <= b + 1e-12 * Math.abs(b); v += st) t.push(+v.toPrecision(6)); return t; };
+  const label = (g, txt, x, y, col, align = "left", base = "bottom") => { g.fillStyle = col; g.font = `500 10.5px ${css("--font-data")}`; g.textAlign = align; g.textBaseline = base; g.fillText(txt, x, y); };
+  const line = (g, pts, col, lw = 1.8, dash = null) => { g.strokeStyle = col; g.lineWidth = lw; if (dash) g.setLineDash(dash); g.beginPath(); let pen = false; pts.forEach(([x, y]) => { if (!Number.isFinite(y)) { pen = false; return; } pen ? g.lineTo(x, y) : g.moveTo(x, y); pen = true; }); g.stroke(); g.setLineDash([]); };
+  const ring = (g, x, y, col) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 6, 0, 7); g.stroke(); };
+  const fmt = (v, d = 2) => Number.isFinite(v) ? v.toFixed(d) : "–";
+  const sig = (v, n = 3) => Number.isFinite(v) ? (+v.toPrecision(n)).toString() : "–";
+
+  function drawCell() {
+    const { p, cell, b } = state, m = cell.meta;
+    const xr = m.d / 2 * 1.08, yr = m.aperture * 1.15;
+    const stretch = p.stretch ? Math.max(1, Math.min(xr / yr / 2, 40)) : 1;
+    $("cellview").style.setProperty("--cell-aspect", Math.max(1.2, Math.min(xr / (yr * stretch), 2.6)).toFixed(3));
+    const [g, w, h] = fit($("cell"));
+    const sx = Math.min((w / 2 - 16) / xr, (h / 2 - 16) / (yr * stretch)), sy = sx * stretch;
+    const X = x => w / 2 + x * sx, Y = y => h / 2 - y * sy;
+    g.setLineDash([4, 6]); g.strokeStyle = css("--line"); g.lineWidth = 1; g.beginPath(); g.moveTo(X(-xr), Y(0)); g.lineTo(X(xr), Y(0)); g.stroke(); g.setLineDash([]);
+    /* beam: a band ±w(x) around each pass, opacity ∝ power */
+    const n = b.nHits, show = Math.min(n, p.exit === "closed" ? 4 * p.N : n), I0 = b.I[0] || 1;
+    g.fillStyle = css("--accent");
+    for (let j = 0; j < show; j++) {
+      const x0 = b.x[j], y0 = b.y[j], x1 = b.x[j + 1], y1 = b.y[j + 1], L = Math.hypot(x1 - x0, y1 - y0), nx = -(y1 - y0) / L, ny = (x1 - x0) / L;
+      const k = 12, up = [], dn = [];
+      for (let q = 0; q <= k; q++) { const f = q / k, x = x0 + f * (x1 - x0), y = y0 + f * (y1 - y0), ww = O.beamWidth(x, state.mode); up.push([X(x + nx * ww), Y(y + ny * ww)]); dn.push([X(x - nx * ww), Y(y - ny * ww)]); }
+      g.globalAlpha = Math.max(0.03, 0.22 * b.I[j] / I0);
+      g.beginPath(); up.forEach(([u, v], q) => q ? g.lineTo(u, v) : g.moveTo(u, v)); dn.reverse().forEach(([u, v]) => g.lineTo(u, v)); g.closePath(); g.fill();
+    }
+    g.globalAlpha = 1;
+    g.strokeStyle = css("--accent"); g.lineWidth = 0.9;
+    for (let j = 0; j < show; j++) { g.globalAlpha = Math.max(0.15, b.I[j] / I0); g.beginPath(); g.moveTo(X(b.x[j]), Y(b.y[j])); g.lineTo(X(b.x[j + 1]), Y(b.y[j + 1])); g.stroke(); }
+    g.globalAlpha = 1;
+    for (let k = 0; k < cell.E; k++) {
+      g.strokeStyle = css("--mirror"); g.lineWidth = 3; g.beginPath();
+      for (let q = 0; q <= 40; q++) { const [x, y] = E.pointAt(cell, cell.s0[k] + cell.L[k] * Math.min(q / 40, 1 - 1e-12)); q ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)); }
+      g.stroke();
+      const [mx, my] = E.pointAt(cell, cell.s0[k] + cell.L[k] / 2);
+      label(g, cell.labels[k], X(mx) + (k ? 10 : -10), Y(my) - 8, css("--muted"), k ? "left" : "right");
+    }
+    g.strokeStyle = css("--port-in"); g.lineWidth = 7; g.beginPath();
+    for (let q = 0; q <= 8; q++) { const [x, y] = E.pointAt(cell, cell.sIn - m.portW / 2 + m.portW * q / 8); q ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)); }
+    g.stroke();
+    const nice = v => { const e = 10 ** Math.floor(Math.log10(v)), f = v / e; return (f >= 5 ? 5 : f >= 2 ? 2 : 1) * e; };
+    const bar = nice(0.3 * xr), bx = X(-xr) + 4, by = h - 8;
+    g.strokeStyle = css("--ink"); g.fillStyle = css("--ink"); g.lineWidth = 2; g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + bar * sx, by); g.stroke();
+    g.font = `500 11px ${css("--font-data")}`; g.textAlign = "center"; g.textBaseline = "bottom";
+    g.fillText(bar >= 1e-3 ? `${+(bar * 1e3).toPrecision(3)} mm` : `${+(bar * 1e6).toPrecision(3)} µm`, bx + bar * sx / 2, by - 4);
+    if (stretch > 1.01) label(g, `transverse scale ×${stretch.toFixed(1)}`, w - 6, h - 4, css("--muted"), "right");
+    if (show < n) label(g, `first ${show} of ${n} passes drawn`, w - 6, 14, css("--muted"), "right");
+  }
+
+  function drawStats() {
+    const { p, cell, mode, b, spots } = state, m = cell.meta;
+    const nL = 1e-12;
+    const items = [
+      ["Effective path L_eff", `${fmt(b.L_eff * 100, 2)} cm`],
+      ["Geometric path", `${fmt(b.L_geom * 100, 2)} cm (${b.reflections} reflections)`],
+      ["Mode volume V_eff", b.V_eff < nL ? `${sig(b.V_eff * 1e18)} µm³` : `${sig(b.V_eff / nL)} nL`],
+      ["Gas overlap Γ L_eff / Γ V_eff", `${fmt(p.gam * b.L_eff * 100, 2)} cm / ${sig(p.gam * b.V_eff / nL)} nL`],
+      ["Mean cross-section A_eff", `${sig(b.A_eff * 1e12)} µm² (w√(π/2) = ${fmt(b.wEffMean * 1e6, 1)} µm)`],
+      ["Mean |χ| (RMS, max)", `${fmt(b.chi_mean * 180 / Math.PI, 2)}° (${fmt(b.chi_rms * 180 / Math.PI, 2)}°, ${fmt(b.chi_max * 180 / Math.PI, 2)}°)`],
+      ["Mirror R, power-weighted", p.model === "dbr" ? b.R_mean.toFixed(6) : (p.Rc * (1 - p.sc)).toFixed(6)],
+      [p.exit === "window" ? "Throughput (window in and out)" : "Power left after the trace", p.exit === "window" ? `${fmt(100 * b.T_out, 2)} %` : sig(b.I_end)],
+      ["Window coupling", p.exit === "window" ? `${fmt(100 * b.etaWindow, 2)} % per pass through` : "–"],
+      ["Clipping loss over the path", `${sig(100 * b.clip_loss)} %`],
+      ["Beam: w₀ / w on mirrors / θ₀", `${fmt(mode.w0 * 1e6, 1)} / ${fmt(mode.wMirror * 1e6, 1)} µm / ${fmt(mode.theta0 * 180 / Math.PI, 2)}°`],
+      ["Spacing d, footprint", `${fmt(m.d * 1e3, 3)} mm, ${fmt((m.d + 2 * (m.R - Math.sqrt(m.R * m.R - m.aperture ** 2))) * 1e3, 2)} × ${fmt(2 * m.aperture * 1e3, 2)} mm`],
+      ["Area covered by the beam", sw ? `${fmt(100 * sw.cover, 1)} % of the cell` : "computing…"],
+    ];
+    $("stats").innerHTML = items.map(([a, v]) => `<div class="stat"><span>${a}</span><span>${v}</span></div>`).join("");
+    const notes = [];
+    if (p.exit === "window") {
+      notes.push(b.exits && b.nHits === p.N ? `<div><b>Re-entrant:</b> the beam leaves through the window after N = ${p.N} passes.</div>`
+        : `<div class="warn"><b>Not re-entrant:</b> ${b.exits ? `the beam leaves through the window after ${b.nHits} passes instead of ${p.N}` : `the beam does not come back to the window (${b.nHits} passes traced)`}.</div>`);
+    }
+    if (spots.clearance < 2 * mode.wMirror) notes.push(`<div class="warn">A spot comes within ${fmt(spots.clearance / mode.wMirror, 1)} w of the window edge: that pass leaks out through the window early (counted as clipping).</div>`);
+    if (m.portW < 2 * mode.wMirror) notes.push(`<div class="warn">The window (${fmt(m.portW * 1e6, 0)} µm) is narrower than the beam (2w = ${fmt(2 * mode.wMirror * 1e6, 0)} µm): only ${fmt(100 * b.etaWindow, 0)} % couples in and out.</div>`);
+    if (p.model === "dbr") notes.push(`<div class="note">DBR at the angles this cell uses: mean R ${b.R_mean.toFixed(5)} against ${state.dbr.R(p.lam, 0).toFixed(5)} at normal incidence; the critical angle is ${fmt(Math.asin(1 / p.neff) * 180 / Math.PI, 1)}°, far above the ${fmt(b.chi_max * 180 / Math.PI, 1)}° maximum here, so the periods do all the work.</div>`);
+    if (p.exit === "closed" && b.I_end > 1e-3) notes.push(`<div class="warn">The trace stopped after ${b.nHits} passes with ${sig(100 * b.I_end)} % of the power still inside: L_eff and V_eff are lower bounds (and the sweeps above R ≈ 0.9999 are truncated the same way).</div>`);
+    notes.push(`<div class="note">L_eff ≈ ℓ̄ Σ R^j: with R → 1 it reaches N d = ${fmt(p.N * m.d * 100, 2)} cm in the re-entrant cell; a closed cell reaches ℓ̄/(1 − R).</div>`);
+    $("notes").innerHTML = notes.join("");
+  }
+
+  function drawSweeps() {
+    const { p, b } = state;
+    $("swStatus").textContent = sweepRunner.busy() ? "updating the sweeps…" : "";
+    if (!sw) return;
+    const rows = sw.rows, xOf = R => -Math.log10(1 - R), xr = [1, 5], xt = [1, 2, 3, 4, 5].map(e => [e, `1−10⁻${e}`.replace("⁻1", "⁻¹").replace("⁻2", "⁻²").replace("⁻3", "⁻³").replace("⁻4", "⁻⁴").replace("⁻5", "⁻⁵")]);
+    const Rnow = p.model === "dbr" ? b.R_mean : p.Rc * (1 - p.sc), xNow = Math.min(Math.max(xOf(Rnow), 1), 5);
+    {
+      const [g, w, h] = fit($("swL"));
+      const m = { l: 52, r: 56, t: 10, b: 34 }, Lmax = Math.max(...rows.map(r => r.L)) * 1.08, Vmax = Math.max(...rows.map(r => r.V)) * 1.08;
+      const [X, Y] = axes(g, w, h, m, "mirror reflectance R", "L_eff (cm)", xt, niceTicks(0, Lmax * 100, 4).map(v => [v, String(v)]), xr, [0, Lmax * 100]);
+      const Y2 = v => h - m.b - v / (Vmax * 1e12) * (h - m.t - m.b);
+      rightAxis(g, w, h, m, niceTicks(0, Vmax * 1e12, 4).map(v => [v, String(v)]), Y2, "V_eff (nL)", css("--sel"));
+      line(g, rows.map(r => [X(xOf(r.R)), Y(r.L * 100)]), css("--accent"));
+      line(g, rows.map(r => [X(xOf(r.R)), Y2(r.V * 1e12)]), css("--sel"), 1.8, [6, 4]);
+      ring(g, X(xNow), Y(b.L_eff * 100), css("--ink"));
+      label(g, "— L_eff", m.l + 6, m.t + 14, css("--accent")); label(g, "-- V_eff", m.l + 6, m.t + 28, css("--sel"));
+    }
+    {
+      const [g, w, h] = fit($("swT"));
+      const m = { l: 52, r: 56, t: 10, b: 34 };
+      const [X, Y] = axes(g, w, h, m, "mirror reflectance R", p.exit === "window" ? "throughput (%)" : "—", xt, [0, 25, 50, 75, 100].map(v => [v, String(v)]), xr, [0, 100]);
+      const cmax = Math.max(...rows.map(r => r.chi)) * 180 / Math.PI * 1.3 || 1, Y2 = v => h - m.b - v / cmax * (h - m.t - m.b);
+      rightAxis(g, w, h, m, niceTicks(0, cmax, 4).map(v => [v, String(v)]), Y2, "mean |χ| (°)", css("--sel"));
+      if (p.exit === "window") line(g, rows.map(r => [X(xOf(r.R)), Y(100 * r.T)]), css("--accent"));
+      line(g, rows.map(r => [X(xOf(r.R)), Y2(r.chi * 180 / Math.PI)]), css("--sel"), 1.8, [6, 4]);
+      if (p.exit === "window") ring(g, X(xNow), Y(100 * b.T_out), css("--ink"));
+      ring(g, X(xNow), Y2(b.chi_mean * 180 / Math.PI), css("--ink"));
+      label(g, p.exit === "window" ? "— throughput" : "(closed cell: no throughput)", m.l + 6, m.t + 14, css("--accent")); label(g, "-- mean |χ|", m.l + 6, m.t + 28, css("--sel"));
+    }
+    if (p.model !== "dbr") return;
+    {
+      const [g, w, h] = fit($("swP"));
+      const m = { l: 52, r: 56, t: 10, b: 34 }, per = sw.per;
+      const lo = Math.min(...per.map(q => Math.log10(Math.max(1 - q.Rm, 1e-9)))), hiL = Math.max(...per.map(q => q.L)) * 1.08;
+      const yl = Math.floor(lo), yt = []; for (let e = yl; e <= 0; e++) yt.push([e, e === 0 ? "1" : `1e${e}`]);
+      const [X, Y] = axes(g, w, h, m, "DBR periods", "mirror loss 1 − ⟨R⟩", [1, 3, 5, 7, 9, 11].map(v => [v, String(v)]), yt, [0.5, 12.5], [yl, 0]);
+      const Y2 = v => h - m.b - v / (hiL * 100) * (h - m.t - m.b);
+      rightAxis(g, w, h, m, niceTicks(0, hiL * 100, 4).map(v => [v, String(v)]), Y2, "L_eff (cm)", css("--sel"));
+      line(g, per.map(q => [X(q.N), Y(Math.log10(Math.max(1 - q.Rm, 1e-9)))]), css("--accent"));
+      line(g, per.map(q => [X(q.N), Y2(q.L * 100)]), css("--sel"), 1.8, [6, 4]);
+      const cur = per[p.np - 1]; if (cur) ring(g, X(cur.N), Y(Math.log10(Math.max(1 - cur.Rm, 1e-9))), css("--ink"));
+      label(g, "— 1 − ⟨R⟩", m.l + 6, m.t + 14, css("--accent")); label(g, "-- L_eff", m.l + 6, m.t + 28, css("--sel"));
+    }
+    {
+      const [g, w, h] = fit($("dbrChart"));
+      const m = { l: 52, r: 10, t: 10, b: 34 }, dbr = state.dbr, chiMax = Math.max(15, Math.min(60, b.chi_max * 180 / Math.PI * 2));
+      const Rf0 = O.mirrorFunction({ model: "dbr", dbr, lam: p.lam }), Rfa = O.mirrorFunction({ model: "dbr", dbr, lam: p.lam, theta0: state.mode.theta0, beamAverage: true });
+      const pts = [], ptsA = []; let lo = 0;
+      for (let q = 0; q <= 240; q++) { const c = chiMax * q / 240 * Math.PI / 180, v0 = Math.log10(Math.max(1 - Rf0(c), 1e-9)), va = Math.log10(Math.max(1 - Rfa(c), 1e-9)); pts.push([c, v0]); ptsA.push([c, va]); lo = Math.min(lo, v0, va); }
+      lo = Math.floor(lo); const yt = []; for (let e = lo; e <= 0; e++) yt.push([e, e === 0 ? "1" : `1e${e}`]);
+      const [X, Y] = axes(g, w, h, m, "angle of incidence |χ| (°)", "mirror loss 1 − R", niceTicks(0, chiMax, 5).map(v => [v, String(v)]), yt, [0, chiMax], [lo, 0]);
+      const th = state.mode.theta0 * 180 / Math.PI; g.fillStyle = css("--accent"); g.globalAlpha = 0.1; g.fillRect(X(0), m.t, X(th) - X(0), h - m.t - m.b); g.globalAlpha = 1;
+      line(g, pts.map(([c, v]) => [X(c * 180 / Math.PI), Y(v)]), css("--accent"));
+      line(g, ptsA.map(([c, v]) => [X(c * 180 / Math.PI), Y(v)]), css("--sel"), 1.6, [6, 4]);
+      g.strokeStyle = css("--ink"); g.lineWidth = 1;
+      for (let j = 0; j < b.reflections && j < 400; j++) { const x = X(Math.abs(b.chi[j]) * 180 / Math.PI); g.beginPath(); g.moveTo(x, h - m.b); g.lineTo(x, h - m.b - 8); g.stroke(); }
+      label(g, "— at the ray angle", w - m.r - 4, m.t + 14, css("--accent"), "right"); label(g, "-- beam-averaged", w - m.r - 4, m.t + 28, css("--sel"), "right");
+    }
+  }
+
+  function drawPerHit() {
+    const { b, p } = state;
+    const [g, w, h] = fit($("perHit"));
+    const n = Math.min(b.nHits, p.exit === "closed" ? 400 : b.nHits), m = { l: 52, r: 52, t: 10, b: 34 };
+    const logY = b.I[n] / (b.I[0] || 1) < 0.2;
+    const lo = logY ? Math.floor(Math.log10(Math.max(b.I[n], 1e-12))) : 0;
+    const yt = logY ? niceTicks(lo, 0, 4).map(v => [v, v === 0 ? "1" : `1e${v}`]) : [0, 0.25, 0.5, 0.75, 1].map(v => [v, `${v * 100} %`]);
+    const [X, Y] = axes(g, w, h, m, "pass j", logY ? "power (log₁₀)" : "power", niceTicks(0, n, 6).map(v => [v, String(v)]), yt, [0, n], logY ? [lo, 0] : [0, 1]);
+    const cmax = Math.max(1e-6, ...b.chi.slice(0, n).map(Math.abs)) * 180 / Math.PI * 1.15, Y2 = v => h - m.b - v / cmax * (h - m.t - m.b);
+    rightAxis(g, w, h, m, niceTicks(0, cmax, 4).map(v => [v, String(v)]), Y2, "|χ| (°)", css("--sel"));
+    const bw = Math.max(1, (X(1) - X(0)) * 0.6);
+    g.fillStyle = css("--sel"); g.globalAlpha = 0.45;
+    for (let j = 0; j < Math.min(n, b.reflections); j++) { const v = Math.abs(b.chi[j]) * 180 / Math.PI; g.fillRect(X(j + 1) - bw / 2, Y2(v), bw, Y2(0) - Y2(v)); }
+    g.globalAlpha = 1;
+    line(g, b.I.slice(0, n + 1).map((v, j) => [X(j), Y(logY ? Math.log10(Math.max(v, 1e-12)) : v)]), css("--accent"));
+  }
+
+  /* ---------------------------------------------------------------- controls */
+  function sync() {
+    const p = P();
+    document.querySelectorAll(".only-dbr").forEach(el => { el.hidden = p.model !== "dbr"; });
+    document.querySelectorAll(".only-const").forEach(el => { el.hidden = p.model === "dbr"; });
+    $("M").max = Math.max(1, p.N / 2 - 1); if (+$("M").value > +$("M").max) $("M").value = $("M").max;
+    $("ROut").value = `${(+$("R").value).toFixed(1)} mm`; $("NOut").value = p.N; $("MOut").value = `${$("M").value} (θ = ${(360 * +$("M").value / p.N).toFixed(1)}°)`;
+    $("AOut").value = `${(+$("A").value).toFixed(2)} mm`; $("pwOut").value = `${$("pw").value} µm`;
+    $("lamOut").value = `${$("lam").value} nm`; $("neffOut").value = p.neff.toFixed(3); $("heffOut").value = `${(+$("heff").value).toFixed(3)} µm`; $("gamOut").value = p.gam.toFixed(3);
+    $("RcOut").value = p.Rc.toFixed(6); $("npOut").value = p.np;
+    const crit = Math.asin(1 / p.neff) * 180 / Math.PI; $("des").max = Math.max(0, Math.floor((crit - 0.1) * 20) / 20);
+    $("desOut").value = `${(+$("des").value).toFixed(2)}°`; $("scOut").value = `${$("sc").value} ppm`;
+    $("dR2Out").value = `${$("dR2").value} µm`; $("tiltOut").value = `${(+$("tilt").value).toFixed(2)} mrad`; $("ddOut").value = `${$("dd").value} µm`;
+  }
+  let pending = false;
+  function update() {
+    if (pending) return; pending = true;
+    requestAnimationFrame(() => {
+      pending = false; sync();
+      if (!compute()) { $("notes").innerHTML = `<div class="warn">${state.error}</div>`; $("stats").innerHTML = ""; return; }
+      drawStats(); drawCell(); drawSweeps(); drawPerHit();
+    });
+  }
+  ["R", "N", "M", "A", "phMode", "pw", "lam", "heff", "gam", "model", "Rc", "np", "mg", "mt", "des", "avg", "sc", "clip", "dR2", "tilt", "dd", "exit", "stretch"]
+    .forEach(id => $(id).addEventListener("input", update));
+  ["neff", "pol"].forEach(id => $(id).addEventListener("input", () => { $("preset").value = "custom"; update(); }));
+  $("preset").addEventListener("input", () => {
+    const v = $("preset").value;
+    if (v !== "custom") { const [n, pol, he, ga] = v.split("|"); $("neff").value = n; $("pol").value = pol; $("heff").value = he; $("gam").value = ga; }
+    update();
+  });
+  $("desMean").addEventListener("click", () => { if (state && state.b) { $("des").value = Math.min(state.b.chi_mean * 180 / Math.PI, +$("des").max).toFixed(2); update(); } });
+  new ResizeObserver(update).observe(document.querySelector(".views"));
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", update);
+  new MutationObserver(update).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  update();
+})();
+</script>

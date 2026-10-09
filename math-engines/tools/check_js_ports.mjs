@@ -259,6 +259,40 @@ const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Nu
   }
 }
 
+
+/* ---- onchip-herriott.html: onchip_herriott engine block (on planar_cell and bragg_grating) ---- */
+{
+  const html = fs.readFileSync(path.join(repo, 'onchip-herriott.html'), 'utf8');
+  const a = html.indexOf('/* engine:begin'), b = html.indexOf('/* engine:end */');
+  if (a < 0 || b < 0) throw new Error('engine block markers not found in onchip-herriott.html');
+  const ctx = vm.createContext({ Math, Number, Float64Array, Infinity, NaN, Array, Set, Object, Error, JSON });
+  vm.runInContext(html.slice(a, b) + '\n;globalThis.__o = { P: PlanarEngine, O: OnchipEngine };', ctx);
+  const { P: E, O } = ctx.__o;
+  /* erf against Python's math.erf; footprint is a grid count (2e-3 absolute) */
+  [0, 0.3, -1.1, 1.9, 2.1, 3.5, -5].forEach(x => close(`erf(${x})`, O.erf(x), { 0: 0, 0.3: 0.3286267594591274, '-1.1': -0.8802050695740817, 1.9: 0.9927904292352575, 2.1: 0.997020533343667, 3.5: 0.9999992569016276, '-5': -0.9999999999984626 }[x], 1e-14, 1e-16));
+  for (const [i, c] of V.onchip_herriott.entries()) {
+    const d = E.reentrantSpacing(c.R, c.N, c.M);
+    let cell = E.herriottPlanarCell(c.R, c.N, c.M, c.A, { portW: c.port_w, phase: c.phase });
+    const th = cell.meta.thetaLaunch;
+    cell = E.herriottPlanarCell(c.R, c.N, c.M, c.A, { portW: c.port_w, phase: c.phase, R2: c.R + (c.dR2 || 0), d });
+    cell.meta.thetaLaunch = th; cell.meta.d = d;
+    if (c.tilt2) cell = E.perturb(cell, [0, c.tilt2], null, null);
+    const mode = O.modeProfile(cell.meta.R, d, c.lam, c.n_eff);
+    close(`oh[${i}] w0`, mode.w0, c.w0, 1e-13); close(`oh[${i}] zR`, mode.zR, c.zR, 1e-13); close(`oh[${i}] theta0`, mode.theta0, c.theta0, 1e-13);
+    const dbr = c.mirror === 'dbr' ? E.trenchDBR({ nTooth: c.n_eff, lam: c.lam, N: c.periods, slabPol: c.pol }) : null;
+    const Rf = O.mirrorFunction({ model: c.mirror, R: c.R_mirror ?? 1, dbr, lam: c.lam, theta0: mode.theta0, beamAverage: !!c.avg, scatter: c.scatter || 0 });
+    const b = O.budget(cell, { lam: c.lam, nEff: c.n_eff, hEff: 0.3e-6, Rf, exitMode: c.exit, clip: c.clip });
+    checks++; if (b.nHits !== c.n_hits || b.reflections !== c.reflections || b.exits !== c.exits) { fails++; console.error(`FAIL oh[${i}] hits ${b.nHits}/${c.n_hits}`); }
+    for (const [k, kk] of [["T_out", "T_out"], ["eta_window", "etaWindow"], ["I_end", "I_end"], ["L_geom", "L_geom"], ["L_eff", "L_eff"], ["V_eff", "V_eff"],
+      ["chi_mean", "chi_mean"], ["chi_rms", "chi_rms"], ["chi_max", "chi_max"], ["R_mean", "R_mean"]]) close(`oh[${i}] ${k}`, b[kk], c[k], 1e-9, 1e-15);
+    close(`oh[${i}] clip_loss`, b.clip_loss, c.clip_loss, 1e-7, 1e-13);
+    c.I.forEach((v, j) => close(`oh[${i}] I${j}`, b.I[j], v, 1e-10, 1e-16));
+    c.chi.forEach((v, j) => close(`oh[${i}] chi${j}`, b.chi[j], v, 0, 1e-9));
+    c.w_int.forEach((v, j) => close(`oh[${i}] wint${j}`, b.wInt[j], v, 1e-11));
+    if (c.footprint !== null) close(`oh[${i}] footprint`, O.footprintFraction(cell, c.lam, c.n_eff), c.footprint, 0, 2e-3);
+  }
+}
+
 /* ---- fringe-washout.html: fringe_averaging engine block ---- */
 {
   const html = fs.readFileSync(path.join(repo, 'fringe-washout.html'), 'utf8');

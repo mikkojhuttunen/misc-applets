@@ -19,6 +19,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [cell_mirror](engines/cell_mirror/) | Etched-trench DBR reflectance averaged self-consistently over the angles of incidence in a (perturbed) segmented cell or any `planar_cell` wall, vs the unperturbed cell; effective path and angle percentiles | |
 | [planar_cell](engines/planar_cell/) | 2D ray tracing in walls of flat and curved mirror elements: circle, segmented polygon, smooth or faceted stadium, per-element perturbations, and the integrated (in-plane) Herriott cell; ports, path statistics, chaos, re-entrance; feeds `ray_phase` and `cell_mirror` | |
 | [herriott_cell](engines/herriott_cell/) | Exact 3D tracing of Herriott, astigmatic and deformed Herriott cells (biconic/conic/polynomial mirrors, tilt, decentre, radius and spacing errors, holes, apertures); re-entrance, spot metrics, effective path, injection-angle dither | |
+| [onchip_herriott](engines/onchip_herriott/) | Gaussian-beam budget of the integrated Herriott cell: effective path, mode volume and cross-section, power-weighted angles of incidence, throughput and clipping, with constant or trench-DBR mirrors (ray angle or beam angular spectrum), against mirror reflectance | |
 | [fringe_averaging](engines/fringe_averaging/) | Residual interference-fringe visibility after angle and laser-frequency dithering, drifts, linewidth and averaging over seconds (exact harmonic expansion) | scipy (tests) |
 
 ## Use
@@ -80,6 +81,7 @@ The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out
 | `cmpc-ray-tracer.html` (inline `engine:begin/end` block) | `billiard_cell.SegmentedCell` geometry, hit test, reflection, launch, `reflection_weighted_path`; `ray_phase` path lengths, dither offsets, visibility, `dither_analysis`; `bragg_grating.stack_R_oblique`, `TrenchDBR`; `cell_mirror` statistics | `check_js_ports.mjs` (block extracted from the page) |
 
 | `planar-mpc-ray-tracer.html` (inline `engine:begin/end` block) | `planar_cell` builders, perturbations, hits, traces, integrated Herriott trace; `ray_phase` path lengths and `dither_analysis`; `cell_mirror` statistics with `TrenchDBR` | `check_js_ports.mjs` (block extracted from the page) |
+| `onchip-herriott.html` (inline `engine:begin/end` block) | `onchip_herriott` mode, chord width integrals, erf and Gaussian clipping, angular-spectrum DBR average, `budget`, `footprint_fraction` (with the `planar_cell` and `bragg_grating` ports) | `check_js_ports.mjs` (block extracted from the page) |
 | `herriott-ray-tracer.html` (inline `engine:begin/end` block) | `herriott_cell` surfaces, Newton intersections, `trace3d`, `build_cell`, astigmatic cells, `reentrance`, `spot_metrics`, `HerriottLaunch` paths and `dither_analysis` | `check_js_ports.mjs` (block extracted from the page) |
 
 Known deviation: the ports work in µm inside; the check converts SI to µm at the boundary.

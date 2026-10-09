@@ -21,6 +21,7 @@ from engines.ray_phase import engine as rp  # noqa: E402
 from engines.cell_mirror import engine as cmir  # noqa: E402
 from engines.herriott_cell import engine as hc  # noqa: E402
 from engines.planar_cell import engine as pc  # noqa: E402
+from engines.onchip_herriott import engine as oh  # noqa: E402
 from engines.fringe_averaging import engine as fav  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
@@ -148,6 +149,21 @@ def build() -> dict:
         v["herriott_phase"].append({"case": ci, "plane": plane, "amplitude": A, "n_pass": npass, "waveform": wf, "wavelength": 1.55e-6,
                                     "n_index": 1.0, "n_min": 101, "n_max": 401, "n_used": r["n_used"], "V": f(r["V"]),
                                     "V_model": f(r["V_model"]), "a": f(r["a"]), "same_path": f(r["same_path"]), "L0": f(r["L0"])})
+    v["onchip_herriott"] = []
+    for case in _ONCHIP_CASES:
+        c = case
+        cell = oh._cell(c["R"], c["N"], c["M"], c["A"], c["phase"], c["port_w"], c.get("dR2", 0.0), c.get("tilt2", 0.0), 0.0)
+        mode = oh.mode_profile(cell.meta["R"], cell.meta["d"], c["lam"], c["n_eff"])
+        Rf, _ = oh.make_mirror(c["mirror"], c.get("R_mirror", 1.0), c["n_eff"], c["lam"], c.get("pol", "TM"), c.get("periods", 4),
+                               0.0, c.get("avg", False), c.get("scatter", 0.0), mode["theta0"])
+        b = oh.budget(cell, c["lam"], c["n_eff"], 0.3e-6, Rf, 0.0, c["exit"], c["clip"])
+        f = lambda arr: [float(x) for x in arr]
+        v["onchip_herriott"].append({**c, **{k: float(b[k]) for k in ("T_out", "eta_window", "I_end", "L_geom", "L_eff", "V_eff",
+                                                                     "chi_mean", "chi_rms", "chi_max", "R_mean", "clip_loss")},
+                                     "n_hits": b["n_hits"], "reflections": b["reflections"], "exits": b["exits"],
+                                     "w0": mode["w0"], "zR": mode["zR"], "theta0": mode["theta0"], "I": f(b["I"][:60]),
+                                     "chi": f(b["chi"][:60]), "w_int": f(b["w_int"][:60]),
+                                     "footprint": oh.footprint_fraction(cell, c["lam"], c["n_eff"]) if c["exit"] == "window" else None})
     v["bessel"] = [{"x": x, "J": [float(j) for j in fav.bessel_j_all(x, 40)]} for x in (0.0, 0.7, 5.5, 33.0, -12.0)]
     v["fringe"] = []
     for (x1, f1, w1, x2, f2, w2, psi, drift, coh, kind) in ((2.4, 1000, "sine", 0.0, 1300, "triangle", 0.0, 0.0, 1.0, "boxcar"),
@@ -301,6 +317,18 @@ def _herriott_vector(c):
     if c["kind"] in ("design", "build"):
         out["d"], out["hole_radius"] = float(cc["d"]), float(cc["hole_radius"])
     return out
+
+
+_ONCHIP_CASES = [
+    {"R": 10e-3, "N": 20, "M": 3, "A": 1e-3, "phase": 0.0, "port_w": 100e-6, "lam": 1.55e-6, "n_eff": 2.479, "mirror": "dbr",
+     "pol": "TM", "periods": 4, "avg": True, "exit": "window", "clip": True},
+    {"R": 10e-3, "N": 20, "M": 3, "A": 1e-3, "phase": np.pi / 20, "port_w": 20e-6, "lam": 1.55e-6, "n_eff": 2.479, "mirror": "dbr",
+     "pol": "TE", "periods": 3, "avg": False, "scatter": 2e-4, "exit": "window", "clip": True},
+    {"R": 20e-3, "N": 24, "M": 5, "A": 1.5e-3, "phase": 0.0, "port_w": 150e-6, "lam": 2.0e-6, "n_eff": 2.0, "mirror": "constant",
+     "R_mirror": 0.995, "exit": "closed", "clip": True},
+    {"R": 20e-3, "N": 24, "M": 5, "A": 1.5e-3, "phase": 0.0, "port_w": 150e-6, "lam": 1.55e-6, "n_eff": 2.479, "mirror": "constant",
+     "R_mirror": 0.99, "dR2": 50e-6, "tilt2": 1e-4, "exit": "window", "clip": False},
+]
 
 
 def render() -> str:

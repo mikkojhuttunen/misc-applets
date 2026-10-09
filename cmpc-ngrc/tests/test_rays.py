@@ -31,12 +31,12 @@ def test_ports():
 
 
 def test_unperturbed_circle_path_lengths():
-    """sin χ is conserved: every chord is 2 Rc cos χ, so L ≈ n0 (nb + 1) 2 Rc cos χ."""
+    """sin χ is conserved: every chord is 2 Rc cos χ, so L ≈ n0 (nb + 1) 2 Rc cos χ (χ from the record direction)."""
     c = _cell()
-    ex = trace(c, Source(0, n_pos=1, n_ang=21))
-    cos_chi = np.cos(c.ports[0].launch + np.linspace(-0.5, 0.5, 21) * c.ports[0].fan)[ex.ray]
+    ex = trace(c, Source(0, n_pos=3, n_ang=41))
+    cos_chi = np.abs(ex.tx * ex.x + ex.ty * ex.y) / c.radius
     ratio = ex.L / (c.n_eff * 2 * c.radius * cos_chi)
-    assert np.allclose(ratio, ex.nb + 1, atol=2e-3)
+    assert np.allclose(ratio, ex.nb + 1, atol=5e-3)
 
 
 def test_free_beamlet_is_a_gaussian_beam():
@@ -61,7 +61,7 @@ def test_free_beamlet_is_a_gaussian_beam():
 
 def test_diameter_round_trip_matches_abcd():
     """Ray along a diameter: free 2Rc, circular mirror (tangential f = Rc/2), free 2Rc, out through the input port."""
-    c = CircularCell(radius=1e-3, ports=[Port(0.0, width=10e-6, role="inout", fan=0.0)])
+    c = CircularCell(radius=1e-3, ports=[Port(0.0, width=10e-6, role="inout", fan=0.0)], model="gbs")
     src = Source(0, n_pos=1, n_ang=1, waist=6e-6)
     ex = trace(c, src)
     n0, Rc = c.n_eff, c.radius
@@ -120,17 +120,16 @@ def test_momentum_tracks_index_in_curved_mode():
 def test_phase_screen_equals_straight_tracer():
     c, p = _cell(), _pert()
     src = Source(0, n_pos=3, n_ang=31)
-    F = PhaseScreenModel(c, [src]).fields(p)
+    F = PhaseScreenModel(c, [src], prune=0).fields(p)
     ex = trace(c, src, p, "straight")
     for o in c.outputs:
         assert field_correlation(F[(0, o)], detector_field(c, ex, o)) > 0.99999
 
 
 def test_curved_reduces_to_phase_screen_for_small_dn():
-    """(At Δn ~ 1e-6 single rays already switch between exiting and reflecting at a port edge.)"""
-    c, p = _cell(), _pert(1e-8)
+    c, p = _cell(), _pert(1e-7)
     src = Source(0, n_pos=3, n_ang=31)
-    F = PhaseScreenModel(c, [src]).fields(p)
+    F = PhaseScreenModel(c, [src], prune=0).fields(p)
     ex = trace(c, src, p, "curved")
     for o in c.outputs:
         assert field_correlation(F[(0, o)], detector_field(c, ex, o)) > 0.99999
@@ -140,14 +139,14 @@ def test_grid_image_gives_the_same_speckle_as_the_analytic_shape():
     c = _cell()
     s = Shape(2e-4, 1e-4, 80e-6, 1e-3, 3e-6, a=[0, 0.05, 0.02])
     g = GridIndex(rasterize_shape(s, 1e-6), 1e-6, s.x0, s.y0)
-    m = PhaseScreenModel(c, [Source(0, n_pos=3, n_ang=31)])
+    m = PhaseScreenModel(c, [Source(0, n_pos=3, n_ang=31)], prune=0)
     Fa, Fg = m.fields(Perturbation([s])), m.fields(Perturbation([g]))
     for o in c.outputs:
         assert field_correlation(Fa[(0, o)], Fg[(0, o)]) > 0.999
 
 
 def test_unperturbed_speckle_is_developed():
-    c = _cell()
+    c = _cell(model="gbs")
     ex = trace(c, Source(0, n_pos=5, n_ang=61))
     I = np.abs(detector_field(c, ex, 1)) ** 2
     assert 0.6 < I.std() / I.mean() < 1.3

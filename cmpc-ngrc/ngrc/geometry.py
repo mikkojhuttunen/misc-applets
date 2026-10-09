@@ -53,6 +53,8 @@ class CircularCell:
     reflection_phase: float = np.pi
     detector: Detector = field(default_factory=Detector)
     reflectance_fn: object = None
+    model: str = "fga"            # "fga": frozen Gaussians (Herman–Kluk) with smooth leakage through the port
+                                  # openings; "gbs": evolving Gaussian beamlets, hard ports (legacy)
 
     @property
     def k0(self) -> float:
@@ -107,6 +109,26 @@ class CircularCell:
     def port_at(self, s_wall):
         return self.port_index(np.asarray(s_wall) / self.radius)
 
+    def _port_centres(self):
+        return np.array([p.angle * self.radius for p in self.ports]), 2 * np.pi * self.radius
+
+    def port_offsets(self, s_wall):
+        """(n_ports, n) signed boundary distance of hits from each port centre."""
+        c, per = self._port_centres()
+        s_wall = np.atleast_1d(np.asarray(s_wall, float))
+        return np.mod(s_wall[None, :] - c[:, None] + per / 2, per) - per / 2
+
+    def aperture_points(self, i, n=None):
+        """Sample points across the opening of port i (on the wall), spacing ≤ λ/(3 n0); returns (points, du)."""
+        p = self.ports[i]
+        n = int(np.ceil(p.width / (self.wavelength / self.n_eff / 3))) + 1 if n is None else n
+        u = (np.arange(n) + 0.5) / n * p.width - p.width / 2
+        return self._wall_points(i, u), p.width / n
+
+    def _wall_points(self, i, u):
+        a = self.ports[i].angle + u / self.radius
+        return self.radius * np.stack([np.cos(a), np.sin(a)], 1)
+
     def contains(self, x, y):
         return x * x + y * y < self.radius**2
 
@@ -143,6 +165,7 @@ class CircularCell:
     def to_dict(self):
         d = asdict(self)
         d.pop("reflectance_fn")
+        d.pop("wall", None)
         return d
 
     @classmethod
@@ -172,6 +195,13 @@ class WallCell(CircularCell):
         nn = np.hypot(nx, ny)
         nn = np.where(nn > 0, nn, 1.0)
         return d, nx / nn, ny / nn, power, sb
+
+    def _port_centres(self):
+        return np.array([p.s for p in self.ports], float), self.wall.perimeter
+
+    def _wall_points(self, i, u):
+        x, y, _, _ = self.wall.point_at(self.ports[i].s + np.asarray(u))
+        return np.stack([x, y], 1)
 
     def port_at(self, s_wall):
         s_wall = np.atleast_1d(np.asarray(s_wall, float))

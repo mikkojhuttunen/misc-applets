@@ -11,11 +11,19 @@ n_n, n_nn: first and second derivative of n normal to the ray. The beamlet field
 A sqrt(Q0/Q) exp(i k0 [L + ½ (P/Q) q²]), q the normal offset; P0/Q0 = i n0 / z_R at the launch waist.
 At the wall (radius Rc) a ray reflects specularly; the circular mirror acts on the beamlet as the tangential
 oblique-incidence lens P → P − 2 n0 Q / (Rc cos χ), amplitude × sqrt(R(χ)), phase + φ_R.
-A wall hit inside a port aperture ends the ray there (an exit record). The wall comes from the cell's wall_hit
-(analytic circle, or any gmpc.planar wall through geometry.WallCell, where the lens is 2 n0 κ / cos χ per element).
-
-mode = "curved" (full), "straight" (rays and beamlets as in the unperturbed cell, only the optical path feels Δn:
-the first-order / phase-screen model), "none" (perturbation ignored).
+Field models (cell.model):
+  "fga" (default): frozen Gaussian approximation (Herman–Kluk). The input beam at a port (waist w_in set by the
+     fan: divergence half-angle fan/2) is projected onto coherent states g_{q,p} (fixed width w_f = Source.frozen)
+     on the launch grid of positions q × directions p = n0 sin φ; each ray carries its weight W = ⟨g|E0⟩ ΔqΔp k0/2π,
+     the optical path and the stability matrix [[A, B], [C, D]] (from Q = A + iβB, P = C + iβD), and contributes
+     W · R · e^{i k0 L} · g at the end, with the prefactor R = sqrt(½ (A + D − i (γ/k0) B + i (k0/γ) C)), γ = 2/w_f²,
+     its branch followed continuously. Frozen Gaussians stay narrow, so a dot only affects the rays that cross it.
+     Ports: every wall hit within a few w_f of a port opening is an exit record (field.beamlet_matrix samples it
+     across the opening and propagates the aperture field to the detector); the ray reflects with amplitude ×
+     sqrt(1 − T), T the overlap of its footprint w_f / cos χ with the opening. Smooth in the ray geometry.
+  "gbs": Gaussian beam summation with evolving beamlets (P/Q), hard ports: a ray leaves when its centre hits a
+     port and its beamlet is continued straight to the detector. In the circle (a degenerate mirror system) these
+     beamlets grow to millimetres, so this model is kept only for comparison.
 """
 from __future__ import annotations
 
@@ -27,11 +35,14 @@ import numpy as np
 @dataclass
 class Source:
     port: int
-    n_pos: int = 5               # launch positions across the aperture
+    n_pos: int = 5               # launch positions (gbs: across the aperture; fga: across the coherent-state
+                                 # extent ±2.5 sqrt(w_in² + w_f²); None → automatic, spacing w_f/2)
     n_ang: int = 41              # launch angles across the fan
     waist: float = 5e-6          # beamlet waist at the port (m)
-    mode_width: float = None     # 1/e field half-width of the input mode across the aperture; None → width/2
-    ang_width: float = None      # 1/e half-width of an angular weight; None → flat over the fan
+    mode_width: float = None     # gbs: 1/e field half-width of the input mode across the aperture (None → width/2);
+                                 # fga: input waist (None → from the fan, divergence half-angle fan/2)
+    ang_width: float = None      # gbs: 1/e half-width of an angular weight; None → flat over the fan
+    frozen: float = 20e-6        # fga: frozen-Gaussian 1/e amplitude half-width w_f (m)
 
 
 @dataclass
@@ -53,10 +64,36 @@ class Exits:
     lost: dict = field(default_factory=dict)
     paths: list = None
     chords: dict = None
+    nch: np.ndarray = None       # chords travelled by the ray before this exit (for per-exit path sums)
+    model: str = "gbs"           # "fga": frozen-Gaussian records at the wall, sampled over the port opening
+    W: np.ndarray = None         # fga: complex launch weight of the ray
+    argZ: np.ndarray = None      # fga: continuous argument of the prefactor argument z
+    beta: float = None
+    gamma: float = None
 
     def select(self, port):
         m = self.port == port
-        return {k: getattr(self, k)[m] for k in ("ray", "x", "y", "tx", "ty", "L", "Q", "P", "argQ", "amp", "phase", "nb")}
+        out = {k: getattr(self, k)[m] for k in ("ray", "x", "y", "tx", "ty", "L", "Q", "P", "argQ", "amp", "phase", "nb")}
+        if self.model == "fga":
+            out["W"], out["argZ"] = self.W[m], self.argZ[m]
+        return out
+
+    def index(self, port):
+        return np.nonzero(self.port == port)[0]
+
+    def subset(self, mask):
+        import copy
+        e = copy.copy(self)
+        for k in ("port", "ray", "x", "y", "tx", "ty", "L", "Q", "P", "argQ", "amp", "phase", "nb", "nch", "argZ", "W"):
+            v = getattr(self, k)
+            if v is not None:
+                setattr(e, k, v[mask])
+        return e
+
+    def weights(self, k0):
+        """|amp · W · R| of every fga record (its amplitude at the port)."""
+        z = zfun(self.Q, self.P, self.beta, self.gamma, k0)
+        return self.amp * np.abs(self.W) * np.sqrt(np.abs(z))
 
     def port_power(self, n_ports):
         return np.array([np.sum(self.amp[self.port == i] ** 2) for i in range(n_ports)])
@@ -78,6 +115,51 @@ def launch(cell, src: Source):
         amp = amp * np.exp(-(V / src.ang_width) ** 2)
     amp = amp / np.sqrt(np.sum(amp**2))
     return x, y, np.cos(ang), np.sin(ang), amp
+
+
+def fga_params(cell, src: Source):
+    """β (Q, P encoding) and γ = 2/w_f² of the frozen Gaussians."""
+    zR = cell.k0 * cell.n_eff * src.frozen**2 / 2
+    return cell.n_eff / zR, 2 / src.frozen**2
+
+
+def launch_fga(cell, src: Source):
+    """Phase-space grid of frozen Gaussians for the beam injected at src.port: positions q across the port line,
+    directions φ (from the inward normal); returns x, y, tx, ty, the complex weights W = ⟨g_{q,p}|E0⟩ ΔqΔp k0/2π,
+    and cos φ (for the line → ray-frame stability matrix)."""
+    p = cell.ports[src.port]
+    c, nrm, tan = cell.port_frame(src.port)
+    n0, k0, lam = cell.n_eff, cell.k0, cell.wavelength
+    _, gam = fga_params(cell, src)
+    th_d = max(p.fan / 2, 1e-4)
+    w_in = src.mode_width if src.mode_width is not None else lam / (np.pi * n0 * np.tan(th_d))
+    qmax = 2.5 * np.sqrt((w_in / max(np.cos(p.launch), 1e-3)) ** 2 + src.frozen**2)   # extent of ⟨g_q|E0⟩
+    n_pos = src.n_pos if src.n_pos else int(np.ceil(2 * qmax / (0.5 * src.frozen))) + 1
+    q = np.linspace(-qmax, qmax, n_pos) if n_pos > 1 else np.zeros(1)
+    phi_span = min(2.5 * th_d + 3 / (k0 * n0 * src.frozen), 1.4)
+    phi = p.launch + (np.linspace(-1, 1, src.n_ang) * phi_span if src.n_ang > 1 else np.zeros(1))
+    dq = q[1] - q[0] if len(q) > 1 else np.sqrt(2 * np.pi / gam)
+    dphi = phi[1] - phi[0] if len(phi) > 1 else 1.0
+    Qg, Pg = np.meshgrid(q, phi, indexing="ij")
+    Qg, Pg = Qg.ravel(), Pg.ravel()
+    pp = -n0 * np.sin(Pg)                      # momentum along the port line (tangent), dir·tan = −sin φ
+    p0 = -n0 * np.sin(p.launch)
+    w_line = w_in / max(np.cos(p.launch), 1e-3)       # a beam of waist w_in launched at angle φ0, seen on the line
+    a = gam / 2 + 1 / w_line**2
+    b = gam * Qg - 1j * k0 * pp + 1j * k0 * p0
+    cc = -gam / 2 * Qg**2 + 1j * k0 * pp * Qg
+    ov = (gam / np.pi) ** 0.25 * np.sqrt(np.pi / a) * np.exp(b * b / (4 * a) + cc)
+    W = ov * dq * n0 * np.cos(Pg) * dphi * k0 / (2 * np.pi)
+    ang = np.arctan2(-nrm[1], -nrm[0]) + Pg
+    x = c[0] + Qg * tan[0]
+    y = c[1] + Qg * tan[1]
+    return x, y, np.cos(ang), np.sin(ang), W, np.cos(Pg)
+
+
+def zfun(Q, P, beta, gam, k0):
+    """Herman–Kluk prefactor argument z = ½ (A + D − i(γ/k0) B + i(k0/γ) C) with Q = A + iβB, P = C + iβD."""
+    A, B, C, D = Q.real, Q.imag / beta, P.real, P.imag / beta
+    return 0.5 * (A + D - 1j * (gam / k0) * B + 1j * (k0 / gam) * C)
 
 
 def _derivs(pert, n0, mode, x, y, px, py, Q, P):
@@ -112,40 +194,64 @@ def _rk4(pert, n0, mode, h, x, y, px, py, L, Q, P):
 
 
 def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400, amp_min=1e-3,
-          record_paths=0, record_chords=False, max_iter=200000, n_sub=8, adaptive=True):
+          record_paths=0, record_chords=False, max_iter=200000, n_sub=8, adaptive=True, rec_tol=1e-3, zmax=1e4):
     """Trace the fan of `src` through the cell and perturbation. Returns Exits (one record per ray that leaves
     through a port). ds: RK4 step in the edge zones of the perturbations (default half the edge width of the sharpest
     shape, ≤ 2 µm; ds = edge gives field correlations ≈ 0.996 with the converged result); with `adaptive`, flat parts (Shape interiors, gaps) are crossed in larger steps that stop short of the
-    next edge zone. Rays inside perturbations advance n_sub steps per event round, batched over rays."""
+    next edge zone. Rays inside perturbations advance n_sub steps per event round, batched over rays.
+    zmax (fga): a ray is dropped once its Herman–Kluk prefactor argument |z| exceeds zmax. In chaotic cells
+    |z| grows like e^(λ·bounces) and those contributions only cancel with impractically dense sampling (beyond the
+    Ehrenfest time ray methods lose the field anyway); in the circle |z| grows linearly and stays far below.
+    rec_tol: aperture-model exit records are kept when the beamlet's amplitude at the port (amp |Q|^-1/2, Gaussian
+    fall-off beyond the opening) exceeds rec_tol × the largest launch amplitude."""
     from .shapes import Perturbation
     pert = Perturbation() if pert is None else pert
     if mode == "none":
         pert = Perturbation()
     Rc, n0, k0 = cell.radius, cell.n_eff, cell.k0
     cell.check_regions(pert.regions)
+    fga = getattr(cell, "model", "gbs") == "fga"
     reg = pert.regions
     if ds is None:
         edges = [getattr(c, "edge", getattr(c, "smooth", 2e-6) or 2e-6) for c in pert.components]
         ds = min([2e-6] + [e / 2 for e in edges])
 
-    x, y, tx, ty, amp = launch(cell, src)
+    if fga:
+        x, y, tx, ty, Wl, cos0 = launch_fga(cell, src)
+        beta, gam = fga_params(cell, src)
+        amp = np.ones(len(x))
+        Q = cos0.astype(complex)
+        P = 1j * beta / cos0
+        argZ = np.zeros(len(x))
+        wmag = np.abs(Wl)
+        live = wmag > rec_tol * wmag.max()            # drop launch cells with negligible projection weight
+        x, y, tx, ty, Wl, Q, P, argZ, amp = (v[live] for v in (x, y, tx, ty, Wl, Q, P, argZ, amp))
+    else:
+        x, y, tx, ty, amp = launch(cell, src)
+        zR = k0 * n0 * src.waist**2 / 2
+        Q = np.ones(len(x), complex)
+        P = np.full(len(x), 1j * n0 / zR)
+        argZ = np.zeros(len(x))
     N = len(x)
     px, py = n0 * tx, n0 * ty
-    zR = k0 * n0 * src.waist**2 / 2
-    Q = np.ones(N, complex)
-    P = np.full(N, 1j * n0 / zR)
     argQ = np.zeros(N)
     L = np.zeros(N)
     phase = np.zeros(N)
     nb = np.zeros(N, int)
+    nch = np.zeros(N, int)
     alive = np.ones(N, bool)
     inside = np.zeros(N, bool)
     amp0max = amp.max()
-    rec = {k: [] for k in ("port", "ray", "x", "y", "tx", "ty", "L", "Q", "P", "argQ", "amp", "phase", "nb")}
+    rec = {k: [] for k in ("port", "ray", "x", "y", "tx", "ty", "L", "Q", "P", "argQ", "amp", "phase", "nb", "nch",
+                           "argZ")}
     lost = dict(bounces=0, amplitude=0, power_bounces=0.0, power_amplitude=0.0)
     paths = [[(x[i], y[i])] for i in range(min(record_paths, N))]
     chords = {k: [] for k in ("ray", "x", "y", "tx", "ty", "len")} if record_chords else None
     ids = np.arange(N)
+
+    def zarg_update(m, Qn, Pn):
+        if fga:
+            argZ[m] += np.angle(zfun(Qn, Pn, beta, gam, k0) / zfun(Q[m], P[m], beta, gam, k0))
 
     def free(m, s):
         nonlocal Q, argQ
@@ -153,6 +259,7 @@ def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400,
         y[m] += s * ty[m]
         L[m] += n0 * s
         Qn = Q[m] + P[m] * s / n0
+        zarg_update(m, Qn, P[m])
         argQ[m] += np.angle(Qn / Q[m])
         Q[m] = Qn
 
@@ -187,34 +294,61 @@ def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400,
                 chords["ray"].append(out); chords["x"].append(xo.copy()); chords["y"].append(yo.copy())
                 chords["tx"].append(txo.copy()); chords["ty"].append(tyo.copy()); chords["len"].append(s_go.copy())
             free(out, s_go)
+            nch[out] += 1
             inside[out[to_reg]] = True
             px[out[to_reg]] = n0 * tx[out[to_reg]]
             py[out[to_reg]] = n0 * ty[out[to_reg]]
             hit = out[~to_reg]
             if len(hit):
                 hsel = ~to_reg
-                pid = cell.port_at(wsb[hsel])
-                ex = hit[pid >= 0]
-                if len(ex):
+                hn_x, hn_y = wnx[hsel], wny[hsel]
+                widths = np.array([p.width for p in cell.ports])
+                D = cell.port_offsets(wsb[hsel])                          # (ports, hits)
+                if fga:
+                    from scipy.special import erf
+                    foot = np.full(len(hit), src.frozen)                   # 1/e² intensity half-width on the line
+                    near = np.abs(D) < widths[:, None] / 2 + 3 * foot
+                    ww = foot / np.sqrt(2)
+                    T = 0.5 * (erf((widths[:, None] / 2 - D) / ww) + erf((widths[:, None] / 2 + D) / ww))
+                    T = np.where(near, T, 0.0)
+                    Ttot = np.minimum(T.sum(0), 1.0)
+                    Ttot = np.where(Ttot > 1 - 1e-9, 1.0, Ttot)
+                else:
+                    near = np.abs(D) <= widths[:, None] / 2
+                    Ttot = near.any(0).astype(float)
+                for pi_ in range(len(cell.ports)):
+                    sel = near[pi_]
+                    if not sel.any():
+                        continue
+                    ex = hit[sel]
                     for k, arr in (("ray", ids), ("x", x), ("y", y), ("tx", tx), ("ty", ty), ("L", L), ("Q", Q),
-                                   ("P", P), ("argQ", argQ), ("amp", amp), ("phase", phase), ("nb", nb)):
+                                   ("P", P), ("argQ", argQ), ("amp", amp), ("phase", phase), ("nb", nb), ("nch", nch),
+                                   ("argZ", argZ)):
                         rec[k].append(arr[ex].copy())
-                    rec["port"].append(pid[pid >= 0])
-                    alive[ex] = False
-                rsel = pid < 0
+                    rec["port"].append(np.full(len(ex), pi_))
+                cont = Ttot < 1
+                alive[hit[~cont]] = False
+                rsel = cont
                 rf = hit[rsel]
                 if len(rf):
-                    nx, ny = wnx[hsel][rsel], wny[hsel][rsel]
+                    nx, ny = hn_x[rsel], hn_y[rsel]
                     cosc = tx[rf] * nx + ty[rf] * ny
                     tx[rf] -= 2 * cosc * nx
                     ty[rf] -= 2 * cosc * ny
                     tn = np.hypot(tx[rf], ty[rf])
                     tx[rf] /= tn
                     ty[rf] /= tn
-                    P[rf] = P[rf] - 2 * n0 * Q[rf] * wpow[hsel][rsel] / np.maximum(cosc, 1e-9)
+                    Pn = P[rf] - 2 * n0 * Q[rf] * wpow[hsel][rsel] / np.maximum(cosc, 1e-9)
+                    zarg_update(rf, Q[rf], Pn)
+                    P[rf] = Pn
+                    amp[rf] *= np.sqrt(1 - Ttot[rsel])
                     amp[rf] *= np.sqrt(cell.R(cosc))
                     phase[rf] += cell.reflection_phase
                     nb[rf] += 1
+                    if fga:
+                        kz = rf[np.abs(zfun(Q[rf], P[rf], beta, gam, k0)) > zmax]
+                        lost["prefactor"] = lost.get("prefactor", 0) + len(kz)
+                        alive[kz] = False
                     kb = rf[nb[rf] >= max_bounces]
                     ka = rf[(nb[rf] < max_bounces) & (amp[rf] < amp_min * amp0max)]
                     lost["bounces"] += len(kb); lost["power_bounces"] += float(np.sum(amp[kb] ** 2))
@@ -231,6 +365,7 @@ def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400,
             h = pert.safe_step(x[ins], y[ins], ds) if adaptive else ds
             s = _rk4(pert, n0, mode, h, x[ins], y[ins], px[ins], py[ins], L[ins], Q[ins], P[ins])
             x[ins], y[ins], px[ins], py[ins], L[ins] = s[0], s[1], s[2], s[3], s[4]
+            zarg_update(ins, s[5], s[6])
             argQ[ins] += np.angle(s[5] / Q[ins])
             Q[ins], P[ins] = s[5], s[6]
             if not np.all(cell.contains(x[ins], y[ins])):
@@ -254,7 +389,10 @@ def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400,
     ex = Exits(port=cat("port", int), ray=cat("ray", int), x=cat("x", float), y=cat("y", float), tx=cat("tx", float),
                ty=cat("ty", float), L=cat("L", float), Q=cat("Q", complex), P=cat("P", complex),
                argQ=cat("argQ", float), amp=cat("amp", float), phase=cat("phase", float), nb=cat("nb", int),
-               n_launched=N, lost=lost, paths=[np.array(p) for p in paths] if record_paths else None)
+               nch=cat("nch", int), argZ=cat("argZ", float), model="fga" if fga else "gbs", n_launched=N, lost=lost, paths=[np.array(p) for p in paths] if record_paths else None)
     if record_chords:
         ex.chords = {k: np.concatenate(v) if v else np.zeros(0) for k, v in chords.items()}
+    if fga:
+        ex.W = Wl[ex.ray]
+        ex.beta, ex.gamma = beta, gam
     return ex

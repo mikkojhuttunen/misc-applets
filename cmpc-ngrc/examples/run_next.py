@@ -6,6 +6,9 @@
   E7  engine (T3.4): full curved rays (JS engine through node) vs the phase-screen model, same dots
   E8  multiplexing (T6.1): launch-angle and wavelength steps as extra virtual nodes
   E9  wave reference (T5.2): one pass of a Gaussian beam through a dot, beamlet sums vs split-step BPM
+  E10 other cells (T8.6): chaotic stadium vs circle
+  E11 robustness (T8.5): detector noise and uniform index (temperature) drift
+  E12 nonlinearity regime (T8.3): readout vs Δn, curved rays vs phase screen, with and without noise
 
 Datasets are cached in results/cache/ (git-ignored).   python examples/run_next.py [--only E5,E6] [--quick]
 """
@@ -42,9 +45,9 @@ def ens(n, seed, centre=None, place=0.6e-3):
                     place_radius=None if centre else place, seed=seed)
 
 
-def dataset(cell, e, engine="phase", variants=None):
+def dataset(cell, e, engine="phase", variants=None, cell_tag=None):
     """Cached (X, Yab, Yp, pos, names, perts-free) for a cell, ensemble and engine."""
-    tag = json.dumps([cell.to_dict(), e.key(), engine, variants], sort_keys=True, default=str)
+    tag = json.dumps([cell_tag or cell.to_dict(), e.key(), engine, variants], sort_keys=True, default=str)
     f = CACHE / f"{hashlib.sha1(tag.encode()).hexdigest()[:16]}.npz"
     if f.exists():
         z = np.load(f, allow_pickle=True)
@@ -60,7 +63,9 @@ def dataset(cell, e, engine="phase", variants=None):
     ip = [i for i, s in enumerate(names) if s[0] == "p"]
     pos = np.array([[p.components[0].x0, p.components[0].y0] for p in D["perts"]])
     img = image_features(D["perts"])
-    out = dict(X=D["X"], Yab=D["Y"][:, ia], Yp=D["Y"][:, ip], mdom=D["Y"][:, -1], pos=pos, img=img,
+    ref = D.get("reference")
+    I0 = np.concatenate([np.abs(ref[k]) ** 2 for k in sorted(ref)]) if ref is not None and not variants else np.zeros(0)
+    out = dict(X=D["X"], Yab=D["Y"][:, ia], Yp=D["Y"][:, ip], mdom=D["Y"][:, -1], pos=pos, img=img, I0=I0,
                seconds=np.array(time.time() - t0))
     CACHE.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, **out)
@@ -213,20 +218,131 @@ def e9():
     return dict(rows=rows, beam_w_um=60, dot=dict(R_um=50, edge_um=3, z_um=1000))
 
 
-def main(only=None, quick=False):
+def stadium_cell(launch=0.35, inputs=(0, 1)):
+    from ngrc.geometry import WallCell, stadium, wall_ports
+    st = stadium(0.6e-3, 1.2e-3)
+    cell = WallCell(wall=st, n_eff=1.8, wavelength=1.55e-6, reflectance=0.99,
+                    ports=wall_ports(st, [0.05, 0.27, 0.52, 0.78], inputs=inputs, width=PORT_W, launch=launch, fan=0.4))
+    return cell, f"stadium r=0.6 a=1.2 ports .05/.27/.52/.78 in={inputs} launch={launch}"
+
+
+def e10(N):
+    """Stadium (chaotic) vs circle (integrable): sensitivity vs launch angle, fixed-position readout, position
+    tolerance."""
+    from ngrc import analysis as A
+    from run_progress import base_shapes
+    out = dict(N=N)
+    bases = base_shapes(3, seed=7, place=0.4e-3)
+    sens = dict(launch=[0.0, 0.4, 0.8, 1.0], circle=[], stadium=[])
+    for la in sens["launch"]:
+        c = cell_with(ports_at([0, 67, 151, 238], inputs=(0,), width=PORT_W, launch=la, fan=0.4))
+        sc, _ = stadium_cell(la, inputs=(0,))
+        for name, cc in (("circle", c), ("stadium", sc)):
+            S, _ = A.sensitivity(model_for(cc), bases, M_MAX)
+            sens[name].append(S.tolist())
+        print(f"E10 launch {la:.1f}: circle S {np.round(sens['circle'][-1], 2)}, stadium S {np.round(sens['stadium'][-1], 2)}", flush=True)
+    out["sensitivity"] = sens
+    rows = []
+    for name in ("circle", "stadium"):
+        if name == "circle":
+            cell, tag = cell_with(layouts()["asym4 · 2 in"]), None
+        else:
+            cell, tag = stadium_cell()
+        D = dataset(cell, ens(N, 81, centre=(0.15e-3, 0.1e-3)), cell_tag=tag)
+        tr, te = fixed_split(N, N // 4)
+        r = RO.evaluate_krr(D["X"], D["Yab"], "linear", train_idx=tr, test_idx=te)
+        rp = RO.evaluate_krr(D["X"], D["Yp"], "poly2", train_idx=tr, test_idx=te)
+        oc = model_for(cell)
+        rows.append(dict(name=name, r2=per_m(r["r2"]), r2_p=rp["r2"].tolist(),
+                         mean_bounces=float(np.mean([t["exits"].nb.mean() for t in oc.tables]))))
+        print(f"E10 {name}: R² {np.round(per_m(r['r2']), 2)}, p_m {np.round(rp['r2'], 2)}, "
+              f"mean bounces {rows[-1]['mean_bounces']:.0f}", flush=True)
+    out["readout"] = rows
+    return out
+
+
+def e11(N):
+    """Robustness (T8.5): readout trained on clean speckle, tested with detector noise or a uniform index drift
+    (temperature); and retrained with the same noise."""
+    from ngrc.dataset import sample_shapes
+    from ngrc.features import stack_intensities
+    cell = cell_with(layouts()["asym4 · 2 in"])
+    m = model_for(cell)
+    e = ens(N, 41, centre=FIXED)
+    D = dataset(cell, e)
+    X, Y = D["X"], D["Yab"]
+    tr, te = fixed_split(len(X), N // 4)
+    ref = m.fields(None)
+    I0 = np.concatenate([np.abs(ref[k]) ** 2 for k in sorted(ref)])
+    mu, sd = X[tr].mean(0), np.maximum(X[tr].std(0), 1e-3 * X[tr].std(0).mean())
+    a, _ = RO.ridge_cv((X[tr] - mu) / sd, Y[tr])
+    W, b = RO.ridge_fit((X[tr] - mu) / sd, Y[tr], a)
+    rng = np.random.default_rng(3)
+    noise = dict(sigma=[], clean_trained=[], noise_trained=[])
+    for sg in (0.0, 0.003, 0.01, 0.03, 0.1, 0.3):
+        Xn = X + rng.normal(0, 1, X.shape) * sg * I0.mean() / I0        # additive noise σ·Ī0 on I
+        r1 = RO.r2(Y[te], ((Xn[te] - mu) / sd) @ W + b)
+        r2_ = RO.evaluate_krr(Xn, Y, "linear", train_idx=tr, test_idx=te)["r2"]
+        noise["sigma"].append(sg)
+        noise["clean_trained"].append(per_m(r1))
+        noise["noise_trained"].append(per_m(r2_))
+        print(f"E11 noise σ={sg}: clean-trained {np.round(per_m(r1), 2)}, noise-trained {np.round(per_m(r2_), 2)}", flush=True)
+    perts = sample_shapes(cell, e)
+    drift = dict(dn=[], r2=[], corr_ref=[])
+    te_s = te[:200]
+    for dn in (0.0, 1e-8, 3e-8, 1e-7, 3e-7, 1e-6):
+        Xd = np.array([stack_intensities(m.fields(perts[i], dn_global=dn), reference=ref) for i in te_s])
+        r = RO.r2(Y[te_s], ((Xd - mu) / sd) @ W + b)
+        rd = m.fields(None, dn_global=dn)
+        drift["dn"].append(dn)
+        drift["r2"].append(per_m(r))
+        drift["corr_ref"].append(float(np.mean([field_correlation(ref[k], rd[k]) for k in ref])))
+        print(f"E11 drift δn={dn:g}: R² {np.round(per_m(r), 2)}, speckle corr {drift['corr_ref'][-1]:.3f}", flush=True)
+    paths = np.concatenate([t["path"] for t in m.tables])
+    return dict(N=N, noise=noise, drift=drift, mean_path_mm=float(np.mean(paths) * 1e3))
+
+
+def e12(N):
+    """Nonlinearity regime (T8.3): readout quality vs Δn of the dots, full curved rays vs phase screen, without
+    and with detector noise (σ = 1 % of the mean intensity, readout trained with the noise)."""
+    cell = cell_with(layouts()["asym4 · 2 in"])
+    dns = [1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3]
+    out = dict(N=N, dn=dns, sigma=0.01)
+    rng = np.random.default_rng(9)
+    for engine in ("phase", "node-curved"):
+        if engine.startswith("node") and not node_available():
+            continue
+        rows = dict(clean=[], noisy=[])
+        for dn in dns:
+            e = Ensemble(n=N, m_max=M_MAX, R_range=(60e-6, 110e-6), dn_range=(dn, dn), sigma=0.08, decay=0.5,
+                         centre=FIXED, seed=91)
+            D = dataset(cell, e, engine)
+            tr, te = fixed_split(N, N // 4)
+            rows["clean"].append(per_m(RO.evaluate_krr(D["X"], D["Yab"], "linear", train_idx=tr, test_idx=te)["r2"]))
+            I0 = D["I0"]
+            Xn = D["X"] + rng.normal(0, 1, D["X"].shape) * 0.01 * I0.mean() / I0
+            rows["noisy"].append(per_m(RO.evaluate_krr(Xn, D["Yab"], "linear", train_idx=tr, test_idx=te)["r2"]))
+            print(f"E12 {engine} Δn={dn:g}: clean {np.round(rows['clean'][-1], 2)}, noisy {np.round(rows['noisy'][-1], 2)}", flush=True)
+        out[engine] = rows
+    return out
+
+
+def main(only=None, quick=False, out_file="progress.json"):
     N = 400 if quick else 1600
-    pj = ROOT / "results" / "progress.json"
+    pj = ROOT / "results" / out_file
     out = json.loads(pj.read_text()) if pj.exists() else {}
     t0 = time.time()
     for name, fn in (("E5", lambda: e5(N)), ("E6", lambda: e6(N)), ("E7", lambda: e7(N // 2)),
-                     ("E8", lambda: e8(N // 2)), ("E9", e9)):
+                     ("E8", lambda: e8(N // 2)), ("E9", e9), ("E10", lambda: e10(N // 2)),
+                     ("E11", lambda: e11(N)), ("E12", lambda: e12(N // 2))):
         if only and name not in only:
             continue
         r = fn()
         if r is not None:
-            out[name] = r
-            out.setdefault("meta", {})[f"{name}_date"] = time.strftime("%Y-%m-%d")
-            pj.write_text(json.dumps(out, indent=1))
+            cur = json.loads(pj.read_text()) if pj.exists() else {}      # merge: other runs may have written
+            cur[name] = r
+            cur.setdefault("meta", {})[f"{name}_date"] = time.strftime("%Y-%m-%d")
+            pj.write_text(json.dumps(cur, indent=1))
     print(f"done in {time.time() - t0:.0f} s -> results/progress.json")
 
 
@@ -234,5 +350,6 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", default="")
     ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--out", default="progress.json", help="results file in results/ (merged, not overwritten)")
     a = ap.parse_args()
-    main([s.strip() for s in a.only.split(",") if s.strip()] or None, a.quick)
+    main([s.strip() for s in a.only.split(",") if s.strip()] or None, a.quick, a.out)

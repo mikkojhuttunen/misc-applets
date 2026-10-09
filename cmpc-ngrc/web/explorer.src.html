@@ -262,6 +262,35 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <div class="panel"><h2>E4 · Validity of the phase-screen model</h2><div id="e4chart"></div>
           <p class="note">Field correlation of the first-order (phase-screen) speckle with full curved-ray tracing, and of the perturbed speckle with the unperturbed one, against Δn of one 80 µm dot.</p></div>
       </div>
+      <div class="charts2">
+        <div class="panel"><h2>E5 · How far may a dot move?</h2><div id="e5shift"></div>
+          <p class="note">Readout trained on dots at one position, tested on the same kind of dots displaced by δ in a random direction. R² per harmonic order.</p></div>
+        <div class="panel"><h2>E5 · Training with placement jitter</h2><div id="e5jit"></div>
+          <p class="note" id="e5note"></p></div>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>E6 · Learning curves</h2><div id="e6chart"></div>
+          <p class="note">Mean R² over m = 2…6 against the number of training dots (test set fixed).</p></div>
+        <div class="panel"><h2>E7 · Curved rays vs phase screen as the reservoir</h2>
+          <div class="seg" id="e7sel" role="group" aria-label="Case"></div><div id="e7chart"></div>
+          <p class="note" id="e7note"></p></div>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>E8 · Virtual nodes: launch angles and wavelengths</h2><div id="e8chart"></div>
+          <p class="note" id="e8note"></p></div>
+        <div class="panel"><h2>E10 · Stadium vs circle</h2><div id="e10sens"></div><div id="e10bars"></div>
+          <p class="note" id="e10note"></p></div>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>E11 · Detector noise</h2><div id="e11noise"></div>
+          <p class="note">Additive noise σ·Ī₀ on every pixel intensity. Solid: readout trained on clean speckle; dashed: trained with the same noise. Mean R² over m.</p></div>
+        <div class="panel"><h2>E11 · Temperature drift</h2><div id="e11drift"></div>
+          <p class="note" id="e11note"></p></div>
+      </div>
+      <div class="panel"><h2>E12 · Which Δn works? Readout quality vs dot index contrast</h2><div id="e12chart"></div>
+        <p class="note" id="e12note"></p></div>
+      <div class="panel"><h2>E9 · Wave check: one pass through a dot, beamlet sums vs BPM</h2><div class="scroll"><table id="e9table"></table></div>
+        <p class="note">Gaussian beam (60 µm) through a 50 µm dot (edge 3 µm) at z = 1 mm. ΔE is the scattered field E(dot) − E(no dot), the part that carries the dot's shape; correlation and relative error of ΔE against split-step BPM.</p></div>
     </div>
   </section>
 </div>
@@ -896,16 +925,81 @@ function drawProgress() {
   }
 }
 
+function drawProgress2() {
+  const P = PROGRESS; if (!P) return;
+  const mc = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s7)'], ms = (P.meta && P.meta.m) || [2, 3, 4, 5, 6];
+  const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+  if (P.E5) {
+    lineChart($('e5shift'), { x: P.E5.shift.delta_um, xname: 'δ µm', yname: 'R²', ylim: [-0.5, 1], xlabel: 'displacement δ (µm)', xticks: [0, 2, 5, 10, 20],
+      series: ms.map((m, k) => ({ name: 'm = ' + m, y: P.E5.shift.r2.map(r => r[k]), color: mc[k] })), label: 'R² vs displacement' });
+    lineChart($('e5jit'), { x: P.E5.jitter.sigma_um, xname: 'σ µm', yname: 'R²', ylim: [-0.2, 1], xlabel: 'placement jitter σ (µm)', xticks: P.E5.jitter.sigma_um,
+      series: ms.map((m, k) => ({ name: 'm = ' + m, y: P.E5.jitter.r2.map(r => r[k]), color: mc[k] })), label: 'R² vs jitter' });
+    const an = P.E5.anywhere;
+    $('e5note').innerHTML = `Dots placed with uniform random offsets up to σ around one position, ${P.E5.jitter.N} dots, linear ridge. Dots anywhere within 600 µm of the centre (${P.E5.N} dots): mean R² ${fmt(mean(an.linear), 2)} (linear), ${fmt(mean(an.rbf), 2)} (RBF kernel), ${fmt(mean(an.linear_pos), 2)} (linear readout that varies with the true position).`;
+  }
+  if (P.E6) {
+    const xs = P.E6.cases[0].n_train;
+    lineChart($('e6chart'), { x: xs, xlog: true, xticks: xs, xname: 'N train', yname: 'mean R²', ylim: [-0.1, 1], xlabel: 'training dots',
+      series: P.E6.cases.map((c, i) => ({ name: c.name, y: c.r2.map(mean).concat(Array(Math.max(0, xs.length - c.r2.length)).fill(NaN)), color: ['var(--s1)', 'var(--s3)', 'var(--s2)'][i] })), label: 'learning curves' });
+  }
+  if (P.E7) {
+    const seg = $('e7sel'); seg.innerHTML = '';
+    const show = ci => {
+      [...seg.children].forEach((b, i) => b.setAttribute('aria-pressed', i === ci));
+      const C = P.E7.cases[ci];
+      barChart($('e7chart'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: [
+        { name: 'phase screen · linear', y: C.phase.linear, color: 'var(--s1)' }, { name: 'phase screen · NGRC poly2', y: C.phase.poly2, color: 'var(--s3)' },
+        { name: 'curved rays · linear', y: C['node-curved'].linear, color: 'var(--s2)' }, { name: 'curved rays · NGRC poly2', y: C['node-curved'].poly2, color: 'var(--s4)' }], label: 'engines' });
+      $('e7note').innerHTML = `${P.E7.N} dots, asym4 · 2 in. Curved rays traced with the JS engine through node (${fmt(C['node-curved'].seconds, 0)} s for the dataset, phase screen ${fmt(C.phase.seconds, 0)} s).`;
+    };
+    P.E7.cases.forEach((C, i) => { const b = document.createElement('button'); b.textContent = C.name; b.onclick = () => show(i); seg.appendChild(b); });
+    show(0);
+  }
+  if (P.E8) {
+    const cols = ['var(--faint)', 'var(--s1)', 'var(--s3)', 'var(--s2)', 'var(--s7)'];
+    barChart($('e8chart'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: P.E8.sets.map((st, i) => ({ name: `${st.name} (${st.n_features})`, y: st.r2, color: cols[i % cols.length] })), label: 'multiplexing' });
+    $('e8note').innerHTML = `${P.E8.N} dots at one position, asymmetric ports with one input unless noted; numbers in brackets are feature counts. Speckle correlation between wavelengths: ${P.E8.lambda_decorrelation.map(([d, c]) => `${d} nm → ${fmt(c, 2)}`).join(', ')}.`;
+  }
+  if (P.E9) {
+    let h = '<thead><tr><th class="num">z (mm)</th><th class="num">Δn</th><th class="num">|ΔE| / |E|</th><th class="num">corr ΔE curved</th><th class="num">err curved</th><th class="num">corr ΔE phase screen</th><th class="num">err phase screen</th></tr></thead><tbody>';
+    P.E9.rows.forEach(r => { h += `<tr><td class="num">${r.z_mm}</td><td class="num">${r.dn.toExponential(0)}</td><td class="num">${fmt(r.scat_fraction, 3)}</td><td class="num">${fmt(r.scat_curved, 4)}</td><td class="num">${fmt(r.err_curved, 3)}</td><td class="num">${fmt(r.scat_straight, 4)}</td><td class="num">${fmt(r.err_straight, 3)}</td></tr>`; });
+    $('e9table').innerHTML = h + '</tbody>';
+  }
+  if (P.E11) {
+    const N = P.E11.noise;
+    lineChart($('e11noise'), { x: N.sigma.map(v => Math.max(v, 1e-3)), xlog: true, xticks: [1e-3, 1e-2, 1e-1], xfmt: v => v === 1e-3 ? '0' : String(v), xname: 'σ', yname: 'mean R²', ylim: [-0.2, 1], xlabel: 'noise σ / mean intensity',
+      series: [{ name: 'trained on clean speckle', y: N.clean_trained.map(mean), color: 'var(--s1)' }, { name: 'trained with the noise', y: N.noise_trained.map(mean), color: 'var(--s2)', dash: true }], label: 'noise' });
+    const D = P.E11.drift;
+    lineChart($('e11drift'), { x: D.dn.map(v => Math.max(v, 3e-9)), xlog: true, xticks: [1e-8, 1e-7, 1e-6], xfmt: v => v.toExponential(0), xname: 'δn', yname: 'value', ylim: [-0.2, 1], xlabel: 'uniform index change δn',
+      series: [{ name: 'readout mean R²', y: D.r2.map(mean), color: 'var(--s1)' }, { name: 'speckle correlation with δn = 0', y: D.corr_ref, color: 'var(--s3)' }], label: 'drift' });
+    $('e11note').innerHTML = `Readout trained at δn = 0, tested after a uniform change δn of the slab index. Mean geometric path ${fmt(P.E11.mean_path_mm, 0)} mm, so δn = 1e-7 shifts the phases by ~${fmt(2 * Math.PI / 1.55e-6 * 1e-7 * P.E11.mean_path_mm * 1e-3, 1)} rad. For SiN, dn/dT ≈ 2×10⁻⁵ /K: δn = 1e-7 is 5 mK. The leftmost point is δn = 0.`;
+  }
+  if (P.E12) {
+    const E = P.E12, ser = [];
+    if (E.phase) ser.push({ name: 'phase screen', y: E.phase.clean.map(mean), color: 'var(--s1)' }, { name: 'phase screen, 1 % noise', y: E.phase.noisy.map(mean), color: 'var(--s1)', dash: true });
+    if (E['node-curved']) ser.push({ name: 'curved rays', y: E['node-curved'].clean.map(mean), color: 'var(--s2)' }, { name: 'curved rays, 1 % noise', y: E['node-curved'].noisy.map(mean), color: 'var(--s2)', dash: true });
+    lineChart($('e12chart'), { x: E.dn, xlog: true, xticks: E.dn, xfmt: v => v.toExponential(0), xname: 'Δn', yname: 'mean R²', ylim: [-0.1, 1], xlabel: 'Δn of the dots', series: ser, label: 'R² vs Δn' });
+    $('e12note').innerHTML = `${E.N} dots at one position, asym4 · 2 in, linear readout, mean R² over m = 2…6. Dashed: additive detector noise of ${E.sigma * 100}% of the mean intensity, readout trained with the noise. The phase screen ignores ray bending; the curved-ray reservoir is the physical one.`;
+  }
+  if (P.E10) {
+    const S = P.E10.sensitivity;
+    lineChart($('e10sens'), { x: S.launch.map(v => +(v / deg).toFixed(0)), xname: 'launch °', yname: 'mean S', xlabel: 'launch angle (°)', height: 180,
+      series: [{ name: 'circle', y: S.circle.map(mean), color: 'var(--s1)' }, { name: 'stadium', y: S.stadium.map(mean), color: 'var(--s2)' }], label: 'sensitivity stadium vs circle' });
+    barChart($('e10bars'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], height: 180, series: P.E10.readout.map((r, i) => ({ name: `${r.name} (${fmt(r.mean_bounces, 0)} bounces)`, y: r.r2, color: i ? 'var(--s2)' : 'var(--s1)' })), label: 'readout stadium vs circle' });
+    $('e10note').innerHTML = `Top: mean sensitivity over m for dots within 400 µm of the centre, one input. Bottom: linear readout of a<sub>m</sub>, b<sub>m</sub>, ${P.E10.N} dots at one position, two inputs. Stadium: half-circles of 600 µm joined by 1.2 mm straights.`;
+  }
+}
+
 // ---------------- tabs, theme ----------------
 function showTab(t) {
   document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
   $('view-explore').hidden = t !== 'explore'; $('view-lab').hidden = t !== 'lab'; $('view-progress').hidden = t !== 'progress';
   if (t === 'explore') drawCell();
-  if (t === 'progress') drawProgress();
+  if (t === 'progress') { drawProgress(); drawProgress2(); }
   try { localStorage.setItem('ngrc-tab', t); } catch (e) {}
 }
 document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
-const redrawAll = () => { if (!$('view-explore').hidden) drawCell(); if (!$('view-progress').hidden) drawProgress(); };
+const redrawAll = () => { if (!$('view-explore').hidden) drawCell(); if (!$('view-progress').hidden) { drawProgress(); drawProgress2(); } };
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll);
 new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 window.addEventListener('resize', () => { if (!$('view-explore').hidden) drawCell(); });

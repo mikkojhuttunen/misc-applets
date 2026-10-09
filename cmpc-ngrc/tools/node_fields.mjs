@@ -1,6 +1,7 @@
 // Batch detector fields with the JS engine (web/ngrc-engine.js) on a pool of worker threads.
 //   node tools/node_fields.mjs job.json out.bin
-// job.json: { cell, opt: {mode, nPos, nAng, waist, ds?}, samples: [[shape, ...], ...], workers? }
+// job.json: { cell, opt: {mode ('curved' | 'straight' | 'none' | 'phase'), nPos, nAng, frozen, waist, ds, prune,
+//            ampMin, maxBounces}, samples: [[shape, ...] | {shapes: [...], dn: uniform index change}, ...], workers? }
 // out.bin: Float64 little-endian, per sample, per (input, output) key in numeric order, n_pix × (re, im).
 // out.bin.json: { keys: [[in, out], ...], n_pix, n_samples, ms }
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
@@ -21,8 +22,10 @@ function run(job, lo, hi) {
   const out = new Float64Array((hi - lo) * keys.length * np * 2);
   const ps = opt.mode === 'phase' ? new N.PhaseScreen(cell, opt) : null;
   for (let s = lo; s < hi; s++) {
-    const shapes = job.samples[s].map(N.makeShape);
-    const f = ps ? ps.fields(shapes) : N.curvedFields(cell, shapes, opt);
+    const smp = job.samples[s], list = Array.isArray(smp) ? smp : smp.shapes, dn = Array.isArray(smp) ? 0 : (smp.dn || 0);
+    const shapes = list.map(N.makeShape);
+    if (dn && !ps) throw new Error('a uniform index change needs the phase-screen mode');
+    const f = ps ? ps.fields(shapes, dn) : N.curvedFields(cell, shapes, opt);
     let o = (s - lo) * keys.length * np * 2;
     for (const [i, k] of keys) {
       const e = f[i + ',' + k];

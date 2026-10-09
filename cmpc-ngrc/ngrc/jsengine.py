@@ -21,21 +21,25 @@ def available():
     return shutil.which("node") is not None
 
 
-def node_fields(cell, perts, n_pos=3, n_ang=41, waist=5e-6, mode="curved", workers=None, ds=None, chunk=None):
+def node_fields(cell, perts, n_pos=None, n_ang=2000, waist=5e-6, mode="curved", workers=None, ds=None, chunk=None,
+                frozen=20e-6, prune=0.02, amp_min=None, max_bounces=None, dn_global=None):
     """Detector fields for every perturbation: list of {(input, output): complex array (n_pix,)}.
-    mode: "curved", "straight", "none" or "phase" (JS PhaseScreen)."""
+    mode: "curved", "straight", "none" or "phase" (JS PhaseScreen: one unperturbed trace per worker, then
+    ΔL from the dots' Radon tables). dn_global: optional per-sample uniform index change (phase mode)."""
     if cell.reflectance_fn is not None:
         raise ValueError("the JS engine takes a constant wall reflectance only")
     samples = []
-    for p in perts:
+    for i, p in enumerate(perts):
         comps = [] if p is None else p.components
         for c in comps:
             if not hasattr(c, "to_dict") or c.to_dict().get("kind") != "shape":
                 raise ValueError("the JS engine takes analytic Shape dots only")
-        samples.append([c.to_dict() for c in comps])
-    opt = dict(mode=mode, nPos=n_pos, nAng=n_ang, waist=waist)
-    if ds is not None:
-        opt["ds"] = ds
+        sh = [c.to_dict() for c in comps]
+        samples.append(dict(shapes=sh, dn=float(dn_global[i])) if dn_global is not None else sh)
+    opt = dict(mode=mode, nPos=n_pos, nAng=n_ang, waist=waist, frozen=frozen, prune=prune)
+    for k, v in (("ds", ds), ("ampMin", amp_min), ("maxBounces", max_bounces)):
+        if v is not None:
+            opt[k] = v
     out = []
     chunk = len(samples) if chunk is None else chunk
     with tempfile.TemporaryDirectory() as td:

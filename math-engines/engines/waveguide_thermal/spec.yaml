@@ -1,10 +1,11 @@
 engine: waveguide_thermal
-version: 1
+version: 2
 title: Waveguide cross-section heating (2D finite volumes)
-description: Steady-state temperature rise of a heated ridge or strip waveguide on a layered substrate (substrate / BOX / film / ridge / cladding), thermal resistance per length, energy time constant, and the resulting index, phase and resonance shifts. Conductivities from the thermo_optic LUT.
+description: Steady-state and transient temperature rise of a heated ridge or strip waveguide on a layered substrate (substrate / BOX / film / ridge / cladding), thermal resistance per length, energy time constant, and the resulting index, phase and resonance shifts. Thermal step and frequency response; scalar mode solver for the mode-weighted temperature, per-region Γ and dn_eff/dT of channel waveguides. Conductivities from the thermo_optic LUT.
 requires: [scipy]
 references:
   - "S. V. Patankar, Numerical Heat Transfer and Fluid Flow (Hemisphere, 1980) (finite-volume discretisation, harmonic-mean face conductances)"
+  - "A. W. Snyder and J. D. Love, Optical Waveguide Theory (Chapman and Hall, 1983), ch. 18 (perturbation of the scalar wave equation)"
   - "H. S. Carslaw and J. C. Jaeger, Conduction of Heat in Solids, 2nd ed. (Oxford, 1959) (line source above an isothermal plane, used in the tests)"
 functions:
   ridge_heating:
@@ -34,3 +35,60 @@ functions:
       - {name: tau_E, label: "Energy time constant τ_E", ui_unit: µs, scale: 1.0e-6}
       - {name: heat_balance, label: "Heat balance check (1 = exact)", ui_unit: "", scale: 1.0}
       - {name: n_cells, label: "Grid cells (half domain)", ui_unit: "", scale: 1.0}
+  ridge_dynamics:
+    title: Thermal step and frequency response
+    equations: ["C dT/dt + A T = Q", "H(f) = w·(A + i2πf C)⁻¹Q / w·A⁻¹Q"]
+    inputs:
+      - {name: core_material, label: "Ridge / strip", type: choice, choices: [si, sio2, si3n4, sinx, ln_e, ln_o, lt_e, lt_o, gaas, algaas, inp, aln, al2o3_film, sapphire, tio2_film, su8], default: si}
+      - {name: core_width, label: "Ridge width", ui_unit: µm, scale: 1.0e-6, default: 0.5, min: 0}
+      - {name: core_height, label: "Ridge height (above the film)", ui_unit: µm, scale: 1.0e-6, default: 0.22, min: 0}
+      - {name: slab_material, label: "Film under the ridge", type: choice, choices: [si, sio2, si3n4, sinx, ln_e, ln_o, lt_e, lt_o, gaas, algaas, inp, aln, al2o3_film, sapphire, tio2_film, su8], default: si}
+      - {name: slab_thickness, label: "Film thickness (0 = none)", ui_unit: µm, scale: 1.0e-6, default: 0, min: 0}
+      - {name: box_material, label: "Buried layer", type: choice, choices: [sio2, si3n4, sinx, al2o3_film, sapphire, su8, aln], default: sio2}
+      - {name: box_thickness, label: "Buried-layer thickness", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
+      - {name: substrate_material, label: "Substrate", type: choice, choices: [si, sio2, sapphire, gaas, inp, ln_e, lt_e, aln], default: si}
+      - {name: substrate_thickness, label: "Substrate thickness", ui_unit: µm, scale: 1.0e-6, default: 500, min: 0}
+      - {name: clad_material, label: "Cladding", type: choice, choices: [sio2, si3n4, sinx, al2o3_film, tio2_film, su8, air], default: sio2}
+      - {name: clad_thickness, label: "Cladding height above the buried layer", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
+      - {name: domain_half_width, label: "Chip half-width", ui_unit: µm, scale: 1.0e-6, default: 500, min: 0}
+      - {name: h_top, label: "Top heat-transfer coefficient", ui_unit: W/(m² K), scale: 1.0, default: 10, min: 0}
+    outputs:
+      - {name: t_10, label: "10 % rise time", ui_unit: µs, scale: 1.0e-6}
+      - {name: t_50, label: "50 % rise time", ui_unit: µs, scale: 1.0e-6}
+      - {name: t_90, label: "90 % rise time", ui_unit: µs, scale: 1.0e-6}
+      - {name: f_3dB, label: "Thermal -3 dB frequency", ui_unit: kHz, scale: 1.0e+3}
+      - {name: tau_E, label: "Energy time constant τ_E", ui_unit: µs, scale: 1.0e-6}
+      - {name: H_1kHz, label: "|H| at 1 kHz", ui_unit: "", scale: 1.0}
+      - {name: H_1MHz, label: "|H| at 1 MHz", ui_unit: "", scale: 1.0}
+  mode_weighted_heating:
+    title: Mode-weighted thermal index shift
+    equations: ["Γ_r = (n_r/n_eff) ∫_r E² / ∫E²", "dn_eff/dT = Σ Γ_r dn_r/dT", "Δn_eff = ∫ n (dn/dT) ΔT E² / (n_eff ∫E²)"]
+    inputs:
+      - {name: heat_per_length, label: "Heat per length q'", ui_unit: mW/mm, scale: 1.0, default: 1, min: 0}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 300}
+      - {name: core_material, label: "Ridge / strip", type: choice, choices: [si, sio2, si3n4, sinx, ln_e, ln_o, lt_e, lt_o, gaas, algaas, inp, aln, al2o3_film, sapphire, tio2_film, su8], default: si}
+      - {name: core_width, label: "Ridge width", ui_unit: µm, scale: 1.0e-6, default: 0.5, min: 0}
+      - {name: core_height, label: "Ridge height (above the film)", ui_unit: µm, scale: 1.0e-6, default: 0.22, min: 0}
+      - {name: slab_material, label: "Film under the ridge", type: choice, choices: [si, sio2, si3n4, sinx, ln_e, ln_o, lt_e, lt_o, gaas, algaas, inp, aln, al2o3_film, sapphire, tio2_film, su8], default: si}
+      - {name: slab_thickness, label: "Film thickness (0 = none)", ui_unit: µm, scale: 1.0e-6, default: 0, min: 0}
+      - {name: box_material, label: "Buried layer", type: choice, choices: [sio2, si3n4, sinx, al2o3_film, sapphire, su8, aln], default: sio2}
+      - {name: box_thickness, label: "Buried-layer thickness", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
+      - {name: substrate_material, label: "Substrate", type: choice, choices: [si, sio2, sapphire, gaas, inp, ln_e, lt_e, aln], default: si}
+      - {name: substrate_thickness, label: "Substrate thickness", ui_unit: µm, scale: 1.0e-6, default: 500, min: 0}
+      - {name: clad_material, label: "Cladding", type: choice, choices: [sio2, si3n4, sinx, al2o3_film, tio2_film, su8, air], default: sio2}
+      - {name: clad_thickness, label: "Cladding height above the buried layer", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
+      - {name: domain_half_width, label: "Chip half-width", ui_unit: µm, scale: 1.0e-6, default: 500, min: 0}
+      - {name: margin, label: "Mode window margin", ui_unit: µm, scale: 1.0e-6, default: 1.5, min: 0}
+    outputs:
+      - {name: neff, label: "Effective index (scalar)", ui_unit: "", scale: 1.0}
+      - {name: n_group, label: "Group index", ui_unit: "", scale: 1.0}
+      - {name: Gamma_core, label: "Γ ridge", ui_unit: "", scale: 1.0}
+      - {name: Gamma_slab, label: "Γ film", ui_unit: "", scale: 1.0}
+      - {name: Gamma_box, label: "Γ buried layer", ui_unit: "", scale: 1.0}
+      - {name: Gamma_clad, label: "Γ cladding", ui_unit: "", scale: 1.0}
+      - {name: dneff_dT, label: "dn_eff/dT (uniform heating)", ui_unit: 1e-5/K, scale: 1.0e-5}
+      - {name: dT_core, label: "Mean ΔT in the ridge", ui_unit: K, scale: 1.0}
+      - {name: dT_mode, label: "Mode-weighted ΔT", ui_unit: K, scale: 1.0}
+      - {name: dneff, label: "Δn_eff", ui_unit: 1e-4, scale: 1.0e-4}
+      - {name: dlambda_dT, label: "Resonance drift dλ/dT", ui_unit: pm/K, scale: 1.0e-12}
+      - {name: delta_lambda, label: "Resonance shift from the heating", ui_unit: pm, scale: 1.0e-12}

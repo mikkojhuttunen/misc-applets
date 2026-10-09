@@ -1,12 +1,12 @@
 engine: thermo_optic
-version: 1
+version: 2
 title: Thermo-optic LUT, absorbed heat and pump budget
 description: Look-up table of dn/dT, thermal conductivity, heat capacity, expansion, band gap and TPA for Si, SiO2, Si3N4, SiNx, TFLN, TFLT, GaAs, AlGaAs, InP, AlN, Al2O3, TiO2, polymer and air; index and slab-mode thermal shifts, heat from linear absorption, TPA, free carriers and quantum defect, closed-form waveguide thermal resistance, and the largest power that keeps ΔT and Δn_eff in budget.
 references:
   - "B. J. Frey, D. B. Leviton, T. J. Madison, Proc. SPIE 6273, 62732J (2006)"
   - "J. Komma et al., Appl. Phys. Lett. 101, 041905 (2012) (Si dn/dT)"
   - "A. Arbabi and L. L. Goddard, Opt. Lett. 38, 3878 (2013) (Si3N4 dn/dT)"
-  - "L. Moretti et al., J. Phys. D 38, 3016 (2005) (LiNbO3 dn/dT)"
+  - "L. Moretti et al., J. Appl. Phys. 98, 036101 (2005) (LiNbO3 dn/dT, 300-515 K, 632 and 1523 nm)"
   - "G. Della Corte et al., J. Appl. Phys. 88, 7115 (2000) (GaAs, InP dn/dT)"
   - "S. Adachi, J. Appl. Phys. 54, 1844 (1983) (AlGaAs thermal conductivity)"
   - "A. D. Bristow, N. Rotenberg, H. M. van Driel, Appl. Phys. Lett. 90, 191104 (2007) (Si TPA, n2)"
@@ -101,6 +101,7 @@ functions:
       - {name: q_fca, label: "Free-carrier absorption", ui_unit: mW/mm, scale: 1.0}
       - {name: carrier_density, label: "Carrier density N", ui_unit: 1/cm³, scale: 1.0e+6}
       - {name: alpha_fca, label: "FCA loss coefficient", ui_unit: 1/cm, scale: 100}
+      - {name: dn_fc_si, label: "Free-carrier Δn (Si, Soref)", ui_unit: 1e-4, scale: 1.0e-4}
   amplifier_heat_fraction:
     title: Heat fraction of absorbed pump
     equations: ["quantum defect = 1 - λ_p/λ_em", "η_heat = 1 - η_q λ_p/λ_em"]

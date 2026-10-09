@@ -95,3 +95,70 @@ def test_thermal_shift_combines():
 def test_return_field_shapes():
     r = wt.ridge_heating(return_field=True)
     assert r["dT"].shape == (len(r["y_edges"]) - 1, len(r["x_edges"]) - 1)
+
+
+def test_dynamics_step_and_frequency_response_agree():
+    # mean response time: ∫(1 - s(t)) dt = w·A⁻¹ C A⁻¹ Q / w·A⁻¹ Q (exact for the discretised model)
+    from scipy.sparse.linalg import spsolve
+    r = wt.ridge_dynamics(steps_per_doubling=16)
+    g = wt.build_ridge()
+    A, _ = wt.conduction_matrix(g["xe"], g["ye"], g["k"], 10.0)
+    A = A.tocsc()
+    dA, core = g["dA"], g["core"]
+    C = (g["rc"] * dA).ravel()
+    Q = (wt._heat_map(g, 1.0) * dA).ravel()
+    w = (np.where(core, dA, 0.0) / np.sum(dA[core])).ravel()
+    T0 = spsolve(A, Q)
+    t_mean = float(w @ spsolve(A, C * T0)) / float(w @ T0)
+    t, s = np.concatenate([[0.0], r["t"]]), np.concatenate([[0.0], r["step"]])
+    assert np.all(np.diff(s) >= -1e-12) and s[-1] > 0.99
+    assert np.sum(0.5 * ((1 - s[1:]) + (1 - s[:-1])) * np.diff(t)) == pytest.approx(t_mean, rel=0.03)
+    assert r["t_10"] < r["t_50"] < r["t_90"]
+    assert r["H_1kHz"] > r["H_1MHz"]
+
+
+def test_soi_thermal_bandwidth_order():
+    # SOI wire on 2 µm BOX: fast BOX response (µs), tens of kHz -3 dB
+    r = wt.ridge_dynamics()
+    assert 1e-6 < r["t_90"] < 1e-4
+    assert 1e4 < r["f_3dB"] < 3e5
+
+
+def test_wide_strip_mode_approaches_slab_te():
+    from engines.slab_waveguide.engine import neff_three_layer
+    m = wt.ridge_mode(core_material="si3n4", core_width=12e-6, core_height=0.4e-6, clad_material="sio2",
+                      cells_per_wavelength=12)
+    n_c, n_s = to.index_at("si3n4", 1.55e-6), to.index_at("sio2", 1.55e-6)
+    slab = neff_three_layer(1.55e-6, n_s, n_c, n_s, 0.4e-6, "TE", 0)
+    assert m["neff"] == pytest.approx(slab, abs=3e-3)
+    assert m["neff"] < slab
+
+
+def test_mode_gamma_sum_rule():
+    # scaling all indices by s ≡ scaling k by s, so Σ Γ_r n_r = n_eff - λ ∂n_eff/∂λ at fixed indices
+    geo = dict(core_material="si3n4", core_width=1.2e-6, core_height=0.6e-6, clad_material="sio2", cells_per_wavelength=14)
+    idx = {"core": 2.0, "box": 1.444, "clad": 1.444, "slab": 1.444}
+    m = wt.ridge_mode(1.55e-6, indices=idx, **geo)
+    E2, n = m["E"] ** 2 * m["V"], m["n"]
+    s = float(np.sum(n * n * E2) / (m["neff"] * np.sum(E2)))
+    dl = 1e-8
+    mp = wt.ridge_mode(1.55e-6 + dl, indices=idx, h=m["h"], **geo)["neff"]
+    mm = wt.ridge_mode(1.55e-6 - dl, indices=idx, h=m["h"], **geo)["neff"]
+    assert s == pytest.approx(m["neff"] - 1.55e-6 * (mp - mm) / (2 * dl), rel=2e-3)
+
+
+def test_mode_weighted_soi():
+    r = wt.mode_weighted_heating(cells_per_wavelength=16)
+    assert r["dT_mode"] == pytest.approx(r["dT_core"], rel=0.03)
+    assert 1.7e-4 < r["dneff_dT"] < 2.0e-4
+    assert 60e-12 < r["dlambda_dT"] < 90e-12
+
+
+def test_mode_weighted_tfln_rib_sees_cooler_film():
+    g = dict(core_material="ln_e", slab_material="ln_e", core_width=1.2e-6, core_height=0.3e-6, slab_thickness=0.3e-6,
+             box_thickness=4.7e-6, clad_material="air", clad_thickness=0.0)
+    r = wt.mode_weighted_heating(**g)
+    assert r["dT_mode"] < r["dT_core"]
+    assert r["Gamma_slab"] > 0.3
+    hot = wt.mode_weighted_heating(heat_in_mode=True, **g)
+    assert hot["dT_mode"] > 0

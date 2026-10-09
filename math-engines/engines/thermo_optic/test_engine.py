@@ -175,3 +175,10 @@ def test_lut_exports_are_current():
     for path, text in ((make_thermo_lut.CSV_OUT, make_thermo_lut.render_csv()), (make_thermo_lut.MD_OUT, make_thermo_lut.render_md())):
         assert path.exists() and path.read_text(encoding="utf-8") == text, \
             f"{path.name} is stale: run python tools/make_thermo_lut.py"
+
+
+def test_si_free_carrier_index_soref():
+    # 1e18 cm^-3 electrons and holes: Δn = -(8.8e-4 + 8.5e-18 * 1e18^0.8) = -(8.8e-4 + 1.35e-3)
+    assert to.si_free_carrier_index(1e24) == pytest.approx(-(8.8e-4 + 8.5e-18 * 1e18**0.8), rel=1e-9)
+    r = to.absorbed_heat(0.1, carrier_lifetime=1e-9, beta_tpa=8e-12, sigma_fca=1.45e-21)
+    assert r["dn_fc_si"] < 0

@@ -67,7 +67,7 @@ LUT: dict[str, dict] = {
         dn_dT=3.4e-5, dn_dT_range=(3.0e-5, 4.0e-5),
         k=4.6, k_range=(3.5, 5.6), rho=4650.0, cp=630.0, alpha_L=7.5e-6, Eg=3.8,
         beta_tpa=0.0, n2=None, confidence="medium",
-        source="dn/dT: Moretti et al., J. Phys. D 38, 3016 (2005), 1.5 µm, congruent; k, ρ, cp: crystal data sheets; "
+        source="dn/dT: Moretti et al., J. Appl. Phys. 98, 036101 (2005), 1523 nm, congruent; k, ρ, cp: crystal data sheets; "
                "alpha_L along c (15.4e-6 along a). Pyroelectric and photorefractive effects are not included"),
     "ln_o": dict(
         name="LiNbO3 (TFLN), ordinary", sellmeier="ln_o", n=2.211,
@@ -317,6 +317,13 @@ def heat_coefficients(wavelength, a_eff, alpha_abs=0.0, beta_tpa=0.0, carrier_li
     return c1, c2, c3
 
 
+def si_free_carrier_index(carrier_density):
+    """Free-carrier (plasma) dispersion of Si at 1550 nm, equal electron and hole densities N (1/m^3):
+    Δn = -(8.8e-22 N + 8.5e-18 N^0.8) with N in cm^-3 (Soref & Bennett 1987). Opposite in sign to the thermal Δn."""
+    N = np.asarray(carrier_density, dtype=float) * 1e-6
+    return -(8.8e-22 * N + 8.5e-18 * np.power(np.maximum(N, 0.0), 0.8))
+
+
 def absorbed_heat(power, wavelength=1.55e-6, a_eff=0.1e-12, loss_abs_db_per_cm=0.0, beta_tpa=0.0,
                   carrier_lifetime=0.0, sigma_fca=0.0) -> Result:
     """Heat deposited per unit length q' (W/m) by a guided power P: linear absorption, TPA and FCA.
@@ -334,10 +341,12 @@ def absorbed_heat(power, wavelength=1.55e-6, a_eff=0.1e-12, loss_abs_db_per_cm=0
     N = carrier_lifetime * beta_tpa * (P / a_eff) ** 2 / (2 * hnu)
     return Result(
         values={"q_linear": c1 * P, "q_tpa": c2 * P**2, "q_fca": c3 * P**3, "q_total": c1 * P + c2 * P**2 + c3 * P**3,
-                "carrier_density": N, "alpha_fca": sigma_fca * N},
-        units={"q_linear": "W/m", "q_tpa": "W/m", "q_fca": "W/m", "q_total": "W/m", "carrier_density": "1/m^3", "alpha_fca": "1/m"},
+                "carrier_density": N, "alpha_fca": sigma_fca * N, "dn_fc_si": si_free_carrier_index(N)},
+        units={"q_linear": "W/m", "q_tpa": "W/m", "q_fca": "W/m", "q_total": "W/m", "carrier_density": "1/m^3", "alpha_fca": "1/m",
+               "dn_fc_si": ""},
         assumptions=["All absorbed power becomes heat (TPA carriers recombine non-radiatively)",
-                     "Undepleted power (local value at one point of the waveguide); carriers from TPA only (no doping, no linear defect absorption)"],
+                     "Undepleted power (local value at one point of the waveguide); carriers from TPA only (no doping, no linear defect absorption)",
+                     "dn_fc_si: Si plasma dispersion of the TPA carriers (Soref & Bennett); not meaningful for other materials"],
     )
 
 

@@ -1,0 +1,53 @@
+engine: thermal_detuning
+version: 1
+title: Thermal detuning of phase matching and resonators
+description: Temperature acceptance of type-0 PPLN interactions and the efficiency left under non-uniform (absorbed-pump) heating, with and without retuning; thermal bistability threshold and on-resonance heating of ring resonators.
+references:
+  - "O. Gayer, Z. Sacks, E. Galun, A. Arie, Appl. Phys. B 91, 343 (2008)"
+  - "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992) (QPM tolerances)"
+  - "T. Carmon, L. Yang, K. J. Vahala, Opt. Express 12, 4742 (2004) (dynamical thermal behaviour of microcavities)"
+  - "H. A. Haus, Waves and Fields in Optoelectronics (Prentice-Hall, 1984) (coupled-mode theory)"
+functions:
+  qpm_thermal:
+    title: QPM temperature acceptance and non-uniform heating
+    equations: ["Δk = 2π(n_p/λ_p - n_s/λ_s - n_i/λ_i) - 2π/Λ", "ΔT_FWHM = 5.566 / (L |dΔk/dT|)", "η/η0 = |(1/L)∫exp(i∫δk dz')dz|², ΔT(z) = ΔT_in exp(-z/ℓ)"]
+    inputs:
+      - {name: pump_wavelength, label: "Pump (or SH) wavelength", ui_unit: nm, scale: 1.0e-9, default: 775, min: 300}
+      - {name: signal_wavelength, label: "Signal (or fundamental) wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 500}
+      - {name: length, label: "Poled length", ui_unit: mm, scale: 1.0e-3, default: 10, min: 0}
+      - {name: dT_in, label: "ΔT at the input", ui_unit: K, scale: 1.0, default: 1, min: 0}
+      - {name: decay_length, label: "Decay length of the heating", ui_unit: mm, scale: 1.0e-3, default: 1000, min: 0}
+      - {name: temperature, label: "Operating temperature", ui_unit: K, scale: 1.0, default: 297.65, min: 250}
+      - {name: alpha_L, label: "Expansion of the poling period", ui_unit: ppm/K, scale: 1.0e-6, default: 15.4, min: 0}
+    outputs:
+      - {name: period, label: "QPM period (bulk)", ui_unit: µm, scale: 1.0e-6}
+      - {name: idler_wavelength, label: "Idler wavelength", ui_unit: nm, scale: 1.0e-9}
+      - {name: dDk_dT, label: "dΔk/dT", ui_unit: 1/(m K), scale: 1.0}
+      - {name: dT_FWHM, label: "Temperature acceptance (FWHM)", ui_unit: K, scale: 1.0}
+      - {name: eta_heated, label: "Efficiency factor, heated", ui_unit: "", scale: 1.0}
+      - {name: eta_retuned, label: "Efficiency factor, chip retuned", ui_unit: "", scale: 1.0}
+      - {name: retune_dT, label: "Best chip-temperature offset", ui_unit: K, scale: 1.0}
+      - {name: phase_mismatch, label: "Accumulated phase mismatch", ui_unit: rad, scale: 1.0}
+  ring_thermal_bistability:
+    title: Ring resonator thermal bistability
+    equations: ["U = κ_e P / [(Δ + gU)² + κ²/4]", "g = ω (dn_eff/dT / n_g)(R'/L) κ_abs", "P_th = κ³ / (3√3 g κ_e)"]
+    inputs:
+      - {name: wavelength, label: "Resonance wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 300}
+      - {name: ring_length, label: "Ring circumference", ui_unit: µm, scale: 1.0e-6, default: 628.3, min: 0}
+      - {name: n_group, label: "Group index", ui_unit: "", scale: 1.0, default: 2.3, min: 1}
+      - {name: Q_intrinsic, label: "Intrinsic Q", ui_unit: 1e6, scale: 1.0e+6, default: 1, min: 0}
+      - {name: Q_coupling, label: "Coupling Q", ui_unit: 1e6, scale: 1.0e+6, default: 1, min: 0}
+      - {name: absorbing_fraction, label: "Absorbing share of the intrinsic loss", ui_unit: "", scale: 1.0, default: 0.5, min: 0, max: 1}
+      - {name: R_th, label: "Thermal resistance R'", ui_unit: K m/W, scale: 1.0, default: 0.5, min: 0}
+      - {name: dneff_dT, label: "dn_eff/dT", ui_unit: 1e-5/K, scale: 1.0e-5, default: 3}
+      - {name: power, label: "Input power in the bus", ui_unit: mW, scale: 1.0e-3, default: 10, min: 0}
+    outputs:
+      - {name: Q_loaded, label: "Loaded Q", ui_unit: "", scale: 1.0}
+      - {name: linewidth, label: "Linewidth", ui_unit: pm, scale: 1.0e-12}
+      - {name: P_threshold, label: "Bistability threshold", ui_unit: mW, scale: 1.0e-3}
+      - {name: P_abs_resonance, label: "Absorbed power on resonance", ui_unit: mW, scale: 1.0e-3}
+      - {name: dT_resonance, label: "ΔT on resonance", ui_unit: K, scale: 1.0}
+      - {name: shift_linewidths, label: "Thermal shift in linewidths", ui_unit: "", scale: 1.0}
+      - {name: delta_lambda_max, label: "Thermal resonance shift", ui_unit: pm, scale: 1.0e-12}
+      - {name: buildup, label: "Circulating / input power", ui_unit: "", scale: 1.0}
+      - {name: bistable, label: "Bistable at this power", ui_unit: "", scale: 1.0}

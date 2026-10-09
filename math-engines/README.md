@@ -18,7 +18,9 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [ray_phase](engines/ray_phase/) | Optical path and phase of rays vs launch angle in a segmented cell, pass by pass; fringe visibility under sine or triangle angle dither | |
 | [cell_mirror](engines/cell_mirror/) | Etched-trench DBR reflectance averaged self-consistently over the angles of incidence in a (perturbed) segmented cell, vs the unperturbed cell; effective path and angle percentiles | |
 | [thermo_optic](engines/thermo_optic/) | Thermo-optic LUT (dn/dT, k, ρ, c_p, expansion, band gap, TPA) for Si, SiO₂, Si₃N₄, SiNx, TFLN, TFLT, GaAs, AlGaAs, InP, AlN, Al₂O₃, TiO₂, polymer; slab-mode dn_eff/dT and resonance drift; heat from absorption, TPA, free carriers and quantum defect; closed-form thermal resistance; pump-power budget | |
-| [waveguide_thermal](engines/waveguide_thermal/) | 2D finite-volume heat conduction in a waveguide cross-section (substrate / BOX / film / ridge / cladding): ΔT, R′, energy time constant, index and resonance shifts | scipy |
+| [waveguide_thermal](engines/waveguide_thermal/) | 2D finite-volume heat conduction in a waveguide cross-section (substrate / BOX / film / ridge / cladding): ΔT, R′, step and frequency response; scalar mode solver for the mode-weighted ΔT, per-region Γ and dn_eff/dT | scipy |
+| [amplifier_thermal](engines/amplifier_thermal/) | Er waveguide amplifier: pump depletion, heat per length (quantum defect, non-radiative decay, upconversion, quenching, background absorption), ΔT(z), Δn_eff(z), gain, pump limit for a thermal budget | |
+| [thermal_detuning](engines/thermal_detuning/) | PPLN temperature acceptance and the efficiency under non-uniform heating, with and without retuning; ring-resonator thermal bistability threshold and on-resonance heating | |
 | [fringe_averaging](engines/fringe_averaging/) | Residual interference-fringe visibility after angle and laser-frequency dithering, drifts, linewidth and averaging over seconds (exact harmonic expansion) | scipy (tests) |
 
 ## Use
@@ -55,6 +57,7 @@ test_vectors/vectors.json   reference outputs shared with the JavaScript ports
 tools/build_index.py        specs → web/engines_index.json
 tools/make_vectors.py       engines → test_vectors/vectors.json
 tools/check_js_ports.mjs    JS ports in the applets checked against vectors.json
+examples/pump_heating.py    worked pump-heating examples (Er:Al2O3 on TFLN, Si/AlGaAs wires, TFLN OPA, SiN ring)
 tools/make_thermo_lut.py    thermo_optic LUT → engines/thermo_optic/LUT.md and thermo_optic_lut.csv
 tools/fetch_hitran.py       HITRAN line lists (HAPI) → engines/trace_gas/hitran_lines.json
 web/index.html              Pyodide calculator

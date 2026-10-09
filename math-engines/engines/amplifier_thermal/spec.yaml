@@ -1,0 +1,61 @@
+engine: amplifier_thermal
+version: 1
+title: Er waveguide amplifier heating along z
+description: Pump depletion, heat per length (quantum defect, non-radiative decay, upconversion, quenched ions, background absorption), temperature rise ΔT(z) = R' q'(z), index shift and signal gain of an Er-doped waveguide amplifier; largest pump power within a ΔT or Δn_eff budget.
+references:
+  - "E. Desurvire, Erbium-Doped Fiber Amplifiers (Wiley, 1994), ch. 1 (two-level rate equations)"
+  - "J. Bradley et al., J. Opt. Soc. Am. B 27, 187 (2010) (Al2O3:Er spectroscopy and upconversion)"
+  - "T. Y. Fan, IEEE J. Quantum Electron. 29, 1457 (1993) (heat generation in pumped solid-state media)"
+functions:
+  er_amplifier_heating:
+    title: Heating along the amplifier
+    equations: ["0 = (R_pa + R_sa) N1 - (R_pe + R_se) N2 - N2/τ - C_up N2²", "q' = Σ absorbed - η_rad (N2/τ) hν_s A_d + f_abs α (P_p + P_s)", "ΔT(z) = R' q'(z), Δn_eff = (dn_eff/dT) ΔT"]
+    inputs:
+      - {name: pump_power, label: "Launched pump power", ui_unit: mW, scale: 1.0e-3, default: 200, min: 0}
+      - {name: signal_power, label: "Signal input power", ui_unit: mW, scale: 1.0e-3, default: 0.001, min: 0}
+      - {name: length, label: "Amplifier length", ui_unit: cm, scale: 1.0e-2, default: 3, min: 0}
+      - {name: R_th, label: "Thermal resistance R'", ui_unit: K m/W, scale: 1.0, default: 0.5, min: 0}
+      - {name: dneff_dT, label: "dn_eff/dT", ui_unit: 1e-5/K, scale: 1.0e-5, default: 3}
+      - {name: pump_wavelength, label: "Pump wavelength", ui_unit: nm, scale: 1.0e-9, default: 980, min: 400}
+      - {name: signal_wavelength, label: "Signal wavelength", ui_unit: nm, scale: 1.0e-9, default: 1532, min: 1400}
+      - {name: n_er, label: "Er concentration", ui_unit: 1e20 cm⁻³, scale: 1.0e+26, default: 1.5, min: 0}
+      - {name: quenched_fraction, label: "Quenched-ion fraction", ui_unit: "", scale: 1.0, default: 0, min: 0, max: 1}
+      - {name: tau, label: "⁴I₁₃/₂ lifetime", ui_unit: ms, scale: 1.0e-3, default: 7.5, min: 0}
+      - {name: c_up, label: "Upconversion coefficient", ui_unit: 1e-18 cm³/s, scale: 1.0e-24, default: 4, min: 0}
+      - {name: sigma_a_pump, label: "Pump absorption cross-section", ui_unit: 1e-21 cm², scale: 1.0e-25, default: 1.7, min: 0}
+      - {name: sigma_e_pump, label: "Pump emission cross-section (0 at 980 nm)", ui_unit: 1e-21 cm², scale: 1.0e-25, default: 0, min: 0}
+      - {name: sigma_a_signal, label: "Signal absorption cross-section", ui_unit: 1e-21 cm², scale: 1.0e-25, default: 5.7, min: 0}
+      - {name: sigma_e_signal, label: "Signal emission cross-section", ui_unit: 1e-21 cm², scale: 1.0e-25, default: 5.7, min: 0}
+      - {name: gamma_pump, label: "Pump overlap with the doped region", ui_unit: "", scale: 1.0, default: 0.5, min: 0, max: 1}
+      - {name: gamma_signal, label: "Signal overlap with the doped region", ui_unit: "", scale: 1.0, default: 0.4, min: 0, max: 1}
+      - {name: doped_area, label: "Doped cross-section area", ui_unit: µm², scale: 1.0e-12, default: 0.8, min: 0}
+      - {name: loss_db_per_cm, label: "Background loss", ui_unit: dB/cm, scale: 1.0, default: 0.25, min: 0}
+      - {name: absorbing_fraction, label: "Absorbing share of the background loss", ui_unit: "", scale: 1.0, default: 0.5, min: 0, max: 1}
+      - {name: eta_rad, label: "Radiative share of the ⁴I₁₃/₂ decay", ui_unit: "", scale: 1.0, default: 0.8, min: 0, max: 1}
+    outputs:
+      - {name: gain_dB, label: "Signal gain", ui_unit: dB, scale: 1.0}
+      - {name: pump_absorbed, label: "Pump power absorbed or lost", ui_unit: mW, scale: 1.0e-3}
+      - {name: heat_total, label: "Total heat", ui_unit: mW, scale: 1.0e-3}
+      - {name: heat_fraction, label: "Heat / pump power lost", ui_unit: "", scale: 1.0}
+      - {name: q_max, label: "Peak heat per length", ui_unit: mW/mm, scale: 1.0}
+      - {name: z_hot, label: "Hot-spot position", ui_unit: mm, scale: 1.0e-3}
+      - {name: dT_max, label: "Peak ΔT", ui_unit: K, scale: 1.0}
+      - {name: dT_mean, label: "Mean ΔT", ui_unit: K, scale: 1.0}
+      - {name: dneff_max, label: "Peak Δn_eff", ui_unit: 1e-4, scale: 1.0e-4}
+      - {name: phase_total, label: "Thermal phase of the signal", ui_unit: rad, scale: 1.0}
+      - {name: inversion_in, label: "N2/N at the input", ui_unit: "", scale: 1.0}
+      - {name: inversion_out, label: "N2/N at the output", ui_unit: "", scale: 1.0}
+  er_pump_limit:
+    title: Largest pump power within the thermal budget
+    equations: ["max_z ΔT(z) ≤ ΔT_max and max_z |Δn_eff(z)| ≤ Δn_max (bisection on the pump power)"]
+    inputs:
+      - {name: dT_max, label: "Allowed ΔT", ui_unit: K, scale: 1.0, default: 5, min: 0}
+      - {name: dneff_max, label: "Allowed |Δn_eff|", ui_unit: 1e-4, scale: 1.0e-4, default: 1, min: 0}
+      - {name: P_search, label: "Largest pump power searched", ui_unit: W, scale: 1.0, default: 20, min: 0}
+    outputs:
+      - {name: P_limit, label: "Pump power limit", ui_unit: mW, scale: 1.0e-3}
+      - {name: limited, label: "Budget reached below P_search", ui_unit: "", scale: 1.0}
+      - {name: gain_dB, label: "Signal gain at the limit", ui_unit: dB, scale: 1.0}
+      - {name: dT_max, label: "Peak ΔT at the limit", ui_unit: K, scale: 1.0}
+      - {name: dneff_max, label: "Peak Δn_eff at the limit", ui_unit: 1e-4, scale: 1.0e-4}
+      - {name: limited_by_dn, label: "Limited by Δn_eff (else ΔT)", ui_unit: "", scale: 1.0}

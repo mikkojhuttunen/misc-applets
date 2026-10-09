@@ -282,7 +282,7 @@ td.heat { font-family: var(--f-mono); text-align: right; }
       </div>
       <div class="charts2">
         <div class="panel"><h2>E11 · Detector noise</h2><div id="e11noise"></div>
-          <p class="note">Additive noise σ·Ī₀ on every pixel intensity. Solid: readout trained on clean speckle; dashed: trained with the same noise. Mean R² over m.</p></div>
+          <p class="note">Additive noise σ·Ī₀ on every far-field pixel, readout trained and tested with the same noise (a readout trained on noise-free data picks almost no regularisation and fails at any noise). Mean R² over m.</p></div>
         <div class="panel"><h2>E11 · Temperature drift</h2><div id="e11drift"></div>
           <p class="note" id="e11note"></p></div>
       </div>
@@ -984,13 +984,13 @@ function drawProgress2() {
     $('e9table').innerHTML = h + '</tbody>';
   }
   if (P.E11) {
-    const N = P.E11.noise;
+    const N = P.E11.noise, D = P.E11.drift;
     lineChart($('e11noise'), { x: N.sigma.map(v => Math.max(v, 1e-3)), xlog: true, xticks: [1e-3, 1e-2, 1e-1], xfmt: v => v === 1e-3 ? '0' : String(v), xname: 'σ', yname: 'mean R²', ylim: [-0.2, 1], xlabel: 'noise σ / mean intensity',
-      series: [{ name: 'trained on clean speckle', y: N.clean_trained.map(mean), color: 'var(--s1)' }, { name: 'trained with the noise', y: N.noise_trained.map(mean), color: 'var(--s2)', dash: true }], label: 'noise' });
-    const D = P.E11.drift;
-    lineChart($('e11drift'), { x: D.dn.map(v => Math.max(v, 3e-9)), xlog: true, xticks: [1e-8, 1e-7, 1e-6], xfmt: v => v.toExponential(0), xname: 'δn', yname: 'value', ylim: [-0.2, 1], xlabel: 'uniform index change δn',
-      series: [{ name: 'readout mean R²', y: D.r2.map(mean), color: 'var(--s1)' }, { name: 'speckle correlation with δn = 0', y: D.corr_ref, color: 'var(--s3)' }], label: 'drift' });
-    $('e11note').innerHTML = `Readout trained at δn = 0, tested after a uniform change δn of the slab index (every optical path changes by δn × its length; at R = 0.97 a typical path is 0.1–0.2 m, so δn = 1e-7 shifts phases by roughly 0.05–0.1 rad). For SiN, dn/dT ≈ 2×10⁻⁵ /K: δn = 1e-7 is 5 mK. The leftmost point is δn = 0.`;
+      series: [{ name: 'trained and tested with the noise', y: N.noise_trained.map(mean), color: 'var(--s1)' }], label: 'noise' });
+    if (D.r2_abs) lineChart($('e11drift'), { x: D.dn.map(v => Math.max(v, 3e-9)), xlog: true, xticks: [1e-8, 1e-7, 1e-6], xfmt: v => v.toExponential(0), xname: 'δn', yname: 'value', ylim: [-0.2, 1], xlabel: 'uniform index change δn',
+      series: [{ name: 'R², reference at δn = 0', y: D.r2_abs.map(mean), color: 'var(--s1)' }, { name: 'R², reference at the same δn', y: D.r2_diff.map(mean), color: 'var(--s3)' },
+        { name: 'speckle correlation with δn = 0', y: D.corr_ref, color: 'var(--faint)' }], label: 'drift' });
+    $('e11note').innerHTML = `Readout trained with ${(D.sigma || 0.01) * 100} % detector noise at δn = 0, tested after a uniform change δn of the slab index (every optical path changes by δn × its length, 0.1–0.2 m at R = 0.97). Blue: features against the speckle recorded at δn = 0. Green: against an empty-cell reference recorded at the same δn (same temperature). For SiN dn/dT ≈ 2×10⁻⁵ /K, so δn = 1e-7 is 5 mK. The leftmost point is δn = 0; values below −0.2 are clipped.`;
   }
   if (P.E12) {
     const E = P.E12, ser = [];

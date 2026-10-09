@@ -37,26 +37,26 @@ Status: `[x]` done, `[~]` partly done (*Now:* says what is there), `[ ]` to do. 
 - [x] **T3.1 Ray equation in the perturbations.** RK4 of dr/ds = t, dp/ds = ∇n, dL/ds = n inside bounding circles, exact straight segments between them; adaptive steps across flat interiors. Tested: |p| = n, 4th-order convergence, parabolic GRIN period.
 - [x] **T3.2 Wall interaction.** Specular reflection on the circle, √R(χ), reflection phase; unperturbed chords 2R_c cos χ reproduced.
 - [x] **T3.3 Ports and termination.** Exit records per port, losses by bounce limit and amplitude floor, power per port.
-- [~] **T3.4 Performance.** *Now:* batched numpy tracer (≈ 15–30 ms per ray with dots); JS port ≈ 20× faster (0.9 s for 305 curved rays). Missing: run curved-ray datasets through node (or numba) for large N.
+- [x] **T3.4 Performance.** Batched numpy tracer (reference); JS engine through node on all cores (`jsengine.node_fields`, `tools/node_fields.mjs`); phase screen ≈ 1 s per sample (6000 directions, two inputs) with Radon tables, flat typed arrays and record pruning.
 
 ## 4. Complex rays / Gaussian beamlets and the speckle field
 
-- [x] **T4.1 Dynamic ray tracing.** Complex Q, P along each ray (dQ/ds = P/n, dP/ds = (n_nn − 2n_n²/n)Q), tangential mirror lens at every bounce, continuous Gouy phase. Tested against the Gaussian beam and the ABCD round trip.
-- [~] **T4.2 Source decomposition.** *Now:* a grid of launch positions × angles with a Gaussian aperture weight. Missing: a check that the beamlet sum rebuilds the input mode.
-- [x] **T4.3 Coherent sum.** `field.beamlet_matrix`: E at the detector pixels = G @ phase; developed speckle (contrast ≈ 0.9–1).
+- [x] **T4.1 Dynamic ray tracing → frozen Gaussians.** Stability matrix from Q, P along each ray; Herman–Kluk prefactor with continuous branch; frozen width w_f. Replaces the evolving-beamlet summation, whose beamlets grew to millimetres in the circle (degenerate mirror system) and applied a dot's lens effect to the whole beamlet. Tested against exact Gaussian beams through clipping apertures and oblique mirrors (`tests/test_fga.py`).
+- [x] **T4.2 Source decomposition.** Input beam projected onto coherent states on a phase-space grid (positions × directions); the single-pass field equals the exact beam (power within 0.1 %).
+- [x] **T4.3 Ports and detectors.** Smooth aperture model (footprint overlap for the reflected power, field sampled across the opening), far-field detectors (64 directions per output port), E = K (B · phase).
 - [~] **T4.4 Energy and reciprocity.** *Now:* power accounting per port and lost rays. Missing: reciprocity test.
-- [ ] **T4.5 Validity map.** Ray/beamlet validity vs dot size, Δn and edge width.
+- [~] **T4.5 Validity.** *Now:* FGA vs BPM through a dot (E9), phase screen vs curved rays vs Δn (E4), prefactor cut-off for chaotic cells. Missing: convergence vs number of launch directions reported per experiment.
 
 ## 5. Fast first-order engine and wave reference
 
 - [x] **T5.1 Phase-screen model.** `perturbative.PhaseScreenModel`: trace once, ΔL = ∫Δn ds on the unperturbed chords (spectrally accurate midpoint rule), E = G @ exp(i k0 ΔL). Identical to the straight-ray tracer; 0.1–0.3 s per sample.
-- [ ] **T5.2 Wave reference.** 2D Helmholtz (FDFD) or BPM for a small cell to check the beamlet speckle.
+- [~] **T5.2 Wave reference.** *Now:* split-step BPM for one pass through a dot (`wave_ref`, E9: scattered-field correlation ≥ 0.9997). Missing: a full-wave check of multi-bounce speckle in a small cell.
 
 ## 6. Features (the NGRC layer)
 
-- [~] **T6.1 Multiplexing.** *Now:* several input ports (each its own launch angle and fan) × all output ports. Missing: launch-angle and wavelength stepping as extra virtual nodes.
+- [x] **T6.1 Multiplexing.** Input ports × output ports, plus cell variants (launch-angle and wavelength steps, `CircularCell.variant`, E8).
 - [x] **T6.2 NGRC features.** `features.stack_intensities` (raw, relative, log, delta) and `ngrc_features` (constant + linear + quadratic, random subset).
-- [~] **T6.3 Detector realism.** *Now:* `features.add_noise` (shot, relative, floor). Missing: used in the experiments; drift and fabrication noise.
+- [~] **T6.3 Detector realism.** *Now:* additive detector noise and uniform index (temperature) drift in E11/E12. Missing: fabrication noise.
 
 ## 7. Datasets and readouts
 
@@ -67,18 +67,18 @@ Status: `[x]` done, `[~]` partly done (*Now:* says what is there), `[ ]` to do. 
 ## 8. Analysis experiments
 
 - [~] **T8.1 Sensitivity.** *Now:* finite-difference ∂I/∂a_m and singular values vs launch angle and port layout (E1, E2). First result: dots inside the caustic disk R_c sin χ are invisible (zero sensitivity at 57° launch).
-- [ ] **T8.2 Learning curves.** R² vs samples, number of detectors, input ports, wall reflectance.
-- [~] **T8.3 Nonlinearity regime.** *Now:* phase-screen vs curved-ray correlation and speckle decorrelation vs Δn (E4): ray bending matters from Δn ≈ 1e-4.
+- [x] **T8.2 Learning curves.** E6: R² vs number of training dots.
+- [x] **T8.3 Nonlinearity regime.** E4 (speckle correlation phase screen vs curved rays, decorrelation vs Δn) and E7/E12 (readout quality vs Δn, curved rays vs phase screen, with detector noise).
 - [~] **T8.4 Position and rotation invariance.** *Now:* at a fixed position (800 dots) NGRC ridge recovers a_m, b_m with R² 0.96 / 0.86 / 0.83 / 0.76 / 0.73 (m = 2…6), above the raw-image baseline; with random positions nothing is learned at N = 800. Next: translation-invariant features, more samples, position as an extra target.
-- [ ] **T8.5 Robustness.** Noise, fabrication errors, drift; retraining cost.
-- [ ] **T8.6 Other cells.** Repeat E1–E3 in a stadium (chaotic) and a segmented circle.
+- [~] **T8.5 Robustness.** *Now:* detector noise and temperature drift (E11). Missing: fabrication errors (wall tilts), retraining cost.
+- [~] **T8.6 Other cells.** *Now:* any `gmpc.planar` wall (`geometry.WallCell`), stadium vs circle readout (E10, Python FGA with the prefactor cut-off). Missing: segmented circle; stadium in the JS engine.
 
 ## 9. Integration and output
 
 - [x] **T9.1 Explorer applet.** `web/cmpc-ngrc-explorer.html`: cell view with draggable ports and dots, live curved-ray speckle, CHD, in-browser ridge readout lab, progress board with the Python results.
 - [x] **T9.2 JS port check.** `tools/make_vectors.py` + `tools/check_js.mjs`: the JS engine reproduces the Python exits, optical paths, beamlets and fields to machine precision.
 - [ ] **T9.3 Engine spec** in `math-engines` (`spec.yaml` + test vectors) for the propagation core.
-- [ ] **T9.4 Docs.** `docs/MODELS.md` with equations, assumptions, validity limits and references (ray equation in GRIN media, Červený dynamic ray tracing / Gaussian beam summation, NGRC: Gauthier et al., Nat. Commun. 12, 5564 (2021)).
+- [x] **T9.4 Docs.** `docs/MODELS.md`: equations, frozen-Gaussian model, ports and detectors, phase screen, validation, limits, references.
 
 ## Suggested order of the next steps
 

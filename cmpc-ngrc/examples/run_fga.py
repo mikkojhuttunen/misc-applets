@@ -103,6 +103,14 @@ def split(n, n_test, seed=0):
     return idx[n_test:], idx[:n_test]
 
 
+def fit_ridge_raw(X, Y, tr, alphas=np.logspace(-6, 3, 19)):
+    """Ridge on the features as they are (centred, not standardised): weak pixels keep small weights."""
+    mu = X[tr].mean(0)
+    a, _ = RO.ridge_cv(X[tr] - mu, Y[tr], alphas)
+    W, b = RO.ridge_fit(X[tr] - mu, Y[tr], a)
+    return lambda Z: (Z - mu) @ W + b
+
+
 def fit_ridge(X, Y, tr):
     mu, sd = X[tr].mean(0), np.maximum(X[tr].std(0), 1e-3 * X[tr].std(0).mean())
     a, _ = RO.ridge_cv((X[tr] - mu) / sd, Y[tr])
@@ -453,21 +461,28 @@ def e10(q):
 
 
 def e11(q):
+    """Detector noise and temperature drift with a realistic protocol: features ΔI/Ī0, standardised ridge trained
+    on data with the operating noise. Noise: train and test at each level. Drift: trained with 1 % noise at δn = 0,
+    tested at δn (also with 1 % noise), with features relative to the reference speckle measured at δn = 0
+    ("absolute") or at the same δn ("differential": a reference port / empty-cell measurement at the same
+    temperature)."""
     N = 400 if q else 1600
     cell = cell_with(layouts()["asym4 · 2 in"])
     e = ens(N, 41, centre=FIXED)
     D = dataset(cell, e)
-    X, Y, I0 = D["X"], D["Yab"], D["I0"]
+    I0 = D["I0"]
+    X = D["X"] * I0 / I0.mean()                       # ΔI / Ī0
+    Y = D["Yab"]
     tr, te = split(N, N // 4)
-    pred = fit_ridge(X, Y, tr)
     rng = np.random.default_rng(3)
-    noise = dict(sigma=[], clean_trained=[], noise_trained=[])
+    noise = dict(sigma=[], noise_trained=[])
     for sg in (0.0, 0.003, 0.01, 0.03, 0.1, 0.3):
-        Xn = X + rng.normal(0, 1, X.shape) * sg * I0.mean() / I0
+        Xn = X + rng.normal(0, 1, X.shape) * sg                # additive noise σ·Ī0 on I
         noise["sigma"].append(sg)
-        noise["clean_trained"].append(per_m(RO.r2(Y[te], pred(Xn[te]))))
         noise["noise_trained"].append(per_m(RO.evaluate_krr(Xn, Y, "linear", train_idx=tr, test_idx=te)["r2"]))
-        print(f"E11 noise {sg}: {np.round(noise['clean_trained'][-1], 2)} / {np.round(noise['noise_trained'][-1], 2)}", flush=True)
+        print(f"E11 noise {sg}: {np.round(noise['noise_trained'][-1], 2)}", flush=True)
+    s1 = 0.01
+    pred = fit_ridge(X + rng.normal(0, 1, X.shape) * s1, Y, tr)
     perts = sample_shapes(cell, e)
     te_s = te[:150]
     dns = [0.0, 1e-8, 3e-8, 1e-7, 3e-7, 1e-6]
@@ -476,13 +491,18 @@ def e11(q):
     F = fields(cell, batch, dn_global=dn_list)
     ref = F[0]
     keys = sorted(ref)
-    drift = dict(dn=dns, r2=[], corr_ref=[])
+    drift = dict(dn=dns, sigma=s1, r2_abs=[], r2_diff=[], corr_ref=[])
     for k, d in enumerate(dns):
-        Xd = np.array([stack_intensities(F[1 + len(dns) + k * len(te_s) + j], reference=ref) for j in range(len(te_s))])
-        drift["r2"].append(per_m(RO.r2(Y[te_s], pred(Xd))))
+        Fd = [F[1 + len(dns) + k * len(te_s) + j] for j in range(len(te_s))]
+        Xa = np.array([stack_intensities(f, reference=ref, mode="delta") for f in Fd]) / I0.mean()
+        Xd = np.array([stack_intensities(f, reference=F[1 + k], mode="delta") for f in Fd]) / I0.mean()
+        nz = rng.normal(0, 1, Xa.shape) * s1
+        drift["r2_abs"].append(per_m(RO.r2(Y[te_s], pred(Xa + nz))))
+        drift["r2_diff"].append(per_m(RO.r2(Y[te_s], pred(Xd + nz))))
         drift["corr_ref"].append(float(np.mean([field_correlation(ref[q], F[1 + k][q]) for q in keys])))
-        print(f"E11 drift {d:g}: {np.round(drift['r2'][-1], 2)}, speckle corr {drift['corr_ref'][-1]:.3f}", flush=True)
-    return dict(N=N, noise=noise, drift=drift, mean_path_mm=None)
+        print(f"E11 drift {d:g}: absolute {np.round(drift['r2_abs'][-1], 2)}, differential {np.round(drift['r2_diff'][-1], 2)}, "
+              f"speckle corr {drift['corr_ref'][-1]:.3f}", flush=True)
+    return dict(N=N, noise=noise, drift=drift)
 
 
 EXPS = {"E1": e1, "E2": e2, "E3": e3, "E4": e4, "E5": e5, "E6": e6, "E8": e8, "E9": e9, "E10": e10, "E11": e11}

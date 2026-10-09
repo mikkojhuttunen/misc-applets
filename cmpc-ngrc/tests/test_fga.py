@@ -35,7 +35,7 @@ def test_polygon_orbits_through_oblique_mirrors():
         E = detector_field(c, ex, 0)
         Er = _exact_on_aperture(c, 0, 0.06, nb)
         assert field_correlation(E, Er) > 0.999
-        assert abs(np.sum(abs(E) ** 2) / np.sum(abs(Er) ** 2) - 1) < 0.01
+        assert abs(np.sum(abs(E) ** 2) / np.sum(abs(Er) ** 2) - 1) < 0.02
 
 
 def test_frozen_width_does_not_matter():

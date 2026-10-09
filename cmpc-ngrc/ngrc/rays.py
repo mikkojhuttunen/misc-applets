@@ -11,7 +11,8 @@ n_n, n_nn: first and second derivative of n normal to the ray. The beamlet field
 A sqrt(Q0/Q) exp(i k0 [L + ½ (P/Q) q²]), q the normal offset; P0/Q0 = i n0 / z_R at the launch waist.
 At the wall (radius Rc) a ray reflects specularly; the circular mirror acts on the beamlet as the tangential
 oblique-incidence lens P → P − 2 n0 Q / (Rc cos χ), amplitude × sqrt(R(χ)), phase + φ_R.
-A wall hit inside a port aperture ends the ray there (an exit record).
+A wall hit inside a port aperture ends the ray there (an exit record). The wall comes from the cell's wall_hit
+(analytic circle, or any gmpc.planar wall through geometry.WallCell, where the lens is 2 n0 κ / cos χ per element).
 
 mode = "curved" (full), "straight" (rays and beamlets as in the unperturbed cell, only the optical path feels Δn:
 the first-order / phase-screen model), "none" (perturbation ignored).
@@ -121,7 +122,7 @@ def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400,
     if mode == "none":
         pert = Perturbation()
     Rc, n0, k0 = cell.radius, cell.n_eff, cell.k0
-    pert.check_inside(Rc)
+    cell.check_regions(pert.regions)
     reg = pert.regions
     if ds is None:
         edges = [getattr(c, "edge", getattr(c, "smooth", 2e-6) or 2e-6) for c in pert.components]
@@ -163,8 +164,14 @@ def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400,
         out = np.nonzero(alive & ~inside)[0]
         if len(out):
             xo, yo, txo, tyo = x[out], y[out], tx[out], ty[out]
-            b = xo * txo + yo * tyo
-            s_wall = -b + np.sqrt(np.maximum(b * b - (xo * xo + yo * yo) + Rc * Rc, 0))
+            s_wall, wnx, wny, wpow, wsb = cell.wall_hit(xo, yo, txo, tyo)
+            leak = ~np.isfinite(s_wall)
+            if leak.any():
+                lost["leaked"] = lost.get("leaked", 0) + int(leak.sum())
+                alive[out[leak]] = False
+                keep = ~leak
+                out, xo, yo, txo, tyo = out[keep], xo[keep], yo[keep], txo[keep], tyo[keep]
+                s_wall, wnx, wny, wpow, wsb = s_wall[keep], wnx[keep], wny[keep], wpow[keep], wsb[keep]
             s_reg = np.full(len(out), np.inf)
             for cx, cy, rr in reg:
                 dx, dy = xo - cx, yo - cy
@@ -185,10 +192,8 @@ def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400,
             py[out[to_reg]] = n0 * ty[out[to_reg]]
             hit = out[~to_reg]
             if len(hit):
-                xh, yh = x[hit], y[hit]
-                rr = np.hypot(xh, yh)
-                x[hit], y[hit] = xh * Rc / rr, yh * Rc / rr
-                pid = cell.port_index(np.arctan2(y[hit], x[hit]))
+                hsel = ~to_reg
+                pid = cell.port_at(wsb[hsel])
                 ex = hit[pid >= 0]
                 if len(ex):
                     for k, arr in (("ray", ids), ("x", x), ("y", y), ("tx", tx), ("ty", ty), ("L", L), ("Q", Q),
@@ -196,13 +201,17 @@ def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400,
                         rec[k].append(arr[ex].copy())
                     rec["port"].append(pid[pid >= 0])
                     alive[ex] = False
-                rf = hit[pid < 0]
+                rsel = pid < 0
+                rf = hit[rsel]
                 if len(rf):
-                    nx, ny = x[rf] / Rc, y[rf] / Rc
+                    nx, ny = wnx[hsel][rsel], wny[hsel][rsel]
                     cosc = tx[rf] * nx + ty[rf] * ny
                     tx[rf] -= 2 * cosc * nx
                     ty[rf] -= 2 * cosc * ny
-                    P[rf] = P[rf] - 2 * n0 * Q[rf] / (Rc * np.maximum(cosc, 1e-9))
+                    tn = np.hypot(tx[rf], ty[rf])
+                    tx[rf] /= tn
+                    ty[rf] /= tn
+                    P[rf] = P[rf] - 2 * n0 * Q[rf] * wpow[hsel][rsel] / np.maximum(cosc, 1e-9)
                     amp[rf] *= np.sqrt(cell.R(cosc))
                     phase[rf] += cell.reflection_phase
                     nb[rf] += 1
@@ -224,7 +233,7 @@ def trace(cell, src: Source, pert=None, mode="curved", ds=None, max_bounces=400,
             x[ins], y[ins], px[ins], py[ins], L[ins] = s[0], s[1], s[2], s[3], s[4]
             argQ[ins] += np.angle(s[5] / Q[ins])
             Q[ins], P[ins] = s[5], s[6]
-            if np.any(x[ins] ** 2 + y[ins] ** 2 >= Rc * Rc):
+            if not np.all(cell.contains(x[ins], y[ins])):
                 raise RuntimeError("ray reached the wall inside a perturbation region")
             inany = np.zeros(len(ins), bool)
             for cx, cy, rr in reg:

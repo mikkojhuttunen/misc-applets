@@ -26,6 +26,7 @@ class Ensemble:
     centre: tuple = None          # fixed centre (x, y) or None = random
     place_radius: float = None    # max centre distance from the cell centre
     rotation: bool = False
+    jitter: float = 0.0           # with a fixed centre: uniform random offset within this radius (m)
     seed: int = 0
 
     def key(self):
@@ -39,6 +40,11 @@ def sample_shapes(cell, ens: Ensemble):
         shapes = [random_shape(rng, cell.radius, ens.m_max, ens.R_range, ens.dn_range, ens.edge, ens.sigma,
                                ens.decay, ens.centre, ens.place_radius, rotation=ens.rotation)
                   for _ in range(ens.n_shapes)]
+        if ens.jitter > 0:
+            for s in shapes:
+                r, ph = ens.jitter * np.sqrt(rng.uniform()), rng.uniform(0, 2 * np.pi)
+                s.x0 += r * np.cos(ph)
+                s.y0 += r * np.sin(ph)
         out.append(Perturbation(shapes))
     return out
 
@@ -56,10 +62,33 @@ def labels(perts, m_max):
     return rows, names
 
 
+def build_multiplexed(cell, ens: Ensemble, variants, engine="phase", feature_mode="relative", **kw):
+    """Concatenate the features of several cell variants (dicts for CircularCell.variant: wavelength,
+    launch_offset, launch), e.g. launch-angle or wavelength steps used as extra virtual nodes."""
+    parts, D = [], None
+    for v in variants:
+        D = build(cell.variant(**v), ens, engine=engine, feature_mode=feature_mode, **kw)
+        parts.append(D["X"])
+    D = dict(D)
+    D["X"] = np.hstack(parts)
+    D["variants"] = list(variants)
+    D.pop("fields", None)
+    return D
+
+
 def build(cell, ens: Ensemble, engine="phase", model=None, sources=None, feature_mode="relative", progress=None,
           **trace_kw):
-    """Features for every sample. engine: "phase" (PhaseScreenModel, fast) or "curved" (full tracer)."""
+    """Features for every sample. engine: "phase" (PhaseScreenModel, fast), "curved" (Python tracer) or
+    "node-curved" / "node-phase" (the JS engine through node on all cores; trace_kw: n_pos, n_ang, waist, workers)."""
     perts = sample_shapes(cell, ens)
+    if engine.startswith("node-"):
+        from .jsengine import node_fields
+        F = node_fields(cell, [None] + perts, mode=engine[5:], **trace_kw)
+        ref = F[0]
+        X = np.array([stack_intensities(f, reference=ref, mode=feature_mode) for f in F[1:]])
+        Y, names = labels(perts, ens.m_max)
+        return dict(X=X, Y=Y, names=names, perts=perts, reference=ref, ensemble=asdict(ens), key=ens.key(),
+                    fields=F[1:])
     Y, names = labels(perts, ens.m_max)
     sources = [Source(i) for i in cell.inputs] if sources is None else sources
     if engine == "phase":

@@ -98,3 +98,64 @@ def evaluate_svc(X, y, kernel="linear", test=0.25, seed=0):
     p = g.predict(Xte)
     return dict(accuracy=float(np.mean(p == y[te])), pred=p, test=te,
                 chance=float(np.max(np.bincount(y[te].astype(int))) / len(te)))
+
+
+# ---------------- kernel ridge (KRR) with optional position kernel ----------------
+
+def sqdist(A, B):
+    return np.maximum((A * A).sum(1)[:, None] + (B * B).sum(1)[None, :] - 2 * A @ B.T, 0)
+
+
+def krr_fit_predict(Ktr, Ytr, Kte, alpha):
+    ym = Ytr.mean(0)
+    A = np.linalg.solve(Ktr + alpha * np.eye(len(Ktr)), Ytr - ym)
+    return Kte @ A + ym
+
+
+def _kernels(Xa, Xb, kind, gamma, Pa=None, Pb=None, ell=None):
+    d = Xa.shape[1]
+    if kind == "linear":
+        K = Xa @ Xb.T / d
+    elif kind == "rbf":
+        K = np.exp(-gamma * sqdist(Xa, Xb) / d)
+    elif kind == "poly2":                           # = linear + quadratic monomials (NGRC), kernel form
+        L = Xa @ Xb.T / d
+        K = (1 + L) ** 2
+    else:
+        raise ValueError(kind)
+    if ell is not None:
+        K = K * np.exp(-sqdist(Pa, Pb) / (2 * ell * ell))
+    return K
+
+
+def evaluate_krr(X, Y, kind="linear", pos=None, test=0.25, seed=0, alphas=np.logspace(-4, 2, 7),
+                 gammas=(0.1, 0.3, 1.0), ells=None, val=0.2, train_idx=None, test_idx=None):
+    """Kernel ridge regression. kind: "linear", "poly2" or "rbf" kernel on the standardised features; with
+    pos (n, 2), the kernel is multiplied by exp(−|p − p'|²/2ℓ²): a readout whose weights vary smoothly with the
+    dot position (position known or estimated). Hyper-parameters by a validation split of the training set."""
+    Y = np.atleast_2d(np.asarray(Y, float).T).T
+    tr, te = split(len(X), test, seed) if train_idx is None else (np.asarray(train_idx), np.asarray(test_idx))
+    Xtr, Xte = standardize(X[tr], X[te])
+    rng = np.random.default_rng(seed + 1)
+    perm = rng.permutation(len(tr))
+    nv = max(2, int(round(val * len(tr))))
+    iv, it = perm[:nv], perm[nv:]
+    P = None if pos is None else np.asarray(pos, float)
+    Ptr = None if P is None else P[tr]
+    ells = [None] if P is None else (ells if ells is not None else np.std(Ptr, 0).mean() * np.array([0.1, 0.2, 0.4, 0.8]))
+    gl = gammas if kind == "rbf" else [None]
+    best = (-np.inf, None)
+    for g in gl:
+        for ell in ells:
+            Kt = _kernels(Xtr[it], Xtr[it], kind, g, None if P is None else Ptr[it], None if P is None else Ptr[it], ell)
+            Kv = _kernels(Xtr[iv], Xtr[it], kind, g, None if P is None else Ptr[iv], None if P is None else Ptr[it], ell)
+            for a in alphas:
+                sc = np.mean(r2(Y[tr][iv], krr_fit_predict(Kt, Y[tr][it], Kv, a)))
+                if sc > best[0]:
+                    best = (sc, (g, ell, a))
+    g, ell, a = best[1]
+    Ptest = None if P is None else P[te]
+    K = _kernels(Xtr, Xtr, kind, g, Ptr, Ptr, ell)
+    Kte = _kernels(Xte, Xtr, kind, g, Ptest, Ptr, ell)
+    pred = krr_fit_predict(K, Y[tr], Kte, a)
+    return dict(r2=r2(Y[te], pred), pred=pred, test=te, train=tr, alpha=a, gamma=g, ell=ell)

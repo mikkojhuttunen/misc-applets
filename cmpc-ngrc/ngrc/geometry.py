@@ -1,8 +1,13 @@
-"""Circular CMPC: wall, slab index, ports (input / output apertures in the wall) and detector lines.
+"""CMPC geometry: wall, slab index, ports (input / output apertures in the wall) and detector lines.
 
-Angles are measured from +x, counter-clockwise. A port is an aperture of chord width `width` centred at wall angle
-`angle`; any ray that hits the wall inside a port leaves the cell there (input ports are holes too). Input ports
-launch a fan of rays: positions across the aperture, directions = inward normal rotated by `launch` ± fan/2.
+`CircularCell`: analytic circular wall; a port sits at wall angle `angle` (from +x, counter-clockwise).
+`WallCell`: any closed wall built from flat / curved mirror elements (`gmpc.planar.Cell2D`: stadium, polygon, ...);
+a port sits at boundary arclength `s`.
+Any ray that hits the wall inside a port leaves the cell there (input ports are holes too). Input ports launch a fan
+of rays: positions across the aperture, directions = inward normal rotated by `launch` ± fan/2.
+
+Both cells give the tracer the same interface: wall_hit (distance, outward normal, mirror focusing power, boundary
+coordinate), port_at (port index of a hit), port_frame, check_regions.
 """
 from __future__ import annotations
 
@@ -19,6 +24,7 @@ class Port:
     launch: float = 0.0          # launch direction relative to the inward normal (rad, + = CCW)
     fan: float = 0.6             # full launch-angle spread of the ray fan (rad)
     label: str = ""
+    s: float = None              # WallCell only: boundary arclength of the aperture centre (m)
 
     @property
     def is_input(self) -> bool:
@@ -87,6 +93,28 @@ class CircularCell:
         u = np.linspace(-0.5, 0.5, self.detector.n_pix) * self.detector.width
         return c + self.detector.distance * nrm + u[:, None] * tan, u
 
+    # ---- tracer interface ----
+    def wall_hit(self, x, y, tx, ty):
+        """Distance to the wall along unit directions, outward normal, focusing power of the mirror (1/R for a
+        concave circle; the beamlet sees P → P − 2 n0 Q · power / cos χ) and the boundary coordinate of the hit."""
+        Rc = self.radius
+        b = x * tx + y * ty
+        d = -b + np.sqrt(np.maximum(b * b - (x * x + y * y) + Rc * Rc, 0))
+        hx, hy = x + d * tx, y + d * ty
+        rr = np.hypot(hx, hy)
+        return d, hx / rr, hy / rr, np.full(np.shape(d), 1 / Rc), np.mod(np.arctan2(hy, hx), 2 * np.pi) * Rc
+
+    def port_at(self, s_wall):
+        return self.port_index(np.asarray(s_wall) / self.radius)
+
+    def contains(self, x, y):
+        return x * x + y * y < self.radius**2
+
+    def check_regions(self, regions, margin=0.0):
+        reg = np.asarray(regions)
+        if len(reg) and np.any(np.hypot(reg[:, 0], reg[:, 1]) + reg[:, 2] > self.radius - margin):
+            raise ValueError("a perturbation's bounding circle reaches the cell wall")
+
     def check(self):
         for i, p in enumerate(self.ports):
             if p.role not in ("in", "out", "inout"):
@@ -100,6 +128,18 @@ class CircularCell:
                 raise ValueError("ports overlap")
         return idx
 
+    def variant(self, wavelength=None, launch_offset=0.0, launch=None):
+        """Copy with another wavelength and/or launch angle on the input ports (offset added, or set): one
+        "virtual node" set of a multiplexed reservoir."""
+        import copy
+        c = copy.deepcopy(self)
+        if wavelength is not None:
+            c.wavelength = wavelength
+        for p in c.ports:
+            if p.is_input:
+                p.launch = (p.launch if launch is None else launch) + launch_offset
+        return c
+
     def to_dict(self):
         d = asdict(self)
         d.pop("reflectance_fn")
@@ -111,6 +151,82 @@ class CircularCell:
         d["ports"] = [Port(**p) for p in d.get("ports", [])]
         d["detector"] = Detector(**d.get("detector", {}))
         return cls(**d)
+
+
+@dataclass
+class WallCell(CircularCell):
+    """Cell with any closed mirror wall (`gmpc.planar.Cell2D`); ports at boundary arclength Port.s.
+    radius is unused except as a length scale (set it to the half-width of the cell)."""
+    wall: object = None
+
+    def __post_init__(self):
+        if self.wall is None:
+            raise ValueError("WallCell needs a gmpc.planar.Cell2D wall")
+        self._ox, self._oy = self.wall.outline(48)
+        self.radius = 0.5 * max(np.ptp(self._ox), np.ptp(self._oy))
+
+    def wall_hit(self, x, y, tx, ty):
+        d, nx, ny, sb, k = self.wall.hit(np.asarray(x, float), np.asarray(y, float), np.asarray(tx, float),
+                                          np.asarray(ty, float))
+        power = np.where(k >= 0, -self.wall.kappa[np.maximum(k, 0)], 0.0)
+        nn = np.hypot(nx, ny)
+        nn = np.where(nn > 0, nn, 1.0)
+        return d, nx / nn, ny / nn, power, sb
+
+    def port_at(self, s_wall):
+        s_wall = np.atleast_1d(np.asarray(s_wall, float))
+        out = np.full(s_wall.shape, -1, int)
+        P = self.wall.perimeter
+        for i, p in enumerate(self.ports):
+            d = np.mod(s_wall - p.s + P / 2, P) - P / 2
+            out[np.abs(d) <= p.width / 2] = i
+        return out
+
+    def port_frame(self, i):
+        x, y, nx, ny = self.wall.point_at(np.array([self.ports[i].s]))
+        nrm = np.array([nx[0], ny[0]])
+        return np.array([x[0], y[0]]), nrm, np.array([-nrm[1], nrm[0]])
+
+    def contains(self, x, y):
+        return np.ones(np.shape(x), bool)
+
+    def _inside_polygon(self, x, y):
+        X, Y = self._ox, self._oy
+        inside = False
+        for i in range(len(X) - 1):
+            if (Y[i] > y) != (Y[i + 1] > y) and x < X[i] + (y - Y[i]) * (X[i + 1] - X[i]) / (Y[i + 1] - Y[i]):
+                inside = not inside
+        return inside
+
+    def check_regions(self, regions, margin=0.0):
+        for cx, cy, r in np.asarray(regions).reshape(-1, 3):
+            d = np.min(np.hypot(self._ox - cx, self._oy - cy))
+            if not self._inside_polygon(cx, cy) or d < r + margin:
+                raise ValueError("a perturbation's bounding circle reaches the cell wall")
+
+    def check(self):
+        for i, p in enumerate(self.ports):
+            if p.s is None:
+                raise ValueError(f"port {i}: WallCell ports need a boundary coordinate s")
+
+    def to_dict(self):
+        raise NotImplementedError("WallCell holds a Cell2D wall; rebuild it from its builder arguments")
+
+
+def wall_ports(wall, positions, inputs=(0,), fractions=True, **kw):
+    """Ports on a Cell2D wall at boundary coordinates (fractions of the perimeter by default)."""
+    P = wall.perimeter
+    return [Port(angle=0.0, s=(f * P if fractions else f), role="inout" if k in inputs else "out", label=f"P{k}", **kw)
+            for k, f in enumerate(positions)]
+
+
+def stadium(radius=0.5e-3, straight=1.0e-3, **kw):
+    """Smooth stadium wall (gmpc.planar.stadium_cell): half-circles of `radius` joined by straights."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "general-mpc"))
+    from gmpc.planar import stadium_cell
+    return stadium_cell(radius, straight, **kw)
 
 
 def symmetric_ports(n, offset=0.0, inputs=(0,), **kw):

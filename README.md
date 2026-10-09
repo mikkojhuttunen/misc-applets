@@ -13,6 +13,7 @@ Self-contained interactive applets, one `.html` file each, no build step, on top
 | [cmpc-sim/](cmpc-sim/) | Chip-scale chaotic multipass cell simulator (Python): membrane evanescent coupling Γ, etched-trench DBR mirrors at oblique incidence, stadium and segmented-cell ray statistics, trace-gas Voigt spectra, speckle/etalon noise model; ten design figures. Built on the `membrane_mode`, `bragg_grating`, `billiard_cell`, `trace_gas` and `path_coherence` engines in `math-engines/`. |
 
 | [general-mpc/](general-mpc/) | General multipass-cell simulator (Python): exact 3D tracing of Herriott, astigmatic (Lissajous) and slightly deformed Herriott cells (biconic/conic/polynomial mirror surfaces, tilt, decentre, radius and spacing errors, holes, apertures); planar cells of any wall (circle, polygon, smooth or faceted stadium, curved facets) with per-element perturbations; ports, path statistics, reflectance weighting, re-entrance and spot metrics, Lyapunov exponents. Tests cross-check `billiard_cell` and paraxial Herriott theory. |
+| [cmpc-ngrc/](cmpc-ngrc/) | CMPC as a physical reservoir for next-generation reservoir computing (Python, planning stage): effective-index perturbations inserted as images (round, slightly deformed shapes), curved-ray and Gaussian-beamlet (complex-ray) propagation through the slab, speckle field at the output, NGRC/SVM readouts trained for circular/spherical-harmonic decomposition of the shapes. Task list in [TASKS.md](cmpc-ngrc/TASKS.md). |
 
 ## Shared engines
 

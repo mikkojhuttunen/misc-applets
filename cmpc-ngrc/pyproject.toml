@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cmpc-ngrc"
+version = "0.0.1"
+description = "Ray/beamlet propagation through effective-index perturbations in an on-chip chaotic multipass cell, speckle features and NGRC/SVM readouts for shape-harmonic decomposition."
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "scipy>=1.10"]
+
+[project.optional-dependencies]
+ml = ["scikit-learn>=1.3"]
+figures = ["matplotlib>=3.6"]
+images = ["pillow>=9"]
+test = ["pytest>=7"]
+
+[tool.setuptools]
+packages = ["ngrc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

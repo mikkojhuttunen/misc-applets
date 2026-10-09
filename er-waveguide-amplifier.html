@@ -648,12 +648,14 @@ table.optr td.up{color:var(--green)}
         <div class="eq">G(λ) [dB] = 4.343 [σ<sub>e</sub>(λ) ∫n̄₂ dz − σ<sub>a</sub>(λ) ∫n̄₁ dz] · Γ<sub>s</sub>(λ)/Γ<sub>s</sub>(λ<sub>s</sub>) − α L,   n̄ = ∫N|E<sub>s</sub>|² dA / ∫|E<sub>s</sub>|² dA</div>
         <h3>Spectroscopy and limits of the model</h3>
         <p>The absorption cross-section is a smooth model of the Er:Al₂O₃ band (peak at 1533 nm, adjustable height); the emission cross-section follows from McCumber theory, σ<sub>e</sub>(λ) = σ<sub>a</sub>(λ) exp[(hc/λ₀ − hc/λ)/kT] with λ₀ = 1532 nm and T = 295 K. Default values are typical of sputtered Al₂O₃:Er films (σ<sub>a</sub>(1533) ≈ 5.7×10⁻²¹ cm², σ<sub>a</sub>(980) ≈ 1.7×10⁻²¹ cm², τ ≈ 7.5 ms, C<sub>up</sub> a few 10⁻¹⁸ cm³/s); use measured data for your films where you have them. With concentration effects on, the upconversion coefficient grows in proportion to N<sub>Er</sub> (C<sub>up</sub> = C<sub>up</sub>(10²⁰)·N<sub>Er</sub>/10²⁰) and a fraction f<sub>q</sub> of the ions is quenched, either growing with concentration (f<sub>q</sub> = k<sub>q</sub>N<sub>Er</sub>, clustering) or fixed (set by the deposition process). Quenched ions decay too fast to be inverted (sub-µs instead of ms), so they stay in the ground state and only absorb pump and signal; the remaining ions follow the rate equation above. Quenching and concentration-dependent upconversion are what make an optimum concentration appear. The "Gain vs quenching" view sweeps the quenched share and, for each value, also searches the best N<sub>Er</sub> (0.1–10×10²⁰ cm⁻³) and length (up to 30 cm), which shows how much a lower-quenching film is worth once the design is adapted to it. Not included: amplified spontaneous emission (it limits gain above roughly 20–30 dB), excited-state absorption, partly inverted ion pairs, and Er in the film (only the strip is doped). The background loss α is taken equal at pump and signal. Modes come from the effective index method or the semi-vectorial 2D finite-difference solver of the <a href="https://mikkojhuttunen.github.io/physics-applets/photonics/waveguide-mode-explorer.html">waveguide mode explorer</a>; Γ<sub>s</sub>(λ) for the spectrum is evaluated with the EIM at 25 nm steps and scaled to the selected solver at λ<sub>s</sub>.</p>
+        <p>Heating: the heat per length is everything the ions absorb minus the spontaneous emission they radiate (80 % of the ⁴I₁₃/₂ decay taken as radiative), plus half of the background loss (taken as absorbing). The peak temperature rise is that heat times a closed-form cross-section thermal resistance (<span class="mono">thermo_optic.strip_thermal_resistance</span>, ±30 %) for a 4.7 µm buried oxide over a Si substrate. The <a href="pump-heating-planner.html">Pump Heating Planner</a> solves the cross-section and the mode-weighted index change in full.</p>
       </div>
     </main>
   </div>
 </div>
 
 <script src="waveguide-core/waveguide-core.js"></script>
+<script src="waveguide-thermal/thermal-engine.js"></script>
 <script>
 /* worker: 2D FD fundamental modes at the signal and pump wavelengths on one grid */
 function ERWORKER() {
@@ -891,17 +893,21 @@ function run(PpW, PsW, L, nz) {
   var hvp = H * CL / (S.pump * 1e-9), hvs = H * CL / (S.lamS * 1e-9), al = S.loss / 4.3429448;
   var nc = CELLS.length, Gs = OV.Gs;
   function f(Pp, Ps) {
-    var gp = 0, gs = 0, S1 = 0, S2 = 0;
+    var gp = 0, gs = 0, S1 = 0, S2 = 0, RA = 0;
     for (var c = 0; c < nc; c++) {
       var ce = CELLS[c], Ip = Pp * ce.wp / ce.dA, Is = Ps * ce.ws / ce.dA;
       var Ra = ps.a * Ip / hvp + sa * Is / hvs, Re = ps.e * Ip / hvp + se * Is / hvs, b = Ra + Re + 1 / tau;
       var n2 = Ra > 0 ? 2 * Ra * N / (b + Math.sqrt(b * b + 4 * Cup * Ra * N)) : 0, n1 = N - n2 + Nq;
       gp += (ps.a * n1 - ps.e * n2) * ce.wp; gs += (se * n2 - sa * n1) * ce.ws; S1 += n1 * ce.ws; S2 += n2 * ce.ws;
+      RA += n2 * ce.dA;
     }
-    return { dp: -(gp + al) * Pp, ds: (gs - al) * Ps, S1: S1, S2: S2 };
+    return { dp: -(gp + al) * Pp, ds: (gs - al) * Ps, S1: S1, S2: S2, RA: RA };
   }
   var dz = L / nz, z = [0], Pp = [PpW], Ps = [PsW], inv = [], I1 = 0, I2 = 0, prev = f(PpW, PsW);
   inv.push(Gs > 0 ? prev.S2 / (Ntot * Gs) : 0);
+  /* heat per length (W/m): absorbed by the ions minus their radiated spontaneous emission, plus the absorbing share of α */
+  var heatOf = function (fr, p, q) { return 100 * (-fr.dp - fr.ds - (1 - THERM.absShare) * al * (p + q) - THERM.etaRad * fr.RA / tau * hvs); };
+  var qz = [heatOf(prev, PpW, PsW)];
   for (var s = 0; s < nz; s++) {
     var p = Pp[s], q = Ps[s];
     var k1 = prev, k2 = f(p + 0.5 * dz * k1.dp, q + 0.5 * dz * k1.ds), k3 = f(p + 0.5 * dz * k2.dp, q + 0.5 * dz * k2.ds), k4 = f(p + dz * k3.dp, q + dz * k3.ds);
@@ -909,9 +915,22 @@ function run(PpW, PsW, L, nz) {
     var nx = f(np, nq);
     I1 += 0.5 * dz * (prev.S1 + nx.S1); I2 += 0.5 * dz * (prev.S2 + nx.S2);
     z.push((s + 1) * dz); Pp.push(np); Ps.push(nq); inv.push(Gs > 0 ? nx.S2 / (Ntot * Gs) : 0);
+    qz.push(heatOf(nx, np, nq));
     prev = nx;
   }
-  return { z: z, Pp: Pp, Ps: Ps, inv: inv, I1: I1, I2: I2 };
+  return { z: z, Pp: Pp, Ps: Ps, inv: inv, I1: I1, I2: I2, q: qz };
+}
+/* thermal estimate (waveguide-thermal/thermal-engine.js): closed-form cross-section resistance on a BOX over Si */
+var TE = THERMALENGINE(), THERM = { etaRad: 0.8, absShare: 0.5, box: 4.7e-6 };
+var FILM_TO_LUT = { al2o3: 'al2o3_film', si3n4: 'si3n4', ln_e: 'ln_e', ln_o: 'ln_o', lt_e: 'lt_e', lt_o: 'lt_o' };
+function thermalEstimate(R) {
+  var film = FILM_TO_LUT[PLAT[S.plat].film[S.pol]] || 'sio2';
+  var Rth = TE.stripThermalResistance({ width: S.w * 1e-6, height: S.h * 1e-6, box_thickness: THERM.box, slab_thickness: S.t * 1e-6,
+    slab_material: film, clad_material: S.sup === 'air' ? 'air' : 'sio2' }).R_th;
+  var qmax = 0, tot = 0, i;
+  for (i = 0; i < R.q.length; i++) qmax = Math.max(qmax, R.q[i]);
+  for (i = 1; i < R.q.length; i++) tot += 0.5 * (R.q[i] + R.q[i - 1]) * (R.z[i] - R.z[i - 1]) * 1e-2;
+  return { Rth: Rth, q0: R.q[0], qmax: qmax, dT: Rth * qmax, heat: tot, dndT: TE.entry(film).dn_dT };
 }
 var RES = null, LMIN = 0.05, LMAX = 30;
 function gainAtZ(R, PsW, z) {
@@ -1110,7 +1129,11 @@ function drawTiles() {
     tile('Output signal', fmt(10 * Math.log10(Pout * 1e3), 1) + ' dBm', 'input ' + fmt(S.PsdBm, 1) + ' dBm') +
     tile('Peak net gain', fmt(r.peak.g, 2) + ' dB', 'at ' + r.peak.l + ' nm') +
     tile('Pump absorbed', fmt(100 * (1 - (r.PpW > 0 ? PpOut / r.PpW : 1)), 1) + ' %', 'out ' + fmt(PpOut * 1e3, 1) + ' mW (incl. α)') +
-    tile('Transparency pump', r.thr === null ? '&gt; ' + fmt(r.Pmax, 0) + ' mW' : fmt(r.thr, 1) + ' mW', 'net gain = 0 dB at λ<sub>s</sub>');
+    tile('Transparency pump', r.thr === null ? '&gt; ' + fmt(r.Pmax, 0) + ' mW' : fmt(r.thr, 1) + ' mW', 'net gain = 0 dB at λ<sub>s</sub>') +
+    (function () {
+      var th = thermalEstimate(m);
+      return tile('Peak heating ΔT', fmt(th.dT, th.dT < 1 ? 3 : 2) + ' K', 'q′ ' + fmt(th.qmax, 3) + ' mW/mm · heat ' + fmt(th.heat * 1e3, 1) + ' mW · R′ ' + fmt(th.Rth, 2) + ' K per mW/mm (<a href="pump-heating-planner.html">planner</a>)');
+    })();
 }
 function drawStatus() {
   var st = [];

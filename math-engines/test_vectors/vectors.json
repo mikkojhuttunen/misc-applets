@@ -3097,5 +3097,405 @@
    "floor": 0.00126453271487838,
    "n_groups": 7783
   }
- ]
+ ],
+ "thermal": {
+  "lut": [
+   {
+    "material": "si",
+    "n": 3.4767806633898366,
+    "dn_dT": 0.000184,
+    "k": 148.0,
+    "rho": 2329.0,
+    "cp": 705.0,
+    "alpha_L": 2.6e-06
+   },
+   {
+    "material": "sio2",
+    "n": 1.444023621703261,
+    "dn_dT": 9.5e-06,
+    "k": 1.38,
+    "rho": 2200.0,
+    "cp": 740.0,
+    "alpha_L": 5.5e-07
+   },
+   {
+    "material": "si3n4",
+    "n": 1.9962797317138814,
+    "dn_dT": 2.45e-05,
+    "k": 10.0,
+    "rho": 3100.0,
+    "cp": 700.0,
+    "alpha_L": 3.3e-06
+   },
+   {
+    "material": "sinx",
+    "n": 1.9,
+    "dn_dT": 4e-05,
+    "k": 1.5,
+    "rho": 2500.0,
+    "cp": 750.0,
+    "alpha_L": 2e-06
+   },
+   {
+    "material": "ln_e",
+    "n": 2.129686805517065,
+    "dn_dT": 3.4e-05,
+    "k": 4.6,
+    "rho": 4650.0,
+    "cp": 630.0,
+    "alpha_L": 7.5e-06
+   },
+   {
+    "material": "ln_o",
+    "n": 2.208166670822557,
+    "dn_dT": 3e-06,
+    "k": 4.6,
+    "rho": 4650.0,
+    "cp": 630.0,
+    "alpha_L": 1.54e-05
+   },
+   {
+    "material": "lt_e",
+    "n": 2.122741791799005,
+    "dn_dT": 1.5e-05,
+    "k": 4.6,
+    "rho": 7450.0,
+    "cp": 424.0,
+    "alpha_L": 4.1e-06
+   },
+   {
+    "material": "lt_o",
+    "n": 2.1186252769759437,
+    "dn_dT": 5e-06,
+    "k": 4.6,
+    "rho": 7450.0,
+    "cp": 424.0,
+    "alpha_L": 1.61e-05
+   },
+   {
+    "material": "gaas",
+    "n": 3.3701687666772653,
+    "dn_dT": 0.000235,
+    "k": 55.0,
+    "rho": 5317.0,
+    "cp": 330.0,
+    "alpha_L": 5.73e-06
+   },
+   {
+    "material": "algaas",
+    "n": 3.2832,
+    "dn_dT": 0.000216,
+    "k": 14.628437682855472,
+    "rho": 5005.6,
+    "cp": 354.0,
+    "alpha_L": 5.624000000000001e-06
+   },
+   {
+    "material": "inp",
+    "n": 3.167,
+    "dn_dT": 0.0002,
+    "k": 68.0,
+    "rho": 4810.0,
+    "cp": 310.0,
+    "alpha_L": 4.6e-06
+   },
+   {
+    "material": "aln",
+    "n": 2.119925139506196,
+    "dn_dT": 2.3e-05,
+    "k": 30.0,
+    "rho": 3255.0,
+    "cp": 740.0,
+    "alpha_L": 4.2e-06
+   },
+   {
+    "material": "al2o3_film",
+    "n": 1.65,
+    "dn_dT": 1.3e-05,
+    "k": 1.6,
+    "rho": 3200.0,
+    "cp": 780.0,
+    "alpha_L": 4.2e-06
+   },
+   {
+    "material": "sapphire",
+    "n": 1.7461816250589246,
+    "dn_dT": 1.3e-05,
+    "k": 35.0,
+    "rho": 3980.0,
+    "cp": 760.0,
+    "alpha_L": 5e-06
+   },
+   {
+    "material": "tio2_film",
+    "n": 2.3,
+    "dn_dT": -0.0001,
+    "k": 1.0,
+    "rho": 3800.0,
+    "cp": 690.0,
+    "alpha_L": 8e-06
+   },
+   {
+    "material": "su8",
+    "n": 1.57,
+    "dn_dT": -0.00011,
+    "k": 0.2,
+    "rho": 1200.0,
+    "cp": 1200.0,
+    "alpha_L": 5.2e-05
+   },
+   {
+    "material": "air",
+    "n": 1.00027,
+    "dn_dT": -9.2e-07,
+    "k": 0.026,
+    "rho": 1.2,
+    "cp": 1005.0,
+    "alpha_L": 0.0
+   }
+  ],
+  "ridge": [
+   {
+    "geometry": {},
+    "dT_core": 0.3932029404116744,
+    "dT_max": 0.39357821920906405,
+    "tau_E": 0.001416011076974475,
+    "dT_box_top": 0.38955023241049186,
+    "n_cells": 4453.0
+   },
+   {
+    "geometry": {
+     "core_material": "si3n4",
+     "core_width": 1.6e-06,
+     "core_height": 8e-07,
+     "box_thickness": 4e-06,
+     "clad_thickness": 3e-06
+    },
+    "dT_core": 0.35798459307706976,
+    "dT_max": 0.36312483208540325,
+    "tau_E": 0.0014500940349805307,
+    "dT_box_top": 0.35332874930755276,
+    "n_cells": 2891.0
+   },
+   {
+    "geometry": {
+     "core_material": "ln_e",
+     "slab_material": "ln_e",
+     "core_width": 1.2e-06,
+     "core_height": 3e-07,
+     "slab_thickness": 3e-07,
+     "box_thickness": 4.7e-06,
+     "clad_material": "air",
+     "clad_thickness": 0.0
+    },
+    "dT_core": 0.5410739997700603,
+    "dT_max": 0.5551209971473139,
+    "tau_E": 0.0014321224538854022,
+    "dT_box_top": 0.4984549645530869,
+    "n_cells": 3906.0
+   },
+   {
+    "geometry": {
+     "core_material": "al2o3_film",
+     "slab_material": "ln_e",
+     "core_width": 2e-06,
+     "core_height": 4e-07,
+     "slab_thickness": 3e-07,
+     "box_thickness": 4.7e-06,
+     "clad_material": "air",
+     "clad_thickness": 0.0
+    },
+    "dT_core": 0.5111341627244427,
+    "dT_max": 0.5437481087471463,
+    "tau_E": 0.0014325712990704228,
+    "dT_box_top": 0.4638055990101148,
+    "n_cells": 4615.0
+   }
+  ],
+  "mode": [
+   {
+    "geometry": {},
+    "wavelength": 1.55e-06,
+    "cells_per_wavelength": 12,
+    "heat_in_mode": false,
+    "neff": 2.630386592277332,
+    "n_group": 3.880386749808449,
+    "dneff_dT": 0.00019024203493175475,
+    "dT_mode": 0.3931821476661737,
+    "dT_core": 0.3932029404116744,
+    "Gamma_core": 1.0276161935766701
+   },
+   {
+    "geometry": {
+     "core_material": "ln_e",
+     "slab_material": "ln_e",
+     "core_width": 1.2e-06,
+     "core_height": 3e-07,
+     "slab_thickness": 3e-07,
+     "box_thickness": 4.7e-06,
+     "clad_material": "air",
+     "clad_thickness": 0.0
+    },
+    "wavelength": 1.55e-06,
+    "cells_per_wavelength": 12,
+    "heat_in_mode": false,
+    "neff": 1.896388463443744,
+    "n_group": 2.266904874071508,
+    "dneff_dT": 3.440011243725717e-05,
+    "dT_mode": 0.5188223138692101,
+    "dT_core": 0.5410739997700603,
+    "Gamma_core": 0.43427705433723274
+   },
+   {
+    "geometry": {
+     "core_material": "al2o3_film",
+     "slab_material": "ln_e",
+     "core_width": 2e-06,
+     "core_height": 4e-07,
+     "slab_thickness": 3e-07,
+     "box_thickness": 4.7e-06,
+     "clad_material": "air",
+     "clad_thickness": 0.0
+    },
+    "wavelength": 1.55e-06,
+    "cells_per_wavelength": 12,
+    "heat_in_mode": true,
+    "neff": 1.7909064249316384,
+    "n_group": 2.137639212149246,
+    "dneff_dT": 2.940052472941211e-05,
+    "dT_mode": 0.4632578284962264,
+    "dT_core": 0.5020971753086308,
+    "Gamma_core": 0.1822090576654769
+   }
+  ],
+  "strip": [
+   {
+    "args": {
+     "width": 5e-07,
+     "height": 2.2e-07,
+     "box_thickness": 2e-06
+    },
+    "R_th": 0.3448547906751899
+   },
+   {
+    "args": {
+     "width": 1.2e-06,
+     "height": 3e-07,
+     "box_thickness": 4.7e-06,
+     "slab_thickness": 3e-07,
+     "slab_material": "ln_e",
+     "clad_material": "air"
+    },
+    "R_th": 0.523348452720829
+   }
+  ],
+  "runaway": [
+   {
+    "args": {
+     "R_th": 0.5,
+     "power": 0.1,
+     "loss_abs_db_per_cm": 1.0,
+     "T_scale": 50.0
+    },
+    "dT": 1.1787568928545489,
+    "P_threshold": 1.5976801130640945
+   },
+   {
+    "args": {
+     "R_th": 0.5,
+     "power": 5.0,
+     "loss_abs_db_per_cm": 1.0,
+     "k_exponent": 1.3
+    },
+    "dT": 65.55213712366637,
+    "P_threshold": 86.85889638065035
+   },
+   {
+    "args": {
+     "R_th": 0.39,
+     "power": 0.05,
+     "loss_abs_db_per_cm": 0.1,
+     "beta_tpa": 8e-12,
+     "carrier_lifetime": 1e-09,
+     "sigma_fca": 1.45e-21,
+     "T_scale": 30.0
+    },
+    "dT": 0.34404474947428154,
+    "P_threshold": 0.38335972409386887
+   }
+  ],
+  "er": [
+   {
+    "args": {},
+    "gain_dB": 3.6383373787122397,
+    "dT_max": 0.295816720690953,
+    "heat_total": 0.01631825112277506,
+    "pump_out": 0.167792028530974,
+    "inversion_in": 0.9930720739359129
+   },
+   {
+    "args": {
+     "pump_power": 1.0,
+     "pump_wavelength": 1.48e-06,
+     "sigma_a_pump": 2.5e-25,
+     "sigma_e_pump": 8e-26,
+     "quenched_fraction": 0.1
+    },
+    "gain_dB": 0.8678971054703942,
+    "dT_max": 2.3790299958165955,
+    "heat_total": 0.12758417313298498,
+    "pump_out": 0.7952130706681091,
+    "inversion_in": 0.6815769949071745
+   }
+  ],
+  "er_limit": [
+   {
+    "dT_max": 5.0,
+    "dneff_max": 0.001,
+    "P_limit": 3.4687317524731043,
+    "gain_dB": 3.701922125416327
+   }
+  ],
+  "qpm": [
+   {
+    "args": {},
+    "period": 1.9390373227040913e-05,
+    "dDk_dT": 57.34690057813441,
+    "dT_FWHM": 9.706242980675276,
+    "eta_heated": 0.9731597131358437,
+    "eta_retuned": 0.9999999547782471
+   },
+   {
+    "args": {
+     "dT_in": 3.0,
+     "decay_length": 0.003
+    },
+    "period": 1.9390373227040913e-05,
+    "dDk_dT": 57.34690057813441,
+    "dT_FWHM": 9.706242980675276,
+    "eta_heated": 0.9825445064570895,
+    "eta_retuned": 0.9974174172858651
+   },
+   {
+    "args": {
+     "pump_wavelength": 5.32e-07,
+     "signal_wavelength": 1.064e-06,
+     "length": 0.02,
+     "dT_in": 1.0
+    },
+    "period": 6.973871438572027e-06,
+    "dDk_dT": 214.6264277723235,
+    "dT_FWHM": 1.2967250980631044,
+    "eta_heated": 0.1601473478566075,
+    "eta_retuned": 0.9999899659871174
+   }
+  ],
+  "ring": [
+   {
+    "P_threshold": 0.0002966569626836409,
+    "dT_resonance": 3.9788735772973833,
+    "buildup": 170.70416809306911
+   }
+  ]
+ }
 }

@@ -158,5 +158,49 @@ const close = (label, got, want, rel, abs = 0) => {
   }
 }
 
+
+/* ---- waveguide-thermal/thermal-engine.js (SI inside) ---- */
+{
+  const ctx = vm.createContext({ Math, Number, Float64Array, Uint8Array, Infinity, NaN, Array, Object, Error });
+  vm.runInContext(fs.readFileSync(path.join(repo, 'waveguide-thermal/thermal-engine.js'), 'utf8') + '\n;globalThis.__t = THERMALENGINE();', ctx);
+  const T = ctx.__t, th = V.thermal;
+  for (const r of th.lut) {
+    const e = T.entry(r.material);
+    close(`thermal LUT n ${r.material}`, T.indexAt(r.material, 1.55e-6), r.n, 1e-12);
+    for (const k of ['dn_dT', 'k', 'rho', 'cp', 'alpha_L']) close(`thermal LUT ${k} ${r.material}`, e[k], r[k], 1e-12, 1e-30);
+  }
+  for (const r of th.ridge) {
+    const o = T.ridgeHeating(r.geometry);
+    for (const k of ['dT_core', 'dT_max', 'tau_E', 'dT_box_top', 'n_cells']) close(`thermal ridge ${k} ${JSON.stringify(r.geometry)}`, o[k], r[k], 1e-8);
+  }
+  for (const r of th.mode) {
+    const o = T.modeWeightedHeating(r.geometry, r.wavelength, { cells_per_wavelength: r.cells_per_wavelength, heat_in_mode: r.heat_in_mode });
+    for (const k of ['neff', 'n_group', 'dneff_dT', 'dT_mode', 'dT_core', 'Gamma_core']) close(`thermal mode ${k} ${JSON.stringify(r.geometry)}`, o[k], r[k], 1e-6);
+  }
+  for (const r of th.strip) close(`thermal strip R ${JSON.stringify(r.args)}`, T.stripThermalResistance(r.args).R_th, r.R_th, 1e-12);
+  for (const r of th.runaway) {
+    const o = T.thermalRunaway(r.args);
+    close(`thermal runaway dT ${JSON.stringify(r.args)}`, o.dT, r.dT, 1e-8);
+    close(`thermal runaway P_th ${JSON.stringify(r.args)}`, o.P_threshold, r.P_threshold, 1e-8);
+  }
+  for (const r of th.er) {
+    const o = T.erAmplifierHeating(r.args);
+    for (const k of ['gain_dB', 'dT_max', 'heat_total', 'pump_out', 'inversion_in']) close(`thermal er ${k} ${JSON.stringify(r.args)}`, o[k], r[k], 1e-9);
+  }
+  for (const r of th.er_limit) {
+    const o = T.erPumpLimit({}, r.dT_max, r.dneff_max, 20);
+    close('thermal er P_limit', o.P_limit, r.P_limit, 1e-9);
+    close('thermal er gain at limit', o.gain_dB, r.gain_dB, 1e-9);
+  }
+  for (const r of th.qpm) {
+    const o = T.qpmThermal(r.args);
+    for (const k of ['period', 'dDk_dT', 'dT_FWHM', 'eta_heated', 'eta_retuned']) close(`thermal qpm ${k} ${JSON.stringify(r.args)}`, o[k], r[k], 1e-8);
+  }
+  for (const r of th.ring) {
+    const o = T.ringThermalBistability({});
+    for (const k of ['P_threshold', 'dT_resonance', 'buildup']) close(`thermal ring ${k}`, o[k], r[k], 1e-12);
+  }
+}
+
 console.log(`${checks - fails}/${checks} JS port checks passed`);
 process.exit(fails ? 1 : 0);

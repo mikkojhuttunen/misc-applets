@@ -23,6 +23,53 @@ from engines.fringe_averaging import engine as fav  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
+from engines.thermo_optic import engine as to  # noqa: E402
+from engines.waveguide_thermal import engine as wt  # noqa: E402
+from engines.amplifier_thermal import engine as at  # noqa: E402
+from engines.thermal_detuning import engine as td  # noqa: E402
+
+THERMAL_GEOMS = [
+    {},
+    {"core_material": "si3n4", "core_width": 1.6e-6, "core_height": 0.8e-6, "box_thickness": 4e-6, "clad_thickness": 3e-6},
+    {"core_material": "ln_e", "slab_material": "ln_e", "core_width": 1.2e-6, "core_height": 0.3e-6, "slab_thickness": 0.3e-6,
+     "box_thickness": 4.7e-6, "clad_material": "air", "clad_thickness": 0.0},
+    {"core_material": "al2o3_film", "slab_material": "ln_e", "core_width": 2e-6, "core_height": 0.4e-6, "slab_thickness": 0.3e-6,
+     "box_thickness": 4.7e-6, "clad_material": "air", "clad_thickness": 0.0},
+]
+
+
+def thermal_vectors() -> dict:
+    """Vectors for waveguide-thermal/thermal-engine.js."""
+    t = {"lut": [], "ridge": [], "mode": [], "strip": [], "runaway": [], "er": [], "er_limit": [], "qpm": [], "ring": []}
+    for m in to.MATERIALS:
+        e = to.entry(m)
+        t["lut"].append({"material": m, "n": to.index_at(m, 1.55e-6), "dn_dT": e["dn_dT"], "k": e["k"], "rho": e["rho"], "cp": e["cp"],
+                         "alpha_L": e["alpha_L"]})
+    for g in THERMAL_GEOMS:
+        r = wt.ridge_heating(**g)
+        t["ridge"].append({"geometry": g, **{k: float(r[k]) for k in ("dT_core", "dT_max", "tau_E", "dT_box_top", "n_cells")}})
+    for g, heat_in_mode in ((THERMAL_GEOMS[0], False), (THERMAL_GEOMS[2], False), (THERMAL_GEOMS[3], True)):
+        r = wt.mode_weighted_heating(cells_per_wavelength=12, heat_in_mode=heat_in_mode, **g)
+        t["mode"].append({"geometry": g, "wavelength": 1.55e-6, "cells_per_wavelength": 12, "heat_in_mode": heat_in_mode,
+                          **{k: float(r[k]) for k in ("neff", "n_group", "dneff_dT", "dT_mode", "dT_core", "Gamma_core")}})
+    for kw in (dict(width=0.5e-6, height=0.22e-6, box_thickness=2e-6), dict(width=1.2e-6, height=0.3e-6, box_thickness=4.7e-6,
+               slab_thickness=0.3e-6, slab_material="ln_e", clad_material="air")):
+        t["strip"].append({"args": kw, "R_th": to.strip_thermal_resistance(**kw)["R_th"]})
+    for kw in (dict(R_th=0.5, power=0.1, loss_abs_db_per_cm=1.0, T_scale=50.0), dict(R_th=0.5, power=5.0, loss_abs_db_per_cm=1.0, k_exponent=1.3),
+               dict(R_th=0.39, power=0.05, loss_abs_db_per_cm=0.1, beta_tpa=8e-12, carrier_lifetime=1e-9, sigma_fca=1.45e-21, T_scale=30.0)):
+        r = to.thermal_runaway(**kw)
+        t["runaway"].append({"args": kw, "dT": float(r["dT"]), "P_threshold": float(r["P_threshold"])})
+    for kw in ({}, dict(pump_power=1.0, pump_wavelength=1.48e-6, sigma_a_pump=2.5e-25, sigma_e_pump=0.8e-25, quenched_fraction=0.1)):
+        r = at.er_amplifier_heating(**kw)
+        t["er"].append({"args": kw, **{k: float(r[k]) for k in ("gain_dB", "dT_max", "heat_total", "pump_out", "inversion_in")}})
+    r = at.er_pump_limit(dT_max=5.0, dneff_max=1e-3)
+    t["er_limit"].append({"dT_max": 5.0, "dneff_max": 1e-3, "P_limit": float(r["P_limit"]), "gain_dB": float(r["gain_dB"])})
+    for kw in (dict(), dict(dT_in=3.0, decay_length=0.003), dict(pump_wavelength=0.532e-6, signal_wavelength=1.064e-6, length=0.02, dT_in=1.0)):
+        r = td.qpm_thermal(**kw)
+        t["qpm"].append({"args": kw, **{k: float(r[k]) for k in ("period", "dDk_dT", "dT_FWHM", "eta_heated", "eta_retuned")}})
+    r = td.ring_thermal_bistability()
+    t["ring"].append({"P_threshold": float(r["P_threshold"]), "dT_resonance": float(r["dT_resonance"]), "buildup": float(r["buildup"])})
+    return t
 
 OUT = ROOT / "test_vectors" / "vectors.json"
 
@@ -123,6 +170,7 @@ def build() -> dict:
                             "phase": psi, "drift": drift, "coherence": coh, "filter": kind, "T": Ts,
                             "V": [float(x) for x in fav.residual_visibility(f, A, np.array(Ts), drift, coh, kind)],
                             "floor": fav.static_floor(f, A, drift, coh), "n_groups": int(f.size)})
+    v["thermal"] = thermal_vectors()
     return v
 
 

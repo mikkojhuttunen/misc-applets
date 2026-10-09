@@ -6,12 +6,14 @@ on:
       - "math-engines/**"
       - "dbr-structures/dbr-engine.js"
       - "parametric-amplifier.html"
+      - "waveguide-thermal/**"
       - ".github/workflows/math-engines-tests.yml"
   pull_request:
     paths:
       - "math-engines/**"
       - "dbr-structures/dbr-engine.js"
       - "parametric-amplifier.html"
+      - "waveguide-thermal/**"
       - ".github/workflows/math-engines-tests.yml"
 
 jobs:

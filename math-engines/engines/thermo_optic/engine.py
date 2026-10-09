@@ -453,3 +453,96 @@ def pump_budget(R_th=10.0, dneff_dT=1.8e-4, power=0.1, wavelength=1.55e-6, a_eff
                      "Linear thermo-optic response; no thermal runaway feedback through temperature-dependent absorption",
                      "P_max = inf when nothing absorbs"],
     )
+
+
+def kirchhoff(dT, k_exponent=0.0, T0=300.0):
+    """θ = ∫₀^ΔT k(T)/k₀ dT for k = k₀ (T/T₀)^-m: the variable in which conduction with k(T) is linear (θ = R' q').
+    Valid when the material that sets R' dominates (one exponent for the whole cross-section)."""
+    x = 1 + np.asarray(dT, dtype=float) / T0
+    m = float(k_exponent)
+    if abs(m - 1) < 1e-12:
+        return T0 * np.log(x)
+    return T0 / (1 - m) * (x ** (1 - m) - 1)
+
+
+def kirchhoff_inverse(theta, k_exponent=0.0, T0=300.0):
+    """ΔT from θ (inf where θ ≥ T₀/(m-1) for m > 1: the conduction limit)."""
+    th = np.asarray(theta, dtype=float)
+    m = float(k_exponent)
+    if abs(m - 1) < 1e-12:
+        return T0 * (np.exp(th / T0) - 1)
+    base = 1 + (1 - m) * th / T0
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(base > 0, T0 * (np.power(np.maximum(base, 1e-300), 1 / (1 - m)) - 1), np.inf)
+
+
+def _power_for(q_target, c1, c2, c3):
+    """P >= 0 with c1 P + c2 P² + c3 P³ = q_target (monotone)."""
+    return _max_power((c1, c2, c3), q_target)
+
+
+def thermal_runaway(R_th=0.5, power=0.1, wavelength=1.55e-6, a_eff=0.1e-12, loss_abs_db_per_cm=1.0, T_scale=np.inf,
+                    beta_tpa=0.0, carrier_lifetime=0.0, sigma_fca=0.0, k_exponent=0.0, T0=300.0, dT_limit=3000.0) -> Result:
+    """Steady temperature with feedback, and the power at which no steady state exists (thermal runaway).
+
+        θ(ΔT) = R' [α_abs e^(ΔT/T_a) P + β P²/A_eff + FCA P³],   θ = ∫₀^ΔT k(T)/k₀ dT,  k ∝ T^-m
+
+    Two feedbacks: absorption growing with temperature (T_a: e-folding temperature of α_abs, e.g. band-edge
+    absorption creeping in as the gap shrinks, ~ tens of K near the edge) and conductivity falling with temperature
+    (crystalline Si m ≈ 1.3; amorphous SiO₂ m ≈ -0.2, slightly rising k). The steady state is the lowest root; the
+    threshold is the fold of P(ΔT). With only linear absorption and constant k: P_th = T_a / (e R' α_abs) at ΔT = T_a."""
+    require_positive(R_th=R_th, wavelength=wavelength, a_eff=a_eff, T0=T0, dT_limit=dT_limit)
+    require_nonnegative(power=power, loss_abs_db_per_cm=loss_abs_db_per_cm)
+    Ta = float(T_scale)
+    if not Ta > 0:
+        raise ValueError("T_scale must be positive (inf = no temperature dependence)")
+    a0 = float(db_per_cm_to_per_m(loss_abs_db_per_cm))
+    _, c2, c3 = heat_coefficients(wavelength, a_eff, 0.0, beta_tpa, carrier_lifetime, sigma_fca)
+    m = float(k_exponent)
+
+    def q(dT, P):
+        return a0 * math.exp(min(dT / Ta, 700.0)) * P + c2 * P**2 + c3 * P**3
+
+    def P_of(dT):
+        th = float(kirchhoff(dT, m, T0))
+        return _power_for(th / R_th, a0 * math.exp(min(dT / Ta, 700.0)), c2, c3)
+
+    x = np.concatenate([[0.0], np.geomspace(1e-6, dT_limit, 1500)])
+    Px = np.array([P_of(v) for v in x])
+    i = int(np.argmax(Px))
+    if 0 < i < x.size - 1:                       # interior fold: refine by golden section
+        lo, hi = x[i - 1], x[i + 1]
+        g = (math.sqrt(5) - 1) / 2
+        for _ in range(80):
+            a, b = hi - g * (hi - lo), lo + g * (hi - lo)
+            lo, hi = (lo, b) if P_of(a) > P_of(b) else (a, hi)
+        dT_th = 0.5 * (lo + hi)
+        P_th, kind = P_of(dT_th), "fold"
+    elif m > 1:                                  # conduction limit: θ cannot exceed T0/(m-1)
+        dT_th = math.inf
+        P_th, kind = (_power_for(T0 / (m - 1) / R_th, a0, c2, c3) if math.isinf(Ta) else float(Px.max())), "conduction limit"
+    else:
+        dT_th, P_th, kind = math.inf, math.inf, "none"
+    P = float(power)
+    runaway = P > P_th
+    dT = math.nan
+    if not runaway:
+        F = lambda v: float(kirchhoff(v, m, T0)) - R_th * q(v, P)
+        prev = 0.0
+        for v in x[1:]:
+            if F(v) >= 0:
+                lo, hi = prev, v
+                for _ in range(100):
+                    mid = 0.5 * (lo + hi)
+                    lo, hi = (mid, hi) if F(mid) < 0 else (lo, mid)
+                dT = 0.5 * (lo + hi)
+                break
+            prev = v
+    return Result(
+        values={"dT": dT, "dT_no_feedback": R_th * q(0.0, P), "runaway": bool(runaway), "P_threshold": P_th,
+                "dT_threshold": dT_th, "threshold_kind": kind},
+        units={"dT": "K", "dT_no_feedback": "K", "runaway": "", "P_threshold": "W", "dT_threshold": "K", "threshold_kind": ""},
+        assumptions=["Local (input-facet) heating, lumped cross-section: one R' and one conductivity exponent",
+                     "TPA and FCA taken temperature independent; dT = NaN when the power is above threshold",
+                     f"Search up to ΔT = {dT_limit:g} K"],
+    )

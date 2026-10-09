@@ -1,0 +1,450 @@
+<meta charset="utf-8">
+<title>Pump Heating Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: same instrument-panel family as the Fringe Washout Planner. Inputs in a left rail; verdict, cross-section
+   maps, temperature against power and the amplifier profile in the main column. */
+:root {
+  --bg: #eef1f0; --surface: #ffffff; --ink: #142026; --muted: #5a6a6f; --line: #d3dcdc;
+  --accent: #1d5f86; --heat: #b85400; --plain: #8a6f9e; --fb: #1d5f86; --pump: #2f7d4f; --sig: #1d5f86;
+  --bad: #c43d2a; --good: #1f8a4c;
+  --font-display: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+    --accent: #6cb8e6; --heat: #ff9a3d; --plain: #c7a6e0; --fb: #6cb8e6; --pump: #5fd08e; --sig: #6cb8e6; --bad: #ff7a63; --good: #4fd18a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+  --accent: #6cb8e6; --heat: #ff9a3d; --plain: #c7a6e0; --fb: #6cb8e6; --pump: #5fd08e; --sig: #6cb8e6; --bad: #ff7a63; --good: #4fd18a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); padding-inline: 16px; padding-block: 16px 32px; margin: 0; }
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+h1 { font: 700 22px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 80ch; }
+.main { display: grid; grid-template-columns: minmax(270px, 330px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 880px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.rail { display: grid; gap: 12px; }
+fieldset { margin: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 10px 12px 12px; display: grid; gap: 10px; min-width: 0; }
+legend { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+.ctl { display: grid; gap: 3px; }
+.ctl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { font-weight: 500; }
+.ctl output, .mono { font-family: var(--font-data); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; max-width: 100%; }
+.check { display: flex; gap: 6px; align-items: center; font-weight: 500; }
+.check input { accent-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.views { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; display: grid; gap: 8px; position: relative; }
+.panel h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.verdict .big { font: 600 17px/1.35 var(--font-display); text-wrap: balance; }
+.verdict .big .num { font-family: var(--font-data); font-weight: 500; }
+.pill { display: inline-block; font: 600 11px/1 var(--font-body); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 8px; border-radius: 99px; border: 1px solid currentColor; vertical-align: 2px; margin-right: 6px; }
+.pill.good { color: var(--good); } .pill.bad { color: var(--bad); }
+.status { color: var(--muted); font: 12px var(--font-data); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 16px; }
+.stat { display: grid; gap: 1px; }
+.stat span:first-child { color: var(--muted); font-size: 12px; }
+.stat span:last-child { font: 500 15px var(--font-data); font-variant-numeric: tabular-nums; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 680px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+canvas { display: block; width: 100%; max-width: 100%; }
+.chart { aspect-ratio: 4 / 3; }
+.chart.wide { aspect-ratio: 2.4 / 1; }
+@media (max-width: 680px) { .chart.wide { aspect-ratio: 4 / 3; } }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; }
+.sw { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: 3px; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; font: 12px var(--font-data); color: var(--ink); white-space: nowrap; display: none; z-index: 2; }
+details.how { border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; background: var(--surface); }
+details.how summary { cursor: pointer; font-weight: 600; }
+details.how ul { margin: 8px 0 4px; padding-left: 18px; display: grid; gap: 4px; max-width: 95ch; }
+footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
+.hidden { display: none !important; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Pump Heating Planner</h1>
+    <p>How much power a waveguide can carry before absorption heating shifts its index too far or runs away: the cross-section temperature and the mode in it, temperature against power with and without feedback, and the heating along an Er-doped amplifier.</p>
+  </header>
+
+  <div class="main">
+    <div class="rail">
+      <fieldset>
+        <legend>Waveguide</legend>
+        <div class="ctl"><div class="row"><label for="preset">Platform</label></div>
+          <select id="preset">
+            <option value="soi">SOI wire 500 × 220 nm</option>
+            <option value="sin">Si₃N₄ strip 1.6 × 0.8 µm</option>
+            <option value="tfln">TFLN rib (300 nm etch, 600 nm film)</option>
+            <option value="er">Er:Al₂O₃ strip on TFLN</option>
+            <option value="algaas">AlGaAs-on-insulator 600 × 400 nm</option>
+          </select></div>
+        <div class="ctl"><div class="row"><label for="core">Ridge material</label></div><select id="core"></select></div>
+        <div class="ctl"><div class="row"><label for="w">Ridge width</label><output id="wOut"></output></div>
+          <input id="w" type="range" min="0.2" max="4" step="0.01" value="0.5"></div>
+        <div class="ctl"><div class="row"><label for="h">Ridge height</label><output id="hOut"></output></div>
+          <input id="h" type="range" min="0.1" max="1.5" step="0.01" value="0.22"></div>
+        <div class="ctl"><div class="row"><label for="film">Film under the ridge</label></div><select id="film"></select></div>
+        <div class="ctl"><div class="row"><label for="ts">Film thickness</label><output id="tsOut"></output></div>
+          <input id="ts" type="range" min="0" max="1" step="0.01" value="0"></div>
+        <div class="ctl"><div class="row"><label for="tb">Buried oxide</label><output id="tbOut"></output></div>
+          <input id="tb" type="range" min="0.5" max="10" step="0.1" value="2"></div>
+        <div class="ctl"><div class="row"><label for="clad">Cladding</label></div>
+          <select id="clad"><option value="sio2">SiO₂</option><option value="air">air</option><option value="su8">SU-8 / polymer</option><option value="al2o3_film">Al₂O₃ film</option></select></div>
+        <div class="ctl"><div class="row"><label for="lam">Wavelength</label><output id="lamOut"></output></div>
+          <input id="lam" type="range" min="700" max="2100" step="1" value="1550"></div>
+        <div class="ctl"><div class="row"><label for="cpw">Mode grid</label></div>
+          <select id="cpw"><option value="10">coarse (fast)</option><option value="14" selected>medium</option><option value="20">fine (slow)</option></select></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Heat sources</legend>
+        <div class="ctl"><div class="row"><label for="P">Guided power</label><output id="POut"></output></div>
+          <input id="P" type="range" min="-3" max="1" step="0.01" value="-1"></div>
+        <div class="ctl"><div class="row"><label for="abs">Absorbing loss</label><output id="absOut"></output></div>
+          <input id="abs" type="range" min="-3" max="1" step="0.01" value="-1">
+          <p class="hint">Only the absorbing part of the propagation loss heats; scattered light leaves the chip.</p></div>
+        <div class="ctl"><div class="row"><label for="tpa">Two-photon absorption β</label><output id="tpaOut"></output></div>
+          <input id="tpa" type="range" min="0" max="10" step="0.05" value="0.8"></div>
+        <div class="ctl"><div class="row"><label for="tau">Free-carrier lifetime τ</label><output id="tauOut"></output></div>
+          <input id="tau" type="range" min="-12" max="-8" step="0.05" value="-9"></div>
+        <div class="ctl"><div class="row"><label for="Ta">Absorption e-folding temperature T<sub>a</sub></label><output id="TaOut"></output></div>
+          <input id="Ta" type="range" min="1" max="3.01" step="0.01" value="3.01">
+          <p class="hint">α grows as e<sup>ΔT/T<sub>a</sub></sup> (band-edge absorption creeping in). Rightmost: no temperature dependence.</p></div>
+        <div class="ctl"><div class="row"><label for="mk">Conductivity k ∝ T<sup>−m</sup></label><output id="mkOut"></output></div>
+          <input id="mk" type="range" min="-0.5" max="1.5" step="0.05" value="0">
+          <p class="hint">Of the layer that sets the thermal resistance (SiO₂ ≈ −0.2, crystalline Si ≈ 1.3).</p></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Budget</legend>
+        <div class="ctl"><div class="row"><label for="dTmax">Allowed ΔT</label><output id="dTmaxOut"></output></div>
+          <input id="dTmax" type="range" min="0.1" max="50" step="0.1" value="10"></div>
+        <div class="ctl"><div class="row"><label for="dnmax">Allowed |Δn<sub>eff</sub>|</label><output id="dnmaxOut"></output></div>
+          <input id="dnmax" type="range" min="-6" max="-2" step="0.05" value="-4"></div>
+      </fieldset>
+
+      <fieldset id="erBox">
+        <legend>Er amplifier</legend>
+        <label class="check" for="erOn"><input id="erOn" type="checkbox"> Er-doped ridge (strip = doped region)</label>
+        <div class="ctl"><div class="row"><label for="pl">Pump wavelength</label></div>
+          <select id="pl"><option value="980">980 nm</option><option value="1480">1480 nm</option></select></div>
+        <div class="ctl"><div class="row"><label for="Pp">Pump power</label><output id="PpOut"></output></div>
+          <input id="Pp" type="range" min="-2" max="1" step="0.01" value="-0.3"></div>
+        <div class="ctl"><div class="row"><label for="L">Length</label><output id="LOut"></output></div>
+          <input id="L" type="range" min="0.2" max="20" step="0.1" value="3"></div>
+        <div class="ctl"><div class="row"><label for="nEr">Er concentration</label><output id="nErOut"></output></div>
+          <input id="nEr" type="range" min="0.2" max="5" step="0.05" value="1.5"></div>
+        <div class="ctl"><div class="row"><label for="fq">Quenched ions</label><output id="fqOut"></output></div>
+          <input id="fq" type="range" min="0" max="50" step="1" value="0"></div>
+        <div class="ctl"><div class="row"><label for="bg">Background loss (half absorbing)</label><output id="bgOut"></output></div>
+          <input id="bg" type="range" min="0" max="2" step="0.01" value="0.25"></div>
+      </fieldset>
+    </div>
+
+    <div class="views">
+      <section class="panel">
+        <h2>Verdict</h2>
+        <div class="verdict" id="verdict"></div>
+        <div class="stats" id="stats"></div>
+        <div class="status" id="status"></div>
+      </section>
+
+      <div class="duo">
+        <section class="panel">
+          <h2>Temperature rise in the cross-section</h2>
+          <canvas class="chart" id="tMap" aria-label="Temperature rise map around the waveguide"></canvas>
+          <p class="hint" id="tMapHint">ΔT for the heat at the chosen power, light (cool) to dark (hot); outlines: ridge, film and buried oxide. The heat sink is the bottom of the substrate, far below.</p>
+        </section>
+        <section class="panel">
+          <h2>Guided mode |E|²</h2>
+          <canvas class="chart" id="mMap" aria-label="Mode intensity map"></canvas>
+          <p class="hint">Scalar fundamental mode; the absorbed heat is deposited in the ridge in proportion to |E|² (linear absorption) and |E|⁴ (TPA, free carriers).</p>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>Temperature rise against guided power</h2>
+        <canvas class="chart wide" id="pChart" aria-label="Temperature rise versus power"></canvas>
+        <div class="tip" id="pTip"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--plain)"></i>without feedback (ΔT = R′ q′)</span>
+          <span><i class="sw" style="background:var(--fb)"></i>with absorption and conductivity feedback</span>
+          <span><i class="sw" style="background:var(--bad)"></i>ΔT budget and runaway threshold</span>
+        </div>
+        <p class="hint">Mode-weighted ΔT at the input (undepleted power). Linear absorption gives slope 1, TPA slope 2, free carriers slope 3 on these log axes. The feedback curve ends where no steady state exists: thermal runaway.</p>
+      </section>
+
+      <section class="panel" id="erPanel">
+        <h2>Er amplifier: heating along z</h2>
+        <canvas class="chart wide" id="zChart" aria-label="Temperature rise along the amplifier"></canvas>
+        <div class="tip" id="zTip"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--heat)"></i>ΔT(z)</span>
+          <span id="zNote"></span>
+        </div>
+        <p class="hint">Two-level Er model with the overlaps of this cross-section (signal at 1532 nm, pump at the chosen wavelength), sputtered Al₂O₃:Er cross-sections (σ<sub>a</sub>(1532) = 5.7×10⁻²¹ cm², τ = 7.5 ms, C<sub>up</sub> = 4×10⁻¹⁸ cm³/s, 80 % radiative). Heat = absorbed − radiated: quantum defect, non-radiative decay, upconversion, quenched ions, and half of the background loss.</p>
+      </section>
+
+      <details class="how">
+        <summary>How it is computed</summary>
+        <ul>
+          <li><b>Cross-section heat flow</b>: 2D finite volumes on a graded grid, substrate 500 µm thick with its bottom held at ambient, adiabatic sides at ±500 µm, nearly adiabatic top. The waveguide is long, so heat flows in the cross-section only (heat flow along z smooths features shorter than about the BOX thickness).</li>
+          <li><b>Mode</b>: scalar finite-volume mode with every interface on a grid line; Γ<sub>r</sub> = (n<sub>r</sub>/n<sub>eff</sub>) ∫<sub>r</sub>|E|² / ∫|E|² and Δn<sub>eff</sub> = ∫ n (dn/dT) ΔT |E|² / (n<sub>eff</sub> ∫|E|²). High-contrast Si wires: TE and TM differ from the scalar result by up to ~10 %.</li>
+          <li><b>R′<sub>mode</sub></b> is the mode-weighted ΔT per W/m of heat; ΔT in K for 1 mW per mm of waveguide.</li>
+          <li><b>Heat</b>: q′ = α e<sup>ΔT/T<sub>a</sub></sup> P + β P²/A<sub>eff</sub> + σ τ β P³ / (2hν A<sub>eff</sub>²), A<sub>eff</sub> the TPA area of the ridge, σ = 1.45×10⁻²¹ m² (Si). Use β = 0 for wide-gap materials (SiO₂, SiN, LN, AlGaAs with x ≥ 0.18).</li>
+          <li><b>Runaway</b>: θ(ΔT) = ∫k/k₀ dT = R′ q′(ΔT); with k ∝ T<sup>−m</sup> this is exact when one material dominates. The threshold is the largest P for which a solution exists (for linear absorption alone, P<sub>th</sub> = T<sub>a</sub> / (e R′ α)).</li>
+          <li><b>Material data</b>: the thermo_optic LUT (room temperature, 1550 nm). Thin-film conductivities and several dn/dT values are low-confidence; see math-engines/engines/thermo_optic/LUT.md.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+  <footer>Physics: <span class="mono">waveguide-thermal/thermal-engine.js</span>, a JS port of the misc-applets math-engines <span class="mono">thermo_optic</span>, <span class="mono">waveguide_thermal</span> and <span class="mono">amplifier_thermal</span> engines, checked against their test vectors. Cross-section and mode run in a background worker.</footer>
+</div>
+
+<script src="waveguide-thermal/thermal-engine.js"></script>
+<script>
+(function () {
+  'use strict';
+  var E = THERMALENGINE();
+  var $ = function (id) { return document.getElementById(id); };
+  var css = function (v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); };
+  var MATS = ['si', 'si3n4', 'sinx', 'ln_e', 'ln_o', 'lt_e', 'lt_o', 'gaas', 'algaas', 'inp', 'aln', 'al2o3_film', 'sio2', 'tio2_film', 'su8'];
+  ['core', 'film'].forEach(function (id) { MATS.forEach(function (m) { var o = document.createElement('option'); o.value = m; o.textContent = E.entry(m).name; $(id).appendChild(o); }); });
+  var PRESETS = {
+    soi: { core: 'si', film: 'si', w: 0.5, h: 0.22, ts: 0, tb: 2, clad: 'sio2', tpa: 0.8, er: false },
+    sin: { core: 'si3n4', film: 'si3n4', w: 1.6, h: 0.8, ts: 0, tb: 4, clad: 'sio2', tpa: 0, er: false },
+    tfln: { core: 'ln_e', film: 'ln_e', w: 1.2, h: 0.3, ts: 0.3, tb: 4.7, clad: 'air', tpa: 0, er: false },
+    er: { core: 'al2o3_film', film: 'ln_e', w: 2, h: 0.4, ts: 0.3, tb: 4.7, clad: 'air', tpa: 0, er: true },
+    algaas: { core: 'algaas', film: 'algaas', w: 0.6, h: 0.4, ts: 0, tb: 3, clad: 'sio2', tpa: 0, er: false }
+  };
+  function applyPreset() {
+    var p = PRESETS[$('preset').value];
+    $('core').value = p.core; $('film').value = p.film; $('w').value = p.w; $('h').value = p.h; $('ts').value = p.ts; $('tb').value = p.tb;
+    $('clad').value = p.clad; $('tpa').value = p.tpa; $('erOn').checked = p.er;
+  }
+  var fmt = function (v, d) { if (!isFinite(v)) return v > 0 ? '∞' : '–'; var a = Math.abs(v); if (a !== 0 && (a < 1e-3 || a >= 1e5)) return v.toExponential(d == null ? 2 : d); return v.toFixed(d == null ? (a < 1 ? 3 : a < 10 ? 2 : a < 100 ? 1 : 0) : d); };
+  var fmtP = function (W) { return !isFinite(W) ? '∞' : W < 1 ? fmt(W * 1e3) + ' mW' : fmt(W) + ' W'; };
+  function S() {
+    var Ta = +$('Ta').value;
+    return { geo: { core_material: $('core').value, core_width: +$('w').value * 1e-6, core_height: +$('h').value * 1e-6, slab_material: $('film').value,
+        slab_thickness: +$('ts').value * 1e-6, box_material: 'sio2', box_thickness: +$('tb').value * 1e-6, substrate_material: 'si',
+        clad_material: $('clad').value, clad_thickness: $('clad').value === 'air' ? 0 : +$('tb').value * 1e-6 },
+      lam: +$('lam').value * 1e-9, cpw: +$('cpw').value, P: Math.pow(10, +$('P').value), abs: Math.pow(10, +$('abs').value),
+      beta: +$('tpa').value * 1e-11, tau: Math.pow(10, +$('tau').value), Ta: Ta > 3 ? Infinity : Math.pow(10, Ta), mk: +$('mk').value,
+      dTmax: +$('dTmax').value, dnmax: Math.pow(10, +$('dnmax').value), er: $('erOn').checked, pl: +$('pl').value * 1e-9,
+      Pp: Math.pow(10, +$('Pp').value), L: +$('L').value * 1e-2, nEr: +$('nEr').value * 1e26, fq: +$('fq').value / 100, bg: +$('bg').value };
+  }
+  function labels(s) {
+    $('wOut').textContent = fmt(s.geo.core_width * 1e6, 2) + ' µm'; $('hOut').textContent = fmt(s.geo.core_height * 1e6, 2) + ' µm';
+    $('tsOut').textContent = s.geo.slab_thickness > 0 ? fmt(s.geo.slab_thickness * 1e6, 2) + ' µm' : 'none';
+    $('tbOut').textContent = fmt(s.geo.box_thickness * 1e6, 1) + ' µm'; $('lamOut').textContent = Math.round(s.lam * 1e9) + ' nm';
+    $('POut').textContent = fmtP(s.P); $('absOut').textContent = fmt(s.abs) + ' dB/cm'; $('tpaOut').textContent = fmt(s.beta * 1e11, 2) + ' cm/GW';
+    $('tauOut').textContent = s.tau < 1e-9 ? fmt(s.tau * 1e12, 0) + ' ps' : fmt(s.tau * 1e9, 1) + ' ns';
+    $('TaOut').textContent = isFinite(s.Ta) ? fmt(s.Ta, 0) + ' K' : 'off'; $('mkOut').textContent = fmt(s.mk, 2);
+    $('dTmaxOut').textContent = fmt(s.dTmax, 1) + ' K'; $('dnmaxOut').textContent = s.dnmax.toExponential(1);
+    $('PpOut').textContent = fmtP(s.Pp); $('LOut').textContent = fmt(s.L * 100, 1) + ' cm'; $('nErOut').textContent = fmt(s.nEr / 1e26, 2) + '×10²⁰ cm⁻³';
+    $('fqOut').textContent = Math.round(s.fq * 100) + ' %'; $('bgOut').textContent = fmt(s.bg, 2) + ' dB/cm';
+    $('erPanel').classList.toggle('hidden', !s.er);
+  }
+
+  /* ---------- worker: cross-section heat + mode (+ pump mode for the Er overlaps) ---------- */
+  var WORKER_SRC = 'var E=(' + THERMALENGINE.toString() + ')();\n' +
+    'onmessage=function(e){var j=e.data;try{var r=E.modeWeightedHeating(j.geo,j.lam,{cells_per_wavelength:j.cpw,heat_in_mode:true,heat_per_length:1});' +
+    'var out={id:j.id,neff:r.neff,n_group:r.n_group,dneff_dT:r.dneff_dT,R_mode:r.R_th_mode,dT_core:r.dT_core,Gamma_core:r.Gamma_core,' +
+    'm:{x:Array.from(r.mode.x),y:Array.from(r.mode.y),nx:r.mode.nx,ny:r.mode.ny,E:Array.from(r.mode.E),reg:Array.from(r.mode.reg),n:Array.from(r.mode.n),V:Array.from(r.mode.V)},' +
+    'g:{xc:Array.from(r.grid.xc),yc:Array.from(r.grid.yc),nx:r.grid.nx,ny:r.grid.ny,levels:r.grid.levels},T:Array.from(r.T),tau_E:0};' +
+    'if(j.er){var ns=E.indexAt(j.geo.core_material,1.532e-6),ms=E.modeWeightedHeating(j.geo,1.532e-6,{cells_per_wavelength:j.cpw,heat_in_mode:true});' +
+    'var mp=E.ridgeMode(j.geo,j.pl,{cells_per_wavelength:j.cpw});var tp=0,cp=0;for(var i=0;i<mp.E.length;i++){var a=mp.E[i]*mp.E[i]*mp.V[i];tp+=a;if(mp.reg[i]===3)cp+=a;}' +
+    'out.er={Gs:ms.Gamma_core*ms.neff/ns,Gp:cp/tp,R:ms.R_th_mode,dndT:ms.dneff_dT};}postMessage(out);}catch(err){postMessage({id:j.id,error:String(err.message||err)});}};';
+  var worker = null, url = null, busy = false, jobId = 0, lastKey = '', X = null, err = '';
+  function request(s) {
+    var j = { geo: s.geo, lam: s.lam, cpw: s.cpw, er: s.er, pl: s.pl }, key = JSON.stringify(j);
+    if (key === lastKey) { draw(); return; }
+    lastKey = key; j.id = ++jobId;
+    if (worker && busy) { worker.terminate(); worker = null; }
+    if (!worker) {
+      url = url || URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }));
+      worker = new Worker(url);
+      worker.onmessage = function (e) { if (e.data.id !== jobId) return; busy = false; if (e.data.error) { err = e.data.error; X = null; } else { err = ''; X = e.data; } draw(); };
+      worker.onerror = function (e) { busy = false; err = 'worker error: ' + (e.message || ''); draw(); };
+    }
+    busy = true; $('status').textContent = 'Solving the cross-section…'; worker.postMessage(j);
+  }
+
+  /* ---------- physics on the main thread (cheap) ---------- */
+  function aEff(m) { var t = 0, c = 0; for (var i = 0; i < m.E.length; i++) { var a = m.E[i] * m.E[i]; t += a * m.V[i]; if (m.reg[i] === 3) c += a * a * m.V[i]; } return t * t / c; }
+  function sweep(s, A) {
+    var Ps = [], base = [], fb = [], thr = E.thermalRunaway({ R_th: X.R_mode, power: s.P, wavelength: s.lam, a_eff: A, loss_abs_db_per_cm: s.abs, T_scale: s.Ta,
+      beta_tpa: s.beta, carrier_lifetime: s.tau, sigma_fca: 1.45e-21, k_exponent: s.mk, dT_limit: 2000 });
+    for (var i = 0; i <= 60; i++) {
+      var P = Math.pow(10, -4 + 5 * i / 60); Ps.push(P);
+      var r = E.thermalRunaway({ R_th: X.R_mode, power: P, wavelength: s.lam, a_eff: A, loss_abs_db_per_cm: s.abs, T_scale: s.Ta,
+        beta_tpa: s.beta, carrier_lifetime: s.tau, sigma_fca: 1.45e-21, k_exponent: s.mk, dT_limit: 2000 });
+      base.push(r.dT_no_feedback); fb.push(r.runaway ? NaN : r.dT);
+    }
+    return { Ps: Ps, base: base, fb: fb, here: thr };
+  }
+  /* power whose steady (feedback) temperature equals a given ΔT: invert θ(ΔT) = R' q'(ΔT, P); above the fold use the threshold */
+  function budgetPower(s, A, here) {
+    var hnu = 6.62607015e-34 * 299792458 / s.lam, c1 = E.dbToNeper(s.abs), c2 = s.beta / A, c3 = 1.45e-21 * s.tau * s.beta / (2 * hnu * A * A);
+    var at = function (dT) {
+      if (dT >= here.dT_threshold) return here.P_threshold;
+      var p = E.maxPower(c1 * Math.exp(Math.min(dT / s.Ta, 700)), c2, c3, E.kirchhoff(dT, s.mk, 300) / X.R_mode);
+      return Math.min(p, here.P_threshold);
+    };
+    return { pT: at(s.dTmax), pN: at(s.dnmax / Math.abs(X.dneff_dT)) };
+  }
+  /* ---------- drawing ---------- */
+  function fit(c) {
+    var d = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+    if (c.width !== Math.round(w * d) || c.height !== Math.round(h * d)) { c.width = Math.round(w * d); c.height = Math.round(h * d); }
+    var g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, w, h); return [g, w, h];
+  }
+  function hex(c) { c = c.replace('#', ''); return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)]; }
+  function ramp(col) { var a = hex(css('--surface')), b = hex(col); return function (t) { t = Math.max(0, Math.min(1, t)); return [0, 1, 2].map(function (k) { return Math.round(a[k] + (b[k] - a[k]) * Math.pow(t, 0.8)); }); }; }
+  function heatmap(canvas, s, field, col, label, unit, scale) {
+    var f = fit(canvas), g = f[0], W = f[1], Hh = f[2], m = { l: 44, r: 64, t: 8, b: 30 };
+    var geo = s.geo, w2 = geo.core_width / 2, x0 = -(w2 + 2.5e-6), x1 = w2 + 2.5e-6;
+    var yTop = geo.slab_thickness + geo.core_height, y0 = -Math.min(2e-6, geo.box_thickness), y1 = yTop + 1.5e-6;
+    var pw = W - m.l - m.r, ph = Hh - m.t - m.b, sx = pw / (x1 - x0), sy = ph / (y1 - y0), sc = Math.min(sx, sy);
+    var ox = m.l + (pw - (x1 - x0) * sc) / 2, oy = m.t + (ph - (y1 - y0) * sc) / 2;
+    var X2 = function (x) { return ox + (x - x0) * sc; }, Y2 = function (y) { return oy + (y1 - y) * sc; };
+    var nxp = Math.max(2, Math.floor((x1 - x0) * sc / 3)), nyp = Math.max(2, Math.floor((y1 - y0) * sc / 3)), xs = [], ys = [], i, j;
+    for (i = 0; i < nxp; i++) xs.push(x0 + (i + 0.5) * (x1 - x0) / nxp);
+    for (j = 0; j < nyp; j++) ys.push(y1 - (j + 0.5) * (y1 - y0) / nyp);
+    var vals = field(xs, ys), vmax = 0; for (i = 0; i < vals.length; i++) vmax = Math.max(vmax, vals[i]);
+    var R = ramp(col), cw = (x1 - x0) * sc / nxp, ch = (y1 - y0) * sc / nyp;
+    for (j = 0; j < nyp; j++) for (i = 0; i < nxp; i++) { var c = R(vmax > 0 ? vals[j * nxp + i] / vmax : 0); g.fillStyle = 'rgb(' + c + ')'; g.fillRect(X2(x0) + i * cw, Y2(y1) + j * ch, cw + 0.6, ch + 0.6); }
+    g.strokeStyle = css('--ink'); g.lineWidth = 1;
+    g.strokeRect(X2(-w2), Y2(yTop), 2 * w2 * sc, geo.core_height * sc);
+    g.beginPath(); g.moveTo(X2(x0), Y2(0)); g.lineTo(X2(x1), Y2(0)); g.stroke();
+    if (geo.slab_thickness > 0) { g.beginPath(); g.moveTo(X2(x0), Y2(geo.slab_thickness)); g.lineTo(X2(x1), Y2(geo.slab_thickness)); g.stroke(); }
+    g.font = '10.5px ' + css('--font-data'); g.fillStyle = css('--muted'); g.textAlign = 'center'; g.textBaseline = 'top';
+    [x0, 0, x1].forEach(function (v) { g.fillText(fmt(v * 1e6, 1), X2(v), Y2(y0) + 4); });
+    g.fillText('x (µm)', X2(0), Y2(y0) + 16);
+    g.textAlign = 'right'; g.textBaseline = 'middle';
+    [y0, 0, yTop, y1].forEach(function (v) { g.fillText(fmt(v * 1e6, 1), X2(x0) - 4, Y2(v)); });
+    var bx = W - m.r + 14, by = m.t + 10, bh = ph - 20;
+    for (i = 0; i < bh; i++) { var cc = R(1 - i / bh); g.fillStyle = 'rgb(' + cc + ')'; g.fillRect(bx, by + i, 10, 1.2); }
+    g.textAlign = 'left'; g.fillStyle = css('--muted');
+    g.fillText(scale ? fmt(vmax * scale) + ' ' + unit : 'max', bx + 13, by + 4); g.fillText('0', bx + 13, by + bh - 4); g.fillText(label, bx - 4, by - 6);
+  }
+  function lineChart(canvas, tipEl, o) {
+    var f = fit(canvas), g = f[0], W = f[1], Hh = f[2], m = { l: 62, r: 26, t: 10, b: 32 };
+    var lx = o.logx, ly = o.logy, tx = function (v) { return lx ? Math.log10(v) : v; }, ty = function (v) { return ly ? Math.log10(v) : v; };
+    var X2 = function (v) { return m.l + (tx(v) - tx(o.xr[0])) / (tx(o.xr[1]) - tx(o.xr[0])) * (W - m.l - m.r); };
+    var Y2 = function (v) { return Hh - m.b - (ty(v) - ty(o.yr[0])) / (ty(o.yr[1]) - ty(o.yr[0])) * (Hh - m.t - m.b); };
+    g.font = '10.5px ' + css('--font-data'); g.strokeStyle = css('--line'); g.fillStyle = css('--muted'); g.lineWidth = 1;
+    g.textAlign = 'center'; g.textBaseline = 'top';
+    o.xt.forEach(function (t) { g.beginPath(); g.moveTo(X2(t[0]), m.t); g.lineTo(X2(t[0]), Hh - m.b); g.stroke(); g.fillText(t[1], X2(t[0]), Hh - m.b + 4); });
+    g.textAlign = 'right'; g.textBaseline = 'middle';
+    o.yt.forEach(function (t) { g.beginPath(); g.moveTo(m.l, Y2(t[0])); g.lineTo(W - m.r, Y2(t[0])); g.stroke(); g.fillText(t[1], m.l - 5, Y2(t[0])); });
+    g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(o.xl, (m.l + W - m.r) / 2, Hh - 1);
+    g.save(); g.translate(11, (m.t + Hh - m.b) / 2); g.rotate(-Math.PI / 2); g.textBaseline = 'middle'; g.fillText(o.yl, 0, 0); g.restore();
+    g.save(); g.beginPath(); g.rect(m.l, m.t, W - m.l - m.r, Hh - m.t - m.b); g.clip();
+    (o.refs || []).forEach(function (r) {
+      g.strokeStyle = r.color; g.setLineDash([5, 4]); g.lineWidth = 1.5; g.beginPath();
+      if (r.y != null) { g.moveTo(m.l, Y2(r.y)); g.lineTo(W - m.r, Y2(r.y)); } else { g.moveTo(X2(r.x), m.t); g.lineTo(X2(r.x), Hh - m.b); }
+      g.stroke(); g.setLineDash([]);
+    });
+    o.series.forEach(function (sr) {
+      g.strokeStyle = sr.color; g.lineWidth = 2; g.beginPath(); var on = false;
+      for (var i = 0; i < sr.x.length; i++) {
+        var y = sr.y[i]; if (!isFinite(y) || (ly && y <= 0)) { on = false; continue; }
+        var px = X2(sr.x[i]), py = Y2(Math.min(Math.max(y, o.yr[0] * (ly ? 0.5 : 1)), o.yr[1] * 2));
+        if (on) g.lineTo(px, py); else g.moveTo(px, py); on = true;
+      }
+      g.stroke();
+    });
+    (o.marks || []).forEach(function (p) { g.fillStyle = p.color; g.strokeStyle = css('--surface'); g.lineWidth = 2; g.beginPath(); g.arc(X2(p.x), Y2(p.y), 4.5, 0, 2 * Math.PI); g.fill(); g.stroke(); });
+    g.restore();
+    canvas.onmousemove = function (ev) {
+      var r = canvas.getBoundingClientRect(), px = ev.clientX - r.left, sr0 = o.series[0], best = 0, bd = Infinity;
+      for (var i = 0; i < sr0.x.length; i++) { var d = Math.abs(X2(sr0.x[i]) - px); if (d < bd) { bd = d; best = i; } }
+      tipEl.innerHTML = o.tip(best); tipEl.style.display = 'block';
+      tipEl.style.left = Math.min(px + 16, r.width - tipEl.offsetWidth - 4) + 'px'; tipEl.style.top = (ev.clientY - r.top + 10) + 'px';
+    };
+    canvas.onmouseleave = function () { tipEl.style.display = 'none'; };
+  }
+  function decTicks(lo, hi, f) { var t = []; for (var e = Math.ceil(Math.log10(lo) - 1e-9); e <= Math.floor(Math.log10(hi) + 1e-9); e++) t.push([Math.pow(10, e), f(Math.pow(10, e))]); return t; }
+
+  function draw() {
+    var s = S(); labels(s);
+    if (err) { $('status').textContent = 'Error: ' + err; return; }
+    if (!X) return;
+    $('status').textContent = busy ? 'Solving the cross-section…' : 'n_eff = ' + fmt(X.neff, 4) + ' (scalar), n_g = ' + fmt(X.n_group, 3) + ', Γ ridge = ' + fmt(X.Gamma_core, 3);
+    var A = aEff(X.m), sw = sweep(s, A), here = sw.here, b = budgetPower(s, A, here), Pmax = Math.min(b.pT, b.pN, here.P_threshold);
+    var dTnow = here.runaway ? NaN : here.dT, dn = X.dneff_dT * dTnow, ok = !here.runaway && dTnow <= s.dTmax && Math.abs(dn) <= s.dnmax;
+    var lim = here.P_threshold <= Math.min(b.pT, b.pN) ? 'thermal runaway' : b.pN < b.pT ? 'the Δn_eff budget' : 'the ΔT budget';
+    $('verdict').innerHTML = '<div class="big"><span class="pill ' + (ok ? 'good' : 'bad') + '">' + (ok ? 'within budget' : here.runaway ? 'runaway' : 'over budget') + '</span>' +
+      (here.runaway ? 'No steady state at ' + fmtP(s.P) + '.' : 'At ' + fmtP(s.P) + ' the mode warms by <span class="num">' + fmt(dTnow) + ' K</span>, Δn<sub>eff</sub> = <span class="num">' + fmt(dn, 2) + '</span>.') +
+      ' Largest power: <span class="num">' + fmtP(Pmax) + '</span>, set by ' + lim + '.</div>';
+    var st = [['R′ (mode-weighted)', fmt(X.R_mode) + ' K per mW/mm'], ['dn_eff/dT', fmt(X.dneff_dT, 2) + ' /K'], ['Resonance drift dλ/dT', fmt(s.lam * X.dneff_dT / X.n_group * 1e12, 1) + ' pm/K'],
+      ['TPA area A_eff', fmt(A * 1e12, 3) + ' µm²'], ['Heat at this power', fmt(here.dT_no_feedback / X.R_mode) + ' mW/mm'],
+      ['P for ΔT budget', fmtP(b.pT)], ['P for Δn budget', fmtP(b.pN)], ['Runaway threshold', fmtP(here.P_threshold) + (here.threshold_kind === 'conduction limit' ? ' (conduction)' : '')]];
+    $('stats').innerHTML = st.map(function (r) { return '<div class="stat"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>'; }).join('');
+
+    var heatNow = isFinite(dTnow) ? dTnow / Math.max(X.R_mode, 1e-30) : here.dT_no_feedback / X.R_mode;
+    var g = { xc: Float64Array.from(X.g.xc), yc: Float64Array.from(X.g.yc), nx: X.g.nx, ny: X.g.ny, levels: X.g.levels }, T = Float64Array.from(X.T);
+    heatmap($('tMap'), s, function (xs, ys) {
+      return E.gridToMode(g, { x: Float64Array.from(xs), y: Float64Array.from(ys), nx: xs.length, ny: ys.length }, T);
+    }, css('--heat'), 'ΔT', 'K', heatNow);
+    var M = X.m, Ef = Float64Array.from(M.E.map(function (v) { return v * v; }));
+    heatmap($('mMap'), s, function (xs, ys) {
+      var o = new Float64Array(xs.length * ys.length), xa = Float64Array.from(M.x), ya = Float64Array.from(M.y);
+      for (var j = 0; j < ys.length; j++) for (var i = 0; i < xs.length; i++) o[j * xs.length + i] = bil(xa, ya, Ef, xs[i], ys[j]);
+      return o;
+    }, css('--accent'), '|E|²', '(max)', 0);
+
+    var yAll = sw.base.concat(sw.fb).filter(function (v) { return isFinite(v) && v > 0; }), ylo = Math.max(1e-4, Math.min.apply(null, yAll)), yhi = Math.max(s.dTmax * 3, 10);
+    ylo = Math.pow(10, Math.floor(Math.log10(Math.max(ylo, 1e-4))));
+    lineChart($('pChart'), $('pTip'), { logx: true, logy: true, xr: [1e-4, 10], yr: [ylo, yhi], xl: 'guided power', yl: 'ΔT (K)',
+      xt: decTicks(1e-4, 10, fmtP), yt: decTicks(ylo, yhi, function (v) { return fmt(v); }),
+      series: [{ x: sw.Ps, y: sw.base, color: css('--plain') }, { x: sw.Ps, y: sw.fb, color: css('--fb') }],
+      refs: [{ y: s.dTmax, color: css('--bad') }].concat(isFinite(here.P_threshold) && here.P_threshold < 10 ? [{ x: here.P_threshold, color: css('--bad') }] : []),
+      marks: isFinite(dTnow) ? [{ x: s.P, y: dTnow, color: css('--fb') }] : [],
+      tip: function (i) { return fmtP(sw.Ps[i]) + ' · ' + fmt(sw.base[i]) + ' K → ' + (isFinite(sw.fb[i]) ? fmt(sw.fb[i]) + ' K' : 'runaway'); } });
+
+    if (s.er && X.er) {
+      var r = E.erAmplifierHeating({ pump_power: s.Pp, length: s.L, R_th: X.er.R, dneff_dT: X.er.dndT, pump_wavelength: s.pl,
+        sigma_a_pump: s.pl < 1.2e-6 ? 1.7e-25 : 2.5e-25, sigma_e_pump: s.pl < 1.2e-6 ? 0 : 0.8e-25, n_er: s.nEr, quenched_fraction: s.fq,
+        gamma_pump: X.er.Gp, gamma_signal: X.er.Gs, doped_area: s.geo.core_width * s.geo.core_height, loss_db_per_cm: s.bg, n_z: 200 });
+      var zm = Array.from(r.z).map(function (v) { return v * 100; }), dTz = Array.from(r.dT), mx = Math.max.apply(null, dTz.concat([1e-6]));
+      $('zNote').textContent = 'gain ' + fmt(r.gain_dB, 1) + ' dB · heat ' + fmt(r.heat_total * 1e3, 1) + ' mW (' + fmt(r.heat_fraction * 100, 0) + ' % of the pump lost) · Γ signal/pump ' + fmt(X.er.Gs, 2) + '/' + fmt(X.er.Gp, 2) + ' · Δn_eff,max ' + fmt(r.dneff_max, 2);
+      var yt = [], st2 = Math.pow(10, Math.floor(Math.log10(mx))) * (mx / Math.pow(10, Math.floor(Math.log10(mx))) > 5 ? 2 : 1);
+      for (var v = 0; v <= mx * 1.15; v += st2) yt.push([v, fmt(v)]);
+      var xt = []; for (var zz = 0; zz <= s.L * 100 + 1e-9; zz += s.L * 100 / 5) xt.push([zz, fmt(zz, 1)]);
+      lineChart($('zChart'), $('zTip'), { xr: [0, s.L * 100], yr: [0, mx * 1.15], xl: 'z (cm)', yl: 'ΔT (K)', xt: xt, yt: yt,
+        series: [{ x: zm, y: dTz, color: css('--heat') }],
+        tip: function (i) { return 'z ' + fmt(zm[i], 2) + ' cm · ΔT ' + fmt(dTz[i]) + ' K · pump ' + fmtP(r.P_pump[i]) + ' · N₂/N ' + fmt(r.inversion[i], 2); } });
+    }
+  }
+  function bil(xs, ys, F, x, y) {
+    var nx = xs.length, ny = ys.length; if (x < xs[0] || x > xs[nx - 1] || y < ys[0] || y > ys[ny - 1]) return 0;
+    var i = 0, j = 0; while (i < nx - 2 && xs[i + 1] < x) i++; while (j < ny - 2 && ys[j + 1] < y) j++;
+    var tx = (x - xs[i]) / (xs[i + 1] - xs[i]), ty = (y - ys[j]) / (ys[j + 1] - ys[j]);
+    return (1 - ty) * ((1 - tx) * F[j * nx + i] + tx * F[j * nx + i + 1]) + ty * ((1 - tx) * F[(j + 1) * nx + i] + tx * F[(j + 1) * nx + i + 1]);
+  }
+  var timer = null;
+  function update() { clearTimeout(timer); timer = setTimeout(function () { var s = S(); labels(s); request(s); }, 120); }
+  $('preset').addEventListener('change', function () { applyPreset(); update(); });
+  document.querySelectorAll('.rail input, .rail select').forEach(function (el) { if (el.id !== 'preset') el.addEventListener('input', update); });
+  window.addEventListener('resize', function () { draw(); });
+  applyPreset(); update();
+})();
+</script>

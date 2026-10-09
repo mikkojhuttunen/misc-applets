@@ -127,11 +127,10 @@ def test_soi_thermal_bandwidth_order():
 def test_wide_strip_mode_approaches_slab_te():
     from engines.slab_waveguide.engine import neff_three_layer
     m = wt.ridge_mode(core_material="si3n4", core_width=12e-6, core_height=0.4e-6, clad_material="sio2",
-                      cells_per_wavelength=12)
+                      cells_per_wavelength=24)
     n_c, n_s = to.index_at("si3n4", 1.55e-6), to.index_at("sio2", 1.55e-6)
     slab = neff_three_layer(1.55e-6, n_s, n_c, n_s, 0.4e-6, "TE", 0)
-    assert m["neff"] == pytest.approx(slab, abs=3e-3)
-    assert m["neff"] < slab
+    assert m["neff"] == pytest.approx(slab, abs=2e-3)       # lateral confinement lowers it by ~1e-3
 
 
 def test_mode_gamma_sum_rule():
@@ -162,3 +161,86 @@ def test_mode_weighted_tfln_rib_sees_cooler_film():
     assert r["Gamma_slab"] > 0.3
     hot = wt.mode_weighted_heating(heat_in_mode=True, **g)
     assert hot["dT_mode"] > 0
+
+
+def test_self_consistent_matches_reduced_runaway_model():
+    Rm = wt.mode_weighted_heating(heat_in_mode=True, cells_per_wavelength=16)["R_th_mode"]
+    red = to.thermal_runaway(R_th=Rm, power=0.1, loss_abs_db_per_cm=1.0, T_scale=20.0)
+    P = 0.5 * red["P_threshold"]
+    sc = wt.self_consistent_heating(power=P, loss_abs_db_per_cm=1.0, T_scale=20.0, cells_per_wavelength=16)
+    assert sc["converged"] and not sc["runaway"]
+    assert sc["dT_absorption"] == pytest.approx(to.thermal_runaway(R_th=Rm, power=P, loss_abs_db_per_cm=1.0, T_scale=20.0)["dT"], rel=0.01)
+    hot = wt.self_consistent_heating(power=1.3 * red["P_threshold"], loss_abs_db_per_cm=1.0, T_scale=20.0, cells_per_wavelength=16)
+    assert hot["runaway"]
+
+
+def test_thermal_lens_first_order_and_confinement():
+    sc = wt.self_consistent_heating(power=3.0, loss_abs_db_per_cm=1.0, cells_per_wavelength=16)
+    assert sc["converged"]
+    assert sc["dneff"] == pytest.approx(sc["dneff_first_order"], rel=1e-3)
+    assert sc["a_eff"] < sc["a_eff0"]                       # positive dn/dT in the hot core focuses the mode
+
+
+def test_uniform_conductivity_exponent_is_kirchhoff():
+    # same exponent everywhere and an isothermal sink: θ = ∫k/k0 dT solves the linear problem exactly
+    kw = dict(power=8.0, loss_abs_db_per_cm=1.0, cells_per_wavelength=12, h_top=0.0)
+    lin = wt.self_consistent_heating(**kw)
+    m = 0.6
+    nl = wt.self_consistent_heating(k_exponent_core=m, k_exponent_box=m, k_exponent_substrate=m, k_exponent_clad=m,
+                                    k_exponent_slab=m, **kw)
+    assert nl["dT_core"] == pytest.approx(float(to.kirchhoff_inverse(lin["dT_core"], m)), rel=0.01)
+    assert nl["dT_core"] > lin["dT_core"]
+
+
+def test_axial_transfer_against_bessel_image_solution():
+    # buried square (side a) at height d over an isothermal plane, homogeneous medium, heat ∝ cos(κz):
+    # R(κ) = [K0(κ r_e) - K0(2 d κ) + 1/4] / (2π k), r_e = 0.5902 a
+    from scipy.special import k0
+    a = 0.4e-6
+    geo = dict(core_material="sio2", slab_material="sio2", box_material="sio2", substrate_material="sio2", clad_material="sio2",
+               core_width=a, core_height=a, substrate_thickness=1e-6, box_thickness=9e-6, clad_thickness=300e-6,
+               domain_half_width=300e-6)
+    d, re, k = 10e-6 + a / 2, 0.5902 * a, to.entry("sio2")["k"]
+    for kd in (0.3, 1.0, 3.0):
+        kap = kd / d
+        assert wt.axial_transfer(kap, **geo) == pytest.approx((k0(kap * re) - k0(2 * d * kap) + 0.25) / (2 * math.pi * k), rel=0.03)
+
+
+def test_temperature_along_z_limits():
+    z = np.linspace(0, 0.01, 1001)
+    r = wt.temperature_along_z(z, np.ones_like(z))
+    assert r["dT"][500] == pytest.approx(r["R0"], rel=1e-3)          # uniform heating: the 2D result
+    assert 0.3e-6 < r["axial_length"] < 10e-6                        # SOI: heat spreads along z over ~µm
+    q = np.exp(-((z - 0.005) / 2e-6) ** 2)                           # a 2 µm hot spot is smoothed
+    s = wt.temperature_along_z(z, q, ends="infinite")
+    assert s["dT_max"] < 0.8 * s["dT_local_max"]
+    zz = np.linspace(0, 0.01, 2001)                                  # energy: ∫ΔT/R0 over a long uniform segment ≈ ∫q
+    w = wt.temperature_along_z(zz, (zz > 0.004) & (zz < 0.006), ends="infinite")
+    assert np.sum(w["dT"]) == pytest.approx(np.sum(w["dT_local"]), rel=0.02)
+
+
+def test_heater_pi_power_soi_and_sin():
+    # published SOI heaters (oxide-clad, no undercut): P_π ≈ 20-30 mW; thick SiN: ~100-300 mW
+    soi = wt.heater_tuning(cells_per_wavelength=14)
+    assert 0.012 < soi["P_pi"] < 0.035
+    sin = wt.heater_tuning(core_material="si3n4", core_width=1.6e-6, core_height=0.8e-6, box_thickness=4e-6,
+                           clad_thickness=4e-6, cells_per_wavelength=14)
+    assert 0.06 < sin["P_pi"] < 0.3
+    far = wt.heater_tuning(heater_gap=2e-6, cells_per_wavelength=14)
+    assert far["P_pi"] > soi["P_pi"]
+
+
+def test_heater_crosstalk_falls_with_pitch():
+    a = wt.heater_tuning(pitch=5e-6, cells_per_wavelength=14)["crosstalk"]
+    b = wt.heater_tuning(pitch=20e-6, cells_per_wavelength=14)["crosstalk"]
+    assert 0 < b < a < 1
+
+
+def test_athermal_sin_under_polymer():
+    r = wt.athermal_design(parameter="core_height", lower=0.1e-6, upper=0.6e-6, tol=5e-9, core_material="si3n4",
+                           core_width=1.2e-6, clad_material="su8", cells_per_wavelength=14)
+    assert r["found"]
+    assert r["dlambda_dT_lower"] < 0 < r["dlambda_dT_upper"]
+    assert abs(r["dlambda_dT"]) < 0.5e-12
+    none = wt.athermal_design(lower=0.3e-6, upper=0.6e-6, tol=5e-8, cells_per_wavelength=12)   # Si wire, oxide clad
+    assert not none["found"]

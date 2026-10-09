@@ -182,3 +182,24 @@ def test_si_free_carrier_index_soref():
     assert to.si_free_carrier_index(1e24) == pytest.approx(-(8.8e-4 + 8.5e-18 * 1e18**0.8), rel=1e-9)
     r = to.absorbed_heat(0.1, carrier_lifetime=1e-9, beta_tpa=8e-12, sigma_fca=1.45e-21)
     assert r["dn_fc_si"] < 0
+
+
+def test_runaway_fold_analytic():
+    # linear absorption α e^(ΔT/Ta), constant k: P_th = Ta / (e R α) at ΔT = Ta
+    a = float(to.db_per_cm_to_per_m(1.0))
+    r = to.thermal_runaway(R_th=0.5, power=0.1, loss_abs_db_per_cm=1.0, T_scale=50.0)
+    assert r["P_threshold"] == pytest.approx(50 / (math.e * 0.5 * a), rel=1e-6)
+    assert r["dT_threshold"] == pytest.approx(50.0, rel=1e-4)
+    # stable branch: ΔT = R α P e^(ΔT/Ta)
+    assert r["dT"] == pytest.approx(0.5 * a * 0.1 * math.exp(r["dT"] / 50), rel=1e-9)
+    assert to.thermal_runaway(R_th=0.5, power=1.01 * r["P_threshold"], loss_abs_db_per_cm=1.0, T_scale=50.0)["runaway"]
+
+
+def test_runaway_conduction_limit_and_kirchhoff():
+    a = float(to.db_per_cm_to_per_m(1.0))
+    r = to.thermal_runaway(R_th=0.5, power=5.0, loss_abs_db_per_cm=1.0, k_exponent=1.3)
+    assert r["P_threshold"] == pytest.approx(300 / 0.3 / (0.5 * a), rel=1e-9)
+    assert r["dT"] == pytest.approx(to.kirchhoff_inverse(0.5 * a * 5.0, 1.3), rel=1e-6)
+    for m in (-0.2, 0.5, 1.0, 1.3):
+        assert to.kirchhoff_inverse(to.kirchhoff(37.0, m), m) == pytest.approx(37.0, rel=1e-9)
+    assert to.thermal_runaway(power=1.0)["threshold_kind"] == "none"

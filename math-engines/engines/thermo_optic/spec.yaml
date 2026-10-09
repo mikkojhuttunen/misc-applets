@@ -1,5 +1,5 @@
 engine: thermo_optic
-version: 2
+version: 3
 title: Thermo-optic LUT, absorbed heat and pump budget
 description: Look-up table of dn/dT, thermal conductivity, heat capacity, expansion, band gap and TPA for Si, SiO2, Si3N4, SiNx, TFLN, TFLT, GaAs, AlGaAs, InP, AlN, Al2O3, TiO2, polymer and air; index and slab-mode thermal shifts, heat from linear absorption, TPA, free carriers and quantum defect, closed-form waveguide thermal resistance, and the largest power that keeps ΔT and Δn_eff in budget.
 references:
@@ -154,3 +154,24 @@ functions:
       - {name: P_max_dT, label: "Max power for ΔT_max", ui_unit: mW, scale: 1.0e-3}
       - {name: P_max_dn, label: "Max power for Δn_max", ui_unit: mW, scale: 1.0e-3}
       - {name: P_max, label: "Max power (both limits)", ui_unit: mW, scale: 1.0e-3}
+  thermal_runaway:
+    title: Thermal runaway (lumped)
+    equations: ["θ(ΔT) = R' [α e^(ΔT/T_a) P + β P²/A_eff + FCA]", "θ = ∫k/k0 dT, k ∝ T^-m", "P_th: fold of P(ΔT); linear case P_th = T_a/(e R' α)"]
+    inputs:
+      - {name: R_th, label: "Thermal resistance R'", ui_unit: K m/W, scale: 1.0, default: 0.5, min: 0}
+      - {name: power, label: "Guided power", ui_unit: mW, scale: 1.0e-3, default: 100, min: 0}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 200}
+      - {name: a_eff, label: "Effective area A_eff", ui_unit: µm², scale: 1.0e-12, default: 0.1, min: 0}
+      - {name: loss_abs_db_per_cm, label: "Absorbing loss at room temperature", ui_unit: dB/cm, scale: 1.0, default: 1, min: 0}
+      - {name: T_scale, label: "e-folding temperature of the absorption", ui_unit: K, scale: 1.0, default: 50, min: 0}
+      - {name: beta_tpa, label: "TPA coefficient β", ui_unit: cm/GW, scale: 1.0e-11, default: 0, min: 0}
+      - {name: carrier_lifetime, label: "Free-carrier lifetime τ", ui_unit: ns, scale: 1.0e-9, default: 0, min: 0}
+      - {name: sigma_fca, label: "FCA cross-section σ", ui_unit: 1e-21 m², scale: 1.0e-21, default: 1.45, min: 0}
+      - {name: k_exponent, label: "k ∝ T^-m: m", ui_unit: "", scale: 1.0, default: 0}
+    outputs:
+      - {name: dT, label: "Steady ΔT (NaN above threshold)", ui_unit: K, scale: 1.0}
+      - {name: dT_no_feedback, label: "ΔT without feedback", ui_unit: K, scale: 1.0}
+      - {name: runaway, label: "Runaway at this power", ui_unit: "", scale: 1.0}
+      - {name: P_threshold, label: "Runaway threshold", ui_unit: mW, scale: 1.0e-3}
+      - {name: dT_threshold, label: "ΔT at the threshold", ui_unit: K, scale: 1.0}
+      - {name: threshold_kind, label: "Threshold type", ui_unit: "", scale: 1.0}

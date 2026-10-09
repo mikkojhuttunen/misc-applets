@@ -22,29 +22,29 @@ Done: `thermo_optic` (LUT, Δn, slab dn_eff/dT, heat sources, closed-form R′, 
 
 ## 3. Thermal solver
 - [x] Optical-mode-weighted temperature and heat ∝ |E|² in the ridge (`mode_weighted_heating`, scalar FV mode solver). Still open: semi-vectorial/vectorial TE/TM modes (Si wires differ by up to ~10 %).
-- [ ] Self-consistent loop: T → n(T) → mode → absorption/overlap → heat → T (thermal lensing, mode shift, thermal runaway in Si with FCA).
+- [x] Self-consistent loop T → n(T) → mode → heat → k(T) → T (`self_consistent_heating`): thermal lens (exact vs first-order Δn_eff, A_eff, centroid) and runaway; lumped threshold model `thermo_optic.thermal_runaway` (absorption e^(ΔT/T_a), k ∝ T^-m via the Kirchhoff transform), agreeing with the 2D loop to 1 %. Still open: temperature-dependent TPA/FCA lifetime, runaway dynamics in time.
 - [x] Transient solver: step response (backward Euler) and exact frequency response, f₃dB (`ridge_dynamics`). Still open: arbitrary pulse trains.
-- [ ] 3D / quasi-3D: q′(z) along the waveguide with axial conduction; finite chip size, heat sink and package (thermal paste, TEC), top convection.
-- [ ] Neighbouring heaters and waveguides (thermal crosstalk), heater design (metal heater above cladding: efficiency in mW/π).
-- [ ] Temperature-dependent k in the solver (Kirchhoff transform or iteration).
-- [ ] JS port of `solve_heat` / `ridge_heating` (Web Worker) for the applets, checked against `test_vectors/vectors.json`.
+- [x] Axial heat flow: exact R(κ) by Fourier transform along z and ΔT(z) for any q′(z) (`axial_transfer`, `temperature_along_z`). Result: the axial length is ~µm, so the local 2D R′ is accurate for amplifiers. Still open: package and heat-sink models (thermal paste, TEC), finite chip width.
+- [x] Heater P_π and thermal crosstalk at a given pitch (`heater_tuning`). Still open: isolation trenches and undercut, the heater metal's own conductance.
+- [x] Temperature-dependent k per region (iteration in `self_consistent_heating`; checked against the Kirchhoff transform for a uniform exponent).
+- [x] JS port `waveguide-thermal/thermal-engine.js` (heat solve, scalar mode, mode-weighted heating, runaway, Er heating, QPM, ring), worker-friendly, checked against the `thermal` vectors. Not ported: self-consistent loop, dynamics, axial transfer, heater, athermal design.
 
 ## 4. Optical consequences and limits
 - [x] QPM temperature acceptance in TFLN and the chirped Δk from z-dependent heating, with and without retuning (`qpm_thermal`). Still open: TFLT (needs a temperature Sellmeier for LT), waveguide n_eff instead of bulk, high-gain OPA.
 - [x] Ring thermal bistability threshold and on-resonance heating (`ring_thermal_bistability`). Still open: thermal locking dynamics, OPO threshold shift.
 - [ ] MZI and grating devices: phase drift vs pump power, Bragg-wavelength drift of DBR mirrors (`bragg_grating`).
 - [ ] Gain-spectrum shift of Er with temperature (cross-section temperature dependence) for the Er amplifier.
-- [x] Mode-dependent dn_eff/dT for channel waveguides (Γ_r per region from the 2D mode). Still open: athermal-design helper (cladding thickness to null dλ/dT).
+- [x] Mode-dependent dn_eff/dT for channel waveguides (Γ_r per region from the 2D mode). Athermal design helper `athermal_design` (bisection on width, height, film or BOX thickness for dλ/dT = 0).
 - [ ] Damage and stability thresholds: photorefraction (LN at visible pumps), polymer/SU-8 degradation temperature, Er clustering.
 
 ## 5. Front end
-- [ ] Applet "Pump heating planner": pick platform and geometry, see R′, ΔT(z), Δn_eff, phase-matching/resonance detuning and P_max for each limit; LUT browser with ranges and sources.
-- [ ] Hook into `er-waveguide-amplifier.html`: show the input-facet temperature rise and the thermal pump limit next to the gain results.
+- [x] `pump-heating-planner.html`: platform presets and geometry; cross-section ΔT and mode maps; R′, dn_eff/dT, dλ/dT; ΔT against power with feedback up to the runaway threshold; P_max from the ΔT and Δn budgets; Er amplifier ΔT(z). Still open: QPM and ring panels, LUT browser with ranges and sources.
+- [x] `er-waveguide-amplifier.html`: a peak-heating tile computed from the applet's own per-cell rate equations (heat = absorbed − radiated + absorbing background) with the closed-form R′. Still open: a thermal pump limit and ΔT(z) plot there.
 - [x] Worked-example script `examples/pump_heating.py` (Er:Al₂O₃ on TFLN at 980/1480 nm, Si and AlGaAs wires, TFLN OPA, SiN ring). The engines are in `web/engines_index.json`; the Pyodide page itself has not been tried with them.
 
 ## 6. Validation
 - [x] PPLN 1550 nm SHG acceptance against a measured 40 mm waveguide (1.98 K, arXiv:2607.13215): model ~10 K·cm, within ~20 %.
-- [ ] Compare solver R′ and τ with published heater efficiencies (SOI ~20–25 mW/π, TFLN ~ 100s mW/π without undercut) and measured self-heating resonance shifts.
+- [x] Heater P_π against published values: SOI 19 mW (published 20–25 mW), thick SiN ~120 mW. Still open: measured self-heating resonance shifts, TFLN heaters.
 - [ ] Cross-check against an independent FEM (e.g. FEniCS/Elmer) for one SOI, one TFLN and one SiN cross-section.
 
 ## Findings so far (examples/pump_heating.py)

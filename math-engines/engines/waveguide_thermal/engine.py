@@ -95,8 +95,9 @@ REGIONS = ("substrate", "box", "slab", "core", "clad")
 def build_ridge(core_material="si", core_width=0.5e-6, core_height=0.22e-6, slab_material="si", slab_thickness=0.0,
                 box_material="sio2", box_thickness=2e-6, substrate_material="si", substrate_thickness=500e-6,
                 clad_material="sio2", clad_thickness=2e-6, domain_half_width=500e-6, k_core=None, k_slab=None, k_box=None,
-                k_substrate=None, k_clad=None, resolution=1.0) -> dict:
-    """Graded grid (half domain x >= 0), region map (index into REGIONS), materials, k and ρc_p per cell."""
+                k_substrate=None, k_clad=None, resolution=1.0, x_breaks=(), y_breaks=()) -> dict:
+    """Graded grid (half domain x >= 0), region map (index into REGIONS), materials, k and ρc_p per cell.
+    x_breaks, y_breaks: extra grid lines (y measured from the substrate bottom), e.g. the edges of a heater."""
     require_positive(core_width=core_width, core_height=core_height, box_thickness=box_thickness,
                      substrate_thickness=substrate_thickness, domain_half_width=domain_half_width, resolution=resolution)
     require_nonnegative(slab_thickness=slab_thickness, clad_thickness=clad_thickness)
@@ -117,8 +118,9 @@ def build_ridge(core_material="si", core_width=0.5e-6, core_height=0.22e-6, slab
     h_f = min(feats) / (6 * resolution)
     h_f = max(h_f, min(w2, hc) / (12 * resolution))
     growth = 0.15 / resolution
-    xe = graded_axis([0.0, w2, domain_half_width], 0.0, w2, min(h_f, w2 / 4), growth)
-    ye = graded_axis([0.0, H, y_box, y_film, y_core, y_top], y_box, y_core, h_f, growth)
+    xe = graded_axis([0.0, w2, domain_half_width, *[v for v in x_breaks if 0 < v < domain_half_width]], 0.0, w2,
+                     min(h_f, w2 / 4), growth)
+    ye = graded_axis([0.0, H, y_box, y_film, y_core, y_top, *[v for v in y_breaks if 0 < v < y_top]], y_box, y_core, h_f, growth)
     xc, yc = 0.5 * (xe[1:] + xe[:-1]), 0.5 * (ye[1:] + ye[:-1])
     X, Y = np.meshgrid(xc, yc)
     reg = np.full(X.shape, REGIONS.index("clad"))
@@ -138,7 +140,7 @@ def build_ridge(core_material="si", core_width=0.5e-6, core_height=0.22e-6, slab
 def _geometry(kwargs):
     keys = ("core_material", "core_width", "core_height", "slab_material", "slab_thickness", "box_material", "box_thickness",
             "substrate_material", "substrate_thickness", "clad_material", "clad_thickness", "domain_half_width", "k_core",
-            "k_slab", "k_box", "k_substrate", "k_clad", "resolution")
+            "k_slab", "k_box", "k_substrate", "k_clad", "resolution", "x_breaks", "y_breaks")
     return {k: v for k, v in kwargs.items() if k in keys}
 
 
@@ -275,13 +277,14 @@ def ridge_dynamics(core_material="si", core_width=0.5e-6, core_height=0.22e-6, s
 
 def ridge_mode(wavelength=1.55e-6, core_material="si", core_width=0.5e-6, core_height=0.22e-6, slab_material="si",
                slab_thickness=0.0, box_material="sio2", box_thickness=2e-6, clad_material="sio2", clad_thickness=2e-6,
-               margin=1.5e-6, cells_per_wavelength=24, al_fraction=0.20, indices=None, h=None):
+               margin=1.5e-6, cells_per_wavelength=24, al_fraction=0.20, indices=None, h=None, delta_n=None):
     """Fundamental scalar (Helmholtz) mode of the ridge on a uniform grid in a window around it (field 0 at the
     window edge; the substrate is outside the window, i.e. leakage into it is neglected).
 
     Returns dict with x, y (cell centres, full width), E (normalised field), n map, region map, n_eff.
     indices: optional {region: n} override (otherwise thermo_optic.index_at for each region's material).
-    h: grid step (default from cells_per_wavelength); keep it fixed when differencing over wavelength."""
+    h: grid step (default from cells_per_wavelength); keep it fixed when differencing over wavelength.
+    delta_n: optional index change per cell on this grid (same h), e.g. the thermo-optic Δn of a computed ΔT."""
     from scipy.sparse import coo_matrix, diags
     from scipy.sparse.linalg import eigsh
 
@@ -289,7 +292,7 @@ def ridge_mode(wavelength=1.55e-6, core_material="si", core_width=0.5e-6, core_h
     n_of = {r: (indices[r] if indices and r in indices else _to.index_at(m, wavelength, al_fraction)) for r, m in mats.items()}
     w2, ts, hc = core_width / 2, slab_thickness, core_height
     y_film, y_core = ts, ts + hc                      # y = 0 at the BOX top
-    n_max = max(n_of.values())
+    n_max = max(v for r, v in n_of.items() if r != "slab" or ts > 0)
     if h is None:
         h = min(wavelength / (n_max * cells_per_wavelength), hc / 6, (ts / 3 if ts > 0 else hc / 6), w2 / 6)
 
@@ -314,6 +317,8 @@ def ridge_mode(wavelength=1.55e-6, core_material="si", core_width=0.5e-6, core_h
         reg[(Y > 0) & (Y < y_film)] = REGIONS.index("slab")
     reg[(Y > y_film) & (Y < y_core) & (np.abs(X) < w2)] = REGIONS.index("core")
     n = np.array([n_of.get(r, 1.0) for r in REGIONS])[reg]
+    if delta_n is not None:
+        n = n + delta_n
     k0 = 2 * np.pi / wavelength
     # finite volumes: Σ_faces (face/dist)(E_j - E_i) + k² n² E_i V_i = β² V_i E_i, E = 0 half a cell outside the window
     idx = np.arange(nx * ny).reshape(ny, nx)
@@ -400,3 +405,294 @@ def mode_weighted_heating(heat_per_length=1.0, wavelength=1.55e-6, heat_in_mode=
                      "First-order perturbation in ΔT (no thermal lensing feedback on the mode shape)",
                      "dlambda_dT without substrate expansion; n_group from scalar-mode dispersion incl. material dispersion"],
     )
+
+
+def _grid_to_mode(g, m, T):
+    """Thermal-grid field (half domain) interpolated onto the mode grid (full width, y from the BOX top)."""
+    from scipy.interpolate import RegularGridInterpolator
+
+    xm = np.concatenate([-g["xc"][::-1], g["xc"]])
+    f = RegularGridInterpolator((g["yc"], xm), np.concatenate([T[:, ::-1], T], axis=1), bounds_error=False, fill_value=None)
+    return f(np.stack([(m["Y"] + g["levels"]["y_box"]).ravel(), m["X"].ravel()], axis=-1)).reshape(m["X"].shape)
+
+
+def _mode_to_grid(g, m, F):
+    """Mode-grid field interpolated onto the thermal grid (0 outside the mode window)."""
+    from scipy.interpolate import RegularGridInterpolator
+
+    f = RegularGridInterpolator((m["y"] + g["levels"]["y_box"], m["x"]), F, bounds_error=False, fill_value=0.0)
+    return f(np.stack([g["Y"].ravel(), g["X"].ravel()], axis=-1)).reshape(g["X"].shape)
+
+
+def _dndT_map(m, al_fraction=0.20):
+    return np.array([_to.entry(m["mats"][r], al_fraction)["dn_dT"] if r in m["mats"] else 0.0 for r in REGIONS])[m["reg"]]
+
+
+def self_consistent_heating(power=0.1, wavelength=1.55e-6, loss_abs_db_per_cm=1.0, T_scale=float("inf"), beta_tpa=0.0,
+                            carrier_lifetime=0.0, sigma_fca=0.0, k_exponent_core=0.0, k_exponent_slab=0.0,
+                            k_exponent_box=0.0, k_exponent_substrate=0.0, k_exponent_clad=0.0, T0=300.0,
+                            core_material="si", core_width=0.5e-6, core_height=0.22e-6, slab_material="si",
+                            slab_thickness=0.0, box_material="sio2", box_thickness=2e-6, substrate_material="si",
+                            substrate_thickness=500e-6, clad_material="sio2", clad_thickness=2e-6,
+                            domain_half_width=500e-6, h_top=10.0, margin=1.5e-6, cells_per_wavelength=24,
+                            al_fraction=0.20, relax=1.0, max_iter=60, tol=1e-5, dT_limit=1000.0) -> Result:
+    """Self-consistent heating of a guided mode: thermal lens and thermal runaway.
+
+    Iterate  ΔT → n + (dn/dT)ΔT → mode E → absorbed heat → k(T) → ΔT  until it stops changing:
+      - linear absorption α_abs(T) = α₀ exp(ΔT_abs/T_a) (ΔT_abs: absorption-weighted ridge temperature), deposited ∝ |E|²
+        in the ridge; TPA β P²/A_eff and FCA (σ τ β P³ / (2hν A_eff²)) deposited ∝ |E|⁴, A_eff = (∫E²)² / ∫_ridge E⁴;
+      - k = k₀ (1 + ΔT/T₀)^-m per region (k_exponent_*; crystalline Si m ≈ 1.3, SiO₂ m ≈ -0.2);
+      - the mode is re-solved in the heated index profile (thermal lens), on a fixed grid.
+    runaway = True when ΔT exceeds dT_limit or the iteration keeps growing without converging."""
+    require_positive(wavelength=wavelength, T0=T0, relax=relax, dT_limit=dT_limit)
+    require_nonnegative(power=power, loss_abs_db_per_cm=loss_abs_db_per_cm)
+    if not T_scale > 0:
+        raise ValueError("T_scale must be positive (inf = no temperature dependence)")
+    geo = dict(core_material=core_material, core_width=core_width, core_height=core_height, slab_material=slab_material,
+               slab_thickness=slab_thickness, box_material=box_material, box_thickness=box_thickness, clad_material=clad_material,
+               clad_thickness=clad_thickness)
+    g = build_ridge(substrate_material=substrate_material, substrate_thickness=substrate_thickness,
+                    domain_half_width=domain_half_width, **geo)
+    m0 = ridge_mode(wavelength, margin=margin, cells_per_wavelength=cells_per_wavelength, al_fraction=al_fraction, **geo)
+    h = m0["h"]
+    dndT = _dndT_map(m0, al_fraction)
+    mexp = np.array([{"substrate": k_exponent_substrate, "box": k_exponent_box, "slab": k_exponent_slab,
+                      "core": k_exponent_core, "clad": k_exponent_clad}[r] for r in REGIONS])[g["reg"]]
+    core_m = m0["reg"] == REGIONS.index("core")
+    a0 = float(_to.db_per_cm_to_per_m(loss_abs_db_per_cm))
+    hnu = _to.H_PLANCK * _to.C0 / wavelength
+    P = float(power)
+
+    def mode_numbers(m):
+        E2 = m["E"] ** 2
+        V = m["V"]
+        a_eff = float(np.sum(E2 * V)) ** 2 / float(np.sum(np.where(core_m, E2 * E2 * V, 0.0)))
+        cy = float(np.sum(m["Y"] * E2 * V) / np.sum(E2 * V))
+        return E2, a_eff, cy
+
+    T = np.zeros(g["X"].shape)
+    m = m0
+    hist, converged, runaway, it = [], False, False, 0
+    for it in range(1, int(max_iter) + 1):
+        E2, a_eff, _ = mode_numbers(m)
+        Tm = _grid_to_mode(g, m, T)
+        w_abs = np.where(core_m, E2 * m["V"], 0.0)
+        dT_abs = float(np.sum(Tm * w_abs) / np.sum(w_abs))
+        q_lin = a0 * math.exp(min(dT_abs / T_scale, 700.0)) * P
+        q_nl = beta_tpa * P**2 / a_eff + sigma_fca * carrier_lifetime * beta_tpa * P**3 / (2 * hnu * a_eff**2)
+        w2, w4 = _mode_to_grid(g, m, E2), _mode_to_grid(g, m, E2 * E2)
+        q = (_heat_map(g, q_lin, w2) if q_lin > 0 else 0.0) + (_heat_map(g, q_nl, w4) if q_nl > 0 else 0.0)
+        k = g["k"] * np.power(1 + T / T0, -mexp)
+        T_new, _ = solve_heat(g["xe"], g["ye"], k, q if np.ndim(q) else np.zeros_like(T), h_top)
+        change = float(np.max(np.abs(T_new - T)))
+        T = T + relax * (T_new - T)
+        hist.append(float(T.max()))
+        if not np.all(np.isfinite(T)) or T.max() > dT_limit:
+            runaway = True
+            break
+        if change <= tol * max(float(T.max()), 1e-12):
+            converged = True
+            break
+        m = ridge_mode(wavelength, margin=margin, al_fraction=al_fraction, h=h, delta_n=dndT * _grid_to_mode(g, m0, T), **geo)
+    if not converged and not runaway and len(hist) > 3 and hist[-1] > hist[-2] > hist[-3]:
+        runaway = True
+    E2, a_eff, cy = mode_numbers(m)
+    E20, a_eff0, cy0 = mode_numbers(m0)
+    Tm0 = _grid_to_mode(g, m0, T)
+    first = float(np.sum(m0["n"] * dndT * Tm0 * E20 * m0["V"]) / (m0["neff"] * np.sum(E20 * m0["V"])))
+    core = g["core"]
+    return Result(
+        values={"converged": converged, "runaway": runaway, "iterations": it,
+                "dT_core": float(np.sum(T[core] * g["dA"][core]) / np.sum(g["dA"][core])), "dT_max": float(T.max()),
+                "dT_absorption": dT_abs, "heat_per_length": float(q_lin + q_nl),
+                "neff0": m0["neff"], "neff": m["neff"], "dneff": m["neff"] - m0["neff"], "dneff_first_order": first,
+                "a_eff0": a_eff0, "a_eff": a_eff, "centroid_shift": cy - cy0},
+        units={"converged": "", "runaway": "", "iterations": "", "dT_core": "K", "dT_max": "K", "dT_absorption": "K",
+               "heat_per_length": "W/m", "neff0": "", "neff": "", "dneff": "", "dneff_first_order": "", "a_eff0": "m^2",
+               "a_eff": "m^2", "centroid_shift": "m"},
+        assumptions=["Scalar mode re-solved in the heated index profile on a fixed grid; Picard iteration (under-relaxed by relax)",
+                     "Heat only in the ridge: linear absorption ∝ |E|², TPA/FCA ∝ |E|⁴; TPA, FCA and dn/dT temperature independent",
+                     "k(T) = k₀ (1 + ΔT/T₀)^-m per region; a_eff is the TPA area of the ridge",
+                     "After runaway the returned fields are those of the last iteration, not a steady state"],
+    )
+
+
+def axial_transfer(kappa, core_material="si", core_width=0.5e-6, core_height=0.22e-6, slab_material="si",
+                   slab_thickness=0.0, box_material="sio2", box_thickness=2e-6, substrate_material="si",
+                   substrate_thickness=500e-6, clad_material="sio2", clad_thickness=2e-6, domain_half_width=500e-6,
+                   h_top=10.0, k_core=None, k_slab=None, k_box=None, k_substrate=None, k_clad=None, resolution=1.0):
+    """Thermal resistance R(κ) (K m / W) of the ridge for heat varying along z as cos(κz) (3D, z-invariant structure):
+
+        ∇⊥·(k∇⊥T̂) - k κ² T̂ = -q̂     (Fourier transform along z)
+
+    R(0) is the 2D R'. R(κ) falls once 1/κ is shorter than the distance to the heat sink: heat then also flows along z."""
+    from scipy.sparse import diags
+    from scipy.sparse.linalg import splu
+
+    g = build_ridge(**_geometry(locals()))
+    A, _ = conduction_matrix(g["xe"], g["ye"], g["k"], h_top)
+    dA, core = g["dA"], g["core"]
+    Q = (_heat_map(g, 1.0) * dA).ravel()
+    w = (np.where(core, dA, 0.0) / float(np.sum(dA[core]))).ravel()
+    kd = (g["k"] * dA).ravel()
+    ks = np.atleast_1d(np.asarray(kappa, dtype=float))
+    out = np.array([float(w @ splu((A + diags(kd * kk * kk)).tocsc()).solve(Q)) for kk in ks])
+    return out if np.ndim(kappa) else float(out[0])
+
+
+def temperature_along_z(z, q, ends="adiabatic", n_kappa=48, **geometry) -> Result:
+    """ΔT(z) of the ridge for a heat profile q'(z) (W/m) sampled on a uniform grid z, including heat flow along z.
+
+    ends: "adiabatic" (the chip ends at z[0] and z[-1]: even extension, cosine series) or "infinite" (the waveguide
+    continues unheated beyond both ends: zero padding by four substrate thicknesses on each side). R(κ) from
+    axial_transfer on n_kappa log-spaced points, interpolated in log κ. Compare dT with dT_local = R(0) q'(z)."""
+    z = np.asarray(z, dtype=float)
+    q = np.asarray(q, dtype=float)
+    if z.ndim != 1 or z.size < 3 or q.shape != z.shape:
+        raise ValueError("z and q must be 1D arrays of the same length (>= 3)")
+    dz = float(z[1] - z[0])
+    if not np.allclose(np.diff(z), dz, rtol=1e-6, atol=0):
+        raise ValueError("z must be uniformly spaced")
+    require_choice("ends", ends, ("adiabatic", "infinite"))
+    H = geometry.get("substrate_thickness", 500e-6)
+    if ends == "adiabatic":
+        qe = np.concatenate([q, q[-2:0:-1]])           # even extension, period 2(L)
+        pad = 0
+    else:
+        pad = int(math.ceil(4 * H / dz))
+        qe = np.concatenate([np.zeros(pad), q, np.zeros(pad)])
+    N = qe.size
+    kap = 2 * np.pi * np.fft.rfftfreq(N, d=dz)
+    pos = kap[kap > 0]
+    kk = np.geomspace(pos.min(), pos.max(), int(n_kappa)) if pos.size else np.array([])
+    R0 = axial_transfer(0.0, **geometry)
+    Rk = np.full(kap.shape, R0)
+    if pos.size:
+        Rs = axial_transfer(kk, **geometry)
+        Rk[kap > 0] = np.exp(np.interp(np.log(pos), np.log(kk), np.log(Rs)))
+    Te = np.fft.irfft(np.fft.rfft(qe) * Rk, n=N)
+    T = Te[: z.size] if ends == "adiabatic" else Te[pad: pad + z.size]
+    loc = R0 * q
+    lo, hi = 1.0, 1e10                                  # κ where R(κ) = R(0)/2, bisection in log κ
+    for _ in range(30):
+        mid = math.sqrt(lo * hi)
+        lo, hi = (mid, hi) if axial_transfer(mid, **geometry) > R0 / 2 else (lo, mid)
+    half = math.sqrt(lo * hi)
+    return Result(
+        values={"dT": T, "dT_local": loc, "dT_max": float(T.max()), "dT_local_max": float(loc.max()), "R0": R0,
+                "axial_length": 1 / half},
+        units={"dT": "K", "dT_local": "K", "dT_max": "K", "dT_local_max": "K", "R0": "K m/W", "axial_length": "m"},
+        assumptions=["Linear, z-invariant cross-section (3D by Fourier transform along z), steady state",
+                     "axial_length = 1/κ where R(κ) = R(0)/2: heat profiles varying faster than this are smoothed",
+                     "Heat uniform over the ridge cross-section at each z"],
+    )
+
+
+def heater_tuning(wavelength=1.55e-6, heater_width=2e-6, heater_gap=1e-6, heater_thickness=0.12e-6, pitch=10e-6,
+                  core_material="si", core_width=0.5e-6, core_height=0.22e-6, slab_material="si", slab_thickness=0.0,
+                  box_material="sio2", box_thickness=2e-6, substrate_material="si", substrate_thickness=500e-6,
+                  clad_material="sio2", clad_thickness=2.4e-6, domain_half_width=500e-6, h_top=10.0, margin=1.5e-6,
+                  cells_per_wavelength=20, al_fraction=0.20) -> Result:
+    """Metal heater above the waveguide: power for a π phase shift and thermal crosstalk to a neighbour.
+
+    The heater is a strip (heater_width x heater_thickness) in the cladding, heater_gap above the ridge top, heated
+    uniformly. Δn_eff from the mode-weighted ΔT (first-order, scalar mode). In 2D (long heater) the phase is
+    Δφ = (2π/λ) S P with S = Δn_eff per W/m, so P_π = λ/(2S) does not depend on the heater length.
+    Crosstalk: mode-weighted ΔT of an identical waveguide at x = pitch over that of the tuned one (mode shifted
+    sideways; the neighbour is not in the thermal model). The heater metal's own conductance is neglected."""
+    require_positive(wavelength=wavelength, heater_width=heater_width, heater_gap=heater_gap, heater_thickness=heater_thickness,
+                     pitch=pitch)
+    if clad_material == "air":
+        raise ValueError("the heater sits in a solid cladding")
+    y_rel0 = slab_thickness + core_height + heater_gap
+    clad_thickness = max(clad_thickness, y_rel0 + heater_thickness + 0.3e-6)
+    geo = dict(core_material=core_material, core_width=core_width, core_height=core_height, slab_material=slab_material,
+               slab_thickness=slab_thickness, box_material=box_material, box_thickness=box_thickness, clad_material=clad_material,
+               clad_thickness=clad_thickness)
+    H = substrate_thickness
+    y0 = H + box_thickness + y_rel0
+    g = build_ridge(substrate_material=substrate_material, substrate_thickness=H, domain_half_width=domain_half_width,
+                    x_breaks=(heater_width / 2, pitch - core_width / 2, pitch + core_width / 2),
+                    y_breaks=(y0, y0 + heater_thickness), **geo)
+    mask = (g["X"] < heater_width / 2) & (g["Y"] > y0) & (g["Y"] < y0 + heater_thickness)
+    q = np.where(mask, 0.5 / float(np.sum(g["dA"][mask])), 0.0)          # q' = 1 W/m in total
+    T, _ = solve_heat(g["xe"], g["ye"], g["k"], q, h_top)
+    m = ridge_mode(wavelength, margin=margin, cells_per_wavelength=cells_per_wavelength, al_fraction=al_fraction, **geo)
+    E2V = m["E"] ** 2 * m["V"]
+    dndT = _dndT_map(m, al_fraction)
+    S = float(np.sum(m["n"] * dndT * _grid_to_mode(g, m, T) * E2V) / (m["neff"] * np.sum(E2V)))
+    dT_mode = float(np.sum(_grid_to_mode(g, m, T) * E2V) / np.sum(E2V))
+    m2 = dict(m)
+    m2["X"] = m["X"] + pitch
+    dT_nb = float(np.sum(_grid_to_mode(g, m2, T) * E2V) / np.sum(E2V))
+    return Result(
+        values={"P_pi": wavelength / (2 * S), "dT_mode_per_W_per_m": dT_mode, "dneff_per_W_per_m": S,
+                "crosstalk": dT_nb / dT_mode, "dT_heater_per_W_per_m": float(np.sum(T[mask] * g["dA"][mask]) / np.sum(g["dA"][mask]))},
+        units={"P_pi": "W", "dT_mode_per_W_per_m": "K m/W", "dneff_per_W_per_m": "m/W", "crosstalk": "",
+               "dT_heater_per_W_per_m": "K m/W"},
+        assumptions=["2D (heater long compared with the ~µm axial spreading length), steady state, linear",
+                     "Heater = uniformly heated strip in the cladding; metal conductance and contacts neglected",
+                     "Crosstalk: same waveguide geometry at x = pitch, mode-weighted temperature ratio",
+                     f"Cladding raised to {clad_thickness * 1e6:.2f} µm above the BOX to hold the heater"],
+    )
+
+
+def mode_thermo_optic(wavelength=1.55e-6, core_material="si", core_width=0.5e-6, core_height=0.22e-6, slab_material="si",
+                      slab_thickness=0.0, box_material="sio2", box_thickness=2e-6, clad_material="sio2", clad_thickness=2e-6,
+                      substrate_material="si", margin=1.5e-6, cells_per_wavelength=20, al_fraction=0.20) -> Result:
+    """dn_eff/dT, n_g and resonance drift dλ/dT = λ (dn_eff/dT + n_eff α_sub)/n_g of the channel waveguide
+    (scalar mode; α_sub: expansion of the substrate, which sets the device length). No heat solve."""
+    geo = dict(core_material=core_material, core_width=core_width, core_height=core_height, slab_material=slab_material,
+               slab_thickness=slab_thickness, box_material=box_material, box_thickness=box_thickness, clad_material=clad_material,
+               clad_thickness=clad_thickness)
+    m = ridge_mode(wavelength, margin=margin, cells_per_wavelength=cells_per_wavelength, al_fraction=al_fraction, **geo)
+    E2V = m["E"] ** 2 * m["V"]
+    tot = float(np.sum(E2V))
+    gam = {r: float(np.sum(np.where(m["reg"] == i, m["n"] * E2V, 0.0))) / (m["neff"] * tot) for i, r in enumerate(REGIONS)}
+    dneff_dT = sum(gam[r] * _to.entry(m["mats"][r], al_fraction)["dn_dT"] for r in m["mats"])
+    dl = wavelength * 0.01
+    n_p = ridge_mode(wavelength + dl, margin=margin, al_fraction=al_fraction, h=m["h"], **geo)["neff"]
+    n_m = ridge_mode(wavelength - dl, margin=margin, al_fraction=al_fraction, h=m["h"], **geo)["neff"]
+    ng = m["neff"] - wavelength * (n_p - n_m) / (2 * dl)
+    a_sub = _to.entry(substrate_material)["alpha_L"]
+    return Result(
+        values={"neff": m["neff"], "n_group": ng, "dneff_dT": dneff_dT, "dlambda_dT": wavelength * (dneff_dT + m["neff"] * a_sub) / ng,
+                "Gamma_core": gam["core"], "Gamma_slab": gam["slab"], "Gamma_box": gam["box"], "Gamma_clad": gam["clad"]},
+        units={"neff": "", "n_group": "", "dneff_dT": "1/K", "dlambda_dT": "m/K", "Gamma_core": "", "Gamma_slab": "",
+               "Gamma_box": "", "Gamma_clad": ""},
+        assumptions=["Scalar mode, no substrate leakage; resonance drift includes the substrate expansion n_eff α_sub"],
+    )
+
+
+def athermal_design(parameter="core_width", lower=0.2e-6, upper=0.6e-6, wavelength=1.55e-6, tol=1e-9, **geometry) -> Result:
+    """Value of one geometry parameter (core_width, core_height, slab_thickness or box_thickness) in [lower, upper]
+    for which the resonance drift dλ/dT vanishes. Needs a cladding (or film) with dn/dT of the opposite sign to
+    the core, e.g. Si or SiN under a polymer (su8) or TiO₂ film. Bisection on the sign of dλ/dT."""
+    require_choice("parameter", parameter, ("core_width", "core_height", "slab_thickness", "box_thickness"))
+    require_positive(lower=lower, upper=upper, wavelength=wavelength, tol=tol)
+
+    def drift(v):
+        return mode_thermo_optic(wavelength=wavelength, **{**geometry, parameter: v})["dlambda_dT"]
+
+    a, b = float(lower), float(upper)
+    fa, fb = drift(a), drift(b)
+    if fa * fb > 0:
+        return Result(values={"value": float("nan"), "found": False, "dlambda_dT_lower": fa, "dlambda_dT_upper": fb,
+                              "dlambda_dT": float("nan")},
+                      units={"value": "m", "found": "", "dlambda_dT_lower": "m/K", "dlambda_dT_upper": "m/K", "dlambda_dT": "m/K"},
+                      assumptions=["dλ/dT has the same sign at both ends: no athermal point in the range"])
+    while b - a > tol:
+        c = 0.5 * (a + b)
+        fc = drift(c)
+        if fa * fc <= 0:
+            b, fb = c, fc
+        else:
+            a, fa = c, fc
+    v = 0.5 * (a + b)
+    r = mode_thermo_optic(wavelength=wavelength, **{**geometry, parameter: v})
+    return Result(values={"value": v, "found": True, "dlambda_dT_lower": drift(lower), "dlambda_dT_upper": drift(upper),
+                          "dlambda_dT": r["dlambda_dT"], "neff": r["neff"], "n_group": r["n_group"], "Gamma_clad": r["Gamma_clad"]},
+                  units={"value": "m", "found": "", "dlambda_dT_lower": "m/K", "dlambda_dT_upper": "m/K", "dlambda_dT": "m/K",
+                         "neff": "", "n_group": "", "Gamma_clad": ""},
+                  assumptions=r.assumptions + ["Scalar mode: near cut-off (narrow cores) the TE/TM athermal points differ",
+                                               "Uses LUT dn/dT of the cladding (low confidence for polymers and TiO₂ films)"])

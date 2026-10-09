@@ -164,6 +164,38 @@ def build() -> dict:
                                      "w0": mode["w0"], "zR": mode["zR"], "theta0": mode["theta0"], "I": f(b["I"][:60]),
                                      "chi": f(b["chi"][:60]), "w_int": f(b["w_int"][:60]),
                                      "footprint": oh.footprint_fraction(cell, c["lam"], c["n_eff"]) if c["exit"] == "window" else None})
+    from engines.onchip_herriott import stack as ohs, erbium as oer
+    v["onchip_stack"] = []
+    for (plat, ft, et, sub, clad, lam, pol) in (("al2o3", 0.4e-6, 0.4e-6, "sio2", "air", 1.532e-6, "TE"), ("al2o3", 0.4e-6, 0.4e-6, "sio2", "air", 980e-9, "TM"),
+                                                ("tfln", 0.3e-6, 0.2e-6, "sio2", "sio2", 1.55e-6, "TE"), ("tflt", 0.3e-6, 0.0, "sio2", "air", 1.48e-6, "TM"),
+                                                ("si3n4", 0.2e-6, 0.3e-6, "air", "air", 1.532e-6, "TM"), ("si", 0.3e-6, 0.0, "air", "air", 1.55e-6, "TE")):
+        mm = ohs.stack_mode(plat, ft, et, sub, clad, lam, pol)
+        v["onchip_stack"].append({"platform": plat, "film_t": ft, "er_t": et, "substrate": sub, "cladding": clad, "wavelength": lam,
+                                  "polarization": pol, "indices": [float(x) for x in mm["indices"]], "neff": mm["neff"],
+                                  "gamma": [float(x) for x in mm["gamma"]], "h_eff": float(mm["h_eff"])})
+    v["onchip_erbium"] = []
+    for (ls, lp, Ip, Is, N, Nq, tau, cup) in ((1.532e-6, 980e-9, 1e9, 1e6, 1e26, 0.0, 7.5e-3, 4e-24), (1.55e-6, 1480e-9, 3e8, 1e8, 2e26, 2e25, 5e-3, 1e-23),
+                                              (1.56e-6, 980e-9, 0.0, 1e7, 1e26, 0.0, 7.5e-3, 0.0)):
+        xs = oer.cross_sections(ls, lp)
+        n1, n2 = oer.populations(Ip, Is, xs, ls, lp, N, Nq, tau, cup)
+        v["onchip_erbium"].append({"lam_s": ls, "lam_p": lp, "Ip": Ip, "Is": Is, "N": N, "Nq": Nq, "tau": tau, "Cup": cup,
+                                   "xs": [float(x) for x in xs], "N1": n1, "N2": n2})
+    v["onchip_beam"] = []
+    for (cs, beam, ldb) in ((_ONCHIP_CASES[0], {}, 0.5), (_ONCHIP_CASES[0], {"w_ratio": 1.4, "focus_shift": -0.5e-3}, 0.0),
+                            (_ONCHIP_CASES[3], {"w_ratio": 0.8}, 2.0)):
+        cell = oh._cell(cs["R"], cs["N"], cs["M"], cs["A"], cs["phase"], cs["port_w"], cs.get("dR2", 0.0), cs.get("tilt2", 0.0), 0.0)
+        b = oh.budget(cell, cs["lam"], cs["n_eff"], 0.3e-6, lambda c, t=0.0: 0.995, 0.0, "window", True, alpha=oh.DB_PER_CM * ldb, beam=beam)
+        st = b["stability"]
+        v["onchip_beam"].append({"case": _ONCHIP_CASES.index(cs), "beam": beam, "loss_db_cm": ldb,
+                                 **{k: float(b[k]) for k in ("T_out", "eta_window", "L_eff", "V_eff", "chi_mean", "clip_loss")},
+                                 "w_hit": [float(x) for x in b["w_hit"]], "theta0": [float(x) for x in b["theta0"]],
+                                 **{k: float(st[k]) for k in ("m_roundtrip", "gouy_roundtrip", "m_path", "w0_eigen", "waist_pos", "coupling")}})
+    v["onchip_amp"] = []
+    for (pm, pp, ps, scl) in (("constant", 0.1, 1e-6, 1.0), ("dbr", 0.1, 1e-6, 1.0), ("constant", 0.02, 1e-4, 1.5)):
+        r = oh.er_amplifier(pump_mirror=pm, P_pump=pp, P_signal=ps, scale=scl, N=20 if scl == 1.0 else 24, M=3 if scl == 1.0 else 5)
+        v["onchip_amp"].append({"pump_mirror": pm, "P_pump": pp, "P_signal": ps, "scale": scl, "N": 20 if scl == 1.0 else 24,
+                                "M": 3 if scl == 1.0 else 5, **{k: float(r[k]) for k in ("gain_db", "internal_gain_db", "pump_left", "path",
+                                                                                  "inversion_mean", "R_dbr_signal", "R_dbr_pump")}})
     v["bessel"] = [{"x": x, "J": [float(j) for j in fav.bessel_j_all(x, 40)]} for x in (0.0, 0.7, 5.5, 33.0, -12.0)]
     v["fringe"] = []
     for (x1, f1, w1, x2, f2, w2, psi, drift, coh, kind) in ((2.4, 1000, "sine", 0.0, 1300, "triangle", 0.0, 0.0, 1.0, "boxcar"),

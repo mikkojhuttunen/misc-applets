@@ -291,6 +291,40 @@ const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Nu
     c.w_int.forEach((v, j) => close(`oh[${i}] wint${j}`, b.wInt[j], v, 1e-11));
     if (c.footprint !== null) close(`oh[${i}] footprint`, O.footprintFraction(cell, c.lam, c.n_eff), c.footprint, 0, 2e-3);
   }
+  const buildCase = c => {
+    const d = E.reentrantSpacing(c.R, c.N, c.M);
+    let cell = E.herriottPlanarCell(c.R, c.N, c.M, c.A, { portW: c.port_w, phase: c.phase });
+    const th = cell.meta.thetaLaunch;
+    cell = E.herriottPlanarCell(c.R, c.N, c.M, c.A, { portW: c.port_w, phase: c.phase, R2: c.R + (c.dR2 || 0), d });
+    cell.meta.thetaLaunch = th; cell.meta.d = d;
+    return c.tilt2 ? E.perturb(cell, [0, c.tilt2], null, null) : cell;
+  };
+  for (const [i, r] of V.onchip_stack.entries()) {
+    const m = O.stackMode(r.platform, r.film_t, r.er_t, r.substrate, r.cladding, r.wavelength, r.polarization);
+    r.indices.forEach((v, j) => close(`stack[${i}] n${j}`, m.indices[j], v, 1e-13));
+    close(`stack[${i}] neff`, m.neff, r.neff, 1e-12); close(`stack[${i}] h_eff`, m.h_eff, r.h_eff, 1e-9);
+    r.gamma.forEach((v, j) => close(`stack[${i}] gamma${j}`, m.gamma[j], v, 1e-9, 1e-12));
+  }
+  for (const [i, r] of V.onchip_erbium.entries()) {
+    const xs = O.crossSections(r.lam_s, r.lam_p);
+    r.xs.forEach((v, j) => close(`er[${i}] xs${j}`, xs[j], v, 1e-12, 1e-40));
+    const [n1, n2] = O.populations(r.Ip, r.Is, xs, r.lam_s, r.lam_p, r.N, r.Nq, r.tau, r.Cup);
+    close(`er[${i}] N1`, n1, r.N1, 1e-12); close(`er[${i}] N2`, n2, r.N2, 1e-12, 1e-3);
+  }
+  for (const [i, r] of V.onchip_beam.entries()) {
+    const c = V.onchip_herriott[r.case], cell = buildCase(c);
+    const b = O.budget(cell, { lam: c.lam, nEff: c.n_eff, hEff: 0.3e-6, Rf: () => 0.995, alpha: O.DB_PER_CM * r.loss_db_cm, beam: r.beam });
+    for (const k of ["T_out", "L_eff", "V_eff", "chi_mean", "clip_loss"]) close(`beam[${i}] ${k}`, b[k], r[k], 1e-9, 1e-14);
+    close(`beam[${i}] eta`, b.etaWindow, r.eta_window, 1e-9);
+    for (const k of ["m_roundtrip", "gouy_roundtrip", "m_path", "w0_eigen", "waist_pos", "coupling"]) close(`beam[${i}] ${k}`, b.stability[k], r[k], 1e-9, 1e-12);
+    r.w_hit.forEach((v, j) => close(`beam[${i}] w${j}`, b.wHit[j], v, 1e-9));
+    r.theta0.forEach((v, j) => close(`beam[${i}] th${j}`, b.theta0[j], v, 1e-9));
+  }
+  for (const [i, r] of V.onchip_amp.entries()) {
+    const a = O.erAmplifier({ pump_mirror: r.pump_mirror, P_pump: r.P_pump, P_signal: r.P_signal, scale: r.scale, N: r.N, M: r.M });
+    for (const k of ["gain_db", "internal_gain_db", "path", "inversion_mean", "R_dbr_signal", "R_dbr_pump"]) close(`amp[${i}] ${k}`, a[k], r[k], 1e-8, 1e-9);
+    close(`amp[${i}] pump_left`, a.pump_left, r.pump_left, 1e-7, 1e-20);
+  }
 }
 
 /* ---- fringe-washout.html: fringe_averaging engine block ---- */

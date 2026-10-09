@@ -101,6 +101,10 @@ select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink)
 footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
 .rail select { width: 100%; max-width: 100%; }
 .rail .btns select { width: auto; }
+.tbl { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+.tbl th, .tbl td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; font-family: var(--font-body); }
+.tbl thead th { color: var(--muted); font-weight: 500; font-family: var(--font-body); }
 </style>
 
 <div class="wrap">
@@ -128,8 +132,20 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
       </fieldset>
 
       <fieldset>
-        <legend>Slab and beam</legend>
-        <div class="ctl"><div class="row"><label for="preset">Membrane slab mode</label></div>
+        <legend>Slab: layer stack or membrane preset</legend>
+        <div class="ctl"><div class="row"><label for="src">Slab model</label></div>
+          <select id="src"><option value="stack" selected>layer stack (solved): film, Er:Al₂O₃ layer, cladding</option><option value="preset">membrane preset / custom n_eff</option></select></div>
+        <div class="ctl only-stack"><div class="row"><label for="plat">Platform film</label></div>
+          <select id="plat"><option value="al2o3" selected>Al₂O₃ (amorphous)</option><option value="si3n4">Si₃N₄</option><option value="tfln">LiNbO₃ thin film (TFLN)</option><option value="tflt">LiTaO₃ thin film (TFLT)</option><option value="si">Si</option></select></div>
+        <div class="ctl only-stack"><div class="row"><label for="filmT">Film thickness</label><output id="filmTOut"></output></div>
+          <input id="filmT" type="range" min="0.05" max="2" step="0.01" value="0.4"></div>
+        <div class="ctl only-stack"><div class="row"><label for="erT">Er:Al₂O₃ layer on top (0 = none)</label><output id="erTOut"></output></div>
+          <input id="erT" type="range" min="0" max="1.5" step="0.01" value="0.4"></div>
+        <div class="ctl only-stack"><div class="row"><label for="sub">Below the film</label></div>
+          <select id="sub"><option value="sio2" selected>SiO₂ substrate</option><option value="air">air (membrane)</option></select></div>
+        <div class="ctl only-stack"><div class="row"><label for="clad">Top cladding</label></div>
+          <select id="clad"><option value="air" selected>air (open, gas access)</option><option value="sio2">SiO₂</option></select></div>
+        <div class="ctl only-preset"><div class="row"><label for="preset">Membrane slab mode</label></div>
           <select id="preset">
             <option value="2.8138|TE|0.204|0.062">Si 220 nm, TE0</option>
             <option value="2.011|TM|0.139|0.641">Si 250 nm, TM0</option>
@@ -139,17 +155,54 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
             <option value="1.7928|TM|0.444|0.094">Si₃N₄ 800 nm, TM0</option>
             <option value="custom">custom (sliders below)</option>
           </select></div>
-        <div class="ctl"><div class="row"><label for="lam">Wavelength</label><output id="lamOut"></output></div>
-          <input id="lam" type="range" min="700" max="5000" step="1" value="1550"></div>
-        <div class="ctl"><div class="row"><label for="neff">Slab n<sub>eff</sub></label><output id="neffOut"></output></div>
+        <div class="ctl"><div class="row"><label for="lam">Wavelength (signal)</label><output id="lamOut"></output></div>
+          <input id="lam" type="range" min="700" max="5000" step="1" value="1532"></div>
+        <div class="ctl only-preset"><div class="row"><label for="neff">Slab n<sub>eff</sub></label><output id="neffOut"></output></div>
           <input id="neff" type="range" min="1.3" max="3.6" step="0.001" value="2.4792"></div>
         <div class="ctl"><div class="row"><label for="pol">Slab polarisation</label></div>
-          <select id="pol"><option value="TM" selected>TM: s-pol on the trench walls</option><option value="TE">TE: p-pol on the trench walls</option></select></div>
-        <div class="ctl"><div class="row"><label for="heff">Slab effective height h<sub>eff</sub></label><output id="heffOut"></output></div>
+          <select id="pol"><option value="TE" selected>TE: p-pol on the trench walls</option><option value="TM">TM: s-pol on the trench walls</option></select></div>
+        <div class="ctl only-preset"><div class="row"><label for="heff">Slab effective height h<sub>eff</sub></label><output id="heffOut"></output></div>
           <input id="heff" type="range" min="0.05" max="3" step="0.001" value="0.160">
           <p class="hint">∫f²dz / max f² of the slab mode profile (f = E<sub>y</sub> for TE, H<sub>y</sub> for TM); presets from the <span class="mono">membrane_mode</span> engine at 1550 nm.</p></div>
-        <div class="ctl"><div class="row"><label for="gam">Evanescent factor Γ (gas overlap)</label><output id="gamOut"></output></div>
+        <div class="ctl only-preset"><div class="row"><label for="gam">Evanescent factor Γ (gas overlap)</label><output id="gamOut"></output></div>
           <input id="gam" type="range" min="0" max="1" step="0.001" value="0.277"></div>
+        <div class="ctl"><div class="row"><label for="loss">Waveguide propagation loss</label><output id="lossOut"></output></div>
+          <input id="loss" type="range" min="0" max="5" step="0.01" value="0.25">
+          <p class="hint">dB/cm of the slab mode, on every pass (both wavelengths).</p></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Input beam</legend>
+        <div class="ctl"><div class="row"><label for="wr">Input waist / eigenmode waist</label><output id="wrOut"></output></div>
+          <input id="wr" type="range" min="-0.5" max="0.5" step="0.005" value="0">
+          <p class="hint">Logarithmic, 0.32× to 3.2×. 1 = mode-matched to the cell's round-trip eigenmode.</p></div>
+        <div class="ctl"><div class="row"><label for="fs">Input focus shift along pass 1</label><output id="fsOut"></output></div>
+          <input id="fs" type="range" min="-5" max="5" step="0.01" value="0"></div>
+        <div class="ctl"><div class="row"><label for="beamModel">Beam model</label></div>
+          <select id="beamModel"><option value="propagated" selected>Gaussian q along the traced passes</option><option value="design">paraxial design mode on every pass</option></select></div>
+      </fieldset>
+
+      <fieldset class="only-er">
+        <legend>Erbium amplifier</legend>
+        <div class="ctl"><div class="row"><label for="lamP">Pump wavelength</label></div>
+          <select id="lamP"><option value="980" selected>980 nm (absorption only)</option><option value="1480">1480 nm (in-band)</option></select></div>
+        <div class="ctl"><div class="row"><label for="Pp">Pump power into the window</label><output id="PpOut"></output></div>
+          <input id="Pp" type="range" min="0" max="500" step="1" value="100"></div>
+        <div class="ctl"><div class="row"><label for="Ps">Signal power</label><output id="PsOut"></output></div>
+          <input id="Ps" type="range" min="-3" max="1" step="0.1" value="-3">
+          <p class="hint">Logarithmic, mW.</p></div>
+        <div class="ctl"><div class="row"><label for="Ner">Er concentration</label><output id="NerOut"></output></div>
+          <input id="Ner" type="range" min="0.1" max="6" step="0.05" value="1.5"></div>
+        <div class="ctl"><div class="row"><label for="tau">⁴I₁₃/₂ lifetime τ</label><output id="tauOut"></output></div>
+          <input id="tau" type="range" min="0.5" max="12" step="0.1" value="7.5"></div>
+        <div class="ctl"><div class="row"><label for="cup">Upconversion C<sub>up</sub></label><output id="cupOut"></output></div>
+          <input id="cup" type="range" min="0" max="20" step="0.1" value="4"></div>
+        <div class="ctl"><div class="row"><label for="fq">Quenched ion fraction</label><output id="fqOut"></output></div>
+          <input id="fq" type="range" min="0" max="0.6" step="0.01" value="0"></div>
+        <div class="ctl"><div class="row"><label for="pm">Pump mirror</label></div>
+          <select id="pm"><option value="constant" selected>separate pump reflector, constant R</option><option value="dbr">the signal DBR (as designed) at the pump</option></select></div>
+        <div class="ctl"><div class="row"><label for="Rp">Pump reflectance</label><output id="RpOut"></output></div>
+          <input id="Rp" type="range" min="0.5" max="1" step="0.001" value="0.99"></div>
       </fieldset>
 
       <fieldset>
@@ -160,7 +213,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
           <input id="Rc" type="range" min="0" max="5" step="0.01" value="3">
           <p class="hint">Logarithmic in 1 − R: from 0.9 to 0.99999.</p></div>
         <div class="ctl only-dbr"><div class="row"><label for="np">DBR periods</label><output id="npOut"></output></div>
-          <input id="np" type="range" min="1" max="12" step="1" value="4"></div>
+          <input id="np" type="range" min="1" max="12" step="1" value="8"></div>
         <div class="ctl only-dbr"><div class="row"><label for="mg">Gap / tooth quarter-wave orders</label></div>
           <div class="btns"><select id="mg" aria-label="Gap order"><option>1</option><option>3</option><option>5</option></select>
             <select id="mt" aria-label="Tooth order"><option>1</option><option>3</option><option>5</option></select></div></div>
@@ -224,6 +277,48 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
       </section>
 
       <section class="panel">
+        <h2>Slab mode and layer overlaps</h2>
+        <div class="duo">
+          <div class="sub"><canvas class="chart" id="stackChart" aria-label="Slab mode power profile across the layer stack"></canvas></div>
+          <div class="sub"><div class="tablewrap"><table id="stackTable" class="tbl"></table></div>
+            <p class="hint">Power share Γ of the slab mode (E<sub>y</sub>² for TE, H<sub>y</sub>²/n² for TM) in each layer; h<sub>eff</sub> = ∫S dz / max S sets the volume. The Er overlap Γ<sub>Er</sub> multiplies the gain; the cladding (and an air substrate) share is the gas overlap. The DBR teeth use n<sub>eff</sub> of this stack.</p></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Beam stability and input collimation</h2>
+        <div class="stats" id="stabStats"></div>
+        <div class="duo">
+          <div class="sub"><h3>Beam radius on the mirrors, pass by pass</h3>
+            <canvas class="chart" id="wHit" aria-label="Beam radius on the mirrors per pass"></canvas>
+            <p class="hint">Solid: the input as set. Dashed: a mode-matched input (the round-trip eigenmode). Dotted: the paraxial design radius. A mismatched beam breathes between two radii and samples a different volume.</p></div>
+          <div class="sub"><h3>Sensitivity: input waist and mirror spacing</h3>
+            <canvas class="chart" id="stab" aria-label="Breathing and coupling versus input waist, stability versus spacing"></canvas>
+            <p class="hint">Left half: breathing (max/min radius) and coupling into the eigenmode against the input waist ratio. Right half: round-trip stability (A + D)/2 against the spacing change in % of d; the cell is stable for |m| &lt; 1, and m → ±1 makes the eigenmode blow up.</p></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Loss against cell size</h2>
+        <canvas class="chart wide" id="sizeChart" aria-label="Effective path versus cell size for several losses"></canvas>
+        <p class="hint">Geometrically similar cells (R, A and the window scaled together, same N and M) with the mirror reflectance of the Budget panel. Lossless, L<sub>eff</sub> grows in proportion to the size; with loss α it saturates near 1/α (4.34/loss[dB/cm] cm), so a larger cell stops paying once N d exceeds a few 1/α. Bold: the loss set in the rail.</p>
+      </section>
+
+      <section class="panel only-er">
+        <h2>Erbium amplifier</h2>
+        <div class="explain" id="ampNotes"></div>
+        <div class="stats" id="ampStats"></div>
+        <div class="duo">
+          <div class="sub"><h3>Along the folded path</h3>
+            <canvas class="chart" id="ampPath" aria-label="Signal, pump and inversion along the path"></canvas>
+            <p class="hint">Signal gain in dB relative to the launched signal (left), pump power and inversion N₂/N (right). Steps: mirror reflections and clipping.</p></div>
+          <div class="sub"><h3>Net gain against pump power</h3>
+            <canvas class="chart" id="ampPump" aria-label="Net gain versus pump power"></canvas>
+            <p class="hint">Window to window, with this cell, stack and mirrors. Ring: the current pump power.</p></div>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2>Pass by pass</h2>
         <canvas class="chart wide" id="perHit" aria-label="Power and angle of incidence per pass"></canvas>
         <p class="hint">Bars: angle of incidence |χ| at each reflection (right axis). Line: power left after each reflection (left axis; logarithmic once it drops below 20 %), including the window coupling and clipping. The last pass leaves through the window.</p>
@@ -232,13 +327,17 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
       <details class="how">
         <summary>Model and definitions</summary>
         <ul>
-          <li><b>Beam</b>: the symmetric cell's Gaussian mode in the slab, λ<sub>m</sub> = λ/n<sub>eff</sub>, z<sub>R</sub> = √(d(2R − d))/2, w<sub>0</sub>² = λ<sub>m</sub>z<sub>R</sub>/π, w(x) = w<sub>0</sub>√(1 + x²/z<sub>R</sub>²) along the cell axis. A mode-matched input keeps this width on every pass.</li>
+          <li><b>Design beam</b>: the symmetric cell's Gaussian mode in the slab, λ<sub>m</sub> = λ/n<sub>eff</sub>, z<sub>R</sub> = √(d(2R − d))/2, w<sub>0</sub>² = λ<sub>m</sub>z<sub>R</sub>/π, w(x) = w<sub>0</sub>√(1 + x²/z<sub>R</sub>²) along the cell axis. A mode-matched input keeps this width on every pass.</li>
           <li><b>Effective path</b> L<sub>eff</sub> = Σ I<sub>j</sub> ℓ<sub>j</sub>, with I<sub>j</sub> the power on pass j (window coupling, reflectance and clipping of the hits before it). A weak absorber α removes α L<sub>eff</sub> of the input power.</li>
           <li><b>Mode volume</b> V<sub>eff</sub> = h<sub>eff</sub> Σ I<sub>j</sub> ∫ w(x)√(π/2) ds: the effective cross-section w√(π/2) × h<sub>eff</sub> times the effective path. A<sub>eff</sub> = V<sub>eff</sub>/L<sub>eff</sub>. Coverage: share of the area between the mirrors within one beam radius of the pattern.</li>
           <li><b>Angles</b>: ⟨|χ|⟩ and the RMS value are weighted by the power arriving at each reflection.</li>
           <li><b>DBR</b>: membrane | [air gap, tooth] × N | air, quarter-wave at the design angle, exact transfer matrix for the slab's lateral polarisation (TE → p, TM → s). Beam average: R(|χ| + α) weighted by the angular spectrum exp(−2α²/θ<sub>0</sub>²), θ<sub>0</sub> = λ<sub>m</sub>/(π w<sub>0</sub>).</li>
           <li><b>Clipping</b>: the 1D Gaussian share of each spot on the mirror (|y| below the half aperture) and, on M1 before the last pass, off the window. Throughput includes the window coupling in and out.</li>
-          <li><b>Not included</b>: diffraction at the mirror ends beyond clipping, slab propagation loss (add it as scatter per bounce: α<sub>slab</sub> × chord), mode conversion at the trenches.</li>
+          <li><b>Waveguide loss</b> α (dB/cm × 0.2303 per cm): the power on a pass decays as e<sup>−αs</sup>; L<sub>eff</sub> and V<sub>eff</sub> integrate that weight along every chord.</li>
+          <li><b>Layer stack</b>: substrate | film | Er:Al₂O₃ | cladding, fundamental TE or TM slab mode by transfer matrices (same Sellmeier/Cauchy data as the Er amplifier applet); TFLN/TFLT use n<sub>e</sub> for TE and n<sub>o</sub> for TM.</li>
+          <li><b>Beam propagation</b>: the complex beam parameter q along the exact traced chords, with the in-plane (tangential) mirror power 2/(R cos χ) at each hit. The matched input is the eigenmode of the first round trip; its stability (A + D)/2 and Gouy phase are shown. Coupling: overlap of the input with the eigenmode at the window.</li>
+          <li><b>Erbium</b>: the effective two-level model of the Er amplifier applet (980 nm absorbs only, 1480 nm also emits; upconversion, quenched ions; McCumber emission). The Er-layer intensity is P Γ<sub>Er</sub>/(w√(π/2) t<sub>Er</sub>), uniform over the thin layer and the beam's effective width. Crossing passes do not share inversion; no ASE.</li>
+          <li><b>Not included</b>: diffraction at the mirror ends beyond clipping, mode conversion at the trenches, transverse overlap of crossing passes in the gain medium, ASE, thermal effects.</li>
         </ul>
       </details>
     </div>
@@ -786,11 +885,15 @@ const OnchipEngine = (() => {
   }
 
   /* R(|χ|) per hit: constant, or a trench DBR at the ray angle or averaged over the beam's angular spectrum; × (1 − scatter) */
+  /* R(|χ|, θ0) per hit: constant, or a DBR (anything with R(λ, |sin χ|)) at the ray angle or averaged over the beam's
+     angular spectrum (half-angle θ0 of that hit when given, else theta0); × (1 − scatter) */
   function mirrorFunction({ model = "constant", R = 0.999, dbr = null, lam = 1.55e-6, theta0 = 0, beamAverage = false, scatter = 0 }) {
     if (model === "constant") return () => R * (1 - scatter);
     if (beamAverage && theta0 > 0) {
-      const { a, wt } = angleWeights(theta0);
-      return chi => { let s = 0; for (let k = 0; k < a.length; k++) s += wt[k] * dbr.R(lam, Math.abs(Math.sin(Math.abs(chi) + a[k]))); return s * (1 - scatter); };
+      return (chi, t) => {
+        const { a, wt } = angleWeights(t || theta0);
+        let s = 0; for (let k = 0; k < a.length; k++) s += wt[k] * dbr.R(lam, Math.abs(Math.sin(Math.abs(chi) + a[k]))); return s * (1 - scatter);
+      };
     }
     return chi => dbr.R(lam, Math.abs(Math.sin(chi))) * (1 - scatter);
   }
@@ -804,42 +907,102 @@ const OnchipEngine = (() => {
     return { x: t.xs, y: t.ys, elem: t.elem, chi: t.sinchi.map(v => Math.asin(Math.min(Math.max(v, -1), 1))), exit: false };
   }
 
-  /* onchip_herriott.budget */
-  function budget(c, { lam = 1.55e-6, nEff = 2.479, hEff = 0.3e-6, Rf = null, dtheta = 0, exitMode = "window", clip = true, nMax = 4000, stopBelow = 1e-6 } = {}) {
-    const m = c.meta, mode = modeProfile(m.R, m.d, lam, nEff), wm = mode.wMirror;
+  /* ---------------------------------------------------------------- Gaussian q along the traced passes */
+  const DB_PER_CM = 100 * Math.log(10) / 10;
+  const C = (re, im = 0) => ({ re, im });
+  const cinv = a => { const d = a.re * a.re + a.im * a.im; return C(a.re / d, -a.im / d); };
+  const cadd = (a, x) => C(a.re + x, a.im);
+  function mirrorPower(c, k, chi) { const kap = c.kappa[k]; return kap === 0 ? 0 : -Math.sign(kap) * 2 / (c.R[k] * Math.cos(chi)); }
+  const abcdMul = (M, N) => [M[0] * N[0] + M[1] * N[2], M[0] * N[1] + M[1] * N[3], M[2] * N[0] + M[3] * N[2], M[2] * N[1] + M[3] * N[3]];
+  function pathMatrix(c, chords, elem, chi, j0, j1) {
+    let M = [1, 0, 0, 1];
+    for (let j = j0; j < j1; j++) { M = abcdMul([1, chords[j], 0, 1], M); M = abcdMul([1, 0, -mirrorPower(c, elem[j], chi[j]), 1], M); }
+    return M;
+  }
+  function eigenQ(M) {
+    const [A, B, , D] = M, m = 0.5 * (A + D);
+    if (!(Math.abs(m) < 1) || B === 0) return null;
+    return cinv(C((D - A) / (2 * B), -Math.sqrt(1 - m * m) / Math.abs(B)));
+  }
+  const qWidth = (q, lamM) => Math.sqrt(-lamM / (Math.PI * cinv(q).im));
+  function coupling(q1, q2, lamM) {
+    const u1 = cinv(q1), u2 = cinv(q2), w1 = qWidth(q1, lamM), w2 = qWidth(q2, lamM);
+    return 2 / (w1 * w2 * Math.hypot(-Math.PI / lamM * (u1.im + u2.im), Math.PI / lamM * (u1.re - u2.re)));
+  }
+  const linspace01 = n => Array.from({ length: n }, (_, i) => i === n - 1 ? 1 : i * (1 / (n - 1)));
+
+  /* onchip_herriott.beam_on_path: widths at the Simpson points of every chord, θ0 per chord, stability */
+  function beamOnPath(c, h, lamM, beam = null, n = N_CHORD) {
+    const nch = h.elem.length, chords = [], f = linspace01(n), m = c.meta;
+    for (let j = 0; j < nch; j++) chords.push(Math.hypot(h.x[j + 1] - h.x[j], h.y[j + 1] - h.y[j]));
+    if (!beam) {
+      const mode = modeProfile(m.R, m.d, lamM, 1);
+      const W = chords.map((_, j) => f.map(fi => beamWidth(h.x[j] + fi * (h.x[j + 1] - h.x[j]), mode)));
+      return { W, theta0: chords.map(() => mode.theta0), chords, stability: null };
+    }
+    const Mrt = pathMatrix(c, chords, h.elem, h.chi, 0, Math.min(2, nch));
+    let qe = nch >= 2 ? eigenQ(Mrt) : null;
+    if (!qe) { const mode = modeProfile(m.R, m.d, lamM, 1); qe = C(-chords[0] / 2, mode.zR); }
+    const zR0 = qe.im, sw = -qe.re;
+    const qIn = C(-(sw + (beam.focus_shift || 0)), zR0 * (beam.w_ratio === undefined ? 1 : beam.w_ratio) ** 2);
+    const W = [], th = [];
+    let q = qIn;
+    for (let j = 0; j < nch; j++) {
+      W.push(f.map(fi => qWidth(cadd(q, fi * chords[j]), lamM)));
+      th.push(lamM / (Math.PI * Math.sqrt(lamM * q.im / Math.PI)));
+      const u = cinv(cadd(q, chords[j]));
+      q = cinv(C(u.re - mirrorPower(c, h.elem[j], h.chi[j]), u.im));
+    }
+    const mrt = 0.5 * (Mrt[0] + Mrt[3]), MN = nch ? pathMatrix(c, chords, h.elem, h.chi, 0, nch) : [1, 0, 0, 1];
+    return { W, theta0: th, chords, stability: { m_roundtrip: mrt, gouy_roundtrip: Math.acos(Math.max(-1, Math.min(1, mrt))), stable: Math.abs(mrt) < 1,
+      m_path: 0.5 * (MN[0] + MN[3]), w0_eigen: Math.sqrt(lamM * zR0 / Math.PI), waist_pos: sw, coupling: coupling(qIn, qe, lamM), qIn, qEigen: qe } };
+  }
+
+  /* onchip_herriott.budget (with waveguide loss alpha [1/m] and the beam model) */
+  function budget(c, { lam = 1.55e-6, nEff = 2.479, hEff = 0.3e-6, Rf = null, dtheta = 0, exitMode = "window", clip = true, nMax = 4000, stopBelow = 1e-6, alpha = 0, beam = null } = {}) {
+    const m = c.meta, lamM = lam / nEff;
     const h = traceHits(c, dtheta, exitMode, nMax);
     let n = h.elem.length;
+    const bp = beamOnPath(c, h, lamM, beam), W = bp.W, chords = bp.chords, th0 = bp.theta0;
+    const wHit = W.map(r => r[r.length - 1]), wLaunch = n ? W[0][0] : NaN;
     const a = m.aperture, lo = m.y0 - m.portW / 2, hi = m.y0 + m.portW / 2;
-    const eta = exitMode === "window" ? gaussFraction(lo, hi, m.y0, wm) : 1;
+    const eta = exitMode === "window" ? gaussFraction(lo, hi, m.y0, wLaunch) : 1;
     const R = Rf || (() => 1);
-    const I = [eta], Rj = [], cj = [], chords = [], wint = [];
+    const nS = N_CHORD, f = linspace01(nS), cS = f.map((_, i) => i === 0 || i === nS - 1 ? 1 : i % 2 ? 4 : 2), k = Math.sqrt(Math.PI / 2);
+    const wint = [], winta = [], lch = [], Tch = [];
+    for (let j = 0; j < n; j++) {
+      let s0 = 0, s1 = 0;
+      for (let i = 0; i < nS; i++) { s0 += W[j][i] * cS[i]; s1 += W[j][i] * Math.exp(-alpha * chords[j] * f[i]) * cS[i]; }
+      wint.push(chords[j] * s0 / (3 * (nS - 1)) * k); winta.push(chords[j] * s1 / (3 * (nS - 1)) * k);
+      lch.push(alpha > 0 ? -Math.expm1(-alpha * chords[j]) / alpha : chords[j]); Tch.push(Math.exp(-alpha * chords[j]));
+    }
+    const I = [eta], Rj = [], cj = [];
     let last = h.exit ? n - 1 : n;
     for (let j = 0; j < n; j++) {
-      chords.push(Math.hypot(h.x[j + 1] - h.x[j], h.y[j + 1] - h.y[j]));
-      wint.push(chordWidthIntegral(h.x[j], h.y[j], h.x[j + 1], h.y[j + 1], mode) * Math.sqrt(Math.PI / 2));
       let r = 1, cc = 1;
       if (j < last) {
-        r = R(Math.abs(h.chi[j]));
+        r = R(Math.abs(h.chi[j]), th0[j]);
         if (clip) {
-          const on = gaussFraction(-a, a, h.y[j + 1], wm), off = exitMode === "window" && h.elem[j] === 0 ? gaussFraction(lo, hi, h.y[j + 1], wm) : 0;
+          const on = gaussFraction(-a, a, h.y[j + 1], wHit[j]), off = exitMode === "window" && h.elem[j] === 0 ? gaussFraction(lo, hi, h.y[j + 1], wHit[j]) : 0;
           cc = Math.max(on - off, 0);
         }
       }
       Rj.push(r); cj.push(cc);
-      I.push(I[j] * (j < last ? r * cc : 1));
+      I.push(I[j] * Tch[j] * (j < last ? r * cc : 1));
       if (exitMode === "closed" && I[j + 1] < stopBelow * I[0]) { n = last = j + 1; break; }
     }
-    let L = 0, Leff = 0, V = 0, Vg = 0, W = 0, WC = 0, WC2 = 0, WR = 0, cmax = -Infinity, cprod = 1;
-    for (let j = 0; j < n; j++) { L += chords[j]; Leff += I[j] * chords[j]; V += I[j] * wint[j]; Vg += wint[j]; }
+    let L = 0, Leff = 0, V = 0, Vg = 0, Wt = 0, WC = 0, WC2 = 0, WR = 0, cmax = -Infinity, cprod = 1;
+    for (let j = 0; j < n; j++) { L += chords[j]; Leff += I[j] * lch[j]; V += I[j] * winta[j]; Vg += wint[j]; }
     for (let j = 0; j < last; j++) {
-      const x = Math.abs(h.chi[j]); W += I[j]; WC += I[j] * x; WC2 += I[j] * x * x; WR += I[j] * Rj[j]; cmax = Math.max(cmax, x); cprod *= cj[j];
+      const x = Math.abs(h.chi[j]), w = I[j] * Tch[j]; Wt += w; WC += w * x; WC2 += w * x * x; WR += w * Rj[j]; cmax = Math.max(cmax, x); cprod *= cj[j];
     }
     V *= hEff;
-    return { mode, nHits: n, reflections: last, exits: h.exit, etaWindow: eta, T_out: h.exit ? I[n - 1] * eta : 0, I_end: I[last],
-      L_geom: L, L_eff: Leff, V_eff: V, A_eff: V / Leff, wEffMean: V / Leff / hEff, V_geom: hEff * Vg,
-      chi_mean: WC / W, chi_rms: Math.sqrt(WC2 / W), chi_max: cmax, R_mean: WR / W, clip_loss: 1 - cprod,
-      I: I.slice(0, n + 1), R: Rj.slice(0, n), c: cj.slice(0, n), chords: chords.slice(0, n), wInt: wint.slice(0, n), chi: h.chi.slice(0, n),
-      elem: h.elem.slice(0, n), x: h.x.slice(0, n + 1), y: h.y.slice(0, n + 1) };
+    return { mode: modeProfile(m.R, m.d, lam, nEff), nHits: n, reflections: last, exits: h.exit, etaWindow: eta, T_out: h.exit ? I[n] * eta : 0,
+      I_end: h.exit ? I[n] : I[last], L_geom: L, L_eff: Leff, V_eff: V, A_eff: V / Leff, wEffMean: V / Leff / hEff, V_geom: hEff * Vg,
+      chi_mean: WC / Wt, chi_rms: Math.sqrt(WC2 / Wt), chi_max: cmax, R_mean: WR / Wt, clip_loss: 1 - cprod,
+      I: I.slice(0, n + 1), R: Rj.slice(0, n), c: cj.slice(0, n), chords: chords.slice(0, n), wInt: wint.slice(0, n), wHit: wHit.slice(0, n),
+      theta0: th0.slice(0, n), chi: h.chi.slice(0, n), elem: h.elem.slice(0, n), x: h.x.slice(0, n + 1), y: h.y.slice(0, n + 1),
+      stability: bp.stability, W: W.slice(0, n) };
   }
 
   /* planar_cell.Cell2D.inside on the sampled outline (16 points per element), as the Python helper */
@@ -874,7 +1037,195 @@ const OnchipEngine = (() => {
     return tot ? cov / tot : NaN;
   }
 
-  return { erf, modeProfile, beamWidth, chordWidthIntegral, gaussFraction, angleWeights, mirrorFunction, traceHits, budget, footprintFraction };
+  /* ---------------------------------------------------------------- onchip_herriott.stack */
+  const SELL = {
+    sio2: [1, 0.6961663, 0.0684043 ** 2, 0.4079426, 0.1162414 ** 2, 0.8974794, 9.896161 ** 2],
+    si3n4: [1, 3.0249, 0.1353406 ** 2, 40314, 1239.842 ** 2, 0, 0],
+    ln_e: [1, 2.9804, 0.02047, 0.5981, 0.0666, 8.9543, 416.08], ln_o: [1, 2.6734, 0.01764, 1.2290, 0.05914, 12.614, 474.6],
+    lt_e: [1, 3.49474, 0.02789, 0, 0, 1.5, 150], lt_o: [1, 3.47785, 0.02797, 0, 0, 1.5, 150],
+    si: [1, 10.6684293, 0.301516485 ** 2, 0.0030434748, 1.13475115 ** 2, 1.54133408, 1104 ** 2],
+  };
+  const CAUCHY = { al2o3: [1.646, 0.00962, 0], eral2o3: [1.646, 0.00962, 0] };
+  const PLATFORMS = { al2o3: { TE: "al2o3", TM: "al2o3" }, si3n4: { TE: "si3n4", TM: "si3n4" }, tfln: { TE: "ln_e", TM: "ln_o" }, tflt: { TE: "lt_e", TM: "lt_o" }, si: { TE: "si", TM: "si" } };
+  const N_SAMPLE = 120;
+  function nMaterial(mat, lam) {
+    if (mat === "air") return 1;
+    const l = lam * 1e6, l2 = l * l;
+    if (CAUCHY[mat]) { const [c0, c1, c2] = CAUCHY[mat]; return c0 + c1 / l2 + c2 / (l2 * l2); }
+    const s = SELL[mat]; let n2 = s[0];
+    for (const k of [1, 3, 5]) if (s[k]) n2 += s[k] * l2 / (l2 - s[k + 1]);
+    return Math.sqrt(n2);
+  }
+  function layerStack(platform, filmT, erT, substrate, cladding, lam, pol) {
+    const names = [substrate, PLATFORMS[platform][pol]], t = [filmT];
+    if (erT > 0) { names.push("eral2o3"); t.push(erT); }
+    names.push(cladding);
+    return { n: names.map(mm => nMaterial(mm, lam)), t, names: ["substrate", "film"].concat(erT > 0 ? ["er"] : []).concat(["cladding"]) };
+  }
+  function transfer(n, t, ne, k, tm) {
+    const p = x => tm ? x * x : 1, b2 = (k * ne) ** 2, gs = Math.sqrt(Math.max(b2 - (k * n[0]) ** 2, 0));
+    let E = 1, D = gs / p(n[0]);
+    const starts = [];
+    for (let i = 1; i <= t.length; i++) {
+      starts.push([E, D]);
+      const d = t[i - 1], q = (k * n[i]) ** 2 - b2, P = p(n[i]);
+      if (q > 0) { const kk = Math.sqrt(q); [E, D] = [E * Math.cos(kk * d) + P * D / kk * Math.sin(kk * d), (-E * kk * Math.sin(kk * d) + P * D * Math.cos(kk * d)) / P]; }
+      else { const g = Math.sqrt(-q) || 1e-30; [E, D] = [E * Math.cosh(g * d) + P * D / g * Math.sinh(g * d), (E * g * Math.sinh(g * d) + P * D * Math.cosh(g * d)) / P]; }
+      const s = Math.abs(E) + Math.abs(D);
+      if (s > 1e100) { E /= s; D /= s; for (const st of starts) { st[0] /= s; st[1] /= s; } }
+    }
+    const gc = Math.sqrt(Math.max(b2 - (k * n[n.length - 1]) ** 2, 0));
+    return { f: p(n[n.length - 1]) * D + gc * E, E, starts, gs, gc };
+  }
+  function slabMode(n, t, lam, pol, nGrid = 4000) {
+    const tm = pol === "TM", k = 2 * Math.PI / lam, lo = Math.max(n[0], n[n.length - 1]), hi = Math.max(...n);
+    let root = NaN, prevNe = null, prevF = null;
+    for (let i = nGrid - 1; i > 0; i--) {
+      const ne = lo + (hi - lo) * i / nGrid, f = transfer(n, t, ne, k, tm).f;
+      if (prevF !== null && Number.isFinite(f) && (f > 0) !== (prevF > 0)) {
+        let a = ne, b = prevNe, fa = f;
+        for (let it = 0; it < 80; it++) { const mid = 0.5 * (a + b), fm = transfer(n, t, mid, k, tm).f; if ((fm > 0) === (fa > 0)) { a = mid; fa = fm; } else b = mid; }
+        root = 0.5 * (a + b); break;
+      }
+      prevNe = ne; prevF = f;
+    }
+    if (!Number.isFinite(root)) return { neff: NaN, z: [], S: [], gamma: new Array(t.length + 2).fill(NaN), h_eff: NaN };
+    const tr = transfer(n, t, root, k, tm), p = x => tm ? x * x : 1, b2 = (k * root) ** 2, tail = 6, gs = tr.gs, gc = tr.gc;
+    const z = [], S = [], core = [];
+    let smax = 0;
+    const push = (zz, f, nn) => { const s = f * f / (tm ? nn * nn : 1); z.push(zz); S.push(s); if (s > smax) smax = s; return s; };
+    for (let i = 0; i < N_SAMPLE; i++) { const zz = -tail / gs * (1 - (i + 0.5) / N_SAMPLE); push(zz, Math.exp(gs * zz), n[0]); }
+    let z0 = 0;
+    for (let L = 1; L <= t.length; L++) {
+      const [E, D] = tr.starts[L - 1], d = t[L - 1], q = (k * n[L]) ** 2 - b2, P = p(n[L]);
+      let acc = 0;
+      for (let i = 0; i < N_SAMPLE; i++) {
+        const x = d * (i + 0.5) / N_SAMPLE;
+        let f;
+        if (q > 0) { const kk = Math.sqrt(q); f = E * Math.cos(kk * x) + P * D / kk * Math.sin(kk * x); }
+        else { const g = Math.sqrt(-q) || 1e-30; f = E * Math.cosh(g * x) + P * D / g * Math.sinh(g * x); }
+        acc += push(z0 + x, f, n[L]) * (d / N_SAMPLE);
+      }
+      core.push(acc); z0 += d;
+    }
+    for (let i = 0; i < N_SAMPLE; i++) { const zz = tail / gc * (i + 0.5) / N_SAMPLE; push(z0 + zz, tr.E * Math.exp(-gc * zz), n[n.length - 1]); }
+    const sub = 1 / (2 * gs) / (tm ? n[0] ** 2 : 1), clad = tr.E * tr.E / (2 * gc) / (tm ? n[n.length - 1] ** 2 : 1);
+    const tot = sub + clad + core.reduce((x, y) => x + y, 0);
+    return { neff: root, z, S: S.map(v => v / smax), gamma: [sub / tot, ...core.map(v => v / tot), clad / tot], h_eff: tot / smax, thickness: z0 };
+  }
+  function stackMode(platform, filmT, erT, substrate, cladding, lam, pol) {
+    const st = layerStack(platform, filmT, erT, substrate, cladding, lam, pol), m = slabMode(st.n, st.t, lam, pol);
+    st.names.forEach((nm, i) => { m["gamma_" + nm] = m.gamma[i]; });
+    if (m.gamma_er === undefined) m.gamma_er = 0;
+    m.indices = st.n; m.thicknesses = st.t; m.names = st.names;
+    return m;
+  }
+
+  /* ---------------------------------------------------------------- onchip_herriott.erbium */
+  const HP = 6.62607015e-34, CL = 2.99792458e8, HCK = 14387.77, TK = 295, LAM0 = 1.532;
+  const BANDS = [[1533, 2.9, 11], [1512, 2.35, 58], [1553, 1.15, 30], [1588, 0.4, 50], [1468, 0.7, 40]];
+  const raw = l => { let s = 0; for (const [c0, a, wd] of BANDS) { const q = (l - c0) / wd; s += a * Math.exp(-4 * Math.log(2) * q * q); } return s; };
+  const RAWMAX = (() => { let m = 0; for (let i = 0; i <= 1200; i++) m = Math.max(m, raw(1400 + 0.25 * i)); return m; })();
+  const sigmaA = (lam, pk = 5.7e-25) => pk * raw(lam * 1e9) / RAWMAX;
+  const sigmaE = (lam, pk = 5.7e-25) => sigmaA(lam, pk) * Math.exp(HCK / TK * (1 / LAM0 - 1e-6 / lam));
+  function crossSections(ls, lp, pk = 5.7e-25, s980 = 1.7e-25) {
+    return Math.abs(lp - 980e-9) < 30e-9 ? [sigmaA(ls, pk), sigmaE(ls, pk), s980, 0] : [sigmaA(ls, pk), sigmaE(ls, pk), sigmaA(lp, pk), sigmaE(lp, pk)];
+  }
+  function populations(Ip, Is, xs, ls, lp, N, Nq, tau, Cup) {
+    const [sas, ses, sap, sep] = xs, hvp = HP * CL / lp, hvs = HP * CL / ls;
+    const Ra = sap * Ip / hvp + sas * Is / hvs, Re = sep * Ip / hvp + ses * Is / hvs, b = Ra + Re + 1 / tau;
+    const n2 = Ra > 0 ? 2 * Ra * N / (b + Math.sqrt(b * b + 4 * Cup * Ra * N)) : 0;
+    return [N - n2 + Nq, n2];
+  }
+
+  /* onchip_herriott.DBRAt: the signal-designed trench DBR seen by a mode of index nEff at another wavelength */
+  function dbrAt(dbr, nEff, N, slabPol, loss = 0) {
+    const layers = []; for (let i = 0; i < N; i++) layers.push([1, dbr.dGap], [nEff, dbr.dTooth]);
+    const pol = { TE: "p", TM: "s" }[slabPol];
+    return { R: (l, s) => Pl.stackROblique(l, s, nEff, layers, 1, pol) * (1 - loss) };
+  }
+
+  /* onchip_herriott.amplifier */
+  function amplifier(c, sig, pump, er, PsIn = 1e-6, PpIn = 0.1, dtheta = 0, clip = true, nSub = 8, nMax = 4000) {
+    const m = c.meta, h = traceHits(c, dtheta, "window", nMax), n = h.elem.length, last = h.exit ? n - 1 : n;
+    const a = m.aperture, lo = m.y0 - m.portW / 2, hi = m.y0 + m.portW / 2;
+    const xs = crossSections(sig.wavelength, pump.wavelength, er.sigma_peak || 5.7e-25, er.sig980 || 1.7e-25);
+    const Ntot = er.N, Nq = Ntot * (er.fq || 0), Nact = Ntot - Nq;
+    const beams = [sig, pump].map(b => { const bp = beamOnPath(c, h, b.wavelength / b.n_eff, b.beam || null, 2 * nSub + 1); bp.eta = n ? gaussFraction(lo, hi, m.y0, bp.W[0][0]) : 0; return bp; });
+    const [bs, bq] = beams, chords = bs.chords, tEr = er.t, gs = sig.gamma_er, gp = pump.gamma_er, k = Math.sqrt(Math.PI / 2);
+    const rates = (Ps, Pp, ws, wp) => {
+      if (tEr <= 0 || Ntot <= 0) return [-sig.alpha * Ps, -pump.alpha * Pp, 0];
+      const Is = Ps * gs / (ws * k * tEr), Ip = Pp * gp / (wp * k * tEr);
+      const [N1, N2] = populations(Ip, Is, xs, sig.wavelength, pump.wavelength, Nact, Nq, er.tau, er.Cup);
+      return [(gs * (xs[1] * N2 - xs[0] * N1) - sig.alpha) * Ps, -(gp * (xs[2] * N1 - xs[3] * N2) + pump.alpha) * Pp, N2 / Ntot];
+    };
+    let Ps = PsIn * bs.eta, Pp = PpIn * bq.eta, sAcc = 0;
+    const S = [0], PS = [Ps], PP = [Pp], INV = [n ? rates(Ps, Pp, bs.W[0][0], bq.W[0][0])[2] : 0];
+    for (let j = 0; j < n; j++) {
+      const hstep = chords[j] / nSub;
+      for (let i = 0; i < nSub; i++) {
+        const w0s = bs.W[j][2 * i], w1s = bs.W[j][2 * i + 1], w2s = bs.W[j][2 * i + 2], w0p = bq.W[j][2 * i], w1p = bq.W[j][2 * i + 1], w2p = bq.W[j][2 * i + 2];
+        const k1 = rates(Ps, Pp, w0s, w0p), k2 = rates(Ps + 0.5 * hstep * k1[0], Pp + 0.5 * hstep * k1[1], w1s, w1p);
+        const k3 = rates(Ps + 0.5 * hstep * k2[0], Pp + 0.5 * hstep * k2[1], w1s, w1p), k4 = rates(Ps + hstep * k3[0], Pp + hstep * k3[1], w2s, w2p);
+        Ps = Math.max(Ps + hstep / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]), 0);
+        Pp = Math.max(Pp + hstep / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]), 0);
+        sAcc += hstep; S.push(sAcc); PS.push(Ps); PP.push(Pp); INV.push(rates(Ps, Pp, w2s, w2p)[2]);
+      }
+      if (j < last) {
+        let cs = 1, cp = 1;
+        if (clip) {
+          const cl = wv => Math.max(gaussFraction(-a, a, h.y[j + 1], wv) - (h.elem[j] === 0 ? gaussFraction(lo, hi, h.y[j + 1], wv) : 0), 0);
+          cs = cl(bs.W[j][bs.W[j].length - 1]); cp = cl(bq.W[j][bq.W[j].length - 1]);
+        }
+        Ps *= sig.Rf(Math.abs(h.chi[j]), bs.theta0[j]) * cs;
+        Pp *= pump.Rf(Math.abs(h.chi[j]), bq.theta0[j]) * cp;
+      }
+    }
+    const outS = h.exit ? Ps * bs.eta : 0;
+    let path = 0; for (let j = 0; j < n; j++) path += chords[j];
+    return { gain_db: outS > 0 ? 10 * Math.log10(outS / PsIn) : -Infinity, internal_gain_db: Ps > 0 ? 10 * Math.log10(Ps / (PsIn * bs.eta)) : -Infinity,
+      Ps_out: outS, Pp_out: h.exit ? Pp * bq.eta : 0, pump_left: PpIn ? Pp / (PpIn * bq.eta) : 0, eta_s: bs.eta, eta_p: bq.eta, path, exits: h.exit, n_hits: n,
+      s: S, Ps: PS, Pp: PP, inversion: INV, cross_sections: xs };
+  }
+
+  /* onchip_herriott.er_amplifier (front end) */
+  function erAmplifier(o) {
+    const p = Object.assign({ R: 10e-3, N: 20, M: 3, A: 1e-3, phase: 0, port_width: 100e-6, platform: "al2o3", film_t: 0.4e-6, er_t: 0.4e-6, substrate: "sio2",
+      cladding: "air", polarization: "TE", lam_s: 1.532e-6, lam_p: 980e-9, P_signal: 1e-6, P_pump: 0.1, N_er: 1.5e26, tau: 7.5e-3, Cup: 4e-24, fq: 0,
+      loss_db_cm: 0.25, periods: 6, R_pump: 0.99, pump_mirror: "constant", w_ratio: 1, focus_shift: 0, scale: 1, clip: true }, o);
+    const ms = stackMode(p.platform, p.film_t, p.er_t, p.substrate, p.cladding, p.lam_s, p.polarization);
+    const mp = stackMode(p.platform, p.film_t, p.er_t, p.substrate, p.cladding, p.lam_p, p.polarization);
+    if (!(Number.isFinite(ms.neff) && Number.isFinite(mp.neff))) throw new Error("the stack guides no mode at the signal or the pump wavelength");
+    const c = Pl.herriottPlanarCell(p.R * p.scale, p.N, p.M, p.A * p.scale, { portW: p.port_width * p.scale, phase: p.phase });
+    const dbr = Pl.trenchDBR({ nTooth: ms.neff, lam: p.lam_s, N: p.periods, slabPol: p.polarization });
+    const thS = modeProfile(c.meta.R, c.meta.d, p.lam_s, ms.neff).theta0;
+    const Rs = mirrorFunction({ model: "dbr", dbr, lam: p.lam_s, theta0: thS, beamAverage: true });
+    const dp = dbrAt(dbr, mp.neff, p.periods, p.polarization);
+    const Rp = p.pump_mirror === "dbr" ? mirrorFunction({ model: "dbr", dbr: dp, lam: p.lam_p }) : mirrorFunction({ model: "constant", R: p.R_pump });
+    const beam = { w_ratio: p.w_ratio, focus_shift: p.focus_shift }, al = DB_PER_CM * p.loss_db_cm;
+    const r = amplifier(c, { wavelength: p.lam_s, n_eff: ms.neff, gamma_er: ms.gamma_er, alpha: al, Rf: Rs, beam },
+      { wavelength: p.lam_p, n_eff: mp.neff, gamma_er: mp.gamma_er, alpha: al, Rf: Rp, beam }, { N: p.N_er, t: p.er_t, tau: p.tau, Cup: p.Cup, fq: p.fq },
+      p.P_signal, p.P_pump, 0, p.clip);
+    r.inversion_mean = r.inversion.reduce((x, y) => x + y, 0) / r.inversion.length;
+    Object.assign(r, { ms, mp, cell: c, R_dbr_signal: dbr.R(p.lam_s, 0), R_dbr_pump: dp.R(p.lam_p, 0), dbr, dbrPump: dp });
+    return r;
+  }
+
+  /* onchip_herriott.sweep_size: geometrically similar cells (R, A, window × scale) for several losses */
+  function sweepSize(base, scales, losses, { lam = 1.55e-6, nEff = 2.479, hEff = 0.3e-6, Rm = 0.999, clip = true, beam = null } = {}) {
+    const Lg = [], Le = losses.map(() => []), T = losses.map(() => []);
+    for (const s of scales) {
+      const c = Pl.herriottPlanarCell(base.R * s, base.N, base.M, base.A * s, { portW: base.portW * s, phase: base.phase });
+      let b;
+      losses.forEach((ldb, i) => { b = budget(c, { lam, nEff, hEff, Rf: () => Rm, clip, alpha: DB_PER_CM * ldb, beam }); Le[i].push(b.L_eff); T[i].push(b.T_out); });
+      Lg.push(b.L_geom);
+    }
+    return { scales, losses, L_geom: Lg, L_eff: Le, T_out: T };
+  }
+
+  return { erf, modeProfile, beamWidth, chordWidthIntegral, gaussFraction, angleWeights, mirrorFunction, traceHits, budget, footprintFraction,
+    DB_PER_CM, mirrorPower, pathMatrix, eigenQ, qWidth, coupling, beamOnPath, nMaterial, layerStack, slabMode, stackMode, PLATFORMS,
+    sigmaA, sigmaE, crossSections, populations, dbrAt, amplifier, erAmplifier, sweepSize };
 })();
 /* engine:end */
 
@@ -890,6 +1241,10 @@ const OnchipEngine = (() => {
       model: $("model").value, Rc: 1 - 10 ** (-1 - +$("Rc").value), np: +$("np").value, mg: +$("mg").value, mt: +$("mt").value,
       des: +$("des").value * Math.PI / 180, avg: $("avg").checked, sc: +$("sc").value * 1e-6, clip: $("clip").checked,
       dR2: +$("dR2").value * 1e-6, tilt: +$("tilt").value * 1e-3, dd: +$("dd").value * 1e-6, exit: $("exit").value, stretch: $("stretch").checked,
+      src: $("src").value, plat: $("plat").value, filmT: +$("filmT").value * 1e-6, erT: +$("erT").value * 1e-6, sub: $("sub").value, clad: $("clad").value,
+      loss: +$("loss").value, wr: 10 ** +$("wr").value, fs: +$("fs").value * 1e-3, beamModel: $("beamModel").value,
+      lamP: +$("lamP").value * 1e-9, Pp: +$("Pp").value * 1e-3, Ps: 1e-3 * 10 ** +$("Ps").value, Ner: +$("Ner").value * 1e26, tau: +$("tau").value * 1e-3,
+      cup: +$("cup").value * 1e-24, fq: +$("fq").value, pm: $("pm").value, Rp: +$("Rp").value,
     };
   };
 
@@ -908,16 +1263,29 @@ const OnchipEngine = (() => {
   const mirrorOf = (p, mode, dbr) => O.mirrorFunction({ model: p.model, R: p.Rc, dbr, lam: p.lam, theta0: mode.theta0, beamAverage: p.avg, scatter: p.sc });
 
   let state = null;
+  const beamOf = p => p.beamModel === "propagated" ? { w_ratio: p.wr, focus_shift: p.fs } : null;
+  /* the slab: solved layer stack (n_eff, h_eff, overlaps at signal and pump) or the preset sliders */
+  function slabOf(p) {
+    if (p.src !== "stack") return { ms: null, mp: null };
+    const ms = O.stackMode(p.plat, p.filmT, p.erT, p.sub, p.clad, p.lam, p.pol);
+    const mp = p.erT > 0 ? O.stackMode(p.plat, p.filmT, p.erT, p.sub, p.clad, p.lamP, p.pol) : null;
+    if (!Number.isFinite(ms.neff)) throw new Error("This stack guides no slab mode at the signal wavelength: make the film thicker or use a higher-index platform.");
+    p.neff = ms.neff; p.heff = ms.h_eff; p.gam = ms.gamma_cladding + (p.sub === "air" ? ms.gamma_substrate : 0);
+    return { ms, mp };
+  }
   function compute() {
     const p = P();
-    let cell;
-    try { cell = buildCell(p); } catch (err) { state = { error: String(err.message || err) }; return false; }
+    let cell, slab;
+    try { slab = slabOf(p); cell = buildCell(p); } catch (err) { state = { error: String(err.message || err) }; return false; }
     const mode = O.modeProfile(cell.meta.R, cell.meta.d, p.lam, p.neff);
     const dbr = p.model === "dbr" ? dbrOf(p) : null;
-    const b = O.budget(cell, { lam: p.lam, nEff: p.neff, hEff: p.heff, Rf: mirrorOf(p, mode, dbr), exitMode: p.exit, clip: p.clip, nMax: p.exit === "closed" ? 30000 : 4000 });
+    const opts = beam => ({ lam: p.lam, nEff: p.neff, hEff: p.heff, Rf: mirrorOf(p, mode, dbr), exitMode: p.exit, clip: p.clip, nMax: p.exit === "closed" ? 30000 : 4000,
+      alpha: O.DB_PER_CM * p.loss, beam });
+    const b = O.budget(cell, opts(beamOf(p)));
+    const bMatched = O.budget(cell, Object.assign(opts({}), { exitMode: "window", nMax: 4000 }));
     const spots = E.herriottSpots(cell.meta);
-    state = { p, cell, mode, dbr, b, spots };
-    sweepRunner.request({ p, els: cell.els, sIn: cell.sIn, sOut: cell.sOut, meta: cell.meta });
+    state = { p, cell, mode, dbr, b, bMatched, spots, slab, er: p.src === "stack" && p.erT > 0 && slab.mp && Number.isFinite(slab.mp.neff) };
+    sweepRunner.request({ p, els: cell.els, sIn: cell.sIn, sOut: cell.sOut, meta: cell.meta, er: state.er });
     return true;
   }
 
@@ -930,7 +1298,8 @@ ${sweeps.toString()}`;
     const Pe = PlanarEngine, Oe = OnchipEngine, p = j.p;
     const cell = Pe.makeCell(j.els, { sIn: j.sIn, sOut: j.sOut, meta: j.meta });
     const mode = Oe.modeProfile(cell.meta.R, cell.meta.d, p.lam, p.neff);
-    const opts = Rf => ({ lam: p.lam, nEff: p.neff, hEff: p.heff, Rf, exitMode: p.exit, clip: p.clip, nMax: p.exit === "closed" ? 30000 : 4000 });
+    const opts = Rf => ({ lam: p.lam, nEff: p.neff, hEff: p.heff, Rf, exitMode: p.exit, clip: p.clip, nMax: p.exit === "closed" ? 30000 : 4000,
+      alpha: Oe.DB_PER_CM * p.loss, beam: p.beamModel === "propagated" ? { w_ratio: p.wr, focus_shift: p.fs } : null });
     const Rs = [], rows = [];
     for (let k = 0; k <= 32; k++) Rs.push(1 - 10 ** (-1 - 4 * k / 32));
     for (const R of Rs) { const b = Oe.budget(cell, opts(() => R * (1 - p.sc))); rows.push({ R, L: b.L_eff, V: b.V_eff, T: b.T_out, chi: b.chi_mean }); }
@@ -944,12 +1313,58 @@ ${sweeps.toString()}`;
         per.push({ N, Rm: b.R_mean, L: b.L_eff, T: b.T_out });
       }
     }
-    return { rows, per, cover: Oe.footprintFraction(cell, p.lam, p.neff, 0, 160, 80) };
+    /* loss against size: similar cells for several losses, current mirror R (constant model) or the DBR's mean R */
+    const Rm = p.model === "dbr" ? (per[p.np - 1] ? per[p.np - 1].Rm : 0.999) : p.Rc * (1 - p.sc);
+    const scales = [0.25, 0.35, 0.5, 0.7, 1, 1.4, 2, 2.8, 4, 5.6, 8];
+    const losses = [0, 0.1, 0.3, 1, 3].concat([0, 0.1, 0.3, 1, 3].includes(p.loss) ? [] : [p.loss]);
+    const base = { R: j.meta.R, N: j.meta.N, M: j.meta.M, A: j.meta.A, portW: j.meta.portW, phase: j.meta.phase };
+    let size = null;
+    try { size = Oe.sweepSize(base, scales, losses, { lam: p.lam, nEff: p.neff, hEff: p.heff, Rm, clip: p.clip }); } catch (err) { size = null; }
+    /* stability: input waist ratio and spacing */
+    const lamM = p.lam / p.neff, hits = Oe.traceHits(cell, 0, "window"), stabW = [], stabD = [];
+    for (let k = 0; k <= 40; k++) {
+      const r = 10 ** (-0.5 + k / 40), bp = Oe.beamOnPath(cell, hits, lamM, { w_ratio: r, focus_shift: p.fs });
+      const wh = bp.W.slice(0, -1).map(row => row[row.length - 1]);
+      stabW.push({ r, breathing: Math.max(...wh) / Math.min(...wh), coupling: bp.stability.coupling });
+    }
+    const d0 = j.meta.d, R = j.meta.R;
+    for (let k = 0; k <= 60; k++) {
+      const x = 0.05 + (Math.min(2 * R / d0, 3) * 1.03 - 0.05) * k / 60;
+      let mv = NaN;
+      try {
+        const c2 = Pe.herriottPlanarCell(R, j.meta.N, j.meta.M, j.meta.A, { portW: j.meta.portW, phase: j.meta.phase, d: d0 * x });
+        const h2 = Oe.traceHits(c2, 0, "window", 4);
+        if (h2.elem.length >= 2) {
+          const ch = [0, 1].map(q => Math.hypot(h2.x[q + 1] - h2.x[q], h2.y[q + 1] - h2.y[q]));
+          const M = Oe.pathMatrix(c2, ch, h2.elem, h2.chi, 0, 2); mv = 0.5 * (M[0] + M[3]);
+        } else {
+          const M = Oe.pathMatrix(c2, [d0 * x, d0 * x], [1, 0], [0, 0], 0, 2); mv = 0.5 * (M[0] + M[3]);
+        }
+      } catch (err) { mv = NaN; }
+      stabD.push({ x, m: mv });
+    }
+    /* amplifier and its pump sweep */
+    let amp = null, ampPump = null;
+    if (j.er) {
+      const o = { R: j.meta.R, N: j.meta.N, M: j.meta.M, A: j.meta.A, phase: j.meta.phase, port_width: j.meta.portW, platform: p.plat, film_t: p.filmT,
+        er_t: p.erT, substrate: p.sub, cladding: p.clad, polarization: p.pol, lam_s: p.lam, lam_p: p.lamP, P_signal: p.Ps, P_pump: p.Pp, N_er: p.Ner,
+        tau: p.tau, Cup: p.cup, fq: p.fq, loss_db_cm: p.loss, periods: p.np, R_pump: p.Rp, pump_mirror: p.pm, w_ratio: p.wr, focus_shift: p.fs, clip: p.clip };
+      try {
+        const a = Oe.erAmplifier(o);
+        amp = { gain_db: a.gain_db, internal_gain_db: a.internal_gain_db, Ps_out: a.Ps_out, pump_left: a.pump_left, path: a.path, inversion_mean: a.inversion_mean,
+          eta_s: a.eta_s, eta_p: a.eta_p, R_dbr_signal: a.R_dbr_signal, R_dbr_pump: a.R_dbr_pump, gs: a.ms.gamma_er, gp: a.mp.gamma_er, ns: a.ms.neff, np: a.mp.neff,
+          xs: a.cross_sections, exits: a.exits, s: a.s, Ps: a.Ps, Pp: a.Pp, inv: a.inversion };
+        ampPump = [];
+        const pmax = Math.max(0.05, 2 * p.Pp);
+        for (let k = 0; k <= 16; k++) { const P0 = pmax * k / 16; ampPump.push({ P: P0, g: Oe.erAmplifier(Object.assign({}, o, { P_pump: P0 })).gain_db }); }
+      } catch (err) { amp = { error: String(err.message || err) }; }
+    }
+    return { rows, per, cover: Oe.footprintFraction(cell, p.lam, p.neff, 0, 160, 80), size, stabW, stabD, amp, ampPump };
   }
   let workerUrl = null, useWorker = true, sw = null;
   const sweepRunner = (() => {
     let worker = null, busy = false, id = 0, lastKey = "";
-    const done = (jid, res) => { if (jid !== id) return; busy = false; sw = res; if (state && !state.error) { drawSweeps(); drawStats(); } };
+    const done = (jid, res) => { if (jid !== id) return; busy = false; sw = res; if (state && !state.error) { drawSweeps(); drawStats(); drawStab(); drawSize(); drawAmp(); } };
     return {
       busy: () => busy,
       request(j) {
@@ -1061,6 +1476,8 @@ ${sweeps.toString()}`;
       ["Beam: w₀ / w on mirrors / θ₀", `${fmt(mode.w0 * 1e6, 1)} / ${fmt(mode.wMirror * 1e6, 1)} µm / ${fmt(mode.theta0 * 180 / Math.PI, 2)}°`],
       ["Spacing d, footprint", `${fmt(m.d * 1e3, 3)} mm, ${fmt((m.d + 2 * (m.R - Math.sqrt(m.R * m.R - m.aperture ** 2))) * 1e3, 2)} × ${fmt(2 * m.aperture * 1e3, 2)} mm`],
       ["Area covered by the beam", sw ? `${fmt(100 * sw.cover, 1)} % of the cell` : "computing…"],
+      ["Waveguide loss over the path", `${fmt(p.loss, 2)} dB/cm × ${fmt(b.L_geom * 100, 2)} cm = ${fmt(p.loss * b.L_geom * 100, 2)} dB`],
+      ["Slab n_eff / h_eff", `${p.neff.toFixed(4)} / ${fmt(p.heff * 1e6, 3)} µm${p.src === "stack" ? " (solved)" : ""}`],
     ];
     $("stats").innerHTML = items.map(([a, v]) => `<div class="stat"><span>${a}</span><span>${v}</span></div>`).join("");
     const notes = [];
@@ -1072,6 +1489,7 @@ ${sweeps.toString()}`;
     if (m.portW < 2 * mode.wMirror) notes.push(`<div class="warn">The window (${fmt(m.portW * 1e6, 0)} µm) is narrower than the beam (2w = ${fmt(2 * mode.wMirror * 1e6, 0)} µm): only ${fmt(100 * b.etaWindow, 0)} % couples in and out.</div>`);
     if (p.model === "dbr") notes.push(`<div class="note">DBR at the angles this cell uses: mean R ${b.R_mean.toFixed(5)} against ${state.dbr.R(p.lam, 0).toFixed(5)} at normal incidence; the critical angle is ${fmt(Math.asin(1 / p.neff) * 180 / Math.PI, 1)}°, far above the ${fmt(b.chi_max * 180 / Math.PI, 1)}° maximum here, so the periods do all the work.</div>`);
     if (p.exit === "closed" && b.I_end > 1e-3) notes.push(`<div class="warn">The trace stopped after ${b.nHits} passes with ${sig(100 * b.I_end)} % of the power still inside: L_eff and V_eff are lower bounds (and the sweeps above R ≈ 0.9999 are truncated the same way).</div>`);
+    if (p.loss > 0) notes.push(`<div class="note">With ${fmt(p.loss, 2)} dB/cm the light decays in 1/α = ${fmt(4.343 / p.loss, 2)} cm of path; this cell's path is ${fmt(b.L_geom * 100, 2)} cm, so ${b.L_geom * 100 > 4.343 / p.loss ? "loss, not the mirrors, limits L_eff: a larger cell gains little (see Loss against cell size)" : "a larger cell still pays off"}.</div>`);
     notes.push(`<div class="note">L_eff ≈ ℓ̄ Σ R^j: with R → 1 it reaches N d = ${fmt(p.N * m.d * 100, 2)} cm in the re-entrant cell; a closed cell reaches ℓ̄/(1 − R).</div>`);
     $("notes").innerHTML = notes.join("");
   }
@@ -1142,7 +1560,7 @@ ${sweeps.toString()}`;
     const n = Math.min(b.nHits, p.exit === "closed" ? 400 : b.nHits), m = { l: 52, r: 52, t: 10, b: 34 };
     const logY = b.I[n] / (b.I[0] || 1) < 0.2;
     const lo = logY ? Math.floor(Math.log10(Math.max(b.I[n], 1e-12))) : 0;
-    const yt = logY ? niceTicks(lo, 0, 4).map(v => [v, v === 0 ? "1" : `1e${v}`]) : [0, 0.25, 0.5, 0.75, 1].map(v => [v, `${v * 100} %`]);
+    const yt = logY ? niceTicks(lo, 0, 4).map(v => [v, Number.isInteger(v) ? (v === 0 ? "1" : `1e${v}`) : `${+(100 * 10 ** v).toPrecision(2)} %`]) : [0, 0.25, 0.5, 0.75, 1].map(v => [v, `${v * 100} %`]);
     const [X, Y] = axes(g, w, h, m, "pass j", logY ? "power (log₁₀)" : "power", niceTicks(0, n, 6).map(v => [v, String(v)]), yt, [0, n], logY ? [lo, 0] : [0, 1]);
     const cmax = Math.max(1e-6, ...b.chi.slice(0, n).map(Math.abs)) * 180 / Math.PI * 1.15, Y2 = v => h - m.b - v / cmax * (h - m.t - m.b);
     rightAxis(g, w, h, m, niceTicks(0, cmax, 4).map(v => [v, String(v)]), Y2, "|χ| (°)", css("--sel"));
@@ -1151,6 +1569,148 @@ ${sweeps.toString()}`;
     for (let j = 0; j < Math.min(n, b.reflections); j++) { const v = Math.abs(b.chi[j]) * 180 / Math.PI; g.fillRect(X(j + 1) - bw / 2, Y2(v), bw, Y2(0) - Y2(v)); }
     g.globalAlpha = 1;
     line(g, b.I.slice(0, n + 1).map((v, j) => [X(j), Y(logY ? Math.log10(Math.max(v, 1e-12)) : v)]), css("--accent"));
+  }
+
+  function drawStack() {
+    const { p, slab } = state;
+    const [g, w, h] = fit($("stackChart"));
+    const m = { l: 52, r: 10, t: 10, b: 34 };
+    if (!slab.ms) {
+      $("stackTable").innerHTML = `<tbody><tr><td>Membrane preset: n_eff ${p.neff.toFixed(4)}, h_eff ${fmt(p.heff * 1e6, 3)} µm, Γ_gas ${p.gam.toFixed(3)}. Choose “layer stack” to solve a film with an Er:Al₂O₃ layer.</td></tr></tbody>`;
+      label(g, "membrane preset: no stack solved", w / 2, h / 2, css("--muted"), "center", "middle"); return;
+    }
+    const ms = slab.ms, z = ms.z, zt = ms.thicknesses.reduce((a, b) => a + b, 0), zr = [z[0], z[z.length - 1]];
+    const xr = [Math.max(zr[0], -1.2e-6) * 1e6, Math.min(zr[1], zt + 1.2e-6) * 1e6];
+    const [X, Y] = axes(g, w, h, m, "height z (µm)", "power profile S", niceTicks(xr[0], xr[1], 5).map(v => [v, String(v)]), [0, 0.5, 1].map(v => [v, String(v)]), xr, [0, 1.05]);
+    const cols = { substrate: "--line", film: "--mirror", er: "--sel", cladding: "--bg" };
+    let z0 = 0;
+    ms.thicknesses.forEach((t, i) => { const nm = ms.names[i + 1]; g.fillStyle = css(cols[nm] || "--line"); g.globalAlpha = 0.22; g.fillRect(X(z0 * 1e6), m.t, X((z0 + t) * 1e6) - X(z0 * 1e6), h - m.t - m.b); g.globalAlpha = 1;
+      label(g, nm === "er" ? "Er:Al₂O₃" : p.plat === "tfln" ? "LN" : p.plat === "tflt" ? "LT" : p.plat === "si3n4" ? "Si₃N₄" : p.plat === "si" ? "Si" : "Al₂O₃", X((z0 + t / 2) * 1e6), m.t + 4, css("--ink"), "center", "top"); z0 += t; });
+    label(g, p.sub === "air" ? "air" : "SiO₂", X(xr[0]) + 4, m.t + 4, css("--muted"), "left", "top");
+    label(g, p.clad === "air" ? "air" : "SiO₂", X(xr[1]) - 4, m.t + 4, css("--muted"), "right", "top");
+    line(g, z.map((zz, i) => [X(zz * 1e6), Y(ms.S[i])]).filter(([x]) => x >= m.l && x <= w - m.r), css("--accent"));
+    if (slab.mp && Number.isFinite(slab.mp.neff)) line(g, slab.mp.z.map((zz, i) => [X(zz * 1e6), Y(slab.mp.S[i])]).filter(([x]) => x >= m.l && x <= w - m.r), css("--port-in"), 1.4, [5, 4]);
+    label(g, `— signal ${Math.round(p.lam * 1e9)} nm`, w - m.r - 4, m.t + 22, css("--accent"), "right", "top");
+    if (slab.mp) label(g, `-- pump ${Math.round(p.lamP * 1e9)} nm`, w - m.r - 4, m.t + 36, css("--port-in"), "right", "top");
+    const rows = ms.names.map((nm, i) => [nm === "er" ? "Er:Al₂O₃ layer" : nm, ms.gamma[i], slab.mp && Number.isFinite(slab.mp.neff) ? slab.mp.gamma[i] : NaN]);
+    $("stackTable").innerHTML = `<thead><tr><th>Layer</th><th>Γ signal</th><th>Γ pump</th></tr></thead><tbody>` +
+      rows.map(([a, s1, s2]) => `<tr><td>${a}</td><td>${fmt(100 * s1, 2)} %</td><td>${Number.isFinite(s2) ? fmt(100 * s2, 2) + " %" : "–"}</td></tr>`).join("") +
+      `<tr><td>n_eff</td><td>${ms.neff.toFixed(5)}</td><td>${slab.mp && Number.isFinite(slab.mp.neff) ? slab.mp.neff.toFixed(5) : "–"}</td></tr>` +
+      `<tr><td>h_eff</td><td>${fmt(ms.h_eff * 1e6, 3)} µm</td><td>${slab.mp && Number.isFinite(slab.mp.neff) ? fmt(slab.mp.h_eff * 1e6, 3) + " µm" : "–"}</td></tr></tbody>`;
+  }
+
+  function drawStab() {
+    const { p, b, bMatched, mode } = state, st = b.stability || bMatched.stability;
+    const items = [
+      ["Round-trip stability (A + D)/2", `${fmt(st.m_roundtrip, 4)} (${st.stable ? "stable" : "unstable"})`],
+      ["Gouy phase per round trip", `${fmt(st.gouy_roundtrip, 4)} rad (design 2θ = ${fmt(2 * state.cell.meta.theta, 4)})`],
+      ["Eigenmode waist", `${fmt(st.w0_eigen * 1e6, 2)} µm (design ${fmt(mode.w0 * 1e6, 2)} µm)`],
+      ["Input coupling into the eigenmode", b.stability ? `${fmt(100 * b.stability.coupling, 2)} %` : "– (design model)"],
+      ["Beam radius on mirrors, min / max", `${fmt(Math.min(...b.wHit) * 1e6, 1)} / ${fmt(Math.max(...b.wHit) * 1e6, 1)} µm`],
+      ["Breathing max / min", fmt(Math.max(...b.wHit.slice(0, -1)) / Math.min(...b.wHit.slice(0, -1)), 3)],
+      ["Full pattern (A + D)/2", `${fmt(st.m_path, 5)}${Math.abs(st.m_path - 1) < 0.01 ? " (beam also re-enters)" : ""}`],
+    ];
+    $("stabStats").innerHTML = items.map(([a, v]) => `<div class="stat"><span>${a}</span><span>${v}</span></div>`).join("");
+    {
+      const [g, w, h] = fit($("wHit"));
+      const m = { l: 52, r: 10, t: 10, b: 34 }, n = b.wHit.length, nm = bMatched.wHit.length;
+      const all = b.wHit.concat(bMatched.wHit, [mode.wMirror]), lo = Math.min(...all) * 0.9e6, hi = Math.max(...all) * 1.1e6;
+      const [X, Y] = axes(g, w, h, m, "pass", "w on the mirror (µm)", niceTicks(0, Math.max(n, nm), 6).map(v => [v, String(v)]), niceTicks(lo, hi, 4).map(v => [v, String(v)]), [0, Math.max(n, nm)], [lo, hi]);
+      line(g, [[X(0), Y(mode.wMirror * 1e6)], [X(Math.max(n, nm)), Y(mode.wMirror * 1e6)]], css("--muted"), 1, [2, 3]);
+      line(g, bMatched.wHit.map((v, j) => [X(j + 1), Y(v * 1e6)]), css("--sel"), 1.4, [6, 4]);
+      line(g, b.wHit.map((v, j) => [X(j + 1), Y(v * 1e6)]), css("--accent"));
+      b.wHit.forEach((v, j) => { g.fillStyle = css("--accent"); g.beginPath(); g.arc(X(j + 1), Y(v * 1e6), 2.4, 0, 7); g.fill(); });
+    }
+    if (!sw || !sw.stabW) return;
+    {
+      const [g, w, h] = fit($("stab"));
+      const half = w / 2;
+      { /* left: input waist ratio */
+        const m = { l: 44, r: 8 + w - half, t: 10, b: 34 }, bmax = Math.max(2, ...sw.stabW.map(q => q.breathing)) * 1.05;
+        const [X, Y] = axes(g, w, h, m, "input waist ratio", "breathing", [[-0.5, "0.32"], [0, "1"], [0.5, "3.2"]], niceTicks(1, bmax, 3).map(v => [v, String(v)]), [-0.5, 0.5], [1, bmax]);
+        line(g, sw.stabW.map(q => [X(Math.log10(q.r)), Y(q.breathing)]), css("--accent"));
+        line(g, sw.stabW.map(q => [X(Math.log10(q.r)), Y(1 + (bmax - 1) * q.coupling)]), css("--sel"), 1.6, [6, 4]);
+        ring(g, X(Math.log10(p.wr)), Y(Math.max(...b.wHit.slice(0, -1)) / Math.min(...b.wHit.slice(0, -1))), css("--ink"));
+        label(g, "— breathing", m.l + 4, m.t + 12, css("--accent")); label(g, "-- coupling (0–1)", m.l + 4, m.t + 26, css("--sel"));
+      }
+      { /* right: spacing */
+        const m = { l: half + 34, r: 8, t: 10, b: 34 }, xs = sw.stabD.map(q => q.x), xr = [xs[0], xs[xs.length - 1]];
+        g.font = `10.5px ${css("--font-data")}`;
+        const X = v => m.l + (v - xr[0]) / (xr[1] - xr[0]) * (w - m.l - m.r), Y = v => h - m.b - (Math.max(-1.6, Math.min(1.6, v)) + 1.6) / 3.2 * (h - m.t - m.b);
+        g.fillStyle = css("--port-in"); g.globalAlpha = 0.1; g.fillRect(m.l, Y(1), w - m.l - m.r, Y(-1) - Y(1)); g.globalAlpha = 1;
+        g.strokeStyle = css("--line"); g.lineWidth = 1;
+        [-1, 0, 1].forEach(v => { g.beginPath(); g.moveTo(m.l, Y(v)); g.lineTo(w - m.r, Y(v)); g.stroke(); label(g, String(v), m.l - 4, Y(v), css("--muted"), "right", "middle"); });
+        [0.5, 1, 1.5, 2, 2.5, 3].filter(v => v >= xr[0] && v <= xr[1]).forEach(v => { g.strokeStyle = css("--line"); g.beginPath(); g.moveTo(X(v), m.t); g.lineTo(X(v), h - m.b); g.stroke(); label(g, `${Math.round(v * 100)} %`, X(v), h - m.b + 4, css("--muted"), "center", "top"); });
+        label(g, "spacing d / d_design", (m.l + w - m.r) / 2, h - 2, css("--muted"), "center", "bottom");
+        line(g, sw.stabD.map(q => [X(q.x), Y(q.m)]), css("--accent"));
+        const xn = 1 + p.dd / state.cell.meta.d; ring(g, X(xn), Y(st.m_roundtrip), css("--ink"));
+        label(g, "(A + D)/2 per round trip", m.l + 4, m.t + 12, css("--accent"));
+      }
+    }
+  }
+
+  function drawSize() {
+    const { p } = state;
+    if (!sw || !sw.size) return;
+    const z = sw.size, [g, w, h] = fit($("sizeChart"));
+    const m = { l: 56, r: 10, t: 10, b: 34 }, Lmax = Math.max(...z.L_eff.flat()) * 1.08 * 100;
+    const xr = [Math.log10(z.scales[0]), Math.log10(z.scales[z.scales.length - 1])];
+    const xt = z.scales.filter((_, i) => i % 2 === 0).map(s => [Math.log10(s), `${+(z.L_geom[z.scales.indexOf(s)] * 100).toPrecision(2)} cm`]);
+    const [X, Y] = axes(g, w, h, m, "cell size (geometric path N d, log)", "L_eff (cm)", xt, niceTicks(0, Lmax, 4).map(v => [v, String(v)]), xr, [0, Lmax]);
+    const cols = [css("--ink"), css("--accent"), css("--port-in"), css("--sel"), css("--port-out"), css("--mirror")];
+    z.losses.forEach((ldb, i) => {
+      const cur = Math.abs(ldb - p.loss) < 1e-9;
+      line(g, z.scales.map((s, k) => [X(Math.log10(s)), Y(z.L_eff[i][k] * 100)]), cols[i % cols.length], cur ? 3 : 1.4, ldb === 0 ? [5, 4] : null);
+      const k = z.scales.length - 1;
+      label(g, `${ldb} dB/cm`, X(Math.log10(z.scales[k])) - 4, Y(z.L_eff[i][k] * 100) - 3, cols[i % cols.length], "right");
+    });
+    ring(g, X(0), Y(state.b.L_eff * 100), css("--ink"));
+  }
+
+  function drawAmp() {
+    const { p } = state;
+    const on = state.er;
+    document.querySelectorAll(".only-er").forEach(el => { el.hidden = !on; });
+    if (!on) return;
+    if (!sw || !sw.amp) { $("ampNotes").innerHTML = `<span class="status">Computing the amplifier…</span>`; return; }
+    const a = sw.amp;
+    if (a.error) { $("ampNotes").innerHTML = `<div class="warn">${a.error}</div>`; $("ampStats").innerHTML = ""; return; }
+    const db = v => Number.isFinite(v) ? `${v >= 0 ? "+" : ""}${v.toFixed(2)} dB` : "–";
+    const items = [
+      ["Net signal gain, window to window", db(a.gain_db)], ["Internal gain (inside the windows)", db(a.internal_gain_db)],
+      ["Internal gain per cm of path", `${fmt(a.internal_gain_db / (a.path * 100), 3)} dB/cm`], ["Pump left at the exit", `${fmt(100 * a.pump_left, 2)} %`],
+      ["Mean inversion N₂/N", fmt(a.inversion_mean, 3)], ["Er overlap Γ signal / pump", `${fmt(100 * a.gs, 2)} / ${fmt(100 * a.gp, 2)} %`],
+      ["n_eff signal / pump", `${a.ns.toFixed(4)} / ${a.np.toFixed(4)}`], ["Signal DBR R at λs / at λp", `${a.R_dbr_signal.toFixed(5)} / ${a.R_dbr_pump.toFixed(4)}`],
+      ["Unpumped Er absorption (signal)", `${fmt(10 * Math.log10(Math.E) * a.gs * a.xs[0] * p.Ner / 100, 2)} dB/cm`],
+      ["Window coupling signal / pump", `${fmt(100 * a.eta_s, 2)} / ${fmt(100 * a.eta_p, 2)} %`],
+    ];
+    $("ampStats").innerHTML = items.map(([x, v]) => `<div class="stat"><span>${x}</span><span>${v}</span></div>`).join("");
+    const notes = [];
+    if (p.pm === "dbr") notes.push(`<div class="warn">The signal DBR reflects only ${fmt(100 * a.R_dbr_pump, 1)} % at ${Math.round(p.lamP * 1e9)} nm: the pump leaves the cell after the first bounces. A dual-band or separate pump reflector is needed.</div>`);
+    if (a.pump_left < 0.02) notes.push(`<div class="note">The pump is used up before the light leaves (${fmt(100 * a.pump_left, 2)} % left): the late passes are unpumped and absorb the signal. More pump power, fewer Er ions or a shorter path help.</div>`);
+    notes.push(`<div class="note">Model: effective two-level Er:Al₂O₃ (as in the Er amplifier applet) on the unfolded path; crossing passes do not share inversion; no ASE. Signal ${(p.Ps * 1e3).toPrecision(2)} mW, pump ${fmt(p.Pp * 1e3, 0)} mW at the window.</div>`);
+    $("ampNotes").innerHTML = notes.join("");
+    {
+      const [g, w, h] = fit($("ampPath"));
+      const m = { l: 48, r: 52, t: 10, b: 34 }, L = a.s[a.s.length - 1] * 100, gdb = a.Ps.map(v => 10 * Math.log10(Math.max(v, 1e-30) / p.Ps));
+      const lo = Math.min(-1, ...gdb), hi = Math.max(1, ...gdb);
+      const [X, Y] = axes(g, w, h, m, "path s (cm)", "signal (dB)", niceTicks(0, L, 5).map(v => [v, String(v)]), niceTicks(lo, hi, 4).map(v => [v, String(v)]), [0, L], [lo - 0.5, hi + 0.5]);
+      const pmax = Math.max(...a.Pp) * 1.05 || 1, Y2 = v => h - m.b - v / pmax * (h - m.t - m.b), Y3 = v => h - m.b - v * (h - m.t - m.b);
+      rightAxis(g, w, h, m, niceTicks(0, pmax * 1e3, 4).map(v => [v * 1e-3, String(v)]), Y2, "pump (mW) · inversion", css("--port-in"));
+      line(g, a.s.map((s, i) => [X(s * 100), Y3(a.inv[i])]), css("--muted"), 1.2, [2, 3]);
+      line(g, a.s.map((s, i) => [X(s * 100), Y2(a.Pp[i])]), css("--port-in"), 1.6, [6, 4]);
+      line(g, a.s.map((s, i) => [X(s * 100), Y(gdb[i])]), css("--accent"));
+      label(g, "— signal", m.l + 4, m.t + 12, css("--accent")); label(g, "-- pump", m.l + 4, m.t + 26, css("--port-in")); label(g, "·· inversion (0–1)", m.l + 4, m.t + 40, css("--muted"));
+    }
+    if (sw.ampPump) {
+      const [g, w, h] = fit($("ampPump"));
+      const m = { l: 48, r: 10, t: 10, b: 34 }, pts = sw.ampPump.filter(q => Number.isFinite(q.g)), pm = sw.ampPump[sw.ampPump.length - 1].P * 1e3;
+      const lo = Math.min(...pts.map(q => q.g), 0), hi = Math.max(...pts.map(q => q.g), 1);
+      const [X, Y] = axes(g, w, h, m, "pump power (mW)", "net gain (dB)", niceTicks(0, pm, 5).map(v => [v, String(v)]), niceTicks(lo, hi, 4).map(v => [v, String(v)]), [0, pm], [lo - 0.5, hi + 0.5]);
+      line(g, [[X(0), Y(0)], [X(pm), Y(0)]], css("--muted"), 1, [2, 3]);
+      line(g, pts.map(q => [X(q.P * 1e3), Y(q.g)]), css("--accent"));
+      if (Number.isFinite(a.gain_db)) ring(g, X(p.Pp * 1e3), Y(a.gain_db), css("--ink"));
+    }
   }
 
   /* ---------------------------------------------------------------- controls */
@@ -1165,6 +1725,13 @@ ${sweeps.toString()}`;
     $("RcOut").value = p.Rc.toFixed(6); $("npOut").value = p.np;
     const crit = Math.asin(1 / p.neff) * 180 / Math.PI; $("des").max = Math.max(0, Math.floor((crit - 0.1) * 20) / 20);
     $("desOut").value = `${(+$("des").value).toFixed(2)}°`; $("scOut").value = `${$("sc").value} ppm`;
+    document.querySelectorAll(".only-stack").forEach(el => { el.hidden = p.src !== "stack"; });
+    document.querySelectorAll(".only-preset").forEach(el => { el.hidden = p.src === "stack"; });
+    $("filmTOut").value = `${(+$("filmT").value).toFixed(2)} µm`; $("erTOut").value = +$("erT").value ? `${(+$("erT").value).toFixed(2)} µm` : "none";
+    $("lossOut").value = `${(+$("loss").value).toFixed(2)} dB/cm`; $("wrOut").value = `${p.wr.toFixed(3)}×`; $("fsOut").value = `${(+$("fs").value).toFixed(2)} mm`;
+    $("PpOut").value = `${$("Pp").value} mW`; $("PsOut").value = `${(p.Ps * 1e3).toPrecision(2)} mW`; $("NerOut").value = `${(+$("Ner").value).toFixed(2)}×10²⁰ cm⁻³`;
+    $("tauOut").value = `${(+$("tau").value).toFixed(1)} ms`; $("cupOut").value = `${(+$("cup").value).toFixed(1)}×10⁻¹⁸ cm³/s`; $("fqOut").value = `${Math.round(100 * p.fq)} %`;
+    $("RpOut").value = p.Rp.toFixed(3); $("Rp").disabled = p.pm === "dbr";
     $("dR2Out").value = `${$("dR2").value} µm`; $("tiltOut").value = `${(+$("tilt").value).toFixed(2)} mrad`; $("ddOut").value = `${$("dd").value} µm`;
   }
   let pending = false;
@@ -1173,10 +1740,12 @@ ${sweeps.toString()}`;
     requestAnimationFrame(() => {
       pending = false; sync();
       if (!compute()) { $("notes").innerHTML = `<div class="warn">${state.error}</div>`; $("stats").innerHTML = ""; return; }
-      drawStats(); drawCell(); drawSweeps(); drawPerHit();
+      sync();
+      drawStats(); drawCell(); drawSweeps(); drawPerHit(); drawStack(); drawStab(); drawSize(); drawAmp();
     });
   }
-  ["R", "N", "M", "A", "phMode", "pw", "lam", "heff", "gam", "model", "Rc", "np", "mg", "mt", "des", "avg", "sc", "clip", "dR2", "tilt", "dd", "exit", "stretch"]
+  ["R", "N", "M", "A", "phMode", "pw", "lam", "heff", "gam", "model", "Rc", "np", "mg", "mt", "des", "avg", "sc", "clip", "dR2", "tilt", "dd", "exit", "stretch",
+    "src", "plat", "filmT", "erT", "sub", "clad", "loss", "wr", "fs", "beamModel", "lamP", "Pp", "Ps", "Ner", "tau", "cup", "fq", "pm", "Rp"]
     .forEach(id => $(id).addEventListener("input", update));
   ["neff", "pol"].forEach(id => $(id).addEventListener("input", () => { $("preset").value = "custom"; update(); }));
   $("preset").addEventListener("input", () => {

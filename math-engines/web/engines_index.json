@@ -2444,14 +2444,16 @@
   },
   {
    "engine": "onchip_herriott",
-   "version": 1,
+   "version": 2,
    "title": "On-chip Herriott cell, Gaussian-beam path and volume budget",
    "description": "Effective path, absorption-weighted mode volume, angles of incidence and throughput of an integrated (in-plane) Herriott cell with constant or etched-trench DBR mirrors, the beam's angular spectrum, and Gaussian clipping at the mirror ends and the window.",
    "requires": [],
    "references": [
     "D. Herriott, H. Kogelnik, R. Kompfner, Appl. Opt. 3, 523 (1964) (off-axis paths in spherical mirror interferometers)",
     "H. Kogelnik, T. Li, Appl. Opt. 5, 1550 (1966) (laser beams and resonators)",
-    "P. Yeh, Optical Waves in Layered Media (Wiley, 1988) (transfer matrices at oblique incidence)"
+    "P. Yeh, Optical Waves in Layered Media (Wiley, 1988) (transfer matrices at oblique incidence)",
+    "J. Bradley, M. Pollnau, Laser Photonics Rev. 5, 368 (2011) (erbium-doped integrated waveguide amplifiers)",
+    "D. E. McCumber, Phys. Rev. 136, A954 (1964) (emission from absorption cross-sections)"
    ],
    "files": [
     "engines/billiard_cell/__init__.py",
@@ -2462,6 +2464,8 @@
     "engines/cell_mirror/engine.py",
     "engines/onchip_herriott/__init__.py",
     "engines/onchip_herriott/engine.py",
+    "engines/onchip_herriott/erbium.py",
+    "engines/onchip_herriott/stack.py",
     "engines/planar_cell/__init__.py",
     "engines/planar_cell/engine.py",
     "engines/ray_phase/__init__.py",
@@ -2657,9 +2661,66 @@
        "ui_unit": "mrad",
        "scale": 0.001,
        "default": 0
+      },
+      {
+       "name": "loss_db_cm",
+       "label": "Waveguide propagation loss",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "beam_model",
+       "label": "Beam model",
+       "type": "choice",
+       "choices": [
+        "propagated",
+        "design"
+       ],
+       "default": "propagated"
+      },
+      {
+       "name": "w_ratio",
+       "label": "Input waist / eigenmode waist",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0.05
+      },
+      {
+       "name": "focus_shift",
+       "label": "Input focus shift along pass 1",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
       }
      ],
      "outputs": [
+      {
+       "name": "m_roundtrip",
+       "label": "Round-trip stability (A + D)/2",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "coupling",
+       "label": "Input coupling into the eigenmode",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "w_hit_min",
+       "label": "Smallest beam radius on a mirror",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "w_hit_max",
+       "label": "Largest beam radius on a mirror",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
       {
        "name": "T_out",
        "label": "Throughput (in through the window, out after N)",
@@ -2773,6 +2834,615 @@
        "label": "Mirror R at normal incidence",
        "ui_unit": "",
        "scale": 1.0
+      }
+     ]
+    },
+    "slab_stack": {
+     "title": "Layer stack mode and overlaps",
+     "equations": [
+      "Γ_i = ∫_i S dz / ∫ S dz, S = E_y² (TE) or H_y²/n² (TM)",
+      "h_eff = ∫S dz / max S"
+     ],
+     "inputs": [
+      {
+       "name": "platform",
+       "label": "Platform film",
+       "type": "choice",
+       "choices": [
+        "al2o3",
+        "si3n4",
+        "tfln",
+        "tflt",
+        "si"
+       ],
+       "default": "al2o3"
+      },
+      {
+       "name": "film_t",
+       "label": "Film thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4
+      },
+      {
+       "name": "er_t",
+       "label": "Er:Al₂O₃ layer thickness (0: none)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4,
+       "min": 0
+      },
+      {
+       "name": "substrate",
+       "label": "Below the film",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "cladding",
+       "label": "Top cladding",
+       "type": "choice",
+       "choices": [
+        "air",
+        "sio2"
+       ],
+       "default": "air"
+      },
+      {
+       "name": "wavelength",
+       "label": "Wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Slab n_eff",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_eff",
+       "label": "Effective height",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "gamma_substrate",
+       "label": "Power share, substrate",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_film",
+       "label": "Power share, film",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_er",
+       "label": "Power share, Er layer",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_cladding",
+       "label": "Power share, cladding",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "beam_stability": {
+     "title": "Beam stability and input collimation",
+     "equations": [
+      "q' = q + ℓ, 1/q'' = 1/q' − 2/(R cos χ)",
+      "m = (A + D)/2 of a round trip, stable for |m| < 1",
+      "η = 2 / (w₁ w₂ |1/w₁² + 1/w₂² + i k (1/R₁ − 1/R₂)/2|)"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 10
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 3,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Pattern half width A",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1
+      },
+      {
+       "name": "phase",
+       "label": "Pattern phase φ",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "port_width",
+       "label": "Window width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 100
+      },
+      {
+       "name": "wavelength",
+       "label": "Wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "n_eff",
+       "label": "Slab n_eff",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.479,
+       "min": 1
+      },
+      {
+       "name": "w_ratio",
+       "label": "Input waist / eigenmode waist",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0.05
+      },
+      {
+       "name": "focus_shift",
+       "label": "Input focus shift",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "dR2",
+       "label": "Radius error of M2",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0
+      },
+      {
+       "name": "spacing_error",
+       "label": "Spacing error",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "m_roundtrip",
+       "label": "Round-trip (A + D)/2",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "stable",
+       "label": "Stable",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gouy_roundtrip",
+       "label": "Gouy phase per round trip",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "gouy_design",
+       "label": "Design 2θ",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "m_path",
+       "label": "Full-pattern (A + D)/2 (1 = beam re-entrant)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "w0_eigen",
+       "label": "Eigenmode waist",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "coupling",
+       "label": "Input coupling",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "w_mirror_min",
+       "label": "Smallest radius on a mirror",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "w_mirror_max",
+       "label": "Largest radius on a mirror",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "breathing",
+       "label": "Breathing max/min",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "w_mirror_design",
+       "label": "Design radius on the mirrors",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      }
+     ]
+    },
+    "er_amplifier": {
+     "title": "Er:Al₂O₃ gain in the cell",
+     "equations": [
+      "dPs/ds = [Γs(σe,s N2 − σa,s N1) − α] Ps",
+      "dPp/ds = −[Γp(σa,p N1 − σe,p N2) + α] Pp",
+      "N2 = 2RaN/(b + √(b² + 4 C_up Ra N)), b = Ra + Re + 1/τ"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 10
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 3,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Pattern half width A",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1
+      },
+      {
+       "name": "phase",
+       "label": "Pattern phase φ",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "port_width",
+       "label": "Window width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 100
+      },
+      {
+       "name": "platform",
+       "label": "Platform film",
+       "type": "choice",
+       "choices": [
+        "al2o3",
+        "si3n4",
+        "tfln",
+        "tflt",
+        "si"
+       ],
+       "default": "al2o3"
+      },
+      {
+       "name": "film_t",
+       "label": "Film thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4
+      },
+      {
+       "name": "er_t",
+       "label": "Er:Al₂O₃ layer thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4,
+       "min": 0
+      },
+      {
+       "name": "substrate",
+       "label": "Below the film",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "cladding",
+       "label": "Top cladding",
+       "type": "choice",
+       "choices": [
+        "air",
+        "sio2"
+       ],
+       "default": "air"
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "lam_s",
+       "label": "Signal wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532
+      },
+      {
+       "name": "lam_p",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 980
+      },
+      {
+       "name": "P_signal",
+       "label": "Signal power",
+       "ui_unit": "µW",
+       "scale": 1e-06,
+       "default": 1
+      },
+      {
+       "name": "P_pump",
+       "label": "Pump power",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 100
+      },
+      {
+       "name": "N_er",
+       "label": "Er concentration",
+       "ui_unit": "10²⁰ cm⁻³",
+       "scale": 1e+26,
+       "default": 1.5
+      },
+      {
+       "name": "tau",
+       "label": "Metastable lifetime",
+       "ui_unit": "ms",
+       "scale": 0.001,
+       "default": 7.5
+      },
+      {
+       "name": "Cup",
+       "label": "Upconversion coefficient",
+       "ui_unit": "10⁻¹⁸ cm³/s",
+       "scale": 1e-24,
+       "default": 4
+      },
+      {
+       "name": "fq",
+       "label": "Quenched ion fraction",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 0.95
+      },
+      {
+       "name": "loss_db_cm",
+       "label": "Waveguide loss",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": 0.25,
+       "min": 0
+      },
+      {
+       "name": "periods",
+       "label": "Signal DBR periods",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 6,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "R_pump",
+       "label": "Pump mirror reflectance (constant)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.99,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "pump_mirror",
+       "label": "Pump mirror",
+       "type": "choice",
+       "choices": [
+        "constant",
+        "dbr"
+       ],
+       "default": "constant"
+      },
+      {
+       "name": "w_ratio",
+       "label": "Input waist / eigenmode waist",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0.05
+      },
+      {
+       "name": "focus_shift",
+       "label": "Input focus shift",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "scale",
+       "label": "Cell size factor (R, A, window)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0.05
+      }
+     ],
+     "outputs": [
+      {
+       "name": "gain_db",
+       "label": "Net signal gain, window to window",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "internal_gain_db",
+       "label": "Internal gain",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "Ps_out",
+       "label": "Signal out",
+       "ui_unit": "µW",
+       "scale": 1e-06
+      },
+      {
+       "name": "pump_left",
+       "label": "Pump left at the exit",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "path",
+       "label": "Path",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "gain_per_cm",
+       "label": "Internal gain per cm",
+       "ui_unit": "dB/cm",
+       "scale": 1.0
+      },
+      {
+       "name": "inversion_mean",
+       "label": "Mean inversion N2/N",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "neff_s",
+       "label": "n_eff at the signal",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "neff_p",
+       "label": "n_eff at the pump",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_er_s",
+       "label": "Er overlap, signal",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_er_p",
+       "label": "Er overlap, pump",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_dbr_signal",
+       "label": "DBR R at the signal (normal)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_dbr_pump",
+       "label": "Same DBR at the pump (normal)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "small_signal_absorption_db_cm",
+       "label": "Unpumped signal absorption",
+       "ui_unit": "dB/cm",
+       "scale": 1.0
+      },
+      {
+       "name": "exits",
+       "label": "Leaves through the window",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "footprint_area",
+       "label": "Cell footprint",
+       "ui_unit": "mm²",
+       "scale": 1e-06
       }
      ]
     }

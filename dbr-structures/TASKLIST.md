@@ -8,6 +8,7 @@ Python reference engines in `math-engines/`, tested:
 - `bragg_grating` v2: κ of rectangular gratings, tanh²(κL), bandwidth, effective length, coupled-mode spectrum, Abelès stacks at normal and oblique incidence (s/p, TIR), `TrenchDBR`, `double_resonant_orders`.
 - `slab_waveguide` (three-layer, multilayer), `anisotropic_slab`, `materials`, `qpm_shg`, `gaussian_beam`, `membrane_mode`, `cell_mirror`.
 - `grating_coupler` v1 (A1): arbitrary etch profiles, local n_eff table, Fourier κ, out-of-plane radiation per diffraction order with the vertical stack (BOX, Si or Au handle), far field. Reference for `radiation`, `farField`, `profileFn`, `tableAt`, `modeParams` and `planeWave` in `dbr-engine.js`.
+- `rcwa` v1 (A3): rigorous Fourier modal method; benchmark of the thin-sheet, EIM-κ and coupled-mode coupler models.
 - `crigf` v1 (A2): DBR | coupler | DBR fed by a Gaussian beam, Kazarinov–Henry coupler, transfer-matrix DBRs, power budget, resonance finder. Reference for `crigfSetup`, `crigfAt`, `findResonance`.
 
 `dbr-engine.js` only (no Python reference yet): phase tuning (`tunePhase`), field map along the cavity, SHG in the grating, QPM chirp/apodisation optimiser, pump depletion, ridge effective-index lateral model, curved-DBR Gaussian bounce.
@@ -19,12 +20,16 @@ Python reference engines in `math-engines/`, tested:
 - [x] A2. `crigf` engine: Python port of `crigfAt` and `findResonance`; spec, vectors (5 cases, one through a resonance), JS check (port agrees to 1e-8).
   Independent checks: coupler radiation = `grating_coupler` q = 1 radiation (1e-9); RK4 = matrix exponential in the rotating frame; θ → −θ swaps the escape; no etch = bare slab; strong DBRs return all guided light; passivity; Lorentzian resonance.
   Findings: the coupler alone leaves up to 4e-4 in other modes for a 5 µm beam (the applet note said 1e-4, corrected); on a cavity resonance a few percent go into other modes because the radiated profile follows the cavity decay; at oblique incidence the backward guided wave radiates at −θ and is counted as "other" (B11).
-- [ ] A3. Rigorous 1D-periodic RCWA/FMM engine (TE/TM, multilayer): benchmark radiation loss, κ, directionality and CRIGF spectra; replaces the "factor of a few" accuracy statement.
-- [ ] A4. Complex-β Floquet–Bloch (leaky-mode) solver of the grating section: band edges, bright/dark modes at normal incidence, Q.
+- [x] A3. `rcwa` engine (Fourier modal method, TE/TM, Li's rule): diffraction, leaky and Bloch modes, radiation loss, directionality, DBR κ; benchmark table in `math-engines/engines/rcwa/README.md`.
+  TE: thin-sheet radiation within 1–6 % (h ≤ t/3), split within 0.002, κ within 1 %; over BOX/handles within 6 % (Si) and 20 % (gold). Coupled-mode coupler (`crigf.infinite_grating`) vs rigorous resonance: linewidth within 1–7 %, position offset 0.1–0.9 nm from the EIM n_eff.
+  TM: thin-sheet radiation ~10× too low, EIM κ 2–7× too high (see A7). Finite CRIGF spectra (DBRs + Gaussian beam) not benchmarked: needs an aperiodic solver (A9).
+- [ ] A4. Band edges of second-order gratings: bright/dark modes at normal incidence and their Q. The complex-β solver exists (`rcwa.leaky_mode`, `bloch_mode`); left: tracking both band-edge modes and a band-diagram helper.
 - [ ] A5. `dbr-engine.js` in SI; material table generated from `materials` (LiTaO₃ Bond refits, temperature-dependent LN).
 - [ ] A6. `dbr-structures` in `tools/build_standalone.py`.
-- [ ] A7. Proper TM radiation: the thin-sheet formula and the plane-wave local field are TE expressions (TM uses H_y with the TE formula). Found while writing A1.
+- [ ] A7. Proper TM radiation and κ: the thin-sheet formula and the plane-wave local field are TE expressions, and the EIM treats the etched layer as isotropic. Quantified by A3: TM radiation ~10× too low, TM κ 2–7× too high. Fix: TM sheet with the normal-D / tangential-E split and an anisotropic (harmonic/arithmetic) etched layer, checked against `rcwa`.
 - [ ] A8. Python reference for the lateral models (ridge Γ_lat, curved-DBR `bounce`, `ridgeLateral`) with vectors.
+- [ ] A9. Aperiodic rigorous check of a whole CRIGF (supercell RCWA with absorbing boundaries, or 2D FDTD/FEM): DBR + coupler + Gaussian beam, against `crigf.response`.
+- [ ] A10. EIM n_eff offset: the coupler resonance sits 0.1–0.9 nm short of the rigorous one (20–50 nm etch); a first-order correction from `rcwa` or a perturbative n_eff shift.
 
 ## B. Physics models
 

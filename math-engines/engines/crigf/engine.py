@@ -215,7 +215,27 @@ class CRIGF:
                 "alpha_rad": 2 * rad * g2, "rL": rL, "rR": rR, "N0G": N0G, "n_out": n_out, "beta": beta, "D": D,
                 "z": z, "RS": ys, "Y_end": Y,
                 "coef": {"rad": rad, "aC": aC, "G1": G1, "N2": N2, "k": k, "D": D, "alpha_prop": aP, "F_top": pw_top["F"],
-                         "kz_in": kz_in, "phase0": phase0, "E0": E0, "overlap_y": oy, "zc": zc, "w0": self.w0, "cos_theta": cth}}
+                         "kz_in": kz_in, "phase0": phase0, "E0": E0, "overlap_y": oy, "zc": zc, "w0": self.w0, "cos_theta": cth,
+                         "r_top": pw_top["r"], "tau_top": pw_top["tau"], "F_bot": pw_bot["F"], "n_bot": nB, "n_clad": nc,
+                         "cos_theta_bot": cths}}
+
+    def infinite_grating(self, wavelength):
+        """Plane-wave limit of the coupler model: an infinite coupler grating (no DBRs) under a plane wave at theta.
+        Steady state of the coupled-mode equations in the rotating frame, R = ρ e^{i(D + k_z)ζ}, S = σ e^{i(k_z - D)ζ};
+        returns the specular reflectance R, the transmittance T into the substrate and R + T (1 without loss, since a
+        second-order grating radiates only into the specular orders). For benchmarks against rigorous solvers."""
+        co = self.response(wavelength)["coef"]
+        rad, aC, G1, N2, k, D, aP, kz = (co[x] for x in ("rad", "aC", "G1", "N2", "k", "D", "alpha_prop", "kz_in"))
+        g2 = abs(G1) ** 2
+        A = np.array([[-rad * g2 - aP / 2 - 1j * D, -rad * G1 * G1 + 1j * k * N2],
+                      [rad * np.conj(G1) ** 2 - 1j * k * np.conj(N2), rad * g2 + aP / 2 + 1j * D]])
+        b = np.array([1j * aC * G1 * co["F_top"], -1j * aC * np.conj(G1) * co["F_top"]])
+        rho, sig = np.linalg.solve(A - 1j * kz * np.eye(2), -b)
+        Kn = -4j * aC * (np.conj(G1) * rho + G1 * sig)
+        nc, nb, c, cb = co["n_clad"], co["n_bot"], co["cos_theta"], co["cos_theta_bot"]
+        r = co["r_top"] - 0.25 * Kn * co["F_top"] * 2 * ETA0 / (nc * c)
+        t = co["tau_top"] - 0.25 * Kn * co["F_bot"] * 2 * ETA0 / np.sqrt(nc * c * nb * cb)
+        return {"R": abs(r) ** 2, "T": abs(t) ** 2, "sum": abs(r) ** 2 + abs(t) ** 2, "r": r, "t": t}
 
     def find_resonance(self, lam_c, fsr, n=40, width=True):
         """Cavity resonance nearest lam_c: maximise the circulating guided power over one free spectral range

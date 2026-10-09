@@ -11,6 +11,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra; oblique incidence (s/p, TIR), etched-trench membrane DBRs, two-wavelength DBR orders | |
 | [crigf](engines/crigf/) | Cavity-resonant grating filter (DBR, grating coupler, DBR) fed by a Gaussian beam: Kazarinov–Henry coupled-mode coupler, transfer-matrix DBRs, R into the beam, T, guided escape, other radiation, circulating power, resonance and width | |
 | [grating_coupler](engines/grating_coupler/) | Surface-etched gratings: etch profiles, local n_eff, Fourier κ of any profile, out-of-plane radiation per order and channel (BOX, Si or Au handle), directionality, far field | |
+| [rcwa](engines/rcwa/) | Rigorous coupled-wave analysis (Fourier modal method) of 1D-periodic multilayer gratings, TE/TM: diffraction efficiencies, leaky and Bloch modes, radiation loss and directionality, DBR κ; benchmark of the fast grating models | |
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
 | [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius | scipy |
 | [membrane_mode](engines/membrane_mode/) | Free-standing membrane slab mode for evanescent sensing: n_eff, n_g, absorption factor Γ, penetration depth, surface-field (roughness) weight, evanescent gas volume | |

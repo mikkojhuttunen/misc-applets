@@ -1,0 +1,59 @@
+engine: rcwa
+version: 1
+title: Rigorous grating solver (RCWA / Fourier modal method)
+description: Rigorous radiation loss, directionality and DBR coupling of surface gratings on slab waveguides (TE/TM, multilayer), with the effective-index and thin-sheet estimates for comparison.
+references:
+  - "M. G. Moharam, E. B. Grann, D. A. Pommet and T. K. Gaylord, J. Opt. Soc. Am. A 12, 1068 (1995) (formulation of RCWA)"
+  - "L. Li, J. Opt. Soc. Am. A 13, 1870 (1996) (Fourier factorisation rules)"
+common_inputs:
+  wavelength: {label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+  n_sub: {label: "Substrate (BOX) index", ui_unit: "", scale: 1.0, default: 1.444, min: 1}
+  n_core: {label: "Core index", ui_unit: "", scale: 1.0, default: 2.138, min: 1}
+  n_clad: {label: "Cladding index", ui_unit: "", scale: 1.0, default: 1.0, min: 1}
+  thickness: {label: "Core thickness", ui_unit: nm, scale: 1.0e-9, default: 600, min: 1}
+  etch_depth: {label: "Etch depth", ui_unit: nm, scale: 1.0e-9, default: 50, min: 0}
+  fill_factor: {label: "Tooth fill", ui_unit: "", scale: 1.0, default: 0.5, min: 0, max: 1}
+  polarization: {label: "Polarisation", type: choice, choices: [TE, TM], default: TE}
+functions:
+  grating_leaky_mode:
+    title: Radiation loss of a surface grating (rigorous)
+    equations: ["det(I - R_up R_down) = 0 for complex k_x0 = k0 N", "α = 2 k0 Im N"]
+    inputs:
+      - wavelength
+      - n_sub
+      - n_core
+      - n_clad
+      - thickness
+      - etch_depth
+      - {name: period, label: "Period", ui_unit: nm, scale: 1.0e-9, default: 830, min: 1}
+      - fill_factor
+      - polarization
+      - {name: handle, label: "Handle under the BOX", type: choice, choices: [none, si, au], default: none}
+      - {name: box_thickness, label: "BOX thickness", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
+      - {name: orders, label: "Floquet orders M (2M + 1 used)", ui_unit: "", scale: 1.0, default: 20, min: 1, step: 1}
+    outputs:
+      - {name: alpha, label: "Radiation loss α (rigorous)", ui_unit: 1/mm, scale: 1000.0}
+      - {name: alpha_thin_sheet, label: "α thin-sheet estimate", ui_unit: 1/mm, scale: 1000.0}
+      - {name: up_fraction, label: "Up share (rigorous)", ui_unit: "", scale: 1.0}
+      - {name: up_fraction_thin_sheet, label: "Up share (thin sheet)", ui_unit: "", scale: 1.0}
+      - {name: neff_real, label: "Re N (rigorous)", ui_unit: "", scale: 1.0}
+      - {name: neff_eim, label: "Mean n_eff (EIM)", ui_unit: "", scale: 1.0}
+  dbr_coupling:
+    title: First-order DBR coupling (rigorous)
+    equations: ["q = k_x0 - K/2 of guided Bloch modes", "q² = A (ν - ν_B)² - κ²"]
+    inputs:
+      - wavelength
+      - n_sub
+      - n_core
+      - n_clad
+      - thickness
+      - etch_depth
+      - {name: period, label: "Period", ui_unit: nm, scale: 1.0e-9, default: 396, min: 1}
+      - fill_factor
+      - polarization
+      - {name: orders, label: "Floquet orders M (2M + 1 used)", ui_unit: "", scale: 1.0, default: 10, min: 1, step: 1}
+    outputs:
+      - {name: kappa, label: "κ (rigorous)", ui_unit: 1/cm, scale: 100.0}
+      - {name: kappa_eim, label: "κ (effective index)", ui_unit: 1/cm, scale: 100.0}
+      - {name: lambda_B, label: "Bragg wavelength (rigorous)", ui_unit: nm, scale: 1.0e-9}
+      - {name: fit_residual, label: "Band fit residual", ui_unit: "", scale: 1.0}

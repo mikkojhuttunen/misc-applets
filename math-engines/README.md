@@ -9,6 +9,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [slab_waveguide](engines/slab_waveguide/) | Three-layer and multilayer slab effective index, V, b, mode count | |
 | [anisotropic_slab](engines/anisotropic_slab/) | TE/TM modes of slabs with anisotropic layers (x-, y-, z-cut uniaxial films, biaxial stacks), orientation helpers | |
 | [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra; oblique incidence (s/p, TIR), etched-trench membrane DBRs, two-wavelength DBR orders | |
+| [grating_coupler](engines/grating_coupler/) | Surface-etched gratings: etch profiles, local n_eff, Fourier κ of any profile, out-of-plane radiation per order and channel (BOX, Si or Au handle), directionality, far field | |
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
 | [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius | scipy |
 | [membrane_mode](engines/membrane_mode/) | Free-standing membrane slab mode for evanescent sensing: n_eff, n_g, absorption factor Γ, penetration depth, surface-field (roughness) weight, evanescent gas volume | |
@@ -72,7 +73,7 @@ The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out
 
 | Port | Covers | Checked by |
 |---|---|---|
-| `dbr-structures/dbr-engine.js` | Sellmeier indices, three-layer slab, coupled-mode reflectance, transfer-matrix stack | `check_js_ports.mjs` |
+| `dbr-structures/dbr-engine.js` | Sellmeier indices, three-layer slab, coupled-mode reflectance, transfer-matrix stack; `grating_coupler` profiles, n_eff table, Fourier κ, radiation per order, Bragg order, far field | `check_js_ports.mjs` |
 | `parametric-amplifier.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver | `check_js_ports.mjs` (functions extracted from the page) |
 | `fringe-washout.html` (inline `engine:begin/end` block) | `fringe_averaging` harmonics, components, filters, residual visibility | `check_js_ports.mjs` (block extracted from the page) |
 | `cmpc-ray-tracer.html` (inline `engine:begin/end` block) | `billiard_cell.SegmentedCell` geometry, hit test, reflection, launch, `reflection_weighted_path`; `ray_phase` path lengths, dither offsets, visibility, `dither_analysis`; `bragg_grating.stack_R_oblique`, `TrenchDBR`; `cell_mirror` statistics | `check_js_ports.mjs` (block extracted from the page) |

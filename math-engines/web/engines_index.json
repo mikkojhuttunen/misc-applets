@@ -1501,6 +1501,393 @@
    }
   },
   {
+   "engine": "grating_coupler",
+   "version": 1,
+   "title": "Surface grating coupler",
+   "description": "Local effective index, Fourier coupling coefficient of any etch profile, out-of-plane radiation per diffraction order and channel (BOX, Si or Au handle), far field.",
+   "requires": [],
+   "references": [
+    "R. Kazarinov and C. Henry, IEEE J. Quantum Electron. 21, 144 (1985) (radiation from second-order gratings)",
+    "D. Marcuse, Theory of Dielectric Optical Waveguides, 2nd ed. (Academic Press, 1991), ch. 3 (volume-current radiation)",
+    "H. Kogelnik, in Guided-Wave Optoelectronics, ed. T. Tamir (Springer, 1988) (coupled-mode κ)"
+   ],
+   "files": [
+    "engines/grating_coupler/__init__.py",
+    "engines/grating_coupler/engine.py",
+    "engines/slab_waveguide/__init__.py",
+    "engines/slab_waveguide/engine.py"
+   ],
+   "functions": {
+    "profile_coupling": {
+     "title": "Coupling coefficient of an etched profile",
+     "equations": [
+      "κ_m = 2π |N_m| / λ, N_m = ∫ n_eff(u) exp(-2πi m u) du",
+      "rectangular: κ_m = 2 Δn sin(π m f) / (m λ)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_sub",
+       "label": "Substrate (BOX) index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1
+      },
+      {
+       "name": "n_core",
+       "label": "Core index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.138,
+       "min": 1
+      },
+      {
+       "name": "n_clad",
+       "label": "Cladding index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1
+      },
+      {
+       "name": "thickness",
+       "label": "Core thickness t",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 600,
+       "min": 1
+      },
+      {
+       "name": "etch_depth",
+       "label": "Etch depth h",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 100,
+       "min": 0
+      },
+      {
+       "name": "period",
+       "label": "Period Λ",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 360,
+       "min": 1
+      },
+      {
+       "name": "fill_factor",
+       "label": "Tooth fill f",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "profile",
+       "label": "Profile",
+       "type": "choice",
+       "choices": [
+        "rect",
+        "trap",
+        "smooth",
+        "sine",
+        "tri",
+        "saw"
+       ],
+       "default": "rect"
+      },
+      {
+       "name": "sidewall_angle",
+       "label": "Sidewall angle (trap)",
+       "ui_unit": "°",
+       "scale": 0.017453292519943295,
+       "default": 90,
+       "min": 1,
+       "max": 90
+      },
+      {
+       "name": "edge_sigma",
+       "label": "Edge rounding σ (smooth)",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "harmonic",
+       "label": "Bragg order m",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "kappa",
+       "label": "Coupling coefficient κ_m",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      },
+      {
+       "name": "kappa_rect",
+       "label": "Rectangular estimate 2Δn sin(πmf)/(mλ)",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      },
+      {
+       "name": "n_high",
+       "label": "n_eff unetched",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_low",
+       "label": "n_eff etched",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_mean",
+       "label": "Mean n_eff",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "grating_radiation": {
+     "title": "Out-of-plane radiation of a surface grating",
+     "equations": [
+      "α_q = k⁴ (n_core² - n_clad²)² h² |G_q|² φ²(x_g) |F_j|² / (4 β k_x,j)",
+      "k_z = β - q K, sin θ = k_z / (k n_j)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_sub",
+       "label": "Substrate (BOX) index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1
+      },
+      {
+       "name": "n_core",
+       "label": "Core index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.138,
+       "min": 1
+      },
+      {
+       "name": "n_clad",
+       "label": "Cladding index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1
+      },
+      {
+       "name": "thickness",
+       "label": "Core thickness t",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 600,
+       "min": 1
+      },
+      {
+       "name": "etch_depth",
+       "label": "Etch depth h",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 100,
+       "min": 0
+      },
+      {
+       "name": "period",
+       "label": "Period Λ",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 850,
+       "min": 1
+      },
+      {
+       "name": "fill_factor",
+       "label": "Tooth fill f",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "profile",
+       "label": "Profile",
+       "type": "choice",
+       "choices": [
+        "rect",
+        "trap",
+        "smooth",
+        "sine",
+        "tri",
+        "saw"
+       ],
+       "default": "rect"
+      },
+      {
+       "name": "sidewall_angle",
+       "label": "Sidewall angle (trap)",
+       "ui_unit": "°",
+       "scale": 0.017453292519943295,
+       "default": 90,
+       "min": 1,
+       "max": 90
+      },
+      {
+       "name": "edge_sigma",
+       "label": "Edge rounding σ (smooth)",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "periods",
+       "label": "Periods N (for the Bragg reflectance)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 100,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "handle",
+       "label": "Handle under the BOX",
+       "type": "choice",
+       "choices": [
+        "none",
+        "si",
+        "au"
+       ],
+       "default": "none"
+      },
+      {
+       "name": "box_thickness",
+       "label": "BOX thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "alpha_total",
+       "label": "Radiation loss α (power)",
+       "ui_unit": "1/mm",
+       "scale": 1000.0
+      },
+      {
+       "name": "alpha_up",
+       "label": "α into the cladding",
+       "ui_unit": "1/mm",
+       "scale": 1000.0
+      },
+      {
+       "name": "alpha_down",
+       "label": "α into the substrate",
+       "ui_unit": "1/mm",
+       "scale": 1000.0
+      },
+      {
+       "name": "up_fraction",
+       "label": "Directionality (up share)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "radiation_length",
+       "label": "Radiation length 1/α",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "theta_main",
+       "label": "Angle of the strongest order",
+       "ui_unit": "°",
+       "scale": 0.017453292519943295
+      },
+      {
+       "name": "n_mean",
+       "label": "Mean n_eff",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "bragg_order",
+       "label": "Guided Bragg order",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "kappa_bragg",
+       "label": "Guided Bragg κ",
+       "ui_unit": "1/cm",
+       "scale": 100.0
+      },
+      {
+       "name": "lambda_bragg",
+       "label": "Bragg wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "R_bragg",
+       "label": "Guided reflectance at this λ (N periods)",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "materials",
    "version": 2,
    "title": "Material refractive index",

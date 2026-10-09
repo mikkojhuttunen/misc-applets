@@ -20,6 +20,7 @@ from engines.bragg_grating import engine as bg  # noqa: E402
 from engines.ray_phase import engine as rp  # noqa: E402
 from engines.cell_mirror import engine as cmir  # noqa: E402
 from engines.fringe_averaging import engine as fav  # noqa: E402
+from engines.grating_coupler import engine as gcp  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
@@ -123,7 +124,36 @@ def build() -> dict:
                             "phase": psi, "drift": drift, "coherence": coh, "filter": kind, "T": Ts,
                             "V": [float(x) for x in fav.residual_visibility(f, A, np.array(Ts), drift, coh, kind)],
                             "floor": fav.static_floor(f, A, drift, coh), "n_groups": int(f.size)})
+    v["grating_coupler"] = [_grating_vector(*c) for c in _GRATING_CASES]
     return v
+
+
+# (n_sub, n_core, n_clad, t, h, period, fill, profile, sidewall_angle, edge_sigma, pol, handle, box, wavelength, periods)
+_GRATING_CASES = [
+    (1.444, 2.138, 1.0, 0.6e-6, 0.1e-6, 0.85e-6, 0.5, "rect", np.pi / 2, 0.0, "TE", None, 0.0, 1.55e-6, 200),
+    (1.444, 2.138, 1.0, 0.6e-6, 0.15e-6, 0.83e-6, 0.37, "rect", np.pi / 2, 0.0, "TE", None, 0.0, 1.55e-6, 120),
+    (1.444, 2.138, 1.0, 0.6e-6, 0.15e-6, 0.85e-6, 0.5, "trap", np.radians(70), 0.0, "TE", None, 0.0, 1.55e-6, 200),
+    (1.444, 2.138, 1.0, 0.6e-6, 0.1e-6, 0.85e-6, 0.45, "smooth", np.pi / 2, 20e-9, "TE", (3.476, 0.0), 2e-6, 1.55e-6, 200),
+    (1.444, 2.138, 1.0, 0.6e-6, 0.1e-6, 0.85e-6, 0.3, "saw", np.pi / 2, 0.0, "TE", (0.52, 10.7), 1.8e-6, 1.55e-6, 200),
+    (1.444, 2.0, 1.444, 0.4e-6, 0.2e-6, 0.96e-6, 0.5, "sine", np.pi / 2, 0.0, "TE", None, 0.0, 1.55e-6, 60),
+    (1.444, 2.138, 1.0, 0.6e-6, 0.1e-6, 0.85e-6, 0.6, "tri", np.pi / 2, 0.0, "TM", (3.476, 0.0), 1.6e-6, 1.55e-6, 200),
+    (1.444, 2.17, 1.0, 0.4e-6, 0.08e-6, 0.36e-6, 0.5, "rect", np.pi / 2, 0.0, "TE", None, 0.0, 1.55e-6, 400),
+    (1.444, 3.476, 1.444, 0.22e-6, 0.07e-6, 0.63e-6, 0.5, "rect", np.pi / 2, 0.0, "TE", (3.476, 0.0), 2e-6, 1.55e-6, 30),
+]
+
+
+def _grating_vector(ns, nf, nc, t, h, Lam, f, prof, sw, sig, pol, handle, box, lam, N):
+    g = gcp.SurfaceGrating(ns, nf, nc, t, h, Lam, f, prof, sw, sig, pol, None if handle is None else complex(*handle), box)
+    r = g.radiation(lam, 0, N)
+    th = np.radians([-30.0, -8.0, -1.0, 0.0, 2.5, 6.0, 15.0])
+    tot = r["alpha_total"]
+    return {"n_sub": ns, "n_core": nf, "n_clad": nc, "thickness": t, "etch_depth": h, "period": Lam, "fill": f, "profile": prof,
+            "sidewall_angle": float(sw), "edge_sigma": sig, "polarization": pol, "handle": None if handle is None else list(handle),
+            "box_thickness": box, "wavelength": lam, "periods": N, "N0": r["N0"], "n_high": float(r["n_high"]), "n_low": float(r["n_low"]),
+            "kappa": [g.coupling(lam, m) for m in (1, 2, 3)], "alpha_total": tot,
+            "orders": [[o["q"], o["medium"], o["alpha"], o["theta"]] for o in r["orders"] if o["alpha"] > 1e-12 * tot],
+            "bragg": {k: float(r["bragg"][k]) for k in ("q", "kappa", "half_detuning", "R", "lambda_B")},
+            "theta": [float(x) for x in th], "far_up": [float(x) for x in g.far_field(r, th, nc, N)]}
 
 
 _CELL_CASES = [

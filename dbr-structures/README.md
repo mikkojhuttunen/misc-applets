@@ -23,8 +23,12 @@ python plot_pump_spectra.py crigf.csv --db --no-t --xlim 1549.5 1551
 
 ## Code structure
 
-- `dbr-engine.js`: the physics (Sellmeier indices, slab effective index, coupled-mode and transfer-matrix reflectance, lateral and cavity models), UI-free. Its core functions are a port of the Python reference engines in `../math-engines/` and are checked against their test vectors with `node math-engines/tools/check_js_ports.mjs` from the repository root. Deviation: lengths are in µm inside the port.
+- `dbr-engine.js`: the physics (Sellmeier indices, slab effective index, coupled-mode and transfer-matrix reflectance, lateral and cavity models), UI-free. Its core functions (indices, slab modes, transfer matrix, and the grating-coupler radiation and far field) are a port of the Python reference engines in `../math-engines/` (`materials`, `slab_waveguide`, `bragg_grating`, `grating_coupler`) and are checked against their test vectors with `node math-engines/tools/check_js_ports.mjs` from the repository root. Deviation: lengths are in µm inside the port.
 - `index.html`: the UI, loads `dbr-engine.js`.
+
+Rectangular teeth are sampled as exact cell averages over 1024 points per period (since 9 Oct 2026). Midpoint sampling used to round the fill factor to a multiple of 1/1024 and the far field picked one sample in eight, so κ and the far field of fills off that grid were off by up to a few percent (about 0.2 % for the semiconductor preset, more near a zero of sin(πmf)). The radiation-order loop now also covers orders that reach a Si handle.
+
+Open work is listed in [TASKLIST.md](TASKLIST.md).
 
 LiNbO₃ e and o Sellmeier coefficients were swapped in earlier versions (n_e at 1550 nm came out as about 2.21 instead of 2.13). The engine tests caught it; results for LiNbO₃ from earlier versions should be recomputed. LiTaO₃ was not affected.
 

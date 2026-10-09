@@ -19,7 +19,8 @@ const close = (label, got, want, rel, abs = 0) => {
 {
   const ctx = vm.createContext({ Math, Float64Array, Array, Number, Map, Set, Object, JSON });
   vm.runInContext(fs.readFileSync(path.join(repo, 'dbr-structures/dbr-engine.js'), 'utf8') +
-    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU };', ctx);
+    '\n;HANDLE.__vec = () => globalThis.__handle;' +
+    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU, profileFn, sampleProfile, tableAt, neffProfile, fourier, radiation, farField };', ctx);
   const e = ctx.__e, um = x => x * 1e6;
   const key = { sio2: 'sio2', si3n4: 'si3n4', ln_e: 'lne', ln_o: 'lno', lt_e: 'lte' };
   for (const r of V.materials) close(`dbr n(${r.material}, ${r.wavelength})`, e.nIdx({ mat: key[r.material] }, um(r.wavelength), {}), r.n, 1e-12);
@@ -31,6 +32,40 @@ const close = (label, got, want, rel, abs = 0) => {
     const o = e.rtFromM(e.mpow(P, r.periods), r.n_in, r.n_out);
     close(`dbr stack R λ=${r.wavelength} N=${r.periods}`, o.R, r.R, 1e-8, 1e-10);
     close(`dbr stack T λ=${r.wavelength} N=${r.periods}`, o.T, r.T, 1e-8, 1e-10);
+  }
+  /* grating_coupler: profile, n_eff table, Fourier κ, radiation per order, guided Bragg order, far field.
+     Custom layers with n at λ0 = probe λ (no dispersion); the handle index is injected as HANDLE.__vec */
+  for (const r of V.grating_coupler) {
+    const C = n => ({ mat: 'custom', n1: n, n2: n }), lam = um(r.wavelength), Lam = um(r.period);
+    const st = { lam0: lam, lamP: lam, layers: { sub: C(r.n_sub), core: C(r.n_core), clad: C(r.n_clad) }, t: um(r.thickness), h: um(r.etch_depth),
+      f: r.fill, profile: r.profile, sw: r.sidewall_angle * 180 / Math.PI, sig: um(r.edge_sigma), pol: r.polarization,
+      under: r.handle ? { mode: '__vec', tbox: um(r.box_thickness) } : { mode: 'none' } };
+    ctx.__handle = r.handle;
+    const id = `dbr grating ${r.profile} f=${r.fill} ${r.polarization} handle=${JSON.stringify(r.handle)}`;
+    const smooth = r.profile === 'smooth', rel = smooth ? 1e-5 : 1e-9, tight = smooth ? 1e-8 : 1e-12;   /* the port's erf is a 1.5e-7 approximation */
+    const pf = e.profileFn(st, Lam), gS = e.sampleProfile(pf), tab = e.tableAt(st, lam, 0, !!pf.rect), nP = e.neffProfile(tab, gS);
+    close(`${id} n_high`, tab.vals[tab.K], r.n_high, 1e-12);
+    close(`${id} n_low`, tab.vals[0], r.n_low, 1e-12);
+    r.kappa.forEach((kq, i) => close(`${id} κ${i + 1}`, e.TAU * e.fourier(nP, i + 1) / lam * 1e6, kq, rel, 1e-2));
+    const rad = e.radiation(st, lam, 0, gS, Lam, r.periods, !!pf.rect);
+    close(`${id} N0`, rad.N0, r.N0, tight);
+    close(`${id} α total`, rad.alphaTot * 1e6, r.alpha_total, rel, 1e-9);
+    for (const [q, med, a, th] of r.orders) {
+      const o = rad.orders.find(o => o.q === q && o.med === med);
+      if (!o) { checks++; fails++; console.error(`FAIL ${id}: order ${q} ${med} missing`); continue; }
+      close(`${id} α q=${q} ${med}`, o.alpha * 1e6, a, rel);
+      close(`${id} θ q=${q} ${med}`, o.theta * Math.PI / 180, th, tight * 100, 1e-12);
+    }
+    const b = rad.bragg;
+    close(`${id} Bragg q`, b.q, r.bragg.q, 0);
+    close(`${id} Bragg κ`, b.kap * 1e6, r.bragg.kappa, rel, 1e-2);
+    close(`${id} Bragg δ`, b.dh * 1e6, r.bragg.half_detuning, 1e-10, 1e-3);
+    close(`${id} Bragg R`, b.R, r.bragg.R, rel, 1e-12);
+    close(`${id} λ_B`, b.lamB * 1e-6, r.bragg.lambda_B, tight);
+    if (rad.beta) {
+      const ff = e.farField(rad, gS, Lam, r.periods, rad.alphaTot, r.n_clad, r.theta.map(x => x * 180 / Math.PI));
+      r.far_up.forEach((v, i) => close(`${id} far field θ=${r.theta[i]}`, ff[i], v, rel, 1e-12 * Math.max(...r.far_up)));
+    }
   }
 }
 

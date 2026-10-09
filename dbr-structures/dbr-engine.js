@@ -80,23 +80,29 @@ function profileFn(st, Lam) {
   const warp = av => av <= f / 2 ? av / (2 * f) : 0.25 + (av - f / 2) / ((1 - f) / 2) * 0.25;
   if (type === 'trap') {
     const a = st.h / Math.tan(st.sw * Math.PI / 180) / Lam;
-    if (a < 1e-6) return { g: u => (Math.abs(u - 0.5) < f / 2 ? 1 : 0), rect: true };
+    if (a < 1e-6) return { g: u => (Math.abs(u - 0.5) < f / 2 ? 1 : 0), rect: true, f };
     return { g: u => Math.min(1, Math.max(0, (f / 2 + a / 2 - Math.abs(u - 0.5)) / a)) };
   }
   if (type === 'smooth') {
     const s = st.sig / Lam;
-    if (s < 1e-6) return { g: u => (Math.abs(u - 0.5) < f / 2 ? 1 : 0), rect: true };
+    if (s < 1e-6) return { g: u => (Math.abs(u - 0.5) < f / 2 ? 1 : 0), rect: true, f };
     const c = 1 / (Math.SQRT2 * s);
     return { g: u => { const v = u - 0.5; let acc = 0; for (let k = -1; k <= 1; k++) acc += 0.5 * (erf((v + k + f / 2) * c) - erf((v + k - f / 2) * c)); return Math.min(1, Math.max(0, acc)); } };
   }
   if (type === 'sine') return { g: u => 0.5 * (1 + Math.cos(TAU * warp(Math.abs(u - 0.5)))) };
   if (type === 'tri') return { g: u => 1 - 2 * warp(Math.abs(u - 0.5)) };
   if (type === 'saw') { const p = f; return { g: u => (u < p ? u / p : (1 - u) / (1 - p)) }; }
-  return { g: u => (Math.abs(u - 0.5) < f / 2 ? 1 : 0), rect: true };
+  return { g: u => (Math.abs(u - 0.5) < f / 2 ? 1 : 0), rect: true, f };
 }
 
 const MS = 1024;
-function sampleProfile(pf) { const a = new Float64Array(MS); for (let i = 0; i < MS; i++) a[i] = pf.g((i + 0.5) / MS); return a; }
+/* MS samples per period: cell averages for the rectangular tooth (exact fill and Fourier coefficients to O((q/MS)²),
+   midpoints would quantise f to 1/MS), midpoint values for the continuous profiles */
+function sampleProfile(pf) {
+  const a = new Float64Array(MS);
+  if (pf.rect) { const lo = 0.5 - pf.f / 2, hi = 0.5 + pf.f / 2; for (let i = 0; i < MS; i++) a[i] = Math.max(0, Math.min(hi, (i + 1) / MS) - Math.max(lo, i / MS)) * MS; return a; }
+  for (let i = 0; i < MS; i++) a[i] = pf.g((i + 0.5) / MS); return a;
+}
 function sliceList(pf, st) {
   if (pf.rect) return [{ w: (1 - st.f) / 2, g: 0 }, { w: st.f, g: 1 }, { w: (1 - st.f) / 2, g: 0 }];
   const Ns = 64, out = []; for (let i = 0; i < Ns; i++) out.push({ w: 1 / Ns, g: pf.g((i + 0.5) / Ns) }); return out;
@@ -258,11 +264,11 @@ function radiation(st, lam, order, gS, Lam, N, rect) {
   const xg = st.t - st.h / 2;
   const phi2 = mp.valid ? mp.field(xg) ** 2 / mp.norm : 0;
   const pref = k ** 4 * (nf * nf - nc * nc) ** 2 * st.h ** 2 * phi2 / (4 * beta);
-  const K = TAU / Lam, nmax = Math.max(ns, nc);
+  const chans = channels(st, lam), K = TAU / Lam, nmax = Math.max(ns, nc, ...chans.map(c => c[1]));
   const qmax = Math.ceil((beta + k * nmax) / K);
   for (let q = 1; q <= qmax; q++) {
     const kz = beta - q * K, G = fourier(gS, q);
-    for (const [med, nj] of channels(st, lam)) {
+    for (const [med, nj] of chans) {
       if (Math.abs(kz) >= k * nj) continue;
       const kx = Math.sqrt(k * k * nj * nj - kz * kz);
       /* slab correction by reciprocity: local field at the grating for a plane wave arriving from this medium */
@@ -279,11 +285,11 @@ function radiation(st, lam, order, gS, Lam, N, rect) {
   return out;
 }
 
-/* far-field angular intensity into one medium; theta in degrees */
+/* far-field angular intensity into one medium; theta in degrees. One period as M = 128 block averages of g − ḡ */
 function farField(rad, gS, Lam, N, alphaPow, nj, thetas) {
   const k = TAU / rad.lam, beta = rad.beta, M = 128, step = gS.length / M;
   const S = new Float64Array(M); let gb = 0;
-  for (let i = 0; i < M; i++) { S[i] = gS[Math.floor((i + 0.5) * step)]; gb += S[i]; }
+  for (let i = 0; i < M; i++) { const a = Math.floor(i * step), b = Math.floor((i + 1) * step); let s = 0; for (let j = a; j < b; j++) s += gS[j]; S[i] = s / (b - a); gb += S[i]; }
   gb /= M; for (let i = 0; i < M; i++) S[i] -= gb;
   const a = Math.exp(-alphaPow * Lam / 2), aN = Math.pow(a, N);
   const out = new Float64Array(thetas.length);

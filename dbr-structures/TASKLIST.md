@@ -23,7 +23,8 @@ Python reference engines in `math-engines/`, tested:
 - [x] A3. `rcwa` engine (Fourier modal method, TE/TM, Li's rule): diffraction, leaky and Bloch modes, radiation loss, directionality, DBR κ; benchmark table in `math-engines/engines/rcwa/README.md`.
   TE: thin-sheet radiation within 1–6 % (h ≤ t/3), split within 0.002, κ within 1 %; over BOX/handles within 6 % (Si) and 20 % (gold). Coupled-mode coupler (`crigf.infinite_grating`) vs rigorous resonance: linewidth within 1–7 %, position offset 0.1–0.9 nm from the EIM n_eff.
   TM: thin-sheet radiation ~10× too low, EIM κ 2–7× too high (see A7). Finite CRIGF spectra (DBRs + Gaussian beam) not benchmarked: needs an aperiodic solver (A9).
-- [ ] A4. Band edges of second-order gratings: bright/dark modes at normal incidence and their Q. The complex-β solver exists (`rcwa.leaky_mode`, `bloch_mode`); left: tracking both band-edge modes and a band-diagram helper.
+- [x] A4. Band edges of second-order gratings: `rcwa.resonance_mode` (complex frequency at a real Bloch wavevector, Q), `track_band`, `band_edge` front end; `crigf.band_edge_modes` (coupled-mode bright/dark modes, closed form).
+  Rigorous vs coupled-mode: bright Q within 2–8 %, gap within 9 %; dark mode is a symmetry-protected BIC (Q ∝ 1/k_x²), broken by asymmetric teeth. Coupled-mode misses the small f = 0.5 gap (EIM N₂ = 0).
 - [ ] A5. `dbr-engine.js` in SI; material table generated from `materials` (LiTaO₃ Bond refits, temperature-dependent LN).
 - [ ] A6. `dbr-structures` in `tools/build_standalone.py`.
 - [ ] A7. Proper TM radiation and κ: the thin-sheet formula and the plane-wave local field are TE expressions, and the EIM treats the etched layer as isotropic. Quantified by A3: TM radiation ~10× too low, TM κ 2–7× too high. Fix: TM sheet with the normal-D / tangential-E split and an anisotropic (harmonic/arithmetic) etched layer, checked against `rcwa`.

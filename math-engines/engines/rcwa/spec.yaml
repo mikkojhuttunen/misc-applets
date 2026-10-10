@@ -57,3 +57,27 @@ functions:
       - {name: kappa_eim, label: "κ (effective index)", ui_unit: 1/cm, scale: 100.0}
       - {name: lambda_B, label: "Bragg wavelength (rigorous)", ui_unit: nm, scale: 1.0e-9}
       - {name: fit_residual, label: "Band fit residual", ui_unit: "", scale: 1.0}
+  band_edge:
+    title: Band-edge modes of a second-order grating (rigorous)
+    equations: ["det(I - R_up R_down) = 0 at k_x = 0 for complex λ", "Q = Re λ / (2 Im λ)"]
+    inputs:
+      - wavelength
+      - n_sub
+      - n_core
+      - n_clad
+      - thickness
+      - etch_depth
+      - {name: period, label: "Period", ui_unit: nm, scale: 1.0e-9, default: 796.37, min: 1}
+      - fill_factor
+      - {name: profile, label: "Tooth profile", type: choice, choices: [rect, trap, smooth, sine, tri, saw], default: rect}
+      - polarization
+      - {name: orders, label: "Floquet orders M (2M + 1 used)", ui_unit: "", scale: 1.0, default: 10, min: 1, step: 1}
+    outputs:
+      - {name: lambda_bright, label: "Bright mode λ", ui_unit: nm, scale: 1.0e-9}
+      - {name: Q_bright, label: "Bright mode Q", ui_unit: "", scale: 1.0}
+      - {name: lambda_dark, label: "Dark mode λ", ui_unit: nm, scale: 1.0e-9}
+      - {name: Q_dark, label: "Dark mode Q", ui_unit: "", scale: 1.0}
+      - {name: lambda_bright_cmt, label: "Bright mode λ (coupled-mode)", ui_unit: nm, scale: 1.0e-9}
+      - {name: Q_bright_cmt, label: "Bright mode Q (coupled-mode)", ui_unit: "", scale: 1.0}
+      - {name: lambda_dark_cmt, label: "Dark mode λ (coupled-mode)", ui_unit: nm, scale: 1.0e-9}
+      - {name: Q_dark_cmt, label: "Dark mode Q (coupled-mode)", ui_unit: "", scale: 1.0}

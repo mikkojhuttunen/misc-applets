@@ -3108,6 +3108,8 @@
     "L. Li, J. Opt. Soc. Am. A 13, 1870 (1996) (Fourier factorisation rules)"
    ],
    "files": [
+    "engines/crigf/__init__.py",
+    "engines/crigf/engine.py",
     "engines/grating_coupler/__init__.py",
     "engines/grating_coupler/engine.py",
     "engines/rcwa/__init__.py",
@@ -3380,6 +3382,163 @@
       {
        "name": "fit_residual",
        "label": "Band fit residual",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "band_edge": {
+     "title": "Band-edge modes of a second-order grating (rigorous)",
+     "equations": [
+      "det(I - R_up R_down) = 0 at k_x = 0 for complex λ",
+      "Q = Re λ / (2 Im λ)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 100
+      },
+      {
+       "name": "n_sub",
+       "label": "Substrate (BOX) index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.444,
+       "min": 1
+      },
+      {
+       "name": "n_core",
+       "label": "Core index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.138,
+       "min": 1
+      },
+      {
+       "name": "n_clad",
+       "label": "Cladding index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1
+      },
+      {
+       "name": "thickness",
+       "label": "Core thickness",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 600,
+       "min": 1
+      },
+      {
+       "name": "etch_depth",
+       "label": "Etch depth",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 50,
+       "min": 0
+      },
+      {
+       "name": "period",
+       "label": "Period",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 796.37,
+       "min": 1
+      },
+      {
+       "name": "fill_factor",
+       "label": "Tooth fill",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "profile",
+       "label": "Tooth profile",
+       "type": "choice",
+       "choices": [
+        "rect",
+        "trap",
+        "smooth",
+        "sine",
+        "tri",
+        "saw"
+       ],
+       "default": "rect"
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "orders",
+       "label": "Floquet orders M (2M + 1 used)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 10,
+       "min": 1,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "lambda_bright",
+       "label": "Bright mode λ",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "Q_bright",
+       "label": "Bright mode Q",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "lambda_dark",
+       "label": "Dark mode λ",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "Q_dark",
+       "label": "Dark mode Q",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "lambda_bright_cmt",
+       "label": "Bright mode λ (coupled-mode)",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "Q_bright_cmt",
+       "label": "Bright mode Q (coupled-mode)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "lambda_dark_cmt",
+       "label": "Dark mode λ (coupled-mode)",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "Q_dark_cmt",
+       "label": "Dark mode Q (coupled-mode)",
        "ui_unit": "",
        "scale": 1.0
       }

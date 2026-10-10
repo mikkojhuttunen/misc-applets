@@ -122,7 +122,8 @@ class RCWA:
     """Solver for one Stack at one wavelength with 2M + 1 Floquet orders."""
 
     def __init__(self, stack: Stack, wavelength, orders=20):
-        require_positive(wavelength=wavelength)
+        """wavelength may be complex (complex-frequency modes, see resonance_mode); indices stay as given."""
+        require_positive(wavelength=np.real(wavelength))
         self.s, self.lam0, self.M = stack, wavelength, int(orders)
         self.k0 = _TAU / wavelength
         self.K = stack.period * 0 + wavelength / stack.period          # K / k0
@@ -237,6 +238,29 @@ class RCWA:
         complex inside a stop band (Im N k0 = local coupling strength √(κ² - δ²))."""
         x0 = complex(neff_guess)
         return _muller(lambda z: self.mode_function(z, split), x0 - 1e-4 + 1e-4j, x0 + 1e-4 + 2e-4j, x0 + 3e-4j, tol, maxit)
+
+
+def resonance_mode(stack, kx, wavelength_guess, split, orders=10, tol=1e-12, maxit=80):
+    """Mode at a real Bloch wavevector kx (1/m) with complex vacuum wavelength λ (time dependence e^{-iωt}: a mode that
+    decays by radiation or loss has Im λ > 0). Q = Re λ / (2 Im λ). Indices are taken as non-dispersive.
+    kx = 0 is the Γ point, where a second-order grating has its two standing-wave band-edge modes."""
+    g = complex(wavelength_guess)
+
+    def f(lam):
+        return RCWA(stack, lam, orders).mode_function(kx * lam / _TAU, split)
+
+    lam = _muller(f, g * (1 - 2e-5), g * (1 + 2e-5), g * (1 + 1e-5j) + 1e-14j, tol, maxit)
+    return {"wavelength": lam, "Q": lam.real / (2 * lam.imag) if lam.imag != 0 else np.inf}
+
+
+def track_band(stack, kxs, wavelength_guess, split, orders=10):
+    """Follow one complex-frequency band over the Bloch wavevectors kxs (1/m), each solve started from the previous."""
+    out, g = [], complex(wavelength_guess)
+    for kx in kxs:
+        r = resonance_mode(stack, kx, g, split, orders)
+        out.append(r)
+        g = r["wavelength"]
+    return out
 
 
 def _muller(f, x0, x1, x2, tol, maxit):
@@ -371,4 +395,35 @@ def dbr_coupling(wavelength, n_sub, n_core, n_clad, thickness, etch_depth, perio
         units={"kappa": "1/m", "kappa_eim": "1/m", "lambda_B": "m", "fit_residual": ""},
         assumptions=["Fourier modal method, Li's rule for TM", "Infinite periodic grating",
                      "κ and λ_B from the coupled-mode band q² = A(ν - ν_B)² - κ² fitted outside the stop band"],
+    )
+
+
+def band_edge(wavelength, n_sub, n_core, n_clad, thickness, etch_depth, period, fill_factor=0.5, profile="rect",
+              polarization="TE", orders=10) -> Result:
+    """Rigorous band-edge modes of a second-order surface grating at normal incidence (Γ point): complex wavelengths
+    and Q of the bright (radiating) and dark mode, started from the coupled-mode prediction (crigf), which is
+    returned for comparison. A symmetric tooth makes the dark mode a bound state (Q limited only by numerics)."""
+    from ..crigf.engine import CRIGF
+    from ..grating_coupler.engine import SurfaceGrating
+
+    flat = SurfaceGrating(n_sub, n_core, n_clad, thickness, 0.0, period, polarization=polarization)
+    cmt = CRIGF(flat, 0, period, 1, etch_depth, fill_factor, gc_profile=profile).band_edge_modes(wavelength)
+    gr = SurfaceGrating(n_sub, n_core, n_clad, thickness, etch_depth, period, fill_factor, profile, polarization=polarization)
+    st, split = surface_grating_stack(gr, wavelength)
+    rig = {k: resonance_mode(st, 0.0, cmt[k]["wavelength"], split, orders) for k in ("bright", "dark")}
+    if abs(rig["bright"]["wavelength"] - rig["dark"]["wavelength"]) < 1e-6 * wavelength:
+        raise RuntimeError("both searches found the same mode; adjust the wavelength or the period")
+    if abs(rig["bright"]["Q"]) > abs(rig["dark"]["Q"]):
+        rig = {"bright": rig["dark"], "dark": rig["bright"]}
+    cap = lambda q: float(min(abs(q), 1e15))
+    vals = {"lambda_bright": rig["bright"]["wavelength"].real, "Q_bright": cap(rig["bright"]["Q"]),
+            "lambda_dark": rig["dark"]["wavelength"].real, "Q_dark": cap(rig["dark"]["Q"]),
+            "lambda_bright_cmt": cmt["bright"]["wavelength"].real, "Q_bright_cmt": cap(cmt["bright"]["Q"]),
+            "lambda_dark_cmt": cmt["dark"]["wavelength"].real, "Q_dark_cmt": cap(cmt["dark"]["Q"])}
+    return Result(
+        values=vals,
+        units={k: ("m" if k.startswith("lambda") else "") for k in vals},
+        assumptions=["Fourier modal method, complex frequency at k_x = 0, non-dispersive indices", "Infinite periodic grating",
+                     "Q values above 1e15 are reported as 1e15 (bound state)",
+                     "Coupled-mode values: Kazarinov-Henry with effective-index coefficients (crigf)"],
     )

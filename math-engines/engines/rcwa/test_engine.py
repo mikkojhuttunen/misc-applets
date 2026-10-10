@@ -187,3 +187,73 @@ def test_result_front_ends():
     assert r["alpha"] == pytest.approx(r["alpha_thin_sheet"], rel=0.05) and 0 < r["up_fraction"] < 1
     k = rc.dbr_coupling(LAM, *STACK, 50e-9, 0.396e-6)
     assert k["kappa"] == pytest.approx(k["kappa_eim"], rel=0.01)
+
+
+# ---------------------------------------------------------------- band edges of second-order gratings (Γ point)
+def second_order(h, f=0.5, profile="rect", pol="TE"):
+    g = SurfaceGrating(*STACK, h, 0.8e-6, f, profile, polarization=pol)
+    Lam = LAM / np.mean(g.neff_profile(LAM))
+    return SurfaceGrating(*STACK, h, Lam, f, profile, polarization=pol), \
+        CRIGF(SurfaceGrating(*STACK, 0.0, 0.4e-6, polarization=pol), 0, Lam, 1, h, f, gc_profile=profile)
+
+
+def test_cmt_band_edge_symmetric_tooth():
+    _, c = second_order(20e-9)
+    m = c.band_edge_modes(LAM)
+    assert abs(m["dark"]["Q"]) > 1e12                                 # N2 = 0 at f = 0.5: dark mode does not radiate
+    dD = m["n_group"] * 2 * np.pi / LAM**2
+    assert m["bright"]["wavelength"].imag == pytest.approx(m["alpha_rad"] / dD, rel=1e-9)
+
+
+@pytest.mark.parametrize("h,f,q_tol,gap_tol", [(20e-9, 0.5, 0.03, None), (50e-9, 0.5, 0.05, None), (50e-9, 0.3, 0.12, 0.15)])
+def test_band_edge_modes_against_rigorous(h, f, q_tol, gap_tol):
+    g, c = second_order(h, f)
+    cm = c.band_edge_modes(LAM)
+    st, sp = rc.surface_grating_stack(g, LAM)
+    b = rc.resonance_mode(st, 0.0, cm["bright"]["wavelength"], sp)
+    d = rc.resonance_mode(st, 0.0, cm["dark"]["wavelength"], sp)
+    assert b["Q"] == pytest.approx(cm["bright"]["Q"], rel=q_tol)
+    assert abs(d["Q"]) > 1e8                                           # symmetry-protected bound state
+    assert abs(b["wavelength"].real - cm["bright"]["wavelength"].real) < 1e-9
+    if gap_tol:
+        gap_r = b["wavelength"].real - d["wavelength"].real
+        gap_c = cm["bright"]["wavelength"].real - cm["dark"]["wavelength"].real
+        assert gap_r == pytest.approx(gap_c, rel=gap_tol)
+
+
+def test_asymmetric_tooth_lets_both_band_edge_modes_radiate():
+    g, c = second_order(50e-9, 0.3, "saw")
+    cm = c.band_edge_modes(LAM)
+    st, sp = rc.surface_grating_stack(g, LAM)
+    r = [rc.resonance_mode(st, 0.0, cm[k]["wavelength"], sp) for k in ("bright", "dark")]
+    assert abs(r[0]["wavelength"] - r[1]["wavelength"]) > 1e-9
+    for ri, k in zip(r, ("bright", "dark")):
+        assert 1e3 < ri["Q"] < 1e5
+        assert abs(ri["wavelength"].real - cm[k]["wavelength"].real) < 0.4e-9
+    assert r[0]["Q"] == pytest.approx(cm["bright"]["Q"], rel=0.15) and r[1]["Q"] == pytest.approx(cm["dark"]["Q"], rel=0.3)
+
+
+def test_dark_mode_is_a_bound_state_in_the_continuum():
+    g, c = second_order(50e-9, 0.3)
+    st, sp = rc.surface_grating_stack(g, LAM)
+    K = 2 * np.pi / g.period
+    kxs = K * np.array([0.0, 1e-4, 2e-4, 4e-4])
+    dark = rc.track_band(st, kxs, c.band_edge_modes(LAM)["dark"]["wavelength"], sp)
+    qk2 = [d["Q"] * (kx / K) ** 2 for d, kx in zip(dark[1:], kxs[1:])]
+    assert abs(dark[0]["Q"]) > 1e8 and np.ptp(qk2) < 0.06 * np.mean(qk2)   # Q ∝ 1/k_x² off Γ
+    bright = rc.track_band(st, kxs, c.band_edge_modes(LAM)["bright"]["wavelength"], sp)
+    assert bright[-1]["Q"] == pytest.approx(bright[0]["Q"], rel=0.03)
+
+
+def test_band_edge_mode_is_a_pole_of_the_reflection():
+    g, c = second_order(20e-9)
+    st, sp = rc.surface_grating_stack(g, LAM)
+    lam = rc.resonance_mode(st, 0.0, c.band_edge_modes(LAM)["bright"]["wavelength"], sp)["wavelength"]
+    r = lambda l: abs(rc.RCWA(st, l, 10).diffraction(0.0)["r"][10])
+    eps = 1e-6 * lam.imag
+    assert r(lam + eps) > 1e4 * r(lam.real) and r(lam + eps) == pytest.approx(10 * r(lam + 10 * eps), rel=0.01)  # 1/(λ - λp)
+
+
+def test_band_edge_front_end():
+    r = rc.band_edge(LAM, *STACK, 50e-9, second_order(50e-9, 0.3)[0].period, 0.3)
+    assert r["Q_dark"] > 1e8 and 1e3 < r["Q_bright"] < 1e4 and r["lambda_dark"] < r["lambda_bright"]

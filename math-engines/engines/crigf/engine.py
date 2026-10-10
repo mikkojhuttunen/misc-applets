@@ -53,7 +53,8 @@ def period_slices(gr: SurfaceGrating):
 @dataclass
 class CRIGF:
     """dbr: the DBR grating (waveguide stack, etch, fill, profile, period); the coupler shares the stack and has its
-    own rectangular etch gc_etch_depth, fill gc_fill and period gc_period. spacer + straight: guide between the coupler
+    own etch gc_etch_depth, fill gc_fill, period gc_period and tooth profile gc_profile (rectangular in the JS port; other
+    profiles of grating_coupler.profile_function for band-edge studies). spacer + straight: guide between the coupler
     and each DBR. theta: beam angle in the cladding; w0: 1/e² intensity radius along the guide. overlap_y: lateral
     field overlap of beam and guided mode (amplitude); bounce_eta: power kept per DBR bounce (lateral losses of curved
     or finite DBRs, tapers); alpha_extra: extra loss in the straight sections. steps: RK4 steps over the coupler
@@ -74,6 +75,7 @@ class CRIGF:
     overlap_y: float = 1.0
     bounce_eta: float = 1.0
     steps: int | None = None
+    gc_profile: str = "rect"
 
     def __post_init__(self):
         d = self.dbr
@@ -83,7 +85,7 @@ class CRIGF:
         if int(self.gc_periods) < 1 or int(self.dbr_periods) < 0:
             raise ValueError("gc_periods must be >= 1 and dbr_periods >= 0")
         self.gc = SurfaceGrating(d.n_sub, d.n_core, d.n_clad, d.thickness, self.gc_etch_depth, self.gc_period, self.gc_fill,
-                                 "rect", polarization=d.polarization, n_handle=d.n_handle, box_thickness=d.box_thickness,
+                                 self.gc_profile, polarization=d.polarization, n_handle=d.n_handle, box_thickness=d.box_thickness,
                                  samples=d.samples, table_points=d.table_points)
         self.n_steps = self.steps or max(32, int(np.ceil(self.gc_periods * 2.5)))
 
@@ -236,6 +238,31 @@ class CRIGF:
         r = co["r_top"] - 0.25 * Kn * co["F_top"] * 2 * ETA0 / (nc * c)
         t = co["tau_top"] - 0.25 * Kn * co["F_bot"] * 2 * ETA0 / np.sqrt(nc * c * nb * cb)
         return {"R": abs(r) ** 2, "T": abs(t) ** 2, "sum": abs(r) ** 2 + abs(t) ** 2, "r": r, "t": t}
+
+    def band_edge_modes(self, wavelength):
+        """Coupled-mode band-edge modes of the infinite coupler grating at the Γ point (normal incidence): complex
+        wavelengths where the free (undriven) envelope equations have a uniform solution, det A(λ) = 0 with
+        A = [[-a - iD, -ρ G₁² + i k N₂], [ρ G₋₁² - i k N₋₂, a + iD]], a = ρ|G₁|² + α/2, D = K - β(λ).
+        Closed form in D (quadratic), then λ from the linear dispersion D(λ) about `wavelength`. Returns both modes
+        sorted by Q: the bright (radiating) one and the dark one (Q = ∞ for a symmetric tooth: symmetry-protected
+        bound state). Coefficients are evaluated at the real `wavelength`."""
+        co = self.response(wavelength)["coef"]
+        rad, G1, N2, k, D0, aP = (co[x] for x in ("rad", "G1", "N2", "k", "D", "alpha_prop"))
+        h = wavelength * 1e-4
+        beta = [_TAU / l * float(np.mean(self.gc.neff_profile(l))) for l in (wavelength - h, wavelength + h)]
+        dD = -(beta[1] - beta[0]) / (2 * h)                            # dD/dλ = -dβ/dλ = 2π n_g / λ² > 0
+        a = rad * abs(G1) ** 2 + aP / 2
+        X = G1 * G1 * np.conj(N2) + N2 * np.conj(G1) ** 2
+        S = np.sqrt(complex(rad * rad * abs(G1) ** 4 - 1j * k * rad * X - k * k * abs(N2) ** 2))
+        modes = []
+        for sgn in (1, -1):
+            D = 1j * (a - sgn * S)                                     # i D = -a + sgn S
+            lam = wavelength + (D - D0) / dD
+            modes.append({"wavelength": complex(lam), "Q": lam.real / (2 * lam.imag) if abs(lam.imag) > 0 else np.inf,
+                          "D": complex(D)})
+        modes.sort(key=lambda m: abs(m["Q"]))
+        return {"bright": modes[0], "dark": modes[1], "n_group": dD * wavelength**2 / _TAU,
+                "kappa2": float(k * abs(N2)), "alpha_rad": float(2 * rad * abs(G1) ** 2)}
 
     def find_resonance(self, lam_c, fsr, n=40, width=True):
         """Cavity resonance nearest lam_c: maximise the circulating guided power over one free spectral range

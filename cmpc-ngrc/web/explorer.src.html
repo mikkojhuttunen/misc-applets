@@ -97,6 +97,7 @@ svg .ttl { fill: var(--ink); font-family: var(--f-body); font-size: 12px; font-w
 .occ { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .occ figure { margin: 0; }
 #e12chart svg, #e12chart .legend { max-width: 560px; } .occ canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 50%; }
+.arch { font: 10.5px var(--f-mono); color: var(--muted); border: 1px solid var(--line, currentColor); border-radius: 4px; padding: 0 4px; margin-left: 6px; vertical-align: middle; font-weight: 400; }
 .occ figcaption { font: 11px var(--f-mono); color: var(--muted); text-align: center; margin-top: 3px; }
 td.heat { font-family: var(--f-mono); text-align: right; }
 .seg { display: inline-flex; gap: 2px; background: var(--chip); padding: 2px; border-radius: 6px; }
@@ -127,8 +128,8 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <label class="f">Port width (µm)<input id="portW" type="number" step="1" min="2" value="20"></label>
       </div>
       <div class="row">
-        <label class="f">Launch (°, all inputs)<input id="launchAll" type="number" step="1" value="20"></label>
-        <label class="f">Fan (°, all inputs)<input id="fanAll" type="number" step="1" min="0" value="23"></label>
+        <label class="f">Launch (°, all inputs)<input id="launchAll" type="number" step="0.5" value="2.9"></label>
+        <label class="f">Fan (°, all inputs)<input id="fanAll" type="number" step="1" min="0" value="11.5"></label>
       </div>
       <div class="scroll" style="margin-top:8px">
         <table class="ports"><thead><tr><th>Port</th><th>Angle °</th><th>Role</th><th>Launch °</th><th>Fan °</th><th></th></tr></thead><tbody id="portRows"></tbody></table>
@@ -160,7 +161,7 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <label class="f">x (µm)<input id="sx" type="number" step="10"></label>
         <label class="f">y (µm)<input id="sy" type="number" step="10"></label>
         <label class="f">R (µm)<input id="sR" type="number" step="5" min="5"></label>
-        <label class="f">Δn (×10⁻³)<input id="sdn" type="number" step="0.1"></label>
+        <label class="f">Δn (×10⁻³)<input id="sdn" type="number" step="0.01"></label>
         <label class="f">Edge (µm)<input id="sedge" type="number" step="0.5" min="0.5"></label>
         <label class="f">&nbsp;<button class="btn" id="randShape">Randomise</button></label>
       </div>
@@ -207,9 +208,9 @@ td.heat { font-family: var(--f-mono); text-align: right; }
       <div class="row">
         <label class="f">Samples<input id="dsN" type="number" step="20" min="40" max="1200" value="240"></label>
         <label class="f">Engine<select id="dsMode"><option value="phase">Phase screen (fast)</option><option value="curved">Curved rays (slow)</option></select></label>
-        <label class="f">Position<select id="dsPos"><option value="fixed">Fixed (selected dot)</option><option value="random">Random</option></select></label>
+        <label class="f">Position<select id="dsPos"><option value="fixed">Fixed (selected dot; centre by default)</option><option value="random">Random</option></select></label>
         <label class="f">Place radius (µm)<input id="dsPlace" type="number" step="50" value="600"></label>
-        <label class="f">Δn (×10⁻³)<input id="dsDn" type="number" step="0.1" value="1"></label>
+        <label class="f">Δn (×10⁻³)<input id="dsDn" type="number" step="0.01" value="0.03"></label>
         <label class="f">σ (a₂ spread)<input id="dsSigma" type="number" step="0.01" value="0.08"></label>
         <label class="f">R min (µm)<input id="dsRmin" type="number" step="5" value="60"></label>
         <label class="f">R max (µm)<input id="dsRmax" type="number" step="5" value="110"></label>
@@ -249,7 +250,7 @@ td.heat { font-family: var(--f-mono); text-align: right; }
       </div>
       <div class="charts2">
         <div class="panel"><h2>E1 · Sensitivity per order vs launch angle</h2><div id="e1chart"></div>
-          <p class="note">rms ∂I/∂a<sub>m</sub> over all detector pixels (per unit coefficient, ÷ mean I₀), four symmetric ports, one input, fan ±11.5°, dots within 600 µm of the centre. A ray with incidence angle χ never comes closer to the centre than R<sub>c</sub> sin χ, so steep launches cannot see central dots.</p></div>
+          <p class="note">rms ∂I/∂a<sub>m</sub> over all detector pixels (per unit coefficient, ÷ mean I₀) for a dot at the cell centre, asymmetric ports, one input; solid: fan ±5.7°, dashed: fan ±11.5°. A ray with incidence angle χ never comes closer to the centre than R<sub>c</sub> sin χ, so only near-zero launches reach a centred dot. At zero launch the chords pass through the centre and see r(α) + r(α + π), so odd orders vanish; with a small offset (3°) they have sensitivity, but successive chords cancel it again and odd orders stay hard to read out (E13–E15).</p></div>
         <div class="panel"><h2>E1 · Where the rays go</h2><div class="occ" id="e1occ"></div>
           <p class="note">Unperturbed ray density for each launch angle. The dark core is the caustic disk that the rays never enter.</p></div>
       </div>
@@ -259,26 +260,26 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <div class="panel"><h2>E3 · Readouts</h2>
           <div class="seg" id="e3sel" role="group" aria-label="Case"></div>
           <div id="e3chart"></div><div class="note" id="e3svc"></div></div>
-        <div class="panel"><h2>E4 · Validity of the phase-screen model</h2><div id="e4chart"></div>
+        <div class="panel"><h2>E4 · Validity of the phase-screen model <span class="arch">off-centre archive</span></h2><div id="e4chart"></div>
           <p class="note">Field correlation of the first-order (phase-screen) speckle with full curved-ray tracing (same 1500-angle ray set), and of the perturbed speckle with the unperturbed one, against Δn of one 80 µm dot.</p></div>
       </div>
       <div class="charts2">
-        <div class="panel"><h2>E5 · How far may a dot move?</h2><div id="e5shift"></div>
+        <div class="panel"><h2>E5 · How far may a dot move? <span class="arch">off-centre archive</span></h2><div id="e5shift"></div>
           <p class="note">Readout trained on dots at one position, tested on the same kind of dots displaced by δ in a random direction. R² per harmonic order.</p></div>
-        <div class="panel"><h2>E5 · Training with placement jitter</h2><div id="e5jit"></div>
+        <div class="panel"><h2>E5 · Training with placement jitter <span class="arch">off-centre archive</span></h2><div id="e5jit"></div>
           <p class="note" id="e5note"></p></div>
       </div>
       <div class="charts2">
         <div class="panel"><h2>E6 · Learning curves</h2><div id="e6chart"></div>
           <p class="note">Mean R² over m = 2…6 against the number of training dots (test set fixed).</p></div>
-        <div class="panel"><h2>E7 · Curved rays vs phase screen as the reservoir</h2>
+        <div class="panel"><h2>E7 · Curved rays vs phase screen as the reservoir <span class="arch">off-centre archive</span></h2>
           <div class="seg" id="e7sel" role="group" aria-label="Case"></div><div id="e7chart"></div>
           <p class="note" id="e7note"></p></div>
       </div>
       <div class="charts2">
         <div class="panel"><h2>E8 · Virtual nodes: launch angles and wavelengths</h2><div id="e8chart"></div>
           <p class="note" id="e8note"></p></div>
-        <div class="panel"><h2>E10 · Stadium vs circle</h2><div id="e10sens"></div><div id="e10bars"></div>
+        <div class="panel"><h2>E10 · Stadium vs circle <span class="arch">off-centre archive</span></h2><div id="e10sens"></div><div id="e10bars"></div>
           <p class="note" id="e10note"></p></div>
       </div>
       <div class="charts2">
@@ -287,9 +288,19 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <div class="panel"><h2>E11 · Temperature drift</h2><div id="e11drift"></div>
           <p class="note" id="e11note"></p></div>
       </div>
-      <div class="panel"><h2>E12 · Which Δn works? Readout quality vs dot index contrast</h2><div id="e12chart"></div>
-        <p class="note" id="e12note"></p></div>
-      <div class="panel"><h2>E9 · Wave check: one pass through a dot, beamlet sums vs BPM</h2><div class="scroll"><table id="e9table"></table></div>
+      <div class="charts2">
+        <div class="panel"><h2>E12 · Which Δn works? Readout quality vs dot index contrast</h2><div id="e12chart"></div>
+          <p class="note" id="e12note"></p></div>
+        <div class="panel"><h2>E15 · Centred dot: circle vs stadium</h2><div id="e15chart"></div>
+          <p class="note" id="e15note"></p></div>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>E13 · Odd orders vs launch angle</h2><div id="e13chart"></div>
+          <p class="note" id="e13note"></p></div>
+        <div class="panel"><h2>E14 · Odd orders vs path length</h2><div id="e14chart"></div>
+          <p class="note" id="e14note"></p></div>
+      </div>
+      <div class="panel"><h2>E9 · Wave check: one pass through a dot, beamlet sums vs BPM <span class="arch">off-centre archive</span></h2><div class="scroll"><table id="e9table"></table></div>
         <p class="note">A beam crossing the cell (2 mm) through a 50 µm dot (edge 3 µm), observed beyond the far wall. ΔE is the scattered field E(dot) − E(no dot), the part that carries the dot's shape; correlation and relative error (after the best complex scale) of ΔE against split-step BPM. The FGA also matches exact Gaussian beams through clipping apertures and oblique mirror reflections (tests/test_fga.py).</p></div>
     </div>
   </section>
@@ -315,18 +326,20 @@ const PRESETS = {
   'sym4 · 1 in': { angles: [0, 90, 180, 270], inputs: [0] },
   'asym4 · 1 in': { angles: [0, 67, 151, 238], inputs: [0] },
   'sym4 · 2 in (opposite)': { angles: [0, 90, 180, 270], inputs: [0, 2] },
+  'sym4 · 2 in (adjacent)': { angles: [0, 90, 180, 270], inputs: [0, 1] },
   'asym4 · 2 in': { angles: [0, 67, 151, 238], inputs: [0, 1] },
   'sym4 · 4 in': { angles: [0, 90, 180, 270], inputs: [0, 1, 2, 3] },
   'sym8 · 1 in': { angles: [0, 45, 90, 135, 180, 225, 270, 315], inputs: [0] },
+  'asym8 · 2 in': { angles: [0, 41, 97, 133, 170, 218, 262, 311], inputs: [0, 3] },
+  'asym4 · 2 in + 2 exits opposite': { angles: [0, 67, 151, 238, 185.7, 252.7], inputs: [0, 1] },
   'sym3 · 1 in': { angles: [0, 120, 240], inputs: [0] },
 };
 const S = {
   cell: { radius: 1e-3, n_eff: 1.8, wavelength: 1.55e-6, reflectance: 0.97, reflection_phase: Math.PI,
           detector: { distance: 100e-6, width: 400e-6, n_pix: 64, farfield: true, max_sin: 0.9, ff_radius: 20e-3 }, ports: [] },
-  preset: 'asym4 · 2 in', portW: 20e-6, launch: 20 * deg, fan: 23 * deg,
+  preset: 'asym4 · 2 in', portW: 20e-6, launch: 0.05, fan: 0.2,
   shapes: [
-    { x0: 250e-6, y0: 100e-6, R: 80e-6, dn: 1e-3, edge: 3e-6, a: [0, 0.06, 0.03, 0, 0, 0], b: [0, 0, 0, 0.02, 0, 0] },
-    { x0: -300e-6, y0: -220e-6, R: 60e-6, dn: 1e-3, edge: 3e-6, a: [0, 0, 0, 0, 0, 0], b: [0, 0.05, 0, 0, 0, 0] },
+    { x0: 0, y0: 0, R: 80e-6, dn: 3e-5, edge: 3e-6, a: [0, 0.06, 0.03, 0, 0, 0], b: [0, 0, 0, 0.02, 0, 0] },
   ],
   sel: 0, mode: 'phase', nAng: 1500, frozen: 20e-6, nShow: 12, density: true,
   result: null, runs: [], scTarget: 'a2',
@@ -650,7 +663,7 @@ function syncShapeUI(full = true) {
   ['sx', 'sy', 'sR', 'sdn', 'sedge'].forEach(id => $(id).disabled = !s);
   if (!s) { drawCHD(); return; }
   $('sx').value = (s.x0 * 1e6).toFixed(0); $('sy').value = (s.y0 * 1e6).toFixed(0); $('sR').value = (s.R * 1e6).toFixed(0);
-  $('sdn').value = (s.dn * 1e3).toFixed(2); $('sedge').value = (s.edge * 1e6).toFixed(1);
+  $('sdn').value = +(s.dn * 1e3).toPrecision(3); $('sedge').value = (s.edge * 1e6).toFixed(1);
   if (full) for (const m of HARM_M) for (const c of ['a', 'b']) { const v = s[c][m - 1] || 0; $('h' + c + m).value = v; $('h' + c + m + 'v').textContent = v.toFixed(3); }
   if (full) drawCHD();
 }
@@ -685,7 +698,7 @@ function bindExplorer() {
   const g = E.rng(12345);
   const rnd = (keepPos) => {
     const s0 = S.shapes[S.sel];
-    const r = E.randomShape(g, S.cell.radius, { mMax: 6, sigma: 0.08, decay: 0.5, centre: keepPos && s0 ? [s0.x0, s0.y0] : null, placeRadius: 0.6 * S.cell.radius });
+    const r = E.randomShape(g, S.cell.radius, { mMax: 6, sigma: 0.08, decay: 0.5, dnRange: [s0 ? s0.dn : 3e-5, s0 ? s0.dn : 3e-5], centre: keepPos && s0 ? [s0.x0, s0.y0] : null, placeRadius: 0.6 * S.cell.radius });
     return { x0: r.x0, y0: r.y0, R: r.R, dn: r.dn, edge: r.edge, a: Array.from(r.a), b: Array.from(r.b) };
   };
   $('addShape').addEventListener('click', () => { S.shapes.push(rnd(false)); S.sel = S.shapes.length - 1; clampShape(S.shapes[S.sel]); syncShapeUI(); drawCell(); schedule(); });
@@ -906,16 +919,18 @@ function drawProgress() {
   if (!PROGRESS) { $('pyMeta').textContent = 'No Python results embedded yet.'; return; }
   const P = PROGRESS, mc = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s7)'];
   const M = P.meta || {}, src = M.source || {};
-  $('pyMeta').innerHTML = `Frozen-Gaussian (Herman–Kluk) model, run ${esc(M.date || '')}${M.quick ? ' (quick mode, small samples)' : ''}. Circular cell R<sub>c</sub> = ${(M.cell || {}).radius * 1e6} µm, n<sub>eff</sub> = ${(M.cell || {}).n_eff}, λ = ${(M.cell || {}).wavelength * 1e9} nm, wall R = ${(M.cell || {}).R}, ports ${(M.cell || {}).port_width * 1e6} µm wide; ${src.n_ang} launch angles × automatic positions per input, frozen width ${src.frozen_um} µm. Datasets come from the JS engine run through node on all cores; phase screen unless noted (E4, E7: curved rays at 1500 angles). The earlier results from the wide-beamlet model with hard ports are archived in results/progress_gbs.json.`;
+  $('pyMeta').innerHTML = `Frozen-Gaussian (Herman–Kluk) model, run ${esc(M.date || '')}${M.quick ? ' (quick mode, small samples)' : ''}. Circular cell R<sub>c</sub> = ${(M.cell || {}).radius * 1e6} µm, n<sub>eff</sub> = ${(M.cell || {}).n_eff}, λ = ${(M.cell || {}).wavelength * 1e9} nm, wall R = ${(M.cell || {}).R}, ports ${(M.cell || {}).port_width * 1e6} µm wide; ${src.n_ang} launch angles × automatic positions per input, frozen width ${src.frozen_um} µm. Datasets come from the JS engine run through node on all cores; phase screen unless noted (E4, E7: curved rays at 1500 angles). ${M.dot === 'centre' ? ` <b>One dot at the cell centre</b> (decision D9), launch ${fmt(M.launch / deg, 1)}°, fan ±${fmt(M.fan / 2 / deg, 1)}°. Panels marked “off-centre archive” are the earlier runs with the dot at (250, 100) µm, launch 20° (results/progress_offcentre.json); moving and adding dots is later work.` : ''} The earlier results from the wide-beamlet model with hard ports are archived in results/progress_gbs.json.`;
   if (P.E1) {
-    lineChart($('e1chart'), { x: P.E1.launch.map(v => +(v / deg).toFixed(1)), xname: 'launch °', yname: 'S_m', xlabel: 'launch angle (°)', series: P.meta.m.map((m, k) => ({ name: 'm = ' + m, y: P.E1.S.map(r => r[k]), color: mc[k] })), label: 'sensitivity vs launch angle' });
+    const sf = P.E1.S_fan, e1s = sf ? P.meta.m.flatMap((m, k) => [{ name: 'm = ' + m, y: sf['0.2'].map(r => r[k]), color: mc[k] }, { name: 'm = ' + m + ', wide fan', y: sf['0.4'].map(r => r[k]), color: mc[k], dash: true }])
+      : P.meta.m.map((m, k) => ({ name: 'm = ' + m, y: P.E1.S.map(r => r[k]), color: mc[k] }));
+    lineChart($('e1chart'), { x: P.E1.launch.map(v => +(v / deg).toFixed(1)), xname: 'launch °', yname: 'S_m', xlabel: 'launch angle (°)', series: e1s, label: 'sensitivity vs launch angle' });
     const occ = $('e1occ'); occ.innerHTML = '';
     Object.entries(P.E1.occupancy).forEach(([la, grid]) => {
       const f = document.createElement('figure'); const c = document.createElement('canvas'); const n = grid.length; c.width = c.height = n;
       const g = c.getContext('2d'), img = g.createImageData(n, n), col = hex(css('--accent')), bg = hex(css('--slab'));
       for (let iy = 0; iy < n; iy++) for (let ix = 0; ix < n; ix++) { const v = Math.sqrt(grid[iy][ix]), k = ((n - 1 - iy) * n + ix) * 4, inside = Math.hypot(ix - n / 2 + .5, iy - n / 2 + .5) < n / 2; for (let q = 0; q < 3; q++) img.data[k + q] = Math.round(bg[q] + (col[q] - bg[q]) * v); img.data[k + 3] = inside ? 255 : 0; }
       g.putImageData(img, 0, 0); f.appendChild(c);
-      const cap = document.createElement('figcaption'); cap.textContent = `launch ${(+la / deg).toFixed(0)}°`; f.appendChild(cap); occ.appendChild(f);
+      const cap = document.createElement('figcaption'); cap.textContent = `launch ${(+la / deg).toFixed(+la < 0.1 ? 1 : 0)}°`; f.appendChild(cap); occ.appendChild(f);
     });
   }
   if (P.E2) {
@@ -923,15 +938,15 @@ function drawProgress() {
     let h = `<thead><tr><th>Layout</th><th class="num">features</th><th class="num">mean S</th>${P.meta.m.map(m => `<th class="num">R² m=${m}</th>`).join('')}</tr></thead><tbody>`;
     P.E2.layouts.forEach(L => { h += `<tr><td>${esc(L.name)}</td><td class="num">${L.n_features}</td><td class="num">${fmt(L.S.reduce((a, b) => a + b, 0) / L.S.length, 2)}</td>${L.r2_ab.map(cell).join('')}</tr>`; });
     $('e2table').innerHTML = h + '</tbody>';
-    $('e2note').innerHTML = `Ridge readout of a<sub>m</sub>, b<sub>m</sub> (R² averaged over the pair) from ${P.E2.N} random dots at one fixed position; S is the mean sensitivity of E1 for each layout. Launch 20°, fan ±11.5°.`;
+    $('e2note').innerHTML = `Ridge readout of a<sub>m</sub>, b<sub>m</sub> (R² averaged over the pair) from ${P.E2.N} random dots at the cell centre; S is the mean sensitivity of E1 for each layout. Launch ${fmt((P.E2.launch || 0.35) / deg, 1)}°, fan ±${fmt((P.E2.fan || 0.4) / 2 / deg, 1)}°.`;
   }
   if (P.E3) {
     const seg = $('e3sel'); seg.innerHTML = '';
     const show = (ci) => {
       [...seg.children].forEach((b, i) => b.setAttribute('aria-pressed', i === ci));
-      const C = P.E3.cases[ci], names = Object.keys(C.r2_ab), cols = ['var(--s1)', 'var(--s3)', 'var(--s4)', 'var(--s2)', 'var(--faint)', 'var(--s5)'];
+      const C = P.E3.cases[ci], names = Object.keys(C.r2_ab), cols = ['var(--s1)', 'var(--s3)', 'var(--s4)', 'var(--s2)', 'var(--faint)', 'var(--s5)', 'var(--s7)'];
       barChart($('e3chart'), { cats: P.meta.m.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: names.map((n, i) => ({ name: n, y: C.r2_ab[n], color: cols[i % cols.length] })), label: 'readouts' });
-      $('e3svc').innerHTML = `${P.E3.N} samples, ${C.n_features} speckle features (asym4 · 2 in). Dominant-order classification (SVC): linear ${fmt(C.svc.linear.accuracy * 100, 0)}%, RBF ${fmt(C.svc.rbf.accuracy * 100, 0)}%, RBF on the raw image ${fmt(C.svc.image_rbf.accuracy * 100, 0)}% (majority class ${fmt(C.svc.rbf.chance * 100, 0)}%).`;
+      $('e3svc').innerHTML = `${P.E3.N} samples, ${C.n_features} speckle features (asym4 · 2 in). Dominant-order classification (SVC): linear ${fmt(C.svc.linear.accuracy * 100, 0)}%, RBF ${fmt(C.svc.rbf.accuracy * 100, 0)}%, RBF on the raw image ${fmt(C.svc.image_rbf.accuracy * 100, 0)}% (majority class ${fmt(C.svc.rbf.chance * 100, 0)}%). R² of p<sub>m</sub> (m = 2…6), NGRC ridge: ${C.r2_p['NGRC ridge (lin + quad)'].map(v => fmt(v, 2)).join(' / ')}, RBF SVR: ${C.r2_p['RBF SVR'].map(v => fmt(v, 2)).join(' / ')}. Baselines: the raw Δn image on a 40 × 40 grid over the central 1.5 mm (37.5 µm pixels) and zoomed on the dot (7.5 µm pixels, an ideal camera).`;
     };
     P.E3.cases.forEach((C, i) => { const b = document.createElement('button'); b.textContent = C.name; b.onclick = () => show(i); seg.appendChild(b); });
     show(0);
@@ -978,7 +993,7 @@ function drawProgress2() {
   if (P.E8) {
     const cols = ['var(--faint)', 'var(--s1)', 'var(--s3)', 'var(--s2)', 'var(--s7)'];
     barChart($('e8chart'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: P.E8.sets.map((st, i) => ({ name: `${st.name} (${st.n_features})`, y: st.r2, color: cols[i % cols.length] })), label: 'multiplexing' });
-    $('e8note').innerHTML = `${P.E8.N} dots at one position, asymmetric ports with one input unless noted; numbers in brackets are feature counts. Speckle correlation between wavelengths: ${P.E8.lambda_decorrelation.map(([d, c]) => `${d} nm → ${fmt(c, 2)}`).join(', ')}.`;
+    $('e8note').innerHTML = `${P.E8.N} dots at the cell centre, asymmetric ports with one input unless noted; numbers in brackets are feature counts. Speckle correlation between wavelengths: ${P.E8.lambda_decorrelation.map(([d, c]) => `${d} nm → ${fmt(c, 2)}`).join(', ')}.`;
   }
   if (P.E9) {
     let h = '<thead><tr><th class="num">z (mm)</th><th class="num">Δn</th><th class="num">|ΔE| / |E|</th><th class="num">corr ΔE curved</th><th class="num">err curved</th><th class="num">corr ΔE phase screen</th><th class="num">err phase screen</th></tr></thead><tbody>';
@@ -1002,7 +1017,23 @@ function drawProgress2() {
       ser.push({ name: 'curved rays (1500 angles)', y: at(E['node-curved'].clean), color: 'var(--s2)' }, { name: 'curved rays, 1 % noise', y: at(E['node-curved'].noisy), color: 'var(--s2)', dash: true });
     }
     lineChart($('e12chart'), { x: E.dn, xlog: true, xticks: E.dn, xfmt: v => v.toExponential(0), xname: 'Δn', yname: 'mean R²', ylim: [-0.1, 1], xlabel: 'Δn of the dots', series: ser, label: 'R² vs Δn' });
-    $('e12note').innerHTML = `${E.N} dots at one position (phase screen, 6000 angles), asym4 · 2 in, linear readout, mean R² over m = 2…6. Dashed: additive detector noise of ${E.sigma * 100}% of the mean intensity, readout trained with the noise. Curved rays: ${P.E7 ? P.E7.N : ''} dots at the same 1500-angle ray set as their own phase-screen comparison in E7. The phase screen ignores ray bending; the curved-ray reservoir is the physical one.`;
+    $('e12note').innerHTML = `${E.N} dots at the cell centre (phase screen, 6000 angles), asym4 · 2 in, linear readout, mean R² over m = 2…6. Dashed: additive detector noise of ${E.sigma * 100}% of the mean intensity, readout trained with the noise.${E['node-curved'] && E['node-curved'].clean.length ? ` Curved rays: ${P.E7 ? P.E7.N : ''} dots at the same 1500-angle ray set as their own phase-screen comparison in E7.` : ''} Every low-angle chord crosses a centred dot, so the phase adds up over ~100 crossings: the readout degrades from Δn ≈ 1e-4, far below the off-centre optimum (3e-5 … 3e-4). The phase screen ignores ray bending.`;
+  }
+  if (P.E15) {
+    barChart($('e15chart'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: P.E15.readout.map((r, i) => ({ name: r.name, y: r.r2, color: ['var(--s1)', 'var(--s2)'][i % 2] })), label: 'centred dot circle vs stadium' });
+    $('e15note').innerHTML = `Linear readout of a<sub>m</sub>, b<sub>m</sub>, ${P.E15.N} dots at the centre, Δn = ${P.E15.dn.toExponential(0)}, two inputs, Python FGA phase screen (2000 directions). In the circle every ray keeps its distance p = R<sub>c</sub> sin χ from the centre, and the chord after a bounce is nearly the point reflection of the one before. A point reflection flips the sign of the odd harmonics, so their phases cancel chord by chord while the even ones add up. The chaotic stadium has no such conserved quantity: all orders are read. Rotation-invariant p<sub>m</sub> (NGRC poly2): circle ${P.E15.readout[0].r2_p.map(v => fmt(v, 2)).join(' / ')}, stadium ${(P.E15.readout[1] || P.E15.readout[0]).r2_p.map(v => fmt(v, 2)).join(' / ')}.`;
+  }
+  if (P.E13) {
+    const E = P.E13, ser = [];
+    E.fans.forEach((f, j) => ms.forEach((m, k) => ser.push({ name: `m = ${m}, fan ±${fmt(f / 2 / deg, 1)}°`, y: E.r2[f.toFixed(1)].map(r => r[k]), color: mc[k], dash: j > 0 })));
+    lineChart($('e13chart'), { x: E.launch.map(v => +(v / deg).toFixed(1)), xname: 'launch °', yname: 'R²', ylim: [-0.2, 1], xlabel: 'launch angle (°)', series: ser, label: 'odd orders vs launch' });
+    $('e13note').innerHTML = `Centred dot, ${E.N} dots, Δn = ${E.dn.toExponential(0)}, asym4 · 2 in, linear readout; solid: fan ±${fmt(E.fans[0] / 2 / deg, 1)}°, dashed: ±${fmt(E.fans[1] / 2 / deg, 1)}°. Steeper launches rotate successive chords more (2mχ per bounce), which should leave more of the odd orders, but the rays then pass farther from the centre and miss the dot: no launch angle rescues m = 3, 5.`;
+  }
+  if (P.E14) {
+    const E = P.E14;
+    lineChart($('e14chart'), { x: E.R, xname: 'R', yname: 'R²', ylim: [-0.2, 1], xlabel: 'wall reflectance R', xticks: E.R,
+      series: ms.map((m, k) => ({ name: 'm = ' + m, y: E.clean.map(r => r[k]), color: mc[k] })).concat(ms.map((m, k) => ({ name: `m = ${m}, 1 % noise`, y: E.noisy.map(r => r[k]), color: mc[k], dash: true }))), label: 'odd orders vs wall reflectance' });
+    $('e14note').innerHTML = `Centred dot, ${E.N} dots, Δn = ${E.dn.toExponential(0)}, launch ${fmt(E.launch / deg, 1)}°, linear readout. Lower R means fewer bounces: fewer cancelling chord pairs for odd orders, but also less accumulation for even ones. Dashed: 1 % detector noise, readout trained with the noise.`;
   }
   if (P.E10) {
     const S = P.E10.sensitivity;

@@ -131,6 +131,13 @@ Targets are a_m, b_m (R² averaged over the pair), p_m and the dominant m.
   sampling of the transmitted field); wall curvature across an opening is ignored in the far-field kernel.
 - The circle is integrable: a launch angle χ leaves a caustic disk of radius R_c sin χ that no ray
   enters. The stadium is chaotic and has no such disk.
+- Centred dot (the study's default, D9): only rays with R_c |sin χ| below the dot radius cross it, so the launch
+  must be near 0. A chord through the centre in direction α integrates r(α) + r(α + π) at first order, so odd
+  orders vanish for chords through the centre. Worse, a ray keeps its offset p = R_c sin χ, and the chord after
+  a bounce is nearly the point reflection of the one before, which flips the sign of every odd harmonic: odd
+  phases cancel chord by chord while even ones accumulate. The circle reads the even orders of a centred dot
+  almost perfectly and the odd ones weakly (E3, E13, E14); the stadium reads all of them (E15). Every chord
+  crosses the dot, so Δn must be small (≲ 3e-5, E12).
 
 ## References
 

@@ -41,7 +41,8 @@ ngrc/
   dataset.py       Ensemble of random dots (fixed / random position, jitter) → labels and features
   readout.py       ridge with CV, kernel ridge (linear / poly2 / RBF, × position kernel), SVR / SVC, R²
   analysis.py      sensitivity ∂I/∂a_m, ray occupancy, phase-screen validity, decorrelation
-examples/run_fga.py        experiments E1–E12 with the frozen-Gaussian model → results/progress.json
+examples/run_centre.py     experiments for one dot at the cell centre (E1–E3, E6, E8, E11–E15) → results/progress.json
+examples/run_fga.py        the off-centre experiments E1–E12 → results/progress_offcentre.json (archived copy)
 examples/run_progress.py, run_next.py   the same experiments with the legacy model (results/progress_gbs.json)
 web/ngrc-engine.js         JS port of the engine (same algorithms, checked against Python)
 web/explorer.src.html      applet source; tools/build_applet.py → web/cmpc-ngrc-explorer.html
@@ -55,7 +56,7 @@ tests/                     pytest suite
 cd cmpc-ngrc
 pip install numpy scipy scikit-learn pillow pytest
 python -m pytest -q
-python examples/run_fga.py --only E3        # node needed for the datasets; --quick for small runs
+python examples/run_centre.py --only E3     # node needed for the datasets; --quick for small runs
 python tools/make_vectors.py && node tools/check_js.mjs
 python tools/build_applet.py
 ```
@@ -72,8 +73,8 @@ from ngrc.shapes import Perturbation, Shape
 from ngrc.index_map import from_image
 
 cell = CircularCell(radius=1e-3, n_eff=1.8, reflectance=0.97,
-                    ports=ports_at([0, 67, 151, 238], inputs=(0, 1), width=20e-6, launch=0.35, fan=0.4))
-dots = Perturbation([Shape(2.5e-4, 1e-4, 80e-6, 1e-3, edge=3e-6, a=[0, 0.06, 0.03], b=[0, 0, 0, 0.02]),
+                    ports=ports_at([0, 67, 151, 238], inputs=(0, 1), width=20e-6, launch=0.05, fan=0.2))
+dots = Perturbation([Shape(0.0, 0.0, 80e-6, 3e-5, edge=3e-6, a=[0, 0.06, 0.03], b=[0, 0, 0, 0.02]),
                      from_image("blob.png", pitch=1e-6, dn=1e-3, x0=-3e-4, y0=-2e-4, smooth=2e-6)])
 src = Source(0, n_pos=None, n_ang=2000, frozen=20e-6)                 # frozen-Gaussian launch grid
 ex = trace(cell, src, dots, mode="curved", amp_min=0.02, max_bounces=300)
@@ -92,15 +93,53 @@ F_many = node_fields(cell, [None, Perturbation([dots.components[0]])], mode="pha
 - Ports: smooth leakage (footprint overlap); the field across each opening is propagated to 64 far-field
   directions.
 - Circle: sin χ is conserved, so a launch angle χ leaves a caustic disk of radius R_c sin χ that the core of
-  the beam never enters (E1).
+  the beam never enters (E1). For a centred dot the successive chords are near point reflections of each
+  other, which cancels the odd harmonics (E13–E15).
 - Phase screen: the same rays with ΔL = ∫Δn ds from each dot's Radon table, about 1 s per sample in the JS
   engine. Ray bending changes the speckle from Δn ≈ 3e-4 (E4).
 
-## Results (frozen-Gaussian model; `results/progress.json`, charted on the applet's Progress tab)
+## Results: one dot at the cell centre (frozen-Gaussian model; `results/progress.json`, `examples/run_centre.py`)
 
-Cell R_c = 1 mm, n_eff = 1.8, λ = 1.55 µm, wall R = 0.97, 20 µm ports, launch 20°, fan 23°. Dots: R = 60–110 µm,
-Δn = 1e-3, a_m and b_m (m = 2…6) random with spread 0.08/√(m−1). Phase-screen engine, 6000 directions per input.
-R² below is for a_m, b_m (averaged over the pair) on held-out dots.
+The study now uses a single dot at (0, 0) (TASKS D9); moving and adding dots is later work. Cell R_c = 1 mm,
+n_eff = 1.8, λ = 1.55 µm, wall R = 0.97, 20 µm ports (asym4 · 2 in unless noted), launch 3°, fan ±5.7°. Dots:
+R = 60–110 µm, Δn = 3e-5, a_m and b_m (m = 2…6) random with spread 0.08/√(m−1). Phase-screen engine, 6000
+directions per input. R² is for a_m, b_m (averaged over the pair) on held-out dots, listed for m = 2 / 3 / 4 / 5 / 6.
+
+- **Launch angle (E1):** a centred dot is crossed only by rays with R_c |sin χ| below its radius, so the launch
+  must be near 0; the sensitivity is gone by 17°. At 0° the odd orders are weakest; 3° with a ±5.7° fan is the
+  working point.
+- **Δn (E12, 400 dots):** every low-angle chord crosses the dot, ~100 crossings per ray, so the phase adds up:
+  the readout is flat from 3e-6 to 3e-5 (even orders 0.99 / 0.94–0.95 / 0.92–0.93), degrades from 1e-4 and is
+  lost at 1e-3 (0.45 for a₂). The off-centre optimum was 3e-5 … 3e-4.
+- **Readouts (E3, 1600 dots):** linear ridge 0.99 / 0.35 / 0.96 / 0.21 / 0.96; NGRC ridge the same; linear SVR
+  0.99 / 0.23 / 0.93 / 0.16 / 0.94; RBF SVR 0.99 / 0.07 / 0.89 / −0.03 / 0.88. p₂ 0.96 (NGRC), 0.98 (RBF SVR);
+  p₃ 0.45. Baselines on the Δn image: 37.5 µm pixels 0.78 / 0.71 / 0.60 / 0.55 / 0.35, an ideal camera (7.5 µm
+  pixels) 0.95 / 0.99 / 0.86 / 0.91 / 0.91. The cell beats the ideal camera on the even orders and fails on the
+  odd ones.
+- **Odd orders, parity of the circle (E13–E15):** every ray keeps its offset p = R_c sin χ from the centre, and
+  the chord after a bounce is nearly the point reflection of the one before. A point reflection flips the sign
+  of odd harmonics, so their phases cancel chord by chord while the even ones add up. No launch angle helps
+  (E13: steeper rays miss the dot). Shorter paths help (E14: R = 0.5 gives 0.99 / 0.55 / 0.98 / 0.47 / 0.98).
+  The chaotic stadium, which has no conserved offset, reads the centred dot in all orders: 0.99 / 0.99 / 0.95 /
+  0.96 / 0.94, against 0.99 / −0.10 / 0.93 / −0.09 / 0.88 for the circle (E15, Python engine, 300 dots).
+- **Learning curve (E6):** mean R² 0.35 / 0.57 / 0.63 / 0.68 / 0.69 with 100 / 200 / 400 / 800 / 1200 dots: the
+  even orders are learnt with ~200 dots, and the odd orders limit the mean.
+- **Noise and drift (E11):** a₂ survives 1–3 % detector noise (0.85 / 0.82), but m ≥ 3 do not at Δn = 3e-5
+  (off-centre at Δn = 1e-3, all orders degraded gradually). A uniform index drift up to 1e-7 costs nothing.
+- **Port layouts (E2, 800 dots, linear readout):** layouts with ports where the near-diametral chords land
+  catch the rays after one pass, before the odd orders cancel. asym4 · 2 in 1.00 / 0.32 / 0.95 / 0.13 / 0.95;
+  the same plus two exits opposite the inputs 1.00 / 0.55 / 0.98 / 0.55 / 0.97; sym4 · 4 in 0.97 / 0.72 / 0.33 /
+  0.61 / 0.83 (the opposite ports drain the long paths, and m = 4 suffers); asym8 · 2 in, the best,
+  1.00 / 0.80 / 0.99 / 0.53 / 0.99 (p₂ 0.99, p₃ 0.58). For a centred dot, symmetric and asymmetric layouts
+  differ clearly, unlike off-centre.
+- **Multiplexing (E8, one input):** three launch angles, three wavelengths or 3 × 3 add nothing for the odd
+  orders (3 × 3: 1.00 / 0.36 / 0.97 / 0.09 / 0.95): every variant shares the circle's symmetry. The speckle
+  decorrelates by 0.05 nm (field correlation 0.45).
+- **Validation:** see E9 and the tests (below, off-centre archive).
+
+## Earlier results: dot off-centre at (250, 100) µm (`results/progress_offcentre.json`, `examples/run_fga.py`)
+
+Launch 20°, fan ±11.5°, Δn = 1e-3; otherwise as above. Kept as the reference for later work on dot position.
 
 - **Launch angle (E1):** sensitivity peaks near 23° and is zero at 57°: dots within 600 µm of the centre are
   then inside the caustic disk.

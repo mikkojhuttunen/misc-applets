@@ -102,13 +102,19 @@ def test_thin_sheet_radiation_with_box_and_handles():
             assert m["up_fraction"] > 0.95                         # gold: downward light is absorbed, not radiated
 
 
-def test_thin_sheet_TM_is_not_reliable():
-    # known limit of grating_coupler (task A7): the TM radiation uses TE expressions and comes out ~10× too low
-    g = coupler(20e-9, pol="TM")
+@pytest.mark.parametrize("cl,h,f,tol", [(1.0, 2e-9, 0.5, 0.02), (1.0, 20e-9, 0.5, 0.08), (1.0, 20e-9, 0.3, 0.06),
+                                         (1.0, 50e-9, 0.5, 0.16), (1.444, 20e-9, 0.5, 0.05), (1.9, 20e-9, 0.5, 0.08)])
+def test_tm_radiation_against_rigorous(cl, h, f, tol):
+    # TM tooth model of grating_coupler (task A7): D_x / E_z split, TM local fields, wall screening
+    st0 = (STACK[0], STACK[1], cl, STACK[3])
+    g = SurfaceGrating(*st0, h, 0.8e-6, f, polarization="TM")
+    g = SurfaceGrating(*st0, h, 0.95 * LAM / np.mean(g.neff_profile(LAM)), f, polarization="TM")
     est = g.radiation(LAM)
     st, sp = rc.surface_grating_stack(g, LAM)
-    m = rc.RCWA(st, LAM, 10).leaky_mode(est["N0"], sp, 9 * est["alpha_total"])
-    assert m["alpha"] > 5 * est["alpha_total"]
+    m = rc.RCWA(st, LAM, 12).leaky_mode(est["N0"], sp, est["alpha_total"])
+    up = sum(o["alpha"] for o in est["orders"] if o["medium"] == "cladding") / est["alpha_total"]
+    assert est["alpha_total"] == pytest.approx(m["alpha"], rel=tol)
+    assert up == pytest.approx(m["up_fraction"], abs=0.01)
 
 
 def test_staircase_profiles_converge():
@@ -133,12 +139,16 @@ def test_dbr_kappa_TE_matches_effective_index(h, tol):
     assert r["lambda_B"] == pytest.approx(LAM, rel=1e-3)
 
 
-def test_dbr_kappa_TM_is_below_effective_index():
-    # the EIM treats the etched layer as isotropic; for TM the walls matter (E_x crosses them) and κ is ~2× lower
-    g = SurfaceGrating(*STACK, 20e-9, 0.36e-6, polarization="TM")
-    g = SurfaceGrating(*STACK, 20e-9, LAM / (2 * np.mean(g.neff_profile(LAM))), polarization="TM")
-    r = rc.bragg_band(g, LAM)
-    assert r["fit_residual"] < 1e-3 and 0.3 < r["kappa"] / r["kappa_eim"] < 0.6
+@pytest.mark.parametrize("cl,h,f,tol", [(1.0, 2e-9, 0.5, 0.03), (1.0, 20e-9, 0.5, 0.05), (1.0, 20e-9, 0.3, 0.25),
+                                         (1.9, 20e-9, 0.5, 0.03), (1.9, 50e-9, 0.3, 0.05)])
+def test_dbr_kappa_TM_against_rigorous(cl, h, f, tol):
+    # EIM κ is |ρ| × (Fourier of n_eff) for TM; the rigorous κ is ~2× below the bare EIM value in air
+    st0 = (STACK[0], STACK[1], cl, STACK[3])
+    g = SurfaceGrating(*st0, h, 0.36e-6, f, polarization="TM")
+    g = SurfaceGrating(*st0, h, LAM / (2 * np.mean(g.neff_profile(LAM))), f, polarization="TM")
+    r = rc.bragg_band(g, LAM, 12)
+    assert r["fit_residual"] < 1e-3
+    assert r["kappa_eim"] == pytest.approx(r["kappa"], rel=tol)          # kappa_eim = g.coupling: includes |ρ|
 
 
 # ---------------------------------------------------------------- coupled-mode coupler vs rigorous (plane-wave limit)
@@ -257,3 +267,34 @@ def test_band_edge_mode_is_a_pole_of_the_reflection():
 def test_band_edge_front_end():
     r = rc.band_edge(LAM, *STACK, 50e-9, second_order(50e-9, 0.3)[0].period, 0.3)
     assert r["Q_dark"] > 1e8 and 1e3 < r["Q_bright"] < 1e4 and r["lambda_dark"] < r["lambda_bright"]
+
+
+@pytest.mark.parametrize("cl", [1.0, 1.444, 1.9])
+def test_tm_band_edges_against_rigorous(cl):
+    # bright-mode Q and the band ordering: the TM forward-backward coupling is -ρ × effective index
+    st0 = (STACK[0], STACK[1], cl, STACK[3])
+    h, f = 20e-9, 0.3
+    g = SurfaceGrating(*st0, h, 0.8e-6, f, polarization="TM")
+    Lam = LAM / np.mean(g.neff_profile(LAM))
+    g = SurfaceGrating(*st0, h, Lam, f, polarization="TM")
+    cm = CRIGF(SurfaceGrating(*st0, 0.0, 0.4e-6, polarization="TM"), 0, Lam, 1, h, f).band_edge_modes(LAM)
+    st, sp = rc.surface_grating_stack(g, LAM)
+    b = rc.resonance_mode(st, 0.0, cm["bright"]["wavelength"], sp, 12)
+    d = rc.resonance_mode(st, 0.0, cm["dark"]["wavelength"], sp, 12)
+    assert abs(d["Q"]) > 1e8 and b["Q"] == pytest.approx(cm["bright"]["Q"], rel=0.1)
+    assert np.sign(b["wavelength"].real - d["wavelength"].real) == np.sign(cm["bright"]["wavelength"].real - cm["dark"]["wavelength"].real)
+
+
+@pytest.mark.parametrize("theta", [0.0, np.radians(5)])
+def test_tm_coupler_against_rigorous_resonance(theta):
+    h = 20e-9
+    g = SurfaceGrating(*STACK, h, 0.8e-6, polarization="TM")
+    Lam = LAM / (np.mean(g.neff_profile(LAM)) - np.sin(theta))
+    g = SurfaceGrating(*STACK, h, Lam, polarization="TM")
+    c = CRIGF(SurfaceGrating(*STACK, 0.0, 0.4e-6, polarization="TM"), 0, Lam, 1, h, theta=theta)
+    st, _ = rc.surface_grating_stack(g, LAM)
+    lc, Rc, wc = _resonance(lambda l: c.infinite_grating(l)["R"], LAM - 1.5e-9, LAM + 0.8e-9)
+    lr, Rr, wr = _resonance(lambda l: rc.RCWA(st, l, 12).diffraction(theta)["R"][12], LAM - 1.5e-9, LAM + 0.8e-9)
+    assert Rc == pytest.approx(1, abs=2e-3) and Rr == pytest.approx(1, abs=2e-3)
+    assert wc == pytest.approx(wr, rel=0.1) and abs(lc - lr) < 0.35e-9
+    assert c.infinite_grating(lc)["sum"] == pytest.approx(1, abs=1e-5)

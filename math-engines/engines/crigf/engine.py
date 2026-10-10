@@ -96,10 +96,19 @@ class CRIGF:
     # ---------------------------------------------------------------- mirrors
     def mirrors(self, wavelength, n_ref):
         """Characteristic matrices of spacer + DBR seen from the coupler, left (traversed outward) and right, and the
-        unetched index n_out of the guide beyond them."""
+        unetched index n_out of the guide beyond them. TM: the slice indices keep their mean and their deviations are
+        scaled by -ρ of the TM tooth model, so the DBR κ is |ρ| times the effective-index κ and its sign is the
+        physical one: the forward-backward coupling of TM goes as -(C_v - C_l) where the n_eff shift goes as
+        C_v + C_l (E_x flips sign between the two directions, E_z does not). Checked by the band-edge ordering
+        of second-order gratings against rcwa."""
         k = _TAU / wavelength
         tab = self.dbr.neff_table(wavelength)
-        sl = [(w * self.dbr.period, self.dbr._interp(tab, g) + 1j * self.alpha_prop / (2 * k)) for w, g in period_slices(self.dbr)]
+        nloc = [self.dbr._interp(tab, g) for _, g in period_slices(self.dbr)]
+        if self.dbr.polarization == "TM":                 # TM: scale the n_eff modulation by ρ (grating_coupler.tm_weights)
+            rho = -self.dbr.tm_weights(wavelength)["rho"]
+            nbar = float(np.mean(self.dbr.neff_profile(wavelength)))
+            nloc = [nbar + rho * (n - nbar) for n in nloc]
+        sl = [(w * self.dbr.period, n + 1j * self.alpha_prop / (2 * k)) for (w, _), n in zip(period_slices(self.dbr), nloc)]
         P = np.eye(2, dtype=complex)
         for d, n in sl:
             P = P @ layer_matrix(n, k, d)
@@ -132,23 +141,60 @@ class CRIGF:
         G1 = fourier_coefficient(gc.g, 1)
         Gm1 = np.conj(G1)
         N2 = fourier_coefficient(nPG, 2)
+        tm = dbr.polarization == "TM"
+        if tm:
+            N2 = -N2 * gc.tm_weights(lam)["rho"]                      # TM: forward-backward coupling is -ρ × effective index
         Nm2 = np.conj(N2)
         h, t = self.gc_etch_depth, dbr.thickness
         m = slab_mode(lam, ns, nf, nc, t - h + h * float(np.mean(gc.g)), dbr.polarization, 0)
         xg = t - h / 2
-        eg = np.sqrt(2 * om * MU0 / beta) * float(m["field"](xg)) / np.sqrt(m["norm"]) if m else 0.0
-        aC = 0.25 * om * EPS0 * (nf * nf - nc * nc) * h * eg              # coupling a = i aC
         kz_in = k * nc * np.sin(self.theta)
         kz_r = beta - KG
-        chi = 0.0
+        nB = dbr.bottom_index(lam)
+        if not tm:
+            eg = np.sqrt(2 * om * MU0 / beta) * float(m["field"](xg)) / np.sqrt(m["norm"]) if m else 0.0
+            aC = 0.25 * om * EPS0 * (nf * nf - nc * nc) * h * eg              # coupling a = i aC
+
+            def loc(kz, side):
+                """(F_R, F_S): local-field factors of the forward and backward wave for a plane wave of unit E."""
+                pw = dbr.plane_wave(lam, kz, xg, side)
+                F = pw["F"] if pw else 0j
+                return F, F
+        else:
+            # TM: aC = ω ε0 Δε h / 4, and F_R, F_S = E_mode · E_pw (Lorentz: the forward wave R pairs with the backward mode
+            # field, S with the forward one), per unit incident E of the plane wave, mode at unit power:
+            # Z = E_z E_z w_l, X = (β k_z φ H / (ω² ε0² ε2²)) w_v from D_x (cladding side), F_R = Z - X, F_S = Z + X
+            aC = 0.25 * om * EPS0 * (nf * nf - nc * nc) * h
+            tw = gc.tm_weights(lam)
+            e2 = nc * nc
+            sc = np.sqrt(2 * om * EPS0 / (beta * m["norm_eps"])) if m else 0.0
+            phi, dphi = (sc * float(m["field"](xg)), sc * float(m["dfield"](xg))) if m else (0.0, 0.0)
+
+            def loc(kz, side):
+                pw = dbr.plane_wave(lam, kz, xg, side, "TM")
+                if not pw:
+                    return 0j, 0j
+                nj = nc if side == "top" else nB
+                Z = -(nj / ETA0) * dphi * pw["G"] * tw["w_l"] / (om * EPS0) ** 2
+                X = (nj / ETA0) * beta * kz * phi * pw["F"] * tw["w_v"] / (e2 * e2 * (om * EPS0) ** 2)
+                return Z - X, Z + X
+        chi, chi_x = 0.0, 0j
         for med, nj in dbr.channels(lam):
-            lf = dbr.plane_wave(lam, kz_r, xg, "top" if med == "cladding" else "bottom")
-            chi += 0.5 * abs(lf["F"]) ** 2 / np.sqrt(max(k * k * nj * nj - kz_r * kz_r, 1.0))
+            FR, FS = loc(kz_r, "top" if med == "cladding" else "bottom")
+            kxj = np.sqrt(max(k * k * nj * nj - kz_r * kz_r, 1.0))
+            chi += 0.5 * abs(FR) ** 2 / kxj
+            chi_x += 0.5 * FR * np.conj(FS) / kxj
         rad = 2 * om * MU0 * chi * aC * aC
+        rad_x = rad if not tm else 2 * om * MU0 * chi_x * aC * aC     # radiative cross-coupling (= rad for TE)
         aP = self.alpha_prop
         pw_top = dbr.plane_wave(lam, kz_in, xg, "top")
         pw_bot = dbr.plane_wave(lam, kz_in, xg, "bottom") or {"F": 0j, "tau": 0j}
-        nB = dbr.bottom_index(lam)
+        if tm:
+            ptm, pbm = dbr.plane_wave(lam, kz_in, xg, "top", "TM"), dbr.plane_wave(lam, kz_in, xg, "bottom", "TM")
+            pw_top = {**ptm, "F": None}
+            pw_bot = {**pbm, "F": None} if pbm else {"F": None, "tau": 0j}
+        FtR, FtS = loc(kz_in, "top")
+        FbR, FbS = loc(kz_in, "bottom")
         Lsp = self.spacer + self.straight
         Lg = self.gc_length
         z0 = self.dbr_periods * self.dbr.period + Lsp
@@ -165,16 +211,19 @@ class CRIGF:
 
         g2 = abs(G1) ** 2
 
+        A12c = -rad_x * G1 * G1 + 1j * k * N2                          # coefficients of e^{2iDζ} S and e^{-2iDζ} R
+        A21c = np.conj(rad_x) * Gm1 * Gm1 - 1j * k * Nm2
+
         def rhs(z, Y, with_src):
             eP, e2P = np.exp(1j * D * z), np.exp(2j * D * z)
             eM, e2M = np.conj(eP), np.conj(e2P)
             R, S = Y[:, 0], Y[:, 1]
-            dR = R * (-rad * g2 - aP / 2) - rad * G1 * G1 * e2P * S + 1j * k * N2 * e2P * S
-            dS = S * (rad * g2 + aP / 2) + rad * Gm1 * Gm1 * e2M * R - 1j * k * Nm2 * e2M * R
+            dR = R * (-rad * g2 - aP / 2) + A12c * e2P * S
+            dS = S * (rad * g2 + aP / 2) + A21c * e2M * R
             out = np.stack([dR, dS], axis=1)
             if with_src:
-                E = pw_top["F"] * np.exp(1j * (kz_in * z + phase0)) * oy * E0 * beam(z, cth)
-                out[2] += [1j * aC * G1 * eP * E, -1j * aC * Gm1 * eM * E]
+                E = np.exp(1j * (kz_in * z + phase0)) * oy * E0 * beam(z, cth)
+                out[2] += [1j * aC * G1 * eP * E * FtR, -1j * aC * Gm1 * eM * E * FtS]
             return out
 
         n = self.n_steps
@@ -202,13 +251,15 @@ class CRIGF:
         PinL, PinR = abs(S0) ** 2, abs(ys[-1, 0]) ** 2
         z = np.arange(n + 1) * hs
         eP = np.exp(1j * D * z)
-        Kn = -4j * aC * (Gm1 * np.conj(eP) * ys[:, 0] + G1 * eP * ys[:, 1])
+        KR = -4j * aC * Gm1 * np.conj(eP) * ys[:, 0]
+        KS = -4j * aC * G1 * eP * ys[:, 1]
         ph = np.exp(-1j * (kz_in * z + phase0))
-        Er = pw_top["F"] * ph * oy * E0 * beam(z, cth)
-        Et = pw_bot["F"] * ph * oy * E0s * beam(z, cths)
+        Er = ph * oy * E0 * beam(z, cth)
+        Et = ph * oy * E0s * beam(z, cths)
         w = np.full(n + 1, hs)
         w[0] = w[-1] = hs / 2
-        rg, tg = -0.25 * np.sum(Kn * Er * w), -0.25 * np.sum(Kn * Et * w)
+        rg = -0.25 * np.sum((KR * FtR + KS * FtS) * Er * w)
+        tg = -0.25 * np.sum((KR * FbR + KS * FbS) * Et * w)
         R, T = abs(pw_top["r"] + rg) ** 2, abs(pw_top["tau"] + tg) ** 2
         escL, escR = PinL * TL, PinR * TR
         lat = (PinL * abs(rL0) ** 2 + PinR * abs(rR0) ** 2) * (1 - self.bounce_eta)
@@ -216,9 +267,11 @@ class CRIGF:
                 "other": 1 - R - T - escL - escR - lat, "U_max": float(np.max(np.abs(ys[:, 0]) ** 2 + np.abs(ys[:, 1]) ** 2)),
                 "alpha_rad": 2 * rad * g2, "rL": rL, "rR": rR, "N0G": N0G, "n_out": n_out, "beta": beta, "D": D,
                 "z": z, "RS": ys, "Y_end": Y,
-                "coef": {"rad": rad, "aC": aC, "G1": G1, "N2": N2, "k": k, "D": D, "alpha_prop": aP, "F_top": pw_top["F"],
+                "coef": {"rad": rad, "rad_x": rad_x, "A12c": A12c, "A21c": A21c, "F_top_R": FtR, "F_top_S": FtS,
+                         "F_bot_R": FbR, "F_bot_S": FbS, "aC": aC, "G1": G1, "N2": N2, "k": k, "D": D, "alpha_prop": aP,
+                         "F_top": FtR,
                          "kz_in": kz_in, "phase0": phase0, "E0": E0, "overlap_y": oy, "zc": zc, "w0": self.w0, "cos_theta": cth,
-                         "r_top": pw_top["r"], "tau_top": pw_top["tau"], "F_bot": pw_bot["F"], "n_bot": nB, "n_clad": nc,
+                         "r_top": pw_top["r"], "tau_top": pw_top["tau"], "F_bot": FbR, "n_bot": nB, "n_clad": nc,
                          "cos_theta_bot": cths}}
 
     def infinite_grating(self, wavelength):
@@ -227,33 +280,33 @@ class CRIGF:
         returns the specular reflectance R, the transmittance T into the substrate and R + T (1 without loss, since a
         second-order grating radiates only into the specular orders). For benchmarks against rigorous solvers."""
         co = self.response(wavelength)["coef"]
-        rad, aC, G1, N2, k, D, aP, kz = (co[x] for x in ("rad", "aC", "G1", "N2", "k", "D", "alpha_prop", "kz_in"))
+        rad, aC, G1, k, D, aP, kz = (co[x] for x in ("rad", "aC", "G1", "k", "D", "alpha_prop", "kz_in"))
         g2 = abs(G1) ** 2
-        A = np.array([[-rad * g2 - aP / 2 - 1j * D, -rad * G1 * G1 + 1j * k * N2],
-                      [rad * np.conj(G1) ** 2 - 1j * k * np.conj(N2), rad * g2 + aP / 2 + 1j * D]])
-        b = np.array([1j * aC * G1 * co["F_top"], -1j * aC * np.conj(G1) * co["F_top"]])
+        A = np.array([[-rad * g2 - aP / 2 - 1j * D, co["A12c"]], [co["A21c"], rad * g2 + aP / 2 + 1j * D]])
+        b = np.array([1j * aC * G1 * co["F_top_R"], -1j * aC * np.conj(G1) * co["F_top_S"]])
         rho, sig = np.linalg.solve(A - 1j * kz * np.eye(2), -b)
-        Kn = -4j * aC * (np.conj(G1) * rho + G1 * sig)
+        KR, KS = -4j * aC * np.conj(G1) * rho, -4j * aC * G1 * sig
         nc, nb, c, cb = co["n_clad"], co["n_bot"], co["cos_theta"], co["cos_theta_bot"]
-        r = co["r_top"] - 0.25 * Kn * co["F_top"] * 2 * ETA0 / (nc * c)
-        t = co["tau_top"] - 0.25 * Kn * co["F_bot"] * 2 * ETA0 / np.sqrt(nc * c * nb * cb)
+        r = co["r_top"] - 0.25 * (KR * co["F_top_R"] + KS * co["F_top_S"]) * 2 * ETA0 / (nc * c)
+        t = co["tau_top"] - 0.25 * (KR * co["F_bot_R"] + KS * co["F_bot_S"]) * 2 * ETA0 / np.sqrt(nc * c * nb * cb)
         return {"R": abs(r) ** 2, "T": abs(t) ** 2, "sum": abs(r) ** 2 + abs(t) ** 2, "r": r, "t": t}
 
     def band_edge_modes(self, wavelength):
         """Coupled-mode band-edge modes of the infinite coupler grating at the Γ point (normal incidence): complex
         wavelengths where the free (undriven) envelope equations have a uniform solution, det A(λ) = 0 with
-        A = [[-a - iD, -ρ G₁² + i k N₂], [ρ G₋₁² - i k N₋₂, a + iD]], a = ρ|G₁|² + α/2, D = K - β(λ).
+        A = [[-a - iD, A12], [A21, a + iD]], a = ρ|G₁|² + α/2, D = K - β(λ), A12 = -ρ_x G₁² + i k N₂,
+        A21 = ρ_x* G₋₁² - i k N₋₂ (ρ_x: radiative cross-coupling, = ρ for TE).
         Closed form in D (quadratic), then λ from the linear dispersion D(λ) about `wavelength`. Returns both modes
         sorted by Q: the bright (radiating) one and the dark one (Q = ∞ for a symmetric tooth: symmetry-protected
         bound state). Coefficients are evaluated at the real `wavelength`."""
         co = self.response(wavelength)["coef"]
         rad, G1, N2, k, D0, aP = (co[x] for x in ("rad", "G1", "N2", "k", "D", "alpha_prop"))
+        A12c, A21c = co["A12c"], co["A21c"]
         h = wavelength * 1e-4
         beta = [_TAU / l * float(np.mean(self.gc.neff_profile(l))) for l in (wavelength - h, wavelength + h)]
         dD = -(beta[1] - beta[0]) / (2 * h)                            # dD/dλ = -dβ/dλ = 2π n_g / λ² > 0
         a = rad * abs(G1) ** 2 + aP / 2
-        X = G1 * G1 * np.conj(N2) + N2 * np.conj(G1) ** 2
-        S = np.sqrt(complex(rad * rad * abs(G1) ** 4 - 1j * k * rad * X - k * k * abs(N2) ** 2))
+        S = np.sqrt(complex(-A12c * A21c))                             # (a + iD)² = -A12 A21
         modes = []
         for sgn in (1, -1):
             D = 1j * (a - sgn * S)                                     # i D = -a + sgn S

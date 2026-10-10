@@ -15,11 +15,12 @@ Thin-sheet radiation (`grating_coupler`), second-order coupler detuned by 5 %, �
 | etch h | 5 nm | 20 nm | 50 nm | 100 nm | 200 nm |
 |---|---|---|---|---|---|
 | TE | 0.996 | 0.984 | 0.969 | 0.964 | 0.944 |
-| TM | 10.1 | 9.5 | 8.6 | 7.8 | 7.8 |
+| TM, TE formula (before A7) | 10.1 | 9.5 | 8.6 | 7.8 | 7.8 |
+| TM, tooth model (A7) | 1.00 (2 nm) | 1.06 | 1.16 | 1.39 | |
 
-TE up/down split agrees to 0.002 up to 100 nm. With a BOX on a handle the thin sheet follows the ~10× BOX interference swing of α within ~6 % (Si) and ~20 % (gold). TM is wrong by about 10×: its radiation uses TE expressions (`dbr-structures/TASKLIST.md`, A7).
+TE up/down split agrees to 0.002 up to 100 nm. With a BOX on a handle the thin sheet follows the ~10× BOX interference swing of α within ~6 % (Si) and ~20 % (gold). Before A7, TM was wrong by about 10× because its radiation used TE expressions. With the TM tooth model, over LN, SiN and claddings 1.0–1.9, f = 0.3–0.7 and 5 % detuning on either side, h ≤ 50 nm: mean error 7 %, worst 33 % (wide teeth in air); h = 2 nm within 1 % at f = 0.5 and 8 % at f = 0.3/0.7 (corner fields); up/down split within 0.03.
 
-First-order DBR κ, rigorous / effective-index: TE 1.000 (5 nm), 0.999 (20 nm), 0.997 (50 nm), 0.990 (100 nm); TM 0.51, 0.45, 0.33, 0.15 for the same depths. The effective-index method treats the etched layer as isotropic, but for TM the field component along the guide crosses the tooth walls (harmonic-mean ε), so κ is overestimated 2–7×.
+First-order DBR κ, rigorous / bare effective-index: TE 1.000 (5 nm), 0.999 (20 nm), 0.997 (50 nm), 0.990 (100 nm); TM 0.51, 0.45, 0.33, 0.15 for the same depths. For TM the forward-backward coupling weighs the normal D field and the longitudinal E field with opposite signs, where the n_eff shift (all the effective-index method sees) adds them; the rigorous TM κ even passes through zero at some depths. The A7 tooth model reproduces the thin limit exactly (0.528 vs 0.526 for LN in air, 0.829 vs 0.830 with cladding 1.9) and, for h ≤ 20 nm, is within 9 % on average (35 % worst, wide teeth); deeper, within 0.06 κ_EIM on average (0.35 worst).
 
 Coupled-mode coupler (`crigf.CRIGF.infinite_grating`, plane-wave limit of the CRIGF coupler) against the rigorous guided-mode resonance, 20 nm etch: linewidth within 3 % (normal incidence, bright band-edge mode) and 1 % (2°), peak reflectance 1 in both, resonance 0.12 nm short of the rigorous one (effective-index n_eff); at 50 nm etch linewidth within 7 %, offset 0.9 nm.
 

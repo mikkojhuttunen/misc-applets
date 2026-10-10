@@ -321,35 +321,55 @@ def _segments(mask, n_on, n_off):
     return seg
 
 
-def bragg_band(gr, wavelength, orders=10, offsets=(-3.0, -2.0, 2.0, 3.0)):
+def bragg_band(gr, wavelength, orders=10, offsets=(-3.0, -2.0, 2.0, 3.0), rounds=4):
     """Rigorous coupling coefficient and Bragg wavelength of a first-order (non-radiating) surface-grating DBR.
 
-    Guided Bloch modes q = k_x0 - K/2 are found outside the stop band, at detunings offsets × κ_EIM from the EIM Bragg
-    condition (real q, robust), and fitted to the coupled-mode band q² = A (ν - ν_B)² - κ² in ν = 1/λ. Returns κ, the
-    Bragg wavelength, the EIM κ and the fit residual."""
+    Guided Bloch modes q = k_x0 - K/2 are found outside the stop band (real q, robust) at half-detunings offsets × κ
+    from the Bragg condition, and fitted to the coupled-mode band q² = A (ν - ν_B)² - κ² in ν = 1/λ. The first round
+    is centred on the EIM Bragg condition with κ_EIM; later rounds re-centre on the fitted ν_B with the fitted κ and
+    A, until the samples straddle ν_B (deep etches move the rigorous Bragg wavelength by many EIM stop-band widths).
+    Returns κ, the Bragg wavelength, the EIM κ, the fit residual and the rounds used."""
     st, split = surface_grating_stack(gr, wavelength)
     kap0 = gr.coupling(wavelength, 1)
-    nus, q2 = [], []
-    for o in offsets:
+
+    def sample(nu_list, guess):
+        q2 = []
+        for nu, qg in zip(nu_list, guess):
+            lam = 1 / nu
+            k0 = _TAU / lam
+            N = RCWA(st, lam, orders).bloch_mode(lam / (2 * gr.period) + qg / k0, split)
+            q = k0 * N - np.pi / gr.period
+            q2.append(float(np.real(q * q)))
+        return q2
+
+    nus, guess = [], []
+    for o in offsets:                                  # round 1: EIM band
         lam = wavelength
-        for _ in range(3):                            # wavelength where the EIM half-detuning is o κ_EIM
+        for _ in range(3):
             N0 = float(np.mean(gr.neff_profile(lam)))
             lam = 2 * np.pi * N0 / (np.pi / gr.period + o * kap0)
-        k0 = _TAU / lam
-        delta = k0 * N0 - np.pi / gr.period
-        qg = np.sign(delta) * np.sqrt(max(delta**2 - kap0**2, 0.0))
-        N = RCWA(st, lam, orders).bloch_mode(lam / (2 * gr.period) + qg / k0, split)
-        q = k0 * N - np.pi / gr.period
+        delta = _TAU / lam * N0 - np.pi / gr.period
         nus.append(1 / lam)
-        q2.append(float(np.real(q * q)))
-    nu = np.array(nus)
-    x = (nu - nu.mean()) / nu.std()
-    a, b, c = np.polyfit(x, q2, 2)
-    kappa2 = b * b / (4 * a) - c
-    nuB = nu.mean() - b / (2 * a) * nu.std()
-    resid = float(np.max(np.abs(np.polyval([a, b, c], x) - q2)) / max(abs(np.array(q2)).max(), 1e-300))
+        guess.append(np.sign(delta) * np.sqrt(max(delta**2 - kap0**2, 0.0)))
+    nB_eim = 1 / wavelength
+    for rnd in range(1, rounds + 1):
+        q2 = sample(nus, guess)
+        nu = np.array(nus)
+        x = (nu - nu.mean()) / nu.std()
+        a, b, c = np.polyfit(x, q2, 2)
+        kappa2 = b * b / (4 * a) - c
+        nuB = nu.mean() - b / (2 * a) * nu.std()
+        A = a / nu.std() ** 2                           # q² = A (ν - ν_B)² - κ² in ν
+        resid = float(np.max(np.abs(np.polyval([a, b, c], x) - q2)) / max(abs(np.array(q2)).max(), 1e-300))
+        straddle = nu.min() < nuB < nu.max()
+        if straddle and kappa2 > 0 and resid < 1e-3:
+            break
+        kap_s = np.sqrt(kappa2) if kappa2 > (0.05 * kap0) ** 2 else 0.05 * kap0
+        near = (-1.8, -1.3, 1.3, 1.8)                   # closer to the band edges: less band curvature in the fit
+        nus = [nuB + o * kap_s / np.sqrt(A) for o in near]
+        guess = [np.sign(o) * np.sqrt(max(A * (n - nuB) ** 2 - max(kappa2, 0.0), 0.0)) for o, n in zip(near, nus)]
     return {"kappa": float(np.sqrt(max(kappa2, 0.0))), "lambda_B": float(1 / nuB), "kappa_eim": kap0, "fit_residual": resid,
-            "q2": q2, "wavelengths": list(1 / nu)}
+            "q2": q2, "wavelengths": list(1 / np.array(nus)), "rounds": rnd}
 
 
 # ---------------------------------------------------------------- Result front ends (spec.yaml)

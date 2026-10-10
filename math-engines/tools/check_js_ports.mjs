@@ -20,7 +20,7 @@ const close = (label, got, want, rel, abs = 0) => {
   const ctx = vm.createContext({ Math, Float64Array, Array, Number, Map, Set, Object, JSON });
   vm.runInContext(fs.readFileSync(path.join(repo, 'dbr-structures/dbr-engine.js'), 'utf8') +
     '\n;HANDLE.__vec = () => globalThis.__handle;' +
-    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU, profileFn, sampleProfile, tableAt, neffProfile, fourier, radiation, farField, crigfAt, findResonance };', ctx);
+    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU, profileFn, sampleProfile, tableAt, neffProfile, fourier, radiation, farField, crigfAt, findResonance, tmWeights, mean };', ctx);
   const e = ctx.__e, um = x => x * 1e6;
   const key = { sio2: 'sio2', si3n4: 'si3n4', ln_e: 'lne', ln_o: 'lno', lt_e: 'lte' };
   for (const r of V.materials) close(`dbr n(${r.material}, ${r.wavelength})`, e.nIdx({ mat: key[r.material] }, um(r.wavelength), {}), r.n, 1e-12);
@@ -46,7 +46,8 @@ const close = (label, got, want, rel, abs = 0) => {
     const pf = e.profileFn(st, Lam), gS = e.sampleProfile(pf), tab = e.tableAt(st, lam, 0, !!pf.rect), nP = e.neffProfile(tab, gS);
     close(`${id} n_high`, tab.vals[tab.K], r.n_high, 1e-12);
     close(`${id} n_low`, tab.vals[0], r.n_low, 1e-12);
-    r.kappa.forEach((kq, i) => close(`${id} κ${i + 1}`, e.TAU * e.fourier(nP, i + 1) / lam * 1e6, kq, rel, 1e-2));
+    const rhoTM = Math.abs(e.tmWeights(st, lam, Lam, e.mean(gS), 0).rho);   /* TM tooth model, 1 for TE */
+    r.kappa.forEach((kq, i) => close(`${id} κ${i + 1}`, e.TAU * e.fourier(nP, i + 1) / lam * 1e6 * rhoTM, kq, rel, 1e-2));
     const rad = e.radiation(st, lam, 0, gS, Lam, r.periods, !!pf.rect);
     close(`${id} N0`, rad.N0, r.N0, tight);
     close(`${id} α total`, rad.alphaTot * 1e6, r.alpha_total, rel, 1e-9);

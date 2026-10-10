@@ -140,3 +140,13 @@ def test_result_front_end():
     out = cr.crigf_response(LAM, *STACK, 0.1e-6, LamD, 60, 0.05e-6, 0.79637e-6, 30, spacer=0.3e-6, w0=12e-6)
     s = out["R"] + out["T"] + out["escL"] + out["escR"] + out["other"]
     assert s == pytest.approx(1.0, abs=1e-12) and 0 <= out["R_dbr"] <= 1
+
+
+def test_tm_cavity_is_passive_and_symmetric():
+    d = SurfaceGrating(*STACK, 0.1e-6, 0.4e-6, polarization="TM")
+    d = SurfaceGrating(*STACK, 0.1e-6, LAM / (2 * np.mean(d.neff_profile(LAM))), polarization="TM")
+    N0G = np.mean(SurfaceGrating(*STACK, 0.05e-6, 0.8e-6, polarization="TM").neff_profile(LAM))
+    c = cr.CRIGF(d, 60, LAM / N0G, 30, 0.05e-6, 0.5, 0.3e-6, 0.0, 0.0, 12e-6)
+    for lam in np.linspace(1.545e-6, 1.555e-6, 21):
+        r = c.response(lam)
+        assert r["other"] > -1e-9 and r["escL"] == pytest.approx(r["escR"], rel=1e-8)

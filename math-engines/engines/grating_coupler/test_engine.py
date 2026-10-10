@@ -136,3 +136,31 @@ def test_profile_coupling_result():
     r = gc.profile_coupling(LAM, **TFLN, etch_depth=0.1e-6, period=0.36e-6, profile="sine")
     assert r["kappa"] < r["kappa_rect"]                    # sinusoid: fundamental π/4 of the square wave's
     assert r["kappa"] == pytest.approx(np.pi / 4 * r["kappa_rect"], rel=0.05)
+
+
+def test_tm_plane_wave_conserves_energy_and_tm_mode_quantities():
+    g = grating(n_handle=3.476 + 0j, box_thickness=1.7e-6, polarization="TM")
+    k = 2 * np.pi / LAM
+    for side in ("top", "bottom"):
+        for sn in (0.0, 0.3, 0.8):
+            pw = g.plane_wave(LAM, sn * k * (1.0 if side == "top" else 3.476), 0.55e-6, side, "TM")
+            assert abs(pw["r"]) ** 2 + abs(pw["tau"]) ** 2 == pytest.approx(1, abs=1e-12)
+    m = gc.slab_mode(LAM, 1.444, 2.138, 1.0, 0.6e-6, "TM")
+    x = np.linspace(-4e-6, 4.6e-6, 400001)
+    eps = np.where(x < 0, 1.444**2, np.where(x <= 0.6e-6, 2.138**2, 1.0))
+    trapz = getattr(np, "trapezoid", None) or np.trapz
+    assert trapz(m["field"](x) ** 2 / eps, x) == pytest.approx(m["norm_eps"], rel=1e-6)
+    d = np.gradient(m["field"](x), x) / eps                              # (1/ε) dH/dx is continuous and equals dfield
+    i = np.searchsorted(x, 0.3e-6)
+    assert m["dfield"](x[i]) == pytest.approx(d[i], rel=1e-4)
+    assert m["dfield"](0.6e-6 - 1e-15) == pytest.approx(float(m["dfield"](0.6e-6 + 1e-15)), rel=1e-8)
+
+
+def test_tm_tooth_model_thin_limit():
+    # h → 0: ρ = (N² ε2 - (N² - ε2) ε1) / (N² ε2 + (N² - ε2) ε1), independent of the screening constant
+    g = grating(etch_depth=1e-14, polarization="TM")
+    N = gc.slab_mode(LAM, 1.444, 2.138, 1.0, 0.6e-6, "TM")["neff"]
+    e1, e2 = 2.138**2, 1.0
+    want = (N * N * e2 - (N * N - e2) * e1) / (N * N * e2 + (N * N - e2) * e1)
+    assert g.tm_weights(LAM)["rho"] == pytest.approx(want, rel=1e-6)
+    assert grating(polarization="TE").tm_weights(LAM)["rho"] == 1.0

@@ -13,4 +13,6 @@ Checks in `test_engine.py`, by routes independent of the RK4 solver:
 - passivity, and mode mismatch below 2e-4 for the coupler alone with a matched beam;
 - the cavity resonance is Lorentzian in the circulating power.
 
-Limits: effective-index method, first-order radiation from a thin current sheet, TE local fields (TM rough), a Gaussian beam in one transverse dimension (`overlap_y` scales the lateral overlap), lateral DBR losses lumped into `bounce_eta`. No SHG, pump depletion, thermal or Kerr effects here (they stay in the JS port).
+TM (task A7): the forward wave R and the backward wave S couple to a plane wave through different local-field factors (Lorentz reciprocity pairs R with the backward mode field: F_R = Z − X, F_S = Z + X, Z from E_z, X from β k_z D_x), the radiative cross-coupling is complex, the coupler N₂ and the DBR slice modulation are scaled by −ρ (`grating_coupler.tm_weights`). Against `rcwa`: TM band-edge Q within 10 % with the right bright/dark ordering (which in TM can be opposite to TE), plane-wave resonance linewidth within 5–7 % at 0–5°.
+
+Limits: effective-index method, first-order radiation from a thin current sheet, the TM tooth model's calibrated wall screening, a Gaussian beam in one transverse dimension (`overlap_y` scales the lateral overlap), lateral DBR losses lumped into `bounce_eta`. No SHG, pump depletion, thermal or Kerr effects here (they stay in the JS port).

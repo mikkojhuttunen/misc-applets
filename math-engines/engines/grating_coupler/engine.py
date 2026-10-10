@@ -78,7 +78,8 @@ def slab_mode(wavelength, n_sub, n_core, n_clad, thickness, polarization="TE", o
     """Transverse field of a three-layer slab mode (E_y for TE, H_y for TM), unnormalised, with its ∫field² dx.
 
     Substrate x < 0, core 0..d, cladding x > d. Returns None below cut-off, else a dict with neff, kx, gs, gc,
-    field (callable, vectorised) and norm = ∫ field² dx."""
+    field and dfield (callables, vectorised; dfield = p dφ/dx, p = 1/ε for TM), norm = ∫ field² dx and
+    norm_eps = ∫ field²/ε dx (the TM power integral)."""
     neff = neff_three_layer(wavelength, n_sub, n_core, n_clad, thickness, polarization, order)
     if not np.isfinite(neff):
         return None
@@ -96,8 +97,20 @@ def slab_mode(wavelength, n_sub, n_core, n_clad, thickness, polarization="TE", o
         return np.where(x < 0, cs * np.exp(gs * np.minimum(x, 0)),
                         np.where(x <= d, np.cos(kx * x - ps), cc * np.exp(-gc * np.maximum(x - d, 0))))
 
-    norm = cs**2 / (2 * gs) + cc**2 / (2 * gc) + d / 2 + (np.sin(2 * (kx * d - ps)) + np.sin(2 * ps)) / (4 * kx)
-    return {"neff": neff, "kx": kx, "gs": gs, "gc": gc, "field": field, "norm": norm, "thickness": d}
+    tm = polarization == "TM"
+    es, ef, ec = (n_sub**2, n_core**2, n_clad**2) if tm else (1.0, 1.0, 1.0)
+
+    def dfield(x):
+        """p dφ/dx with p = 1 (TE) or 1/ε (TM): continuous across the interfaces (∝ E_z for TM)."""
+        x = np.asarray(x, dtype=float)
+        return np.where(x < 0, cs * gs * np.exp(gs * np.minimum(x, 0)) / es,
+                        np.where(x <= d, -kx * np.sin(kx * x - ps) / ef, -gc * cc * np.exp(-gc * np.maximum(x - d, 0)) / ec))
+
+    core = d / 2 + (np.sin(2 * (kx * d - ps)) + np.sin(2 * ps)) / (4 * kx)
+    norm = cs**2 / (2 * gs) + cc**2 / (2 * gc) + core
+    norm_eps = cs**2 / (2 * gs * es) + cc**2 / (2 * gc * ec) + core / ef        # ∫ φ²/ε dx (TM power), = norm for TE
+    return {"neff": neff, "kx": kx, "gs": gs, "gc": gc, "field": field, "dfield": dfield, "norm": norm,
+            "norm_eps": norm_eps, "thickness": d}
 
 
 @dataclass
@@ -107,7 +120,8 @@ class SurfaceGrating:
     n_handle: complex index of the handle under a BOX of thickness box_thickness (Si: ~3.48, Au: 0.52 + 10.7j at
     1.55 µm), or None for a semi-infinite substrate. The downward radiation channel is open unless the handle
     absorbs (Im n ≥ 0.05). samples: profile points per period; table_points: n_eff table over g in [0, 1]
-    (non-rectangular profiles; a rectangular one needs only g = 0 and 1)."""
+    (non-rectangular profiles; a rectangular one needs only g = 0 and 1). tm_screening: strength c of the wall
+    screening in the TM tooth model (tm_weights), calibrated against the rigorous solver (rcwa)."""
 
     n_sub: float
     n_core: float
@@ -124,6 +138,7 @@ class SurfaceGrating:
     box_thickness: float = 0.0
     samples: int = 1024
     table_points: int = 24
+    tm_screening: float = 0.35
 
     def __post_init__(self):
         require_choice("polarization", self.polarization, ("TE", "TM"))
@@ -171,8 +186,38 @@ class SurfaceGrating:
 
     def coupling(self, wavelength, harmonic, order=0):
         """Coupled-mode coefficient of Bragg order m = harmonic: κ_m = 2π |N_m| / λ, N_m the m-th Fourier coefficient
-        of n_eff(z). Rectangular profile: 2 Δn sin(π m f) / (m λ)."""
-        return _TAU * abs(fourier_coefficient(self.neff_profile(wavelength, order), harmonic)) / wavelength
+        of n_eff(z) (rectangular profile: 2 Δn sin(π m f) / (m λ)), times the TM factor |ρ| of tm_weights (1 for TE)."""
+        kap = _TAU * abs(fourier_coefficient(self.neff_profile(wavelength, order), harmonic)) / wavelength
+        return kap * abs(self.tm_weights(wavelength, order)["rho"])
+
+    def tm_weights(self, wavelength, order=0):
+        """TM tooth model. A thin tooth layer perturbs the normal field through D_x (continuous across its top face,
+        weight ε2/ε1 on the cladding-side E_x) and the longitudinal field E_z directly; walls screen E_z and unscreen
+        E_x as the tooth gets taller. Local-field weights w_v = 1/(1 + N_v Δε/ε2), w_l = 1/(1 + N_l Δε/ε2) with
+        N_v = w/(w + c h), N_l = 1 - N_v, w = f Λ the tooth width, c = tm_screening (h → 0: exact thin-layer limit).
+        In the forward-backward (Bragg) coupling the two terms enter with opposite signs, in the n_eff shift with the
+        same sign, so the effective-index κ is scaled by ρ = (C_v - C_l) / (C_v⁰ + C_l⁰) (C⁰: thin-layer weights); the
+        coupling itself is -ρ times the effective-index one (sign checked by rigorous band-edge ordering, see crigf)
+        and |κ| = |ρ| κ_EIM.
+        Fields of the mean-thickness slab mode at the sheet x_g = t - h/2. TE: ρ = 1, weights 1."""
+        if self.polarization == "TE" or self.etch_depth == 0:
+            return {"rho": 1.0, "w_v": 1.0, "w_l": 1.0}
+        ns, nf, nc = self.indices(wavelength)
+        e1, e2 = nf * nf, nc * nc
+        de = e1 - e2
+        h, t = self.etch_depth, self.thickness
+        w = max(self.fill, 1e-9) * self.period
+        Nv = w / (w + self.tm_screening * h)
+        wv, wl = 1 / (1 + Nv * de / e2), 1 / (1 + (1 - Nv) * de / e2)
+        m = slab_mode(wavelength, ns, nf, nc, t - h + h * float(np.mean(self.g)), "TM", order)
+        if m is None:
+            return {"rho": 1.0, "w_v": wv, "w_l": wl}
+        xg = t - h / 2
+        beta = _TAU / wavelength * m["neff"]
+        cv = (beta * float(m["field"](xg))) ** 2 / e2**2            # |D_x|² / ε2² (cladding-side E_x², per ε0² ω²)
+        cl = float(m["dfield"](xg)) ** 2                            # |E_z|² (same units)
+        rho = (cv * wv - cl * wl) / (cv * e2 / e1 + cl)
+        return {"rho": rho, "w_v": wv, "w_l": wl, "c_v": cv, "c_l": cl}
 
     # ---------------------------------------------------------------- vertical stack, plane waves
     def stack(self, wavelength):
@@ -196,11 +241,13 @@ class SurfaceGrating:
             ch.append(("substrate", layers[0][0].real))
         return ch
 
-    def plane_wave(self, wavelength, kz, xg, side="top"):
-        """TE plane wave of in-plane wavevector kz incident from the cladding (side='top') or the bottom medium.
+    def plane_wave(self, wavelength, kz, xg, side="top", pol="TE"):
+        """Plane wave of in-plane wavevector kz incident from the cladding (side='top') or the bottom medium; TE (E_y)
+        or TM (H_y, with (1/ε) ∂H_y/∂x continuous).
 
-        Returns the field at height xg inside the core (from the core bottom) per unit incident amplitude, the
-        amplitude reflection r and the power-normalised transmission tau, or None from an absorbing bottom."""
+        Returns the field F (E_y or H_y) and G = p ∂F/∂x (p = 1 or 1/ε) at height xg inside the core (from the core
+        bottom) per unit incident amplitude, the amplitude reflection r and the power-normalised transmission tau, or
+        None from an absorbing bottom."""
         layers, open_ = self.stack(wavelength)
         if side == "bottom":
             if not open_:
@@ -212,21 +259,26 @@ class SurfaceGrating:
             v = np.sqrt(complex(k * k * n * n - kz * kz))
             return -v if v.imag < 0 else v
 
+        p = (lambda n: 1.0) if pol == "TE" else (lambda n: 1 / (n * n))
         kb, kt = kx_of(layers[0][0]), kx_of(layers[-1][0])
-        E, D, F = 1.0 + 0j, -1j * kb, None
+        pb, pt = p(layers[0][0]), p(layers[-1][0])
+        E, D, F, Gx = 1.0 + 0j, -1j * kb * pb, None, None
         for n, d, core in layers[1:-1]:
-            kx = kx_of(n)
+            kx, pn = kx_of(n), p(n)
 
-            def at(x, E=E, D=D, kx=kx):
+            def at(x, E=E, D=D, kx=kx, pn=pn):
                 c, s = np.cos(kx * x), np.sin(kx * x)
-                return E * c + D / kx * s, D * c - E * kx * s
+                return E * c + D / (kx * pn) * s, D * c - E * kx * pn * s
 
             if core:
-                F = at(self.thickness - xg if side == "bottom" else xg)[0]
+                F, Gx = at(self.thickness - xg if side == "bottom" else xg)
+                if side == "bottom":
+                    Gx = -Gx                                    # derivative along +x (up) in the stack frame
             E, D = at(d)
-        tau = 2j * kt / (1j * kt * E - D)
+        tau = 2j * kt * pt / (1j * kt * pt * E - D)
         r = tau * E - 1
-        return {"F": tau * F, "r": r, "tau": tau * np.sqrt(max(kb.real, 0.0) / kt.real), "kt": kt, "kb": kb}
+        flux = np.sqrt(max(np.real(kb * pb), 0.0) / np.real(kt * pt))
+        return {"F": tau * F, "G": tau * Gx, "r": r, "tau": tau * flux, "kt": kt, "kb": kb}
 
     # ---------------------------------------------------------------- radiation and far field
     def radiation(self, wavelength, order=0, periods=1):
@@ -235,6 +287,8 @@ class SurfaceGrating:
         The etched layer is a current sheet Δε = n_core² - n_clad² of thickness h at depth t - h/2, driven by the mode
         of the mean local thickness; α_q = k⁴ Δε² h² |G_q|² φ²(x_g) / (4 β k_x) |F|², with G_q the Fourier coefficient of
         g and F the local field of a plane wave arriving from that medium (reciprocity: slab and BOX interference).
+        TM: the sheet couples the cladding-side normal field through D_x and the longitudinal field E_z with the
+        local-field weights of tm_weights, using TM plane waves (formula in the code).
         Also the guided Bragg order nearest 2 N0 Λ / λ: κ, half-detuning and tanh-type reflectance of `periods`."""
         lam = wavelength
         tab = self.neff_table(lam, order)
@@ -253,6 +307,10 @@ class SurfaceGrating:
         xg = t - h / 2
         phi2 = float(mp["field"](xg)) ** 2 / mp["norm"] if mp else 0.0
         pref = k**4 * (nf * nf - nc * nc) ** 2 * h**2 * phi2 / (4 * beta)
+        tm = self.polarization == "TM"
+        if tm:
+            tw = self.tm_weights(lam, order)
+            e2 = nc * nc
         K = _TAU / self.period
         chans = self.channels(lam)
         nmax = max(ns, nc, *(nj for _, nj in chans))
@@ -263,14 +321,24 @@ class SurfaceGrating:
                 if abs(kz) >= k * nj:
                     continue
                 kx = np.sqrt(k * k * nj * nj - kz * kz)
-                lf = self.plane_wave(lam, kz, xg, "top" if med == "cladding" else "bottom")["F"]
-                a = pref * G * G / kx * abs(lf) ** 2
+                side = "top" if med == "cladding" else "bottom"
+                if not tm:
+                    lf = self.plane_wave(lam, kz, xg, side)["F"]
+                    a = pref * G * G / kx * abs(lf) ** 2
+                elif mp:
+                    # TM: α = h² |G|² Δε² ε_j |X|² / (4 β k_x ∫φ²/ε), X = -(φ'/ε)(H'/ε) w_l + β k' φ H w_v / ε2², k' = -k_z
+                    pw = self.plane_wave(lam, kz, xg, side, "TM")
+                    X = (-float(mp["dfield"](xg)) * pw["G"] * tw["w_l"]
+                         - beta * kz * float(mp["field"](xg)) * pw["F"] * tw["w_v"] / e2**2)
+                    a = h * h * G * G * (nf * nf - nc * nc) ** 2 * nj * nj * abs(X) ** 2 / (4 * beta * kx * mp["norm_eps"])
+                else:
+                    a = 0.0
                 out["orders"].append({"q": q, "medium": med, "n": nj, "kz": kz, "theta": float(np.arcsin(kz / (k * nj))),
                                       "alpha": a, "G": G})
                 out["alpha_total"] += a
         qB = 2 * N0 * self.period / lam
         qn = max(1, int(np.floor(qB + 0.5)))
-        kap = _TAU * abs(fourier_coefficient(nP, qn)) / lam
+        kap = _TAU * abs(fourier_coefficient(nP, qn)) / lam * (abs(tw["rho"]) if tm else 1.0)
         dh = beta - qn * np.pi / self.period
         L = periods * self.period
         out["bragg"] = {"qB": qB, "q": qn, "kappa": kap, "half_detuning": dh, "R": _cmt_R(kap, dh, L),

@@ -64,8 +64,13 @@ function modeParams(lam, ns, nf, nc, d, pol, m) {
   const ps = Math.atan2(rs * gs, kx);
   const cs = Math.cos(ps), cc = Math.cos(kx * d - ps);
   const field = x => x < 0 ? cs * Math.exp(gs * x) : x <= d ? Math.cos(kx * x - ps) : cc * Math.exp(-gc * (x - d));
-  const norm = cs * cs / (2 * gs) + cc * cc / (2 * gc) + d / 2 + (Math.sin(2 * (kx * d - ps)) + Math.sin(2 * ps)) / (4 * kx);
-  return { valid: true, neff, kx, gs, gc, field, norm, d };
+  const core = d / 2 + (Math.sin(2 * (kx * d - ps)) + Math.sin(2 * ps)) / (4 * kx);
+  const norm = cs * cs / (2 * gs) + cc * cc / (2 * gc) + core;
+  /* p dφ/dx (p = 1/ε for TM, continuous, ∝ E_z) and ∫φ²/ε dx (TM power) */
+  const es = pol === 'TM' ? ns * ns : 1, ef = pol === 'TM' ? nf * nf : 1, ec = pol === 'TM' ? nc * nc : 1;
+  const dfield = x => x < 0 ? cs * gs * Math.exp(gs * x) / es : x <= d ? -kx * Math.sin(kx * x - ps) / ef : -gc * cc * Math.exp(-gc * (x - d)) / ec;
+  const normEps = cs * cs / (2 * gs * es) + cc * cc / (2 * gc * ec) + core / ef;
+  return { valid: true, neff, kx, gs, gc, field, dfield, norm, normEps, d };
 }
 
 /* grating profile g(u) in [0,1], u = position within the period, 1 = unetched tooth */
@@ -155,6 +160,29 @@ function neffFull(st, lam, ns, nf, nc, d, order) {
   const vl = Number.isFinite(v) ? v : Math.max(ns, nc);
   return r.Nt + r.G * (vl - r.vt);
 }
+/* TM tooth model (math-engines grating_coupler.tm_weights): local-field weights of the normal (D_x) and longitudinal
+   (E_z) field in the etched layer, w_v = 1/(1 + N_v Δε/ε2), w_l = 1/(1 + (1 - N_v) Δε/ε2), N_v = w/(w + c h), w = f Λ,
+   c = TM_SCREENING; ρ scales the forward-backward coupling (κ_TM = |ρ| κ_EIM, sign -ρ relative to the n_eff modulation).
+   gbar: mean fill of the profile (mean local thickness). TE: ρ = 1. */
+const TM_SCREENING = 0.35;
+function tmWeights(st, lam, Lam, gbar, order) {
+  if (st.pol !== 'TM' || !(st.h > 0)) return { rho: 1, wv: 1, wl: 1 };
+  const ns = nIdx(st.layers.sub, lam, st), nf = nIdx(st.layers.core, lam, st), nc = nIdx(st.layers.clad, lam, st);
+  const e1 = nf * nf, e2 = nc * nc, de = e1 - e2, w = Math.max(st.f, 1e-9) * Lam;
+  const Nv = w / (w + TM_SCREENING * st.h), wv = 1 / (1 + Nv * de / e2), wl = 1 / (1 + (1 - Nv) * de / e2);
+  const m = modeParams(lam, ns, nf, nc, st.t - st.h + st.h * gbar, 'TM', order || 0);
+  if (!m.valid) return { rho: 1, wv, wl };
+  const xg = st.t - st.h / 2, beta = TAU / lam * m.neff;
+  const cv = (beta * m.field(xg)) ** 2 / (e2 * e2), cl = m.dfield(xg) ** 2;
+  return { rho: (cv * wv - cl * wl) / (cv * e2 / e1 + cl), wv, wl };
+}
+/* slice indices of one DBR period; TM: deviations from the profile mean scaled by -ρ */
+function dbrSliceN(st, lam, tab, slices, Lam) {
+  const n = slices.map(s => tint(tab, s.g));
+  if (st.pol !== 'TM') return n;
+  const gS = sampleProfile(profileFn(st, Lam)), nbar = mean(neffProfile(tab, gS)), r = -tmWeights(st, lam, Lam, mean(gS), 0).rho;
+  return n.map(v => nbar + r * (v - nbar));
+}
 function tint(tab, g) { const x = g * tab.K, i = Math.min(tab.K - 1, Math.max(0, Math.floor(x))), r = x - i; return tab.vals[i] * (1 - r) + tab.vals[i + 1] * r; }
 function fourier(arr, q) { let re = 0, im = 0; const n = arr.length; for (let i = 0; i < n; i++) { const ph = -TAU * q * (i + 0.5) / n; re += arr[i] * Math.cos(ph); im += arr[i] * Math.sin(ph); } return Math.hypot(re, im) / n; }
 function neffProfile(tab, gS) { const a = new Float64Array(gS.length); for (let i = 0; i < gS.length; i++) a[i] = tint(tab, gS[i]); return a; }
@@ -191,8 +219,8 @@ function rtFromM(M, n0, ns) {
   return { r, t, R: r[0] * r[0] + r[1] * r[1], T: ns / n0 * (t[0] * t[0] + t[1] * t[1]) };
 }
 function periodLayers(st, lam, slices, Lam, ni, rect) {
-  const tab = tableAt(st, lam, 0, rect);
-  return { tab, layers: slices.map(s => ({ d: s.w * Lam, nr: tint(tab, s.g), ni })) };
+  const tab = tableAt(st, lam, 0, rect), nr = dbrSliceN(st, lam, tab, slices, Lam);
+  return { tab, layers: slices.map((s, i) => ({ d: s.w * Lam, nr: nr[i], ni })) };
 }
 function tmmAt(st, lam, slices, Lam, N, alphaPow, rect) {
   const k = TAU / lam, ni = alphaPow / 2 / k;
@@ -264,6 +292,7 @@ function radiation(st, lam, order, gS, Lam, N, rect) {
   const xg = st.t - st.h / 2;
   const phi2 = mp.valid ? mp.field(xg) ** 2 / mp.norm : 0;
   const pref = k ** 4 * (nf * nf - nc * nc) ** 2 * st.h ** 2 * phi2 / (4 * beta);
+  const tm = st.pol === 'TM', tw = tm ? tmWeights(st, lam, Lam, gbar, order) : null, e2 = nc * nc;
   const chans = channels(st, lam), K = TAU / Lam, nmax = Math.max(ns, nc, ...chans.map(c => c[1]));
   const qmax = Math.ceil((beta + k * nmax) / K);
   for (let q = 1; q <= qmax; q++) {
@@ -272,14 +301,20 @@ function radiation(st, lam, order, gS, Lam, N, rect) {
       if (Math.abs(kz) >= k * nj) continue;
       const kx = Math.sqrt(k * k * nj * nj - kz * kz);
       /* slab correction by reciprocity: local field at the grating for a plane wave arriving from this medium */
-      const lf = planeWave(st, lam, kz, xg, med === 'cladding' ? 'top' : 'bottom').F;
-      const a = pref * G * G / kx * (lf[0] * lf[0] + lf[1] * lf[1]);
+      let a = 0;
+      if (!tm) { const lf = planeWave(st, lam, kz, xg, med === 'cladding' ? 'top' : 'bottom').F; a = pref * G * G / kx * (lf[0] * lf[0] + lf[1] * lf[1]); }
+      else if (mp.valid) {
+        /* TM: α = h²|G|²Δε² ε_j |X|² / (4 β k_x ∫φ²/ε), X = -(φ'/ε) G_H w_l - β k_z φ F_H w_v / ε2² */
+        const pw = planeWave(st, lam, kz, xg, med === 'cladding' ? 'top' : 'bottom', 'TM');
+        const X = csub(cscale(pw.G, -mp.dfield(xg) * tw.wl), cscale(pw.F, beta * kz * mp.field(xg) * tw.wv / (e2 * e2)));
+        a = st.h * st.h * G * G * (nf * nf - nc * nc) ** 2 * nj * nj * cabs2(X) / (4 * beta * kx * mp.normEps);
+      }
       out.orders.push({ q, med, nj, kz, theta: Math.asin(kz / (k * nj)) * 180 / Math.PI, alpha: a, G });
       out.alphaTot += a;
     }
   }
   const qB = 2 * N0 * Lam / lam, qn = Math.max(1, Math.round(qB));
-  const Nq = fourier(nP, qn), kapq = TAU * Nq / lam, dh = beta - qn * Math.PI / Lam;
+  const Nq = fourier(nP, qn), kapq = TAU * Nq / lam * (tm ? Math.abs(tw.rho) : 1), dh = beta - qn * Math.PI / Lam;
   out.bragg = { qB, q: qn, kap: kapq, dh, R: cmtR(kapq, dh, N * Lam), lamB: 2 * N0 * Lam / qn };
   out.mode = mp; out.hi = tab.vals[tab.K]; out.lo = tab.vals[0];
   return out;
@@ -446,24 +481,26 @@ function stackOf(st, lam) {
   const nh = HANDLE[u.mode](lam);
   return { layers: [{ n: nh }, { n: [ns, 0], d: u.tbox }, { n: [nf, 0], d: st.t, core: true }, { n: [nc, 0] }], ns, nf, nc, botN: nh[0], botReal: u.mode !== 'au' && nh[1] < 0.05 };
 }
-function planeWave(st, lam, kz, xg, from) {
-  const S = stackOf(st, lam), k = TAU / lam;
+function planeWave(st, lam, kz, xg, from, pol) {
+  /* pol 'TM': H_y with (1/ε) ∂H/∂x continuous; F = field, G = p ∂F/∂x (p = 1 or 1/ε) at the grating, per unit incident amplitude */
+  const S = stackOf(st, lam), k = TAU / lam, tm = pol === 'TM';
   let L = S.layers.slice();
   if (from === 'bottom') { if (!S.botReal) return null; L = L.reverse(); }
   const kxOf = n => { const n2 = cmul(n, n); let v = csqrt([k * k * n2[0] - kz * kz, k * k * n2[1]]); if (v[1] < 0) v = cscale(v, -1); return v; };
-  const kb = kxOf(L[0].n), kt = kxOf(L[L.length - 1].n);
-  let E = [1, 0], D = cmul([0, -1], kb), F = null;
+  const pOf = n => tm ? cdiv([1, 0], cmul(n, n)) : [1, 0];
+  const kb = kxOf(L[0].n), kt = kxOf(L[L.length - 1].n), pb = pOf(L[0].n), pt = pOf(L[L.length - 1].n);
+  let E = [1, 0], D = cmul([0, -1], cmul(kb, pb)), F = null, Gx = null;
   for (let i = 1; i < L.length - 1; i++) {
-    const kx = kxOf(L[i].n), d = L[i].d;
-    const at = x => { const ph = cscale(kx, x), c = ccos(ph), s = csin(ph); return [cadd(cmul(E, c), cmul(cdiv(D, kx), s)), csub(cmul(D, c), cmul(cmul(E, kx), s))]; };
-    if (L[i].core) { const xl = from === 'bottom' ? st.t - xg : xg; F = at(xl)[0]; }
+    const kx = kxOf(L[i].n), kp = cmul(kx, pOf(L[i].n)), d = L[i].d;
+    const at = x => { const ph = cscale(kx, x), c = ccos(ph), s = csin(ph); return [cadd(cmul(E, c), cmul(cdiv(D, kp), s)), csub(cmul(D, c), cmul(cmul(E, kp), s))]; };
+    if (L[i].core) { const v = at(from === 'bottom' ? st.t - xg : xg); F = v[0]; Gx = from === 'bottom' ? cscale(v[1], -1) : v[1]; }
     [E, D] = at(d);
   }
-  const ikt = cmul([0, 1], kt);
+  const ikt = cmul([0, 1], cmul(kt, pt));
   const tau = cdiv(cscale(ikt, 2), csub(cmul(ikt, E), D));
   const r = csub(cmul(tau, E), [1, 0]);
-  const Tn = cscale(tau, Math.sqrt(Math.max(kb[0], 0) / kt[0]));
-  return { F: cmul(tau, F), r, tau: Tn, kt, kb, nIn: L[L.length - 1].n[0], nOut: L[0].n[0] };
+  const Tn = cscale(tau, Math.sqrt(Math.max(cmul(kb, pb)[0], 0) / cmul(kt, pt)[0]));
+  return { F: cmul(tau, F), G: cmul(tau, Gx), r, tau: Tn, kt, kb, nIn: L[L.length - 1].n[0], nOut: L[0].n[0] };
 }
 /* radiation channels: cladding (up) and, unless a metal mirror closes it, the bottom medium */
 function channels(st, lam) { const S = stackOf(st, lam); const ch = [['cladding', S.nc]]; if (S.botReal) ch.push(['substrate', S.botN]); return ch; }
@@ -588,14 +625,15 @@ function crigfSetup(st, g, lam) {
   const tabD = tableAt(st, lam, 0, pfD.rect), tabG = tableAt(stG, lam, 0, true);
   const nOut = tabD.vals[tabD.K];
   const niProp = g.alphaProp / 2 / k, niG = (g.alphaProp + g.alphaG) / 2 / k;
+  const nD = dbrSliceN(st, lam, tabD, slD, g.LamD);           /* TM: modulation scaled by -ρ */
   let P = [1, 0, 0, 0, 0, 0, 1, 0];
-  for (const s of slD) P = mmul(P, layerMat(tint(tabD, s.g), niProp, k, s.w * g.LamD));
+  slD.forEach((s, i) => { P = mmul(P, layerMat(nD[i], niProp, k, s.w * g.LamD)); });
   const MD = mpow(P, g.ND);
   const gbar = mean(gG);
   const sub = 6, gcLayers = [];
   
   const nSp = tabG.vals[tabG.K];
-  return { k, MD, nOut, gcLayers, nSp, tabD, tabG, gD, gG, pfD, pfG, slD, slG, stG, gbar };
+  return { k, MD, nOut, gcLayers, nSp, tabD, tabG, gD, gG, pfD, pfG, slD, slG, stG, gbar, nD };
 }
 function cfourier(arr, q) { let re = 0, im = 0; const n = arr.length; for (let i = 0; i < n; i++) { const ph = -TAU * q * (i + 0.5) / n; re += arr[i] * Math.cos(ph); im += arr[i] * Math.sin(ph); } return [re / n, im / n]; }
 /* GC section by coupled-mode theory (Kazarinov–Henry): envelopes R, S of U = R e^{iβζ} + S e^{−iβζ}.
@@ -607,21 +645,48 @@ function crigfAt(st, g, lam, wantField) {
   /* GC averages */
   const nPG = neffProfile(S.tabG, S.gG), N0G = mean(nPG);
   const beta = kM * N0G, KG = TAU / (g.LamG * 1e-6), D = KG - beta;
-  const G1 = cfourier(S.gG, 1), Gm1 = [G1[0], -G1[1]], N2 = cfourier(nPG, 2), Nm2 = [N2[0], -N2[1]];
+  const tm = st.pol === 'TM';
+  const G1 = cfourier(S.gG, 1), Gm1 = [G1[0], -G1[1]];
+  let N2 = cfourier(nPG, 2);
+  if (tm) N2 = cscale(N2, -tmWeights(S.stG, lam, g.LamG, S.gbar, 0).rho);   /* TM: forward-backward coupling -ρ × effective index */
+  const Nm2 = [N2[0], -N2[1]];
   const mGC = modeParams(lam, ns, nf, nc, st.t - g.hG + g.hG * S.gbar, st.pol, 0);
   const xg = st.t - g.hG / 2;
-  const eg = mGC.valid ? Math.sqrt(2 * om * MU0 / beta) * normMode(mGC)(xg) * 1e3 : 0;
   const dEps = nf * nf - nc * nc, hM = g.hG * 1e-6;
-  const aC = 0.25 * om * EPS0 * dEps * hM * eg;                  /* a = i·aC */
   const th = g.theta * Math.PI / 180, kzIn = k * nc * Math.sin(th);
   const kzR = (beta - KG) * 1e-6;                                /* radiated in-plane wavevector, 1/µm */
-  let chi = 0;
-  for (const [med, nj] of channels(st, lam)) { const lf = planeWave(st, lam, kzR, xg, med === 'cladding' ? 'top' : 'bottom'); const kxj = Math.sqrt(Math.max(k * k * nj * nj - kzR * kzR, 1e-12)) * 1e6; chi += 0.5 * cabs2(lf.F) / kxj; }
+  const nB = stackOf(st, lam).botN;
+  /* local-field factors [F_R, F_S] of the forward and backward wave for a plane wave of unit E (kz in 1/µm).
+     TE: both the local E_y. TM (Lorentz pairing: R with the backward mode field, S with the forward one), mode at unit power:
+     Z = -(n_j/η0)(φ'/ε)(H'/ε) w_l/(ωε0)², X = (n_j/η0) β k_z φ H w_v/(ε2²(ωε0)²), F_R = Z − X, F_S = Z + X */
+  let aC, loc;
+  if (!tm) {
+    const eg = mGC.valid ? Math.sqrt(2 * om * MU0 / beta) * normMode(mGC)(xg) * 1e3 : 0;
+    aC = 0.25 * om * EPS0 * dEps * hM * eg;                       /* a = i·aC */
+    loc = (kz, side) => { const pw = planeWave(st, lam, kz, xg, side); const F = pw ? pw.F : [0, 0]; return [F, F]; };
+  } else {
+    aC = 0.25 * om * EPS0 * dEps * hM;
+    const tw = tmWeights(S.stG, lam, g.LamG, S.gbar, 0), e2 = nc * nc, w2 = (om * EPS0) ** 2;
+    const sc = mGC.valid ? Math.sqrt(2 * om * EPS0 / (beta * mGC.normEps * 1e-6)) : 0;
+    const phi = mGC.valid ? sc * mGC.field(xg) : 0, dphi = mGC.valid ? sc * mGC.dfield(xg) * 1e6 : 0;
+    loc = (kz, side) => {
+      const pw = planeWave(st, lam, kz, xg, side, 'TM'); if (!pw) return [[0, 0], [0, 0]];
+      const nj = side === 'top' ? nc : nB;
+      const Z = cscale(pw.G, -(nj / ETA0) * dphi * 1e6 * tw.wl / w2), X = cscale(pw.F, (nj / ETA0) * beta * kz * 1e6 * phi * tw.wv / (e2 * e2 * w2));
+      return [csub(Z, X), cadd(Z, X)];
+    };
+  }
+  let chi = 0, chiX = [0, 0];
+  for (const [med, nj] of channels(st, lam)) {
+    const [FR, FS] = loc(kzR, med === 'cladding' ? 'top' : 'bottom'), kxj = Math.sqrt(Math.max(k * k * nj * nj - kzR * kzR, 1e-12)) * 1e6;
+    chi += 0.5 * cabs2(FR) / kxj; chiX = cadd(chiX, cscale(cmul(FR, [FS[0], -FS[1]]), 0.5 / kxj));
+  }
   const rad = 2 * om * MU0 * chi * aC * aC;                      /* 2ωμ0χ·|a|², enters with a² = −aC² */
+  const radX = tm ? cscale(chiX, 2 * om * MU0 * aC * aC) : [rad, 0];   /* radiative cross-coupling */
   const alphaP = g.alphaProp * 1e6;                              /* power loss 1/m */
   /* beam */
-  const pwTop = planeWave(st, lam, kzIn, xg, 'top'), pwBot = planeWave(st, lam, kzIn, xg, 'bottom') || { F: [0, 0], tau: [0, 0] };
-  const nB = stackOf(st, lam).botN;
+  const pwTop = planeWave(st, lam, kzIn, xg, 'top', st.pol), pwBot = planeWave(st, lam, kzIn, xg, 'bottom', st.pol) || { F: [0, 0], tau: [0, 0] };
+  const [FtR, FtS] = loc(kzIn, 'top'), [FbR, FbS] = loc(kzIn, 'bottom');
   const Lsp = g.sp + (g.Ls || 0);
   const Lg = g.NG * g.LamG * 1e-6, zGC0 = g.ND * g.LamD + Lsp, zc = (g.NG * g.LamG) / 2;
   const E0 = Math.sqrt(2 * ETA0 / (nc * g.w0 * 1e-6 * Math.sqrt(Math.PI / 2)));
@@ -629,23 +694,23 @@ function crigfAt(st, g, lam, wantField) {
   const oy = g.oy === undefined ? 1 : g.oy, etaB = g.etaB === undefined ? 1 : g.etaB;
   const kzInM = kzIn * 1e6, phase0 = kzIn * zGC0;
   const beamU = (zeta, cth) => Math.exp(-((((zeta * 1e6 - zc) * cth) / g.w0) ** 2));
-  const Einc = zeta => cmul(pwTop.F, cscale(cexpi(kzInM * zeta + phase0), oy * E0 * beamU(zeta, Math.cos(th))));
+  const Einc = zeta => cscale(cexpi(kzInM * zeta + phase0), oy * E0 * beamU(zeta, Math.cos(th)));
   /* y' = A(ζ) y + b(ζ) */
   const kap = kM;
+  /* radiative: dR ⊃ −rad|G1|² R − rad_x G1² S e^{2iDζ},  dS ⊃ rad|G1|² S + rad_x* G−1² R e^{−2iDζ};
+     guided 2nd-order Bragg: R' ⊃ i k N2 S e^{2iDζ}, S' ⊃ −i k N−2 R e^{−2iDζ} */
+  const g2 = cabs2(G1);
+  const A12c = cadd(cscale(cmul(radX, cmul(G1, G1)), -1), cmul([0, kap], N2));
+  const A21c = csub(cmul([radX[0], -radX[1]], cmul(Gm1, Gm1)), cmul([0, kap], Nm2));
   const deriv = (zeta, y) => {
     const R = y[0], Sb = y[1];
-    const eP = cexpi(D * zeta), eM = [eP[0], -eP[1]], e2P = cexpi(2 * D * zeta), e2M = [e2P[0], -e2P[1]];
-    /* radiative: dR ⊃ −rad[|G1|² R + G1² S e^{2iDζ}],  dS ⊃ +rad[G−1² R e^{−2iDζ} + |G1|² S] */
-    const g2 = cabs2(G1), G1s = cmul(G1, G1), Gm1s = cmul(Gm1, Gm1);
-    let dR = cadd(cscale(R, -rad * g2 - alphaP / 2), cscale(cmul(cmul(G1s, e2P), Sb), -rad));
-    let dS = cadd(cscale(Sb, rad * g2 + alphaP / 2), cscale(cmul(cmul(Gm1s, e2M), R), rad));
-    /* guided 2nd-order Bragg: R' = i k N2 S e^{2iDζ}, S' = −i k N−2 R e^{−2iDζ} */
-    dR = cadd(dR, cmul([0, kap], cmul(cmul(N2, e2P), Sb)));
-    dS = cadd(dS, cmul([0, -kap], cmul(cmul(Nm2, e2M), R)));
+    const e2P = cexpi(2 * D * zeta), e2M = [e2P[0], -e2P[1]];
+    const dR = cadd(cscale(R, -rad * g2 - alphaP / 2), cmul(cmul(A12c, e2P), Sb));
+    const dS = cadd(cscale(Sb, rad * g2 + alphaP / 2), cmul(cmul(A21c, e2M), R));
     return [dR, dS];
   };
   const src = zeta => { const E = Einc(zeta), eP = cexpi(D * zeta), eM = [eP[0], -eP[1]];
-    return [cmul([0, aC], cmul(cmul(G1, eP), E)), cmul([0, -aC], cmul(cmul(Gm1, eM), E))]; };
+    return [cmul([0, aC], cmul(cmul(cmul(G1, eP), E), FtR)), cmul([0, -aC], cmul(cmul(cmul(Gm1, eM), E), FtS))]; };
   const nStep = Math.max(32, Math.ceil(g.NG * 2.5)), hS = Lg / nStep;
   const step = (zeta, y, withSrc) => {
     const f = (z, v) => { const d = deriv(z, v); if (!withSrc) return d; const b = src(z); return [cadd(d[0], b[0]), cadd(d[1], b[1])]; };
@@ -658,7 +723,7 @@ function crigfAt(st, g, lam, wantField) {
   for (let i = 0; i < nStep; i++) { const z = i * hS; y1 = step(z, y1, false); y2 = step(z, y2, false); yp = step(z, yp, true); H1.push(y1); H2.push(y2); HP.push(yp); }
   /* boundary mirrors, seen from the GC with reference index N0G */
   const Mspace = layerMat(S.nSp, (g.alphaProp + (g.alphaExtra || 0)) / 2 / k, k, Lsp);
-  let Prev = [1, 0, 0, 0, 0, 0, 1, 0]; for (const s of S.slD.slice().reverse()) Prev = mmul(Prev, layerMat(tint(S.tabD, s.g), g.alphaProp / 2 / k, k, s.w * g.LamD));
+  let Prev = [1, 0, 0, 0, 0, 0, 1, 0]; for (let i = S.slD.length - 1; i >= 0; i--) Prev = mmul(Prev, layerMat(S.nD[i], g.alphaProp / 2 / k, k, S.slD[i].w * g.LamD));
   const MLrev = mmul(Mspace, mpow(Prev, g.ND)), MR = mmul(Mspace, S.MD);
   const mL = rtFromM(MLrev, N0G, S.nOut), mR = rtFromM(MR, N0G, S.nOut), sb = Math.sqrt(etaB), rL = cscale(mL.r, sb), rR = cscale(mR.r, sb);
   const rho = cmul(rR, cexpi(2 * beta * Lg));
@@ -682,10 +747,11 @@ function crigfAt(st, g, lam, wantField) {
   const steps = [];
   const acc = (zeta, yv, wgt) => {
     const eP = cexpi(D * zeta), eM = [eP[0], -eP[1]];
-    const Kn = cmul([0, -4 * aC], cadd(cmul(cmul(Gm1, eM), yv[0]), cmul(cmul(G1, eP), yv[1])));
-    const Er = cmul(pwTop.F, cscale(cexpi(-(kzInM * zeta + phase0)), oy * E0 * beamU(zeta, Math.cos(th))));
-    const Et = cmul(pwBot.F, cscale(cexpi(-(kzInM * zeta + phase0)), oy * E0s * beamU(zeta, Math.cos(ths))));
-    rg = cadd(rg, cscale(cmul(Kn, Er), -0.25 * wgt)); tg = cadd(tg, cscale(cmul(Kn, Et), -0.25 * wgt));
+    const KR = cmul([0, -4 * aC], cmul(cmul(Gm1, eM), yv[0])), KS = cmul([0, -4 * aC], cmul(cmul(G1, eP), yv[1]));
+    const Er = cscale(cexpi(-(kzInM * zeta + phase0)), oy * E0 * beamU(zeta, Math.cos(th)));
+    const Et = cscale(cexpi(-(kzInM * zeta + phase0)), oy * E0s * beamU(zeta, Math.cos(ths)));
+    rg = cadd(rg, cscale(cmul(cadd(cmul(KR, FtR), cmul(KS, FtS)), Er), -0.25 * wgt));
+    tg = cadd(tg, cscale(cmul(cadd(cmul(KR, FbR), cmul(KS, FbS)), Et), -0.25 * wgt));
   };
   /* Simpson over the RK grid (re-integrate, keeping states) */
   const ys = H1.map((_, i) => yAt(H1[i], H2[i], HP[i]));
@@ -708,7 +774,7 @@ function crigfAt(st, g, lam, wantField) {
       }
     }
     const niP = g.alphaProp / 2 / k;
-    const mirror = []; for (let p = 0; p < g.ND; p++) for (const s of S.slD) mirror.push({ d: s.w * g.LamD, nr: tint(S.tabD, s.g), ni: niP, g: s.g, reg: 0 });
+    const mirror = []; for (let p = 0; p < g.ND; p++) S.slD.forEach((s, i) => mirror.push({ d: s.w * g.LamD, nr: S.nD[i], ni: niP, g: s.g, reg: 0 }));
     const walk = (layers, E, H, z, dir) => {
       for (const L of layers) {
         const ns_ = L.sub || 4;

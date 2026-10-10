@@ -138,6 +138,8 @@ _CRIGF_CASES = [
          alpha_prop=20.0, eta=0.98, oy=0.9),
     dict(handle=(0.52, 10.7), box=1.8e-6, ND=0, NG=60),
     dict(pol="TM", fD=0.4, fG=0.6, ND=120, NG=20, hG=0.08e-6, w0=8e-6),
+    dict(pol="TM", theta=np.radians(4), handle=(3.476, 0.0), box=2e-6, ND=80, NG=40, hG=0.04e-6, w0=10e-6, alpha_prop=10.0),
+    dict(pol="TM", profile="trap", sidewall=np.radians(80), spacer=0.15e-6, ND=100, NG=30, hD=0.06e-6, hG=0.03e-6),
 ]
 
 

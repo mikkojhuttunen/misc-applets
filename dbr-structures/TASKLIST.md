@@ -27,10 +27,13 @@ Python reference engines in `math-engines/`, tested:
   Rigorous vs coupled-mode: bright Q within 2–8 %, gap within 9 %; dark mode is a symmetry-protected BIC (Q ∝ 1/k_x²), broken by asymmetric teeth. Coupled-mode misses the small f = 0.5 gap (EIM N₂ = 0).
 - [ ] A5. `dbr-engine.js` in SI; material table generated from `materials` (LiTaO₃ Bond refits, temperature-dependent LN).
 - [ ] A6. `dbr-structures` in `tools/build_standalone.py`.
-- [ ] A7. Proper TM radiation and κ: the thin-sheet formula and the plane-wave local field are TE expressions, and the EIM treats the etched layer as isotropic. Quantified by A3: TM radiation ~10× too low, TM κ 2–7× too high. Fix: TM sheet with the normal-D / tangential-E split and an anisotropic (harmonic/arithmetic) etched layer, checked against `rcwa`.
+- [x] A7. TM radiation and κ: `grating_coupler.tm_weights` tooth model (D_x / E_z split, TM plane waves, wall screening c = 0.35 calibrated on `rcwa`), TM radiation, κ_TM = |ρ| κ_EIM with coupling sign −ρ; `crigf` TM (F_R/F_S local fields, complex radiative cross-coupling, −ρ on N₂ and on the DBR slices); JS port with vectors.
+  Against `rcwa`: TM radiation mean 7 % (worst 33 %) for h ≤ 50 nm, up/down within 0.03; TM κ exact as h → 0, mean 9 % for h ≤ 20 nm; TM band-edge Q within 10 % with the right ordering; TE unchanged. Also fixed `rcwa.bragg_band` re-centring for deep etches.
+  Left: wide teeth (f ≥ 0.7) in air and deep TM etches (corner fields), see A11.
 - [ ] A8. Python reference for the lateral models (ridge Γ_lat, curved-DBR `bounce`, `ridgeLateral`) with vectors.
 - [ ] A9. Aperiodic rigorous check of a whole CRIGF (supercell RCWA with absorbing boundaries, or 2D FDTD/FEM): DBR + coupler + Gaussian beam, against `crigf.response`.
 - [ ] A10. EIM n_eff offset: the coupler resonance sits 0.1–0.9 nm short of the rigorous one (20–50 nm etch); a first-order correction from `rcwa` or a perturbative n_eff shift.
+- [ ] A11. TM corner-field correction for wide teeth and deep etches (or a low-order RCWA, M ≈ 3, as the fast TM model: worst κ error 0.07 κ_EIM in the A7 data set).
 
 ## B. Physics models
 

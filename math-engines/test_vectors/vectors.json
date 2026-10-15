@@ -279,6 +279,932 @@
    "mode_radius": 3.065906752445564e-06
   }
  ],
+ "materials_all": [
+  {
+   "material": "sio2",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 1.4599108864687285
+  },
+  {
+   "material": "sio2",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 1.4537624760176293
+  },
+  {
+   "material": "sio2",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 1.4496309898590634
+  },
+  {
+   "material": "sio2",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 1.4468043175527276
+  },
+  {
+   "material": "sio2",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 1.444023621703261
+  },
+  {
+   "material": "sio2",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 1.4380853528795101
+  },
+  {
+   "material": "sio2",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 1.4192465313713452
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 2.0523005252742275
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 2.025907100088649
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 2.0112079419228546
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 2.003129935077881
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 1.9962797317138814
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 1.9834095444468025
+  },
+  {
+   "material": "si3n4",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 1.948085818180332
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 2.2138932926126986
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 2.1684640439509453
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 2.1468320918009884
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 2.1369215995688564
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 2.129686805517065
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 2.117901064636247
+  },
+  {
+   "material": "ln_e",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 2.088989412055589
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 2.31055278677395
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 2.255025849330449
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 2.228837147402834
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 2.216882399033973
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 2.208166670822557
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 2.193979665710777
+  },
+  {
+   "material": "ln_o",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 2.159212994079659
+  },
+  {
+   "material": "si",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 4.031413580596438
+  },
+  {
+   "material": "si",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 3.6839171677322486
+  },
+  {
+   "material": "si",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 3.549641438103764
+  },
+  {
+   "material": "si",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 3.5021727131447293
+  },
+  {
+   "material": "si",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 3.4767806633898366
+  },
+  {
+   "material": "si",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 3.4520335897928702
+  },
+  {
+   "material": "si",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 3.4318046552332184
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 5.5e-07,
+   "temperature": 24.5,
+   "n": 2.217547826991619
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 5.5e-07,
+   "temperature": 80.0,
+   "n": 2.2346416037905046
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 5.5e-07,
+   "temperature": 200.0,
+   "n": 2.2809874400553323
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 7.75e-07,
+   "temperature": 24.5,
+   "n": 2.1705386180907973
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 7.75e-07,
+   "temperature": 80.0,
+   "n": 2.186959910664039
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 7.75e-07,
+   "temperature": 200.0,
+   "n": 2.2314347876924803
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 1.064e-06,
+   "temperature": 24.5,
+   "n": 2.1481542422227045
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 1.064e-06,
+   "temperature": 80.0,
+   "n": 2.164327725667566
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 1.064e-06,
+   "temperature": 200.0,
+   "n": 2.2081225738518855
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 1.31e-06,
+   "temperature": 24.5,
+   "n": 2.1379603718876576
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 1.31e-06,
+   "temperature": 80.0,
+   "n": 2.154043677104325
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 1.31e-06,
+   "temperature": 200.0,
+   "n": 2.197592458145223
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 1.55e-06,
+   "temperature": 24.5,
+   "n": 2.1305703312029918
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 1.55e-06,
+   "temperature": 80.0,
+   "n": 2.146600118268196
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 1.55e-06,
+   "temperature": 200.0,
+   "n": 2.190003050650548
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 2e-06,
+   "temperature": 24.5,
+   "n": 2.118636523058051
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 2e-06,
+   "temperature": 80.0,
+   "n": 2.1345986533444155
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 2e-06,
+   "temperature": 200.0,
+   "n": 2.177817026032921
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 3e-06,
+   "temperature": 24.5,
+   "n": 2.089694187613916
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 3e-06,
+   "temperature": 80.0,
+   "n": 2.1055297293946214
+  },
+  {
+   "material": "ln_e_gayer",
+   "wavelength": 3e-06,
+   "temperature": 200.0,
+   "n": 2.1484017391879306
+  },
+  {
+   "material": "lt_e_bond",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 2.2023513256654006
+  },
+  {
+   "material": "lt_e_bond",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 2.160620432663396
+  },
+  {
+   "material": "lt_e_bond",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 2.1397898900281827
+  },
+  {
+   "material": "lt_e_bond",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 2.1300025968717535
+  },
+  {
+   "material": "lt_e_bond",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 2.122741791799005
+  },
+  {
+   "material": "lt_e_bond",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 2.1107029343684314
+  },
+  {
+   "material": "lt_e_bond",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 2.080283360873226
+  },
+  {
+   "material": "lt_o_bond",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 2.197945003101375
+  },
+  {
+   "material": "lt_o_bond",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 2.1565444224039867
+  },
+  {
+   "material": "lt_o_bond",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 2.1357867826969135
+  },
+  {
+   "material": "lt_o_bond",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 2.1259622803347322
+  },
+  {
+   "material": "lt_o_bond",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 2.1186252769759437
+  },
+  {
+   "material": "lt_o_bond",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 2.1063924553352584
+  },
+  {
+   "material": "lt_o_bond",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 2.0755733184611014
+  },
+  {
+   "material": "ktp_x",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 1.774340743056291
+  },
+  {
+   "material": "ktp_x",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 1.7497481362696765
+  },
+  {
+   "material": "ktp_x",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 1.7379264717305054
+  },
+  {
+   "material": "ktp_x",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 1.7323758012660273
+  },
+  {
+   "material": "ktp_x",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 1.7281548555217785
+  },
+  {
+   "material": "ktp_x",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 1.7206729414692632
+  },
+  {
+   "material": "ktp_x",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 1.6967653926653687
+  },
+  {
+   "material": "ktp_y",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 1.7847442077124183
+  },
+  {
+   "material": "ktp_y",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 1.7581310005150028
+  },
+  {
+   "material": "ktp_y",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 1.7454680019979687
+  },
+  {
+   "material": "ktp_y",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 1.7394875022537726
+  },
+  {
+   "material": "ktp_y",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 1.7349061194074447
+  },
+  {
+   "material": "ktp_y",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 1.7267828634385678
+  },
+  {
+   "material": "ktp_y",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 1.7020286594981635
+  },
+  {
+   "material": "ktp_z",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 1.8832318375439077
+  },
+  {
+   "material": "ktp_z",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 1.846832352608575
+  },
+  {
+   "material": "ktp_z",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 1.82966897165963
+  },
+  {
+   "material": "ktp_z",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 1.821712706440998
+  },
+  {
+   "material": "ktp_z",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 1.8157731108173114
+  },
+  {
+   "material": "ktp_z",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 1.8057223566063287
+  },
+  {
+   "material": "ktp_z",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 1.778871825594813
+  },
+  {
+   "material": "bbo_o",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 1.6725924888193573
+  },
+  {
+   "material": "bbo_o",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 1.6611788515711365
+  },
+  {
+   "material": "bbo_o",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 1.6543241780204478
+  },
+  {
+   "material": "bbo_o",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 1.6502021820464101
+  },
+  {
+   "material": "bbo_o",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 1.6465148409176416
+  },
+  {
+   "material": "bbo_o",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 1.6392658367643484
+  },
+  {
+   "material": "bbo_o",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 1.6142250151626008
+  },
+  {
+   "material": "bbo_e",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 1.5534643676415933
+  },
+  {
+   "material": "bbo_e",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 1.5448886348174986
+  },
+  {
+   "material": "bbo_e",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 1.5389916466301314
+  },
+  {
+   "material": "bbo_e",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 1.5349091765482568
+  },
+  {
+   "material": "bbo_e",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 1.530936499029921
+  },
+  {
+   "material": "bbo_e",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 1.5226303576110212
+  },
+  {
+   "material": "bbo_e",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 1.4935088462063657
+  },
+  {
+   "material": "aln_o",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 2.1591205661556474
+  },
+  {
+   "material": "aln_o",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 2.1399047515195013
+  },
+  {
+   "material": "aln_o",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 2.129747662558152
+  },
+  {
+   "material": "aln_o",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 2.124378614090807
+  },
+  {
+   "material": "aln_o",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 2.119925139506196
+  },
+  {
+   "material": "aln_o",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 2.1116612856818695
+  },
+  {
+   "material": "aln_o",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 2.0887348493055273
+  },
+  {
+   "material": "aln_e",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 2.205879333088412
+  },
+  {
+   "material": "aln_e",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 2.183035114197234
+  },
+  {
+   "material": "aln_e",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 2.171199899321031
+  },
+  {
+   "material": "aln_e",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 2.1651249958549985
+  },
+  {
+   "material": "aln_e",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 2.160206773250704
+  },
+  {
+   "material": "aln_e",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 2.1512811743116016
+  },
+  {
+   "material": "aln_e",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 2.1269590443338875
+  },
+  {
+   "material": "gaas",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 4.575714115732135
+  },
+  {
+   "material": "gaas",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 3.661285690076338
+  },
+  {
+   "material": "gaas",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 3.4727183705588676
+  },
+  {
+   "material": "gaas",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 3.4039667797180675
+  },
+  {
+   "material": "gaas",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 3.3701687666772653
+  },
+  {
+   "material": "gaas",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 3.338527101744365
+  },
+  {
+   "material": "gaas",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 3.3128138030029937
+  },
+  {
+   "material": "tio2_o",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 2.647935017326822
+  },
+  {
+   "material": "tio2_o",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 2.5262877648347697
+  },
+  {
+   "material": "tio2_o",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 2.478927030892277
+  },
+  {
+   "material": "tio2_o",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 2.462158325833174
+  },
+  {
+   "material": "tio2_o",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 2.453184835765352
+  },
+  {
+   "material": "tio2_o",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 2.4444375987372777
+  },
+  {
+   "material": "tio2_o",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 2.437286686306382
+  },
+  {
+   "material": "tio2_e",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 2.952872578009675
+  },
+  {
+   "material": "tio2_e",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 2.8000702154838826
+  },
+  {
+   "material": "tio2_e",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 2.741176106705422
+  },
+  {
+   "material": "tio2_e",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 2.720400498081037
+  },
+  {
+   "material": "tio2_e",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 2.7092989567148513
+  },
+  {
+   "material": "tio2_e",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 2.6984880878016027
+  },
+  {
+   "material": "tio2_e",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 2.6896579920466843
+  },
+  {
+   "material": "sapphire_o",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 1.770446353492341
+  },
+  {
+   "material": "sapphire_o",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 1.7608230242391987
+  },
+  {
+   "material": "sapphire_o",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 1.7544854770536085
+  },
+  {
+   "material": "sapphire_o",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 1.7502583005690255
+  },
+  {
+   "material": "sapphire_o",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 1.7461816250589246
+  },
+  {
+   "material": "sapphire_o",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 1.7376870804593745
+  },
+  {
+   "material": "sapphire_o",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 1.7122054479360487
+  },
+  {
+   "material": "sapphire_e",
+   "wavelength": 5.5e-07,
+   "temperature": null,
+   "n": 1.7623254676990847
+  },
+  {
+   "material": "sapphire_e",
+   "wavelength": 7.75e-07,
+   "temperature": null,
+   "n": 1.752879133207831
+  },
+  {
+   "material": "sapphire_e",
+   "wavelength": 1.064e-06,
+   "temperature": null,
+   "n": 1.7466254200760603
+  },
+  {
+   "material": "sapphire_e",
+   "wavelength": 1.31e-06,
+   "temperature": null,
+   "n": 1.7424335256688621
+  },
+  {
+   "material": "sapphire_e",
+   "wavelength": 1.55e-06,
+   "temperature": null,
+   "n": 1.7383814860324842
+  },
+  {
+   "material": "sapphire_e",
+   "wavelength": 2e-06,
+   "temperature": null,
+   "n": 1.7299322946395292
+  },
+  {
+   "material": "sapphire_e",
+   "wavelength": 3e-06,
+   "temperature": null,
+   "n": 1.7046568797793993
+  }
+ ],
  "segmented_cell": [
   {
    "radius": 0.005,

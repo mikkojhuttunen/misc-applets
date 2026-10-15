@@ -340,7 +340,7 @@ td { font-family: var(--f-num); font-variant-numeric: tabular-nums; text-align: 
         <li><b>Vertical stack.</b> Optional handle under the substrate layer (then a BOX of thickness t<sub>BOX</sub>): Si (light radiated downward continues into the Si) or a gold mirror (the downward channel is closed). Plane waves are solved through the whole stack, so BOX interference sets the coupler's up/down ratio and its strength. The guided mode is assumed not to leak into the handle (thick enough BOX).</li>
         <li><b>Pump depletion.</b> From the undepleted solution, E<sub>NL</sub> = guided SH per direction / P<sub>c</sub>². Per pass a fraction tanh²(√(E<sub>NL</sub>P<sub>c</sub>)) converts; it enters the straight sections as extra loss, and P<sub>c</sub> is iterated with the full cavity solver until consistent. Radiated SH keeps its low-power ratio to the guided SH. Not included: Kerr and thermal detuning, photorefractive index drift, absorption of the SH (GRIIRA/BLIIRA), SH feedback by the DBRs.</li>
         <li><b>Photorefraction.</b> Peak guided SH intensity = (SH per output) / (mode area), area = lateral SHG width/√2 × vertical 1/∫φ⁴. Onset thresholds are order-of-magnitude placeholders: undoped congruent LN shows index drift at kW/cm² visible, MgO:LN near MW/cm², LT about ten times above that. Measured TFLN/TFLT values depend on doping, stoichiometry, annealing and cladding, so edit them.</li>
-        <li><b>Materials.</b> Sellmeier fits, isotropic, absorption ignored. Si and most III-V cores absorb at visible SHG wavelengths. For custom layers, the index is a Cauchy curve through the values you give at λ₀ and at the probe wavelength.</li>
+        <li><b>Materials.</b> Sellmeier fits generated from math-engines/engines/materials (tools/gen_js_materials.py), isotropic per axis, absorption ignored; ⚠ marks wavelengths outside a fit's published range. LiTaO₃ uses the Bond refits (the earlier single-pole fit was good to ±0.01 only); the Gayer LiNbO₃ fit follows the temperature control. Si and most III-V cores absorb at visible SHG wavelengths. For custom layers, the index is a Cauchy curve through the values you give at λ₀ and at the probe wavelength.</li>
       </ul>
     </section>
   </main>
@@ -397,6 +397,7 @@ addSlider(gWG, 't', 'Core thickness t', 50, 3000, 5, 600, 'nm');
 layerRow(gWG, 'clad', 'Cladding (top, fills etch)', { mat: 'air' });
 layerRow(gWG, 'core', 'Core', { mat: 'lne' });
 layerRow(gWG, 'sub', 'Substrate (BOX if a handle is set)', { mat: 'sio2' });
+addSlider(gWG, 'temp', 'Temperature (temperature-dependent LiNbO₃ fit)', -50, 300, 0.5, 24.5, '°C');
 { const row = document.createElement('div'); row.className = 'row'; row.innerHTML = '<label for="under">Below the substrate layer</label><select id="under"><option value="none">Nothing (semi-infinite substrate)</option><option value="si">Si handle (TFLN on insulator)</option><option value="au">Gold mirror</option></select>'; gWG.appendChild(row); $('under').addEventListener('change', () => onChange('under')); }
 addSlider(gWG, 'tbox', 'BOX thickness', 0.2, 6, 0.01, 2, 'µm');
 addSlider(gGR, 'h', 'Etch depth h', 0, 600, 1, 40, 'nm');
@@ -491,7 +492,7 @@ $('preset').addEventListener('change', () => applyPreset($('preset').value));
 
 function readState() {
   const L = k => ({ mat: $('mat_' + k).value, n1: parseFloat($('n1_' + k).value) || 1, n2: parseFloat($('n2_' + k).value) || 1 });
-  return { lam0: ctl.lam0.get() / 1000, lamP: ctl.lamP.get() / 1000, pol, t: ctl.t.get() / 1000, h: Math.min(ctl.h.get(), ctl.t.get()) / 1000,
+  return { lam0: ctl.lam0.get() / 1000, lamP: ctl.lamP.get() / 1000, T: ctl.temp.get(), pol, t: ctl.t.get() / 1000, h: Math.min(ctl.h.get(), ctl.t.get()) / 1000,
     f: ctl.f.get(), N: Math.round(ctl.N.get()), m: +$('m').value, lock: $('lock').checked, Lam: ctl.Lam.get() / 1000,
     profile: $('profile').value, sw: ctl.sw.get(), sig: ctl.sig.get() / 1000, loss: ctl.loss.get(), pOrder: +$('pOrder').value,
     autospan: $('autospan').checked, span: ctl.span.get() / 1000, showcmt: $('showcmt').checked, sweepVar: $('sweepVar').value,
@@ -508,7 +509,7 @@ function readState() {
 let pending = false;
 function onChange(id) {
   if (id === 't') { ctl.h.setMax(ctl.t.get()); ctl.hG.setMax(ctl.t.get()); ctl.tSide.setMax(ctl.t.get()); }
-  if (['lam0', 'Lam', 'm', 'lock', 'preset', 'profile', 't', 'h', 'f', 'pol', 'N', 'NG', 'LamG', 'fG', 'hG', 'sp', 'Ls', 'theta', 'w0', 'w0y', 'matchY', 'lockG', 'zoomC', 'latMode', 'W', 'tSide', 'Rc', 'Aper', 'flat', 'WGC', 'tLoss', 'under', 'tbox'].includes(id) || id.startsWith('mat_') || id.startsWith('n1_')) { fieldLam = null; fieldLamC = null; }
+  if (['lam0', 'Lam', 'm', 'lock', 'preset', 'profile', 't', 'h', 'f', 'pol', 'N', 'NG', 'LamG', 'fG', 'hG', 'sp', 'Ls', 'theta', 'w0', 'w0y', 'matchY', 'lockG', 'zoomC', 'latMode', 'W', 'tSide', 'Rc', 'Aper', 'flat', 'WGC', 'tLoss', 'under', 'tbox', 'temp'].includes(id) || id.startsWith('mat_') || id.startsWith('n1_')) { fieldLam = null; fieldLamC = null; }
   if (!/^pr/.test(id)) pwRows = null;
   if (!pending) { pending = true; const run = () => { if (!pending) return; pending = false; safeCompute(); }; requestAnimationFrame(run); setTimeout(run, 60); }
 }
@@ -781,7 +782,8 @@ function compute() {
   const { Lam, gS, tab, N0, slices, kap, L, ng, lamB, bwNull, alphaProp, pf } = c;
 
   const ns0 = tab.ns, nf0 = tab.nf, nc0 = tab.nc;
-  for (const k of ['sub', 'core', 'clad']) $('nshow_' + k).textContent = 'n = ' + fx(nIdx(st.layers[k], st.lam0, st), 4) + ' · ' + fx(nIdx(st.layers[k], st.lamP, st), 4);
+  for (const k of ['sub', 'core', 'clad']) $('nshow_' + k).textContent = 'n = ' + fx(nIdx(st.layers[k], st.lam0, st), 4) + ' · ' + fx(nIdx(st.layers[k], st.lamP, st), 4)
+    + (matOutside(st.layers[k].mat, st.lam0) || matOutside(st.layers[k].mat, st.lamP) ? ' ⚠ outside the fit range' : '');
 
   /* radiation at λ0 (higher-order gratings) */
   const rad0 = radiation(st, st.lam0, 0, gS, Lam, st.N, pf.rect);

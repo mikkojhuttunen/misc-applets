@@ -11,7 +11,7 @@ Waveguide Bragg-grating and CRIGF (cavity-resonant integrated grating filter) ca
 - Lateral geometry: 2D slab, ridge/rib/strip-loaded guide, open slab with curved DBRs, wide coupler tapered to a rib.
 - Vertical stack with BOX on a Si handle or a gold mirror (coupler directionality).
 - Pump depletion and cavity loading, power sweep, photorefraction onset estimates (editable thresholds).
-- Materials: SiO₂, Si₃N₄, LiNbO₃ (e, o), LiTaO₃ (approximate fit), Si, custom.
+- Materials: the table of `math-engines/engines/materials`, generated into `dbr-engine.js` by `math-engines/tools/gen_js_materials.py`: SiO₂, Si₃N₄, LiNbO₃ (e, o; temperature-dependent e), LiTaO₃ (e, o, Bond refits), Si, KTP, BBO, AlN, GaAs, TiO₂, sapphire, custom.
 
 `Copy CSV` buttons export spectra and sweeps; `plot_pump_spectra.py` plots them:
 
@@ -34,7 +34,7 @@ LiNbO₃ e and o Sellmeier coefficients were swapped in earlier versions (n_e at
 
 ## Limits
 
-Design-stage models: effective-index method, first-order radiation coupling, undepleted-pump SHG unless the depletion panel is used, no thermal or Kerr effects. LiTaO₃ indices are an approximate fit (±0.01). Photorefraction thresholds are placeholders to be replaced with measured values. Check final designs with a mode solver and FDTD.
+Design-stage models: effective-index method, first-order radiation coupling, undepleted-pump SHG unless the depletion panel is used, no thermal or Kerr effects. Photorefraction thresholds are placeholders to be replaced with measured values. Check final designs with a mode solver and FDTD.
 
 ## Keep design documentation out of this repo
 

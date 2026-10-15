@@ -20,10 +20,16 @@ const close = (label, got, want, rel, abs = 0) => {
   const ctx = vm.createContext({ Math, Float64Array, Array, Number, Map, Set, Object, JSON });
   vm.runInContext(fs.readFileSync(path.join(repo, 'dbr-structures/dbr-engine.js'), 'utf8') +
     '\n;HANDLE.__vec = () => globalThis.__handle;' +
-    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU, profileFn, sampleProfile, tableAt, neffProfile, fourier, radiation, farField, crigfAt, findResonance, tmWeights, mean };', ctx);
+    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU, MAT_DATA, profileFn, sampleProfile, tableAt, neffProfile, fourier, radiation, farField, crigfAt, findResonance, tmWeights, mean };', ctx);
   const e = ctx.__e, um = x => x * 1e6;
-  const key = { sio2: 'sio2', si3n4: 'si3n4', ln_e: 'lne', ln_o: 'lno', lt_e: 'lte' };
-  for (const r of V.materials) close(`dbr n(${r.material}, ${r.wavelength})`, e.nIdx({ mat: key[r.material] }, um(r.wavelength), {}), r.n, 1e-12);
+  const key = { sio2: 'sio2', si3n4: 'si3n4', ln_e: 'lne', ln_o: 'lno' };      /* lt_e (approximate fit) is Python only */
+  for (const r of V.materials) if (key[r.material]) close(`dbr n(${r.material}, ${r.wavelength})`, e.nIdx({ mat: key[r.material] }, um(r.wavelength), {}), r.n, 1e-12);
+  /* the generated material table: every entry against the Python engine, the Gayer fit at several temperatures */
+  const byPy = Object.fromEntries(Object.entries(e.MAT_DATA).map(([k, d]) => [d.py, k]));
+  for (const r of V.materials_all) {
+    if (!byPy[r.material]) { checks++; fails++; console.error(`FAIL material ${r.material} missing from MAT_DATA`); continue; }
+    close(`dbr n(${r.material}, ${r.wavelength}, T=${r.temperature})`, e.nIdx({ mat: byPy[r.material] }, um(r.wavelength), { T: r.temperature }), r.n, 1e-12);
+  }
   for (const r of V.slab) close(`dbr slabNeff ${JSON.stringify(r)}`, e.slabNeff(um(r.wavelength), r.n_sub, r.n_core, r.n_clad, um(r.thickness), r.polarization, r.order), r.neff, 1e-10);
   for (const r of V.cmt) close(`dbr cmtR κ=${r.kappa} δ=${r.half_detuning}`, e.cmtR(r.kappa * 1e-6, r.half_detuning * 1e-6, um(r.length)), r.R, 1e-9, 1e-12);
   for (const r of V.stack) {

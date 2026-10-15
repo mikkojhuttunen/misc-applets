@@ -35,6 +35,16 @@ def build() -> dict:
     for m in ("sio2", "si3n4", "ln_e", "ln_o", "lt_e"):
         for l in lams:
             v["materials"].append({"material": m, "wavelength": l, "n": float(mat.index(m, l))})
+    v["materials_all"] = []                                   # every material of the JS table (gen_js_materials.py)
+    for m in mat.MATERIALS:
+        if m == "lt_e":
+            continue
+        for l in (0.55e-6, 0.775e-6, 1.064e-6, 1.31e-6, 1.55e-6, 2.0e-6, 3.0e-6):
+            temps = (24.5, 80.0, 200.0) if m in mat.THERMAL else (None,)
+            for T in temps:
+                n = float(mat._sellmeier(m, l, T) if T is not None else mat.index(m, l))
+                if np.isfinite(n):
+                    v["materials_all"].append({"material": m, "wavelength": l, "temperature": T, "n": n})
     for (l, ns, nf, nc, d, pol, o) in [
         (1.55e-6, 1.444, 2.130, 1.0, 0.6e-6, "TE", 0), (1.55e-6, 1.444, 2.130, 1.0, 0.6e-6, "TM", 0),
         (1.55e-6, 1.444, 2.130, 1.0, 0.6e-6, "TE", 1), (0.775e-6, 1.454, 2.17, 1.0, 0.4e-6, "TE", 0),

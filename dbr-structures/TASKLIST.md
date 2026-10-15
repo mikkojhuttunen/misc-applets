@@ -25,8 +25,9 @@ Python reference engines in `math-engines/`, tested:
   TM: thin-sheet radiation ~10× too low, EIM κ 2–7× too high (see A7). Finite CRIGF spectra (DBRs + Gaussian beam) not benchmarked: needs an aperiodic solver (A9).
 - [x] A4. Band edges of second-order gratings: `rcwa.resonance_mode` (complex frequency at a real Bloch wavevector, Q), `track_band`, `band_edge` front end; `crigf.band_edge_modes` (coupled-mode bright/dark modes, closed form).
   Rigorous vs coupled-mode: bright Q within 2–8 %, gap within 9 %; dark mode is a symmetry-protected BIC (Q ∝ 1/k_x²), broken by asymmetric teeth. Coupled-mode misses the small f = 0.5 gap (EIM N₂ = 0).
-- [ ] A5. `dbr-engine.js` in SI; material table generated from `materials` (LiTaO₃ Bond refits, temperature-dependent LN).
-- [ ] A6. `dbr-structures` in `tools/build_standalone.py`.
+- [~] A5. Material table generated from `materials` (done: `tools/gen_js_materials.py`, every material incl. LiTaO₃ Bond refits and temperature-dependent LN, with vectors and a staleness test).
+  SI inside `dbr-engine.js`: deferred. The page itself works in µm in a few hundred places (state, formatters, plot axes, µm-valued controls), so the engine cannot change units alone; a full conversion changes no result. The UI regression harness used for A5/A6 (50 scenarios, text and canvas hashes) would make it safe if wanted.
+- [x] A6. `dbr-structures-standalone.html` (engine inlined) from `tools/build_standalone.py`; identical to the page in all 50 harness scenarios; staleness test; CI runs on page changes.
 - [x] A7. TM radiation and κ: `grating_coupler.tm_weights` tooth model (D_x / E_z split, TM plane waves, wall screening c = 0.35 calibrated on `rcwa`), TM radiation, κ_TM = |ρ| κ_EIM with coupling sign −ρ; `crigf` TM (F_R/F_S local fields, complex radiative cross-coupling, −ρ on N₂ and on the DBR slices); JS port with vectors.
   Against `rcwa`: TM radiation mean 7 % (worst 33 %) for h ≤ 50 nm, up/down within 0.03; TM κ exact as h → 0, mean 9 % for h ≤ 20 nm; TM band-edge Q within 10 % with the right ordering; TE unchanged. Also fixed `rcwa.bragg_band` re-centring for deep etches.
   Left: wide teeth (f ≥ 0.7) in air and deep TM etches (corner fields), see A11.

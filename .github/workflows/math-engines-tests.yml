@@ -4,13 +4,17 @@ on:
   push:
     paths:
       - "math-engines/**"
-      - "dbr-structures/dbr-engine.js"
+      - "dbr-structures/**"
+      - "dbr-structures-standalone.html"
+      - "tools/build_standalone.py"
       - "parametric-amplifier.html"
       - ".github/workflows/math-engines-tests.yml"
   pull_request:
     paths:
       - "math-engines/**"
-      - "dbr-structures/dbr-engine.js"
+      - "dbr-structures/**"
+      - "dbr-structures-standalone.html"
+      - "tools/build_standalone.py"
       - "parametric-amplifier.html"
       - ".github/workflows/math-engines-tests.yml"
 

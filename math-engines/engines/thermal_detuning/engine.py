@@ -153,3 +153,62 @@ def ring_energy_roots(detuning, power, kappa, kappa_e, g):
     c = [g * g, 2 * detuning * g, detuning**2 + kappa**2 / 4, -kappa_e * power]
     r = np.roots(c) if g != 0 else np.array([kappa_e * power / (detuning**2 + kappa**2 / 4)])
     return np.sort(np.real(r[(np.abs(np.imag(r)) < 1e-9 * np.max(np.abs(r))) & (np.real(r) > 0)]))
+
+
+def mzi_thermal(wavelength=1.55e-6, delta_length=100e-6, heated_length=1e-3, dneff_dT=1.8e-4, n_eff=2.4, n_group=4.2,
+                alpha_L=2.6e-6, dT_arm=1.0) -> Result:
+    """Thermal drift of an unbalanced Mach-Zehnder interferometer and the phase from heating one arm.
+
+    Uniform chip temperature:  dΔφ/dT = (2π/λ) ΔL (dn_eff/dT + n_eff α_L),  fringe drift dλ/dT = λ (dn_eff/dT + n_eff α_L)/n_g
+    One arm heated by ΔT over L_h (pump absorption, heater):  Δφ = (2π/λ) (dn_eff/dT) ΔT L_h."""
+    require_positive(wavelength=wavelength, heated_length=heated_length, n_group=n_group)
+    require_nonnegative(delta_length=delta_length)
+    k = 2 * np.pi / wavelength
+    a = dneff_dT + n_eff * alpha_L
+    fsr = wavelength**2 / (n_group * delta_length) if delta_length > 0 else math.inf
+    dl = wavelength * a / n_group
+    return Result(
+        values={"dphi_dT_common": k * delta_length * a, "fringe_drift": dl, "fsr": fsr, "drift_fsr_per_K": dl / fsr,
+                "phase_arm": k * dneff_dT * dT_arm * heated_length,
+                "dT_pi_arm": abs(wavelength / (2 * dneff_dT * heated_length)) if dneff_dT else math.inf},
+        units={"dphi_dT_common": "rad/K", "fringe_drift": "m/K", "fsr": "m", "drift_fsr_per_K": "1/K", "phase_arm": "rad",
+               "dT_pi_arm": "K"},
+        assumptions=["Both arms identical waveguides; expansion of the substrate stretches both arms (α_L)",
+                     "Differential heating changes only the index of the heated arm (no expansion term)"],
+    )
+
+
+def bragg_thermal(bragg_wavelength=1.55e-6, dneff_dT=1.8e-4, n_eff=2.4, n_group=4.2, alpha_L=2.6e-6, delta_T=1.0,
+                  bandwidth=1e-9) -> Result:
+    """Bragg-wavelength drift of a waveguide grating (λ_B = 2 n_eff Λ) or DBR mirror:
+    dλ_B/dT = λ_B (dn_eff/dT + n_eff α_L) / n_g, and the shift in units of the stop-band width."""
+    require_positive(bragg_wavelength=bragg_wavelength, n_group=n_group, bandwidth=bandwidth)
+    d = bragg_wavelength * (dneff_dT + n_eff * alpha_L) / n_group
+    return Result(values={"dlambda_dT": d, "delta_lambda": d * delta_T, "shift_in_bandwidths": d * delta_T / bandwidth,
+                          "dT_one_bandwidth": abs(bandwidth / d) if d else math.inf},
+                  units={"dlambda_dT": "m/K", "delta_lambda": "m", "shift_in_bandwidths": "", "dT_one_bandwidth": "K"},
+                  assumptions=["Period expands with the substrate (α_L); n_g accounts for waveguide and material dispersion"])
+
+
+def absorption_from_thermal_shift(shift_per_dissipated_power=1e-9, wavelength=1.55e-6, ring_length=2 * np.pi * 100e-6,
+                                  n_group=2.3, dneff_dT=3e-5, R_th=0.5, Q_intrinsic=1e6) -> Result:
+    """Absorbing share of a ring's intrinsic loss from its measured self-heating shift (scattering does not heat).
+
+    Measure the resonance shift (thermal triangle edge, or shift at slow sweep) against the power dissipated in the ring,
+    P_diss = P_in - P_out on resonance. Fully absorbing loss would give dλ/dP = λ (dn_eff/dT) R' / (n_g L_ring), so
+
+        f_abs = (measured dλ/dP_diss) / (λ (dn_eff/dT) R' / (n_g L_ring)),   α_abs = f_abs α_i,   α_i = 2π n_g / (λ Q_i)
+
+    R' and dn_eff/dT from waveguide_thermal (mode_weighted_heating, R_th_mode)."""
+    require_positive(wavelength=wavelength, ring_length=ring_length, n_group=n_group, R_th=R_th, Q_intrinsic=Q_intrinsic)
+    full = wavelength * abs(dneff_dT) * R_th / (n_group * ring_length)
+    f = shift_per_dissipated_power / full
+    a_i = 2 * np.pi * n_group / (wavelength * Q_intrinsic)
+    return Result(
+        values={"absorbing_fraction": f, "shift_if_all_absorbed": full, "alpha_intrinsic_db_per_cm": a_i / (100 * math.log(10) / 10),
+                "alpha_abs_db_per_cm": f * a_i / (100 * math.log(10) / 10)},
+        units={"absorbing_fraction": "", "shift_if_all_absorbed": "m/W", "alpha_intrinsic_db_per_cm": "dB/cm", "alpha_abs_db_per_cm": "dB/cm"},
+        assumptions=["Steady-state (slow sweep) shift; heat spread uniformly along the ring (R'/L_ring)",
+                     "Kerr shift neglected (it is ~1e-3 of the thermal one for SiN, larger for short thermal times)",
+                     "absorbing_fraction > 1 means R' or dn_eff/dT is underestimated, or the power calibration is off"],
+    )

@@ -7,9 +7,9 @@
  "engines": [
   {
    "engine": "amplifier_thermal",
-   "version": 1,
+   "version": 2,
    "title": "Er waveguide amplifier heating along z",
-   "description": "Pump depletion, heat per length (quantum defect, non-radiative decay, upconversion, quenched ions, background absorption), temperature rise ΔT(z) = R' q'(z), index shift and signal gain of an Er-doped waveguide amplifier; largest pump power within a ΔT or Δn_eff budget.",
+   "description": "Gain change with chip temperature and self-heating (McCumber emission cross-sections). Pump depletion, heat per length (quantum defect, non-radiative decay, upconversion, quenched ions, background absorption), temperature rise ΔT(z) = R' q'(z), index shift and signal gain of an Er-doped waveguide amplifier; largest pump power within a ΔT or Δn_eff budget.",
    "requires": [],
    "references": [
     "E. Desurvire, Erbium-Doped Fiber Amplifiers (Wiley, 1994), ch. 1 (two-level rate equations)",
@@ -343,6 +343,117 @@
        "name": "limited_by_dn",
        "label": "Limited by Δn_eff (else ΔT)",
        "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "er_gain_vs_temperature": {
+     "title": "Gain against temperature and self-heating",
+     "equations": [
+      "σ_e(T) = σ_a (σ_e,ref/σ_a)^(T_ref/T)  (McCumber, σ_a fixed)",
+      "self-heating: ΔT(z) = R' q'(z) fed back into σ_e(z)"
+     ],
+     "inputs": [
+      {
+       "name": "delta_T",
+       "label": "Uniform chip temperature rise",
+       "ui_unit": "K",
+       "scale": 1.0,
+       "default": 10,
+       "min": 0
+      },
+      {
+       "name": "pump_power",
+       "label": "Launched pump power",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 200,
+       "min": 0
+      },
+      {
+       "name": "length",
+       "label": "Amplifier length",
+       "ui_unit": "cm",
+       "scale": 0.01,
+       "default": 3,
+       "min": 0
+      },
+      {
+       "name": "R_th",
+       "label": "Thermal resistance R'",
+       "ui_unit": "K m/W",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0
+      },
+      {
+       "name": "signal_wavelength",
+       "label": "Signal wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532,
+       "min": 1400
+      },
+      {
+       "name": "sigma_a_signal",
+       "label": "Signal absorption cross-section",
+       "ui_unit": "1e-21 cm²",
+       "scale": 1e-25,
+       "default": 5.7,
+       "min": 0
+      },
+      {
+       "name": "sigma_e_signal",
+       "label": "Signal emission cross-section (at T_ref)",
+       "ui_unit": "1e-21 cm²",
+       "scale": 1e-25,
+       "default": 5.7,
+       "min": 0
+      },
+      {
+       "name": "loss_db_per_cm",
+       "label": "Background loss",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": 0.25,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "gain_ref",
+       "label": "Gain at T_ref",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "gain_hot",
+       "label": "Gain at T_ref + ΔT",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "dgain_dT",
+       "label": "dG/dT",
+       "ui_unit": "dB/K",
+       "scale": 1.0
+      },
+      {
+       "name": "gain_self_heated",
+       "label": "Gain with self-heating",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "self_heating_penalty",
+       "label": "Gain lost to self-heating",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "dT_max_self",
+       "label": "Peak self-heating ΔT",
+       "ui_unit": "K",
        "scale": 1.0
       }
      ]
@@ -2990,9 +3101,9 @@
   },
   {
    "engine": "thermal_detuning",
-   "version": 1,
+   "version": 2,
    "title": "Thermal detuning of phase matching and resonators",
-   "description": "Temperature acceptance of type-0 PPLN interactions and the efficiency left under non-uniform (absorbed-pump) heating, with and without retuning; thermal bistability threshold and on-resonance heating of ring resonators.",
+   "description": "MZI and Bragg-grating thermal drift; absorbing share of a ring's loss from its self-heating shift. Temperature acceptance of type-0 PPLN interactions and the efficiency left under non-uniform (absorbed-pump) heating, with and without retuning; thermal bistability threshold and on-resonance heating of ring resonators.",
    "requires": [],
    "references": [
     "O. Gayer, Z. Sacks, E. Galun, A. Arie, Appl. Phys. B 91, 343 (2008)",
@@ -3260,12 +3371,298 @@
        "scale": 1.0
       }
      ]
+    },
+    "mzi_thermal": {
+     "title": "Mach-Zehnder thermal drift",
+     "equations": [
+      "dΔφ/dT = (2π/λ) ΔL (dn_eff/dT + n_eff α_L)",
+      "dλ/dT = λ (dn_eff/dT + n_eff α_L)/n_g",
+      "Δφ_arm = (2π/λ)(dn_eff/dT) ΔT L_h"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength",
+       "label": "Wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 300
+      },
+      {
+       "name": "delta_length",
+       "label": "Arm length difference ΔL",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 100,
+       "min": 0
+      },
+      {
+       "name": "heated_length",
+       "label": "Heated length of one arm",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "dneff_dT",
+       "label": "dn_eff/dT",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05,
+       "default": 18
+      },
+      {
+       "name": "n_eff",
+       "label": "Effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.4,
+       "min": 1
+      },
+      {
+       "name": "n_group",
+       "label": "Group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 4.2,
+       "min": 1
+      },
+      {
+       "name": "alpha_L",
+       "label": "Substrate expansion",
+       "ui_unit": "ppm/K",
+       "scale": 1e-06,
+       "default": 2.6
+      },
+      {
+       "name": "dT_arm",
+       "label": "ΔT of the heated arm",
+       "ui_unit": "K",
+       "scale": 1.0,
+       "default": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "dphi_dT_common",
+       "label": "Phase drift, whole chip",
+       "ui_unit": "rad/K",
+       "scale": 1.0
+      },
+      {
+       "name": "fringe_drift",
+       "label": "Fringe drift dλ/dT",
+       "ui_unit": "pm/K",
+       "scale": 1e-12
+      },
+      {
+       "name": "fsr",
+       "label": "Free spectral range",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "drift_fsr_per_K",
+       "label": "Drift in FSR per K",
+       "ui_unit": "1/K",
+       "scale": 1.0
+      },
+      {
+       "name": "phase_arm",
+       "label": "Phase from the heated arm",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "dT_pi_arm",
+       "label": "ΔT for π in that arm",
+       "ui_unit": "K",
+       "scale": 1.0
+      }
+     ]
+    },
+    "bragg_thermal": {
+     "title": "Bragg grating / DBR thermal drift",
+     "equations": [
+      "dλ_B/dT = λ_B (dn_eff/dT + n_eff α_L)/n_g"
+     ],
+     "inputs": [
+      {
+       "name": "bragg_wavelength",
+       "label": "Bragg wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 300
+      },
+      {
+       "name": "dneff_dT",
+       "label": "dn_eff/dT",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05,
+       "default": 18
+      },
+      {
+       "name": "n_eff",
+       "label": "Effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.4,
+       "min": 1
+      },
+      {
+       "name": "n_group",
+       "label": "Group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 4.2,
+       "min": 1
+      },
+      {
+       "name": "alpha_L",
+       "label": "Substrate expansion",
+       "ui_unit": "ppm/K",
+       "scale": 1e-06,
+       "default": 2.6
+      },
+      {
+       "name": "delta_T",
+       "label": "Temperature rise",
+       "ui_unit": "K",
+       "scale": 1.0,
+       "default": 1
+      },
+      {
+       "name": "bandwidth",
+       "label": "Stop-band width",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "dlambda_dT",
+       "label": "dλ_B/dT",
+       "ui_unit": "pm/K",
+       "scale": 1e-12
+      },
+      {
+       "name": "delta_lambda",
+       "label": "Shift at ΔT",
+       "ui_unit": "pm",
+       "scale": 1e-12
+      },
+      {
+       "name": "shift_in_bandwidths",
+       "label": "Shift in stop-band widths",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "dT_one_bandwidth",
+       "label": "ΔT for one stop-band width",
+       "ui_unit": "K",
+       "scale": 1.0
+      }
+     ]
+    },
+    "absorption_from_thermal_shift": {
+     "title": "Absorbing share of a ring's loss from self-heating",
+     "equations": [
+      "f_abs = (dλ/dP_diss) / (λ (dn_eff/dT) R' / (n_g L))",
+      "α_abs = f_abs · 2π n_g / (λ Q_i)"
+     ],
+     "inputs": [
+      {
+       "name": "shift_per_dissipated_power",
+       "label": "Measured shift per dissipated power",
+       "ui_unit": "pm/mW",
+       "scale": 1e-09,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "wavelength",
+       "label": "Resonance wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 300
+      },
+      {
+       "name": "ring_length",
+       "label": "Ring circumference",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 628.3,
+       "min": 0
+      },
+      {
+       "name": "n_group",
+       "label": "Group index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.3,
+       "min": 1
+      },
+      {
+       "name": "dneff_dT",
+       "label": "dn_eff/dT",
+       "ui_unit": "1e-5/K",
+       "scale": 1e-05,
+       "default": 3
+      },
+      {
+       "name": "R_th",
+       "label": "Thermal resistance R'",
+       "ui_unit": "K m/W",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0
+      },
+      {
+       "name": "Q_intrinsic",
+       "label": "Intrinsic Q",
+       "ui_unit": "1e6",
+       "scale": 1000000.0,
+       "default": 1,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "absorbing_fraction",
+       "label": "Absorbing share of the intrinsic loss",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "shift_if_all_absorbed",
+       "label": "Shift if all loss were absorption",
+       "ui_unit": "pm/mW",
+       "scale": 1e-09
+      },
+      {
+       "name": "alpha_intrinsic_db_per_cm",
+       "label": "Intrinsic loss",
+       "ui_unit": "dB/cm",
+       "scale": 1.0
+      },
+      {
+       "name": "alpha_abs_db_per_cm",
+       "label": "Absorption loss",
+       "ui_unit": "dB/cm",
+       "scale": 1.0
+      }
+     ]
     }
    }
   },
   {
    "engine": "thermo_optic",
-   "version": 3,
+   "version": 4,
    "title": "Thermo-optic LUT, absorbed heat and pump budget",
    "description": "Look-up table of dn/dT, thermal conductivity, heat capacity, expansion, band gap and TPA for Si, SiO2, Si3N4, SiNx, TFLN, TFLT, GaAs, AlGaAs, InP, AlN, Al2O3, TiO2, polymer and air; index and slab-mode thermal shifts, heat from linear absorption, TPA, free carriers and quantum defect, closed-form waveguide thermal resistance, and the largest power that keeps ΔT and Δn_eff in budget.",
    "requires": [],
@@ -3821,12 +4218,26 @@
        "scale": 1e-21,
        "default": 1.45,
        "min": 0
+      },
+      {
+       "name": "alpha_3pa",
+       "label": "Three-photon absorption α₃",
+       "ui_unit": "cm³/GW²",
+       "scale": 1e-24,
+       "default": 0,
+       "min": 0
       }
      ],
      "outputs": [
       {
        "name": "q_total",
        "label": "Heat per length q'",
+       "ui_unit": "mW/mm",
+       "scale": 1.0
+      },
+      {
+       "name": "q_3pa",
+       "label": "Three-photon absorption",
        "ui_unit": "mW/mm",
        "scale": 1.0
       },
@@ -4523,9 +4934,9 @@
   },
   {
    "engine": "waveguide_thermal",
-   "version": 3,
+   "version": 4,
    "title": "Waveguide cross-section heating (2D finite volumes)",
-   "description": "Steady-state and transient temperature rise of a heated ridge or strip waveguide on a layered substrate (substrate / BOX / film / ridge / cladding), thermal resistance per length, energy time constant, and the resulting index, phase and resonance shifts. Thermal step and frequency response; scalar mode solver for the mode-weighted temperature, per-region Γ and dn_eff/dT of channel waveguides. Conductivities from the thermo_optic LUT.",
+   "description": "Steady-state and transient temperature rise of a heated ridge or strip waveguide on a layered substrate (substrate / BOX / film / ridge / cladding), thermal resistance per length, energy time constant, and the resulting index, phase and resonance shifts. Thermal step and frequency response; scalar mode solver for the mode-weighted temperature, per-region Γ and dn_eff/dT of channel waveguides. Semi-vectorial TE/TM modes, pulse trains, heat-sink interface, trenches/undercut/metal heaters, TFLN waveguide QPM. Conductivities from the thermo_optic LUT.",
    "requires": [
     "scipy"
    ],
@@ -4539,6 +4950,8 @@
     "engines/materials/engine.py",
     "engines/slab_waveguide/__init__.py",
     "engines/slab_waveguide/engine.py",
+    "engines/thermal_detuning/__init__.py",
+    "engines/thermal_detuning/engine.py",
     "engines/thermo_optic/__init__.py",
     "engines/thermo_optic/engine.py",
     "engines/waveguide_thermal/__init__.py",
@@ -5163,6 +5576,17 @@
        "scale": 1e-06,
        "default": 1.5,
        "min": 0
+      },
+      {
+       "name": "polarization",
+       "label": "Mode",
+       "type": "choice",
+       "choices": [
+        "scalar",
+        "TE",
+        "TM"
+       ],
+       "default": "scalar"
       }
      ],
      "outputs": [
@@ -5757,6 +6181,64 @@
        "default": 20,
        "min": 6,
        "step": 1
+      },
+      {
+       "name": "heater_material",
+       "label": "Heater metal",
+       "type": "choice",
+       "choices": [
+        "tin",
+        "ti",
+        "nicr",
+        "pt",
+        "w",
+        "au",
+        "al"
+       ],
+       "default": "tin"
+      },
+      {
+       "name": "trench_gap",
+       "label": "Trench distance from the ridge edge",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 5,
+       "min": 0
+      },
+      {
+       "name": "trench_width",
+       "label": "Trench width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2,
+       "min": 0
+      },
+      {
+       "name": "undercut_half_width",
+       "label": "Undercut half-width (0 = none)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "undercut_depth",
+       "label": "Undercut depth into the substrate",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "polarization",
+       "label": "Mode",
+       "type": "choice",
+       "choices": [
+        "scalar",
+        "TE",
+        "TM"
+       ],
+       "default": "scalar"
       }
      ],
      "outputs": [
@@ -5962,6 +6444,351 @@
       {
        "name": "Gamma_clad",
        "label": "Γ cladding",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "pulsed_heating": {
+     "title": "Pulse-train heating",
+     "equations": [
+      "ΔT(t)/ΔT_cw = Σ c_n H(n f) e^(i2πnft)",
+      "c_0 = D, c_n = (1 - e^(-i2πnD))/(i2πn)"
+     ],
+     "inputs": [
+      {
+       "name": "rep_rate",
+       "label": "Repetition rate",
+       "ui_unit": "kHz",
+       "scale": 1000.0,
+       "default": 10,
+       "min": 0
+      },
+      {
+       "name": "duty",
+       "label": "Duty cycle",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.1,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "core_material",
+       "label": "Ridge / strip",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8"
+       ],
+       "default": "si"
+      },
+      {
+       "name": "core_width",
+       "label": "Ridge width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.5,
+       "min": 0
+      },
+      {
+       "name": "core_height",
+       "label": "Ridge height (above the film)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.22,
+       "min": 0
+      },
+      {
+       "name": "slab_material",
+       "label": "Film under the ridge",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "si3n4",
+        "sinx",
+        "ln_e",
+        "ln_o",
+        "lt_e",
+        "lt_o",
+        "gaas",
+        "algaas",
+        "inp",
+        "aln",
+        "al2o3_film",
+        "sapphire",
+        "tio2_film",
+        "su8"
+       ],
+       "default": "si"
+      },
+      {
+       "name": "slab_thickness",
+       "label": "Film thickness (0 = none)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "box_material",
+       "label": "Buried layer",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "si3n4",
+        "sinx",
+        "al2o3_film",
+        "sapphire",
+        "su8",
+        "aln"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "box_thickness",
+       "label": "Buried-layer thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2,
+       "min": 0
+      },
+      {
+       "name": "substrate_material",
+       "label": "Substrate",
+       "type": "choice",
+       "choices": [
+        "si",
+        "sio2",
+        "sapphire",
+        "gaas",
+        "inp",
+        "ln_e",
+        "lt_e",
+        "aln"
+       ],
+       "default": "si"
+      },
+      {
+       "name": "substrate_thickness",
+       "label": "Substrate thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 500,
+       "min": 0
+      },
+      {
+       "name": "clad_material",
+       "label": "Cladding",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "si3n4",
+        "sinx",
+        "al2o3_film",
+        "tio2_film",
+        "su8",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "clad_thickness",
+       "label": "Cladding height above the buried layer",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 2,
+       "min": 0
+      },
+      {
+       "name": "domain_half_width",
+       "label": "Chip half-width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 500,
+       "min": 0
+      },
+      {
+       "name": "h_top",
+       "label": "Top heat-transfer coefficient",
+       "ui_unit": "W/(m² K)",
+       "scale": 1.0,
+       "default": 10,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "peak_ratio",
+       "label": "Peak ΔT / CW ΔT at peak power",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "min_ratio",
+       "label": "Minimum ΔT / CW",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "mean_ratio",
+       "label": "Mean ΔT / CW (= duty)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "swing",
+       "label": "Temperature swing / CW",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "dT_cw_per_W_per_m",
+       "label": "CW ΔT per mW/mm",
+       "ui_unit": "K m/W",
+       "scale": 1.0
+      }
+     ]
+    },
+    "qpm_waveguide": {
+     "title": "TFLN waveguide QPM period and temperature acceptance",
+     "equations": [
+      "Δk = 2π(n_p/λ_p - n_s/λ_s - n_i/λ_i) with mode n_eff",
+      "ΔT_FWHM = 5.566/(L |dΔk/dT|)"
+     ],
+     "inputs": [
+      {
+       "name": "pump_wavelength",
+       "label": "Pump (or SH) wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 775,
+       "min": 300
+      },
+      {
+       "name": "signal_wavelength",
+       "label": "Signal (or fundamental) wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550,
+       "min": 500
+      },
+      {
+       "name": "temperature",
+       "label": "Temperature",
+       "ui_unit": "K",
+       "scale": 1.0,
+       "default": 297.65,
+       "min": 250
+      },
+      {
+       "name": "length",
+       "label": "Poled length",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 10,
+       "min": 0
+      },
+      {
+       "name": "core_width",
+       "label": "Rib width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 1.2,
+       "min": 0
+      },
+      {
+       "name": "core_height",
+       "label": "Etch depth (rib height)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.3,
+       "min": 0
+      },
+      {
+       "name": "slab_thickness",
+       "label": "Remaining film",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.3,
+       "min": 0
+      },
+      {
+       "name": "polarization",
+       "label": "Mode",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM",
+        "scalar"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "cells_per_wavelength",
+       "label": "Mode grid cells per wavelength",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 10,
+       "min": 6,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "period",
+       "label": "Poling period",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "dDk_dT",
+       "label": "dΔk/dT",
+       "ui_unit": "1/(m K)",
+       "scale": 1.0
+      },
+      {
+       "name": "dT_FWHM",
+       "label": "Temperature acceptance (FWHM)",
+       "ui_unit": "K",
+       "scale": 1.0
+      },
+      {
+       "name": "bulk_period",
+       "label": "Bulk period",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "bulk_dT_FWHM",
+       "label": "Bulk acceptance",
+       "ui_unit": "K",
+       "scale": 1.0
+      },
+      {
+       "name": "neff_pump",
+       "label": "n_eff pump",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "neff_signal",
+       "label": "n_eff signal",
        "ui_unit": "",
        "scale": 1.0
       }

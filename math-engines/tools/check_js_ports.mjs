@@ -168,6 +168,8 @@ const close = (label, got, want, rel, abs = 0) => {
     const e = T.entry(r.material);
     close(`thermal LUT n ${r.material}`, T.indexAt(r.material, 1.55e-6), r.n, 1e-12);
     for (const k of ['dn_dT', 'k', 'rho', 'cp', 'alpha_L']) close(`thermal LUT ${k} ${r.material}`, e[k], r[k], 1e-12, 1e-30);
+    for (const k of ['dn_dT_min', 'dn_dT_max', 'k_min', 'k_max']) close(`thermal LUT ${k} ${r.material}`, e[k], r[k], 1e-12, 1e-30);
+    close(`thermal LUT confidence ${r.material}`, e.confidence === r.confidence ? 1 : 0, 1, 0);
   }
   for (const r of th.ridge) {
     const o = T.ridgeHeating(r.geometry);

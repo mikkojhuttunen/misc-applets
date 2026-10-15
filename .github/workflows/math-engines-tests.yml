@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install numpy scipy pyyaml pytest
+        run: pip install numpy scipy pyyaml pytest scikit-fem
       - name: Engine, spec and test-vector tests
         working-directory: math-engines
         run: python -m pytest -q

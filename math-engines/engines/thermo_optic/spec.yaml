@@ -1,5 +1,5 @@
 engine: thermo_optic
-version: 3
+version: 4
 title: Thermo-optic LUT, absorbed heat and pump budget
 description: Look-up table of dn/dT, thermal conductivity, heat capacity, expansion, band gap and TPA for Si, SiO2, Si3N4, SiNx, TFLN, TFLT, GaAs, AlGaAs, InP, AlN, Al2O3, TiO2, polymer and air; index and slab-mode thermal shifts, heat from linear absorption, TPA, free carriers and quantum defect, closed-form waveguide thermal resistance, and the largest power that keeps ΔT and Δn_eff in budget.
 references:
@@ -94,8 +94,10 @@ functions:
       - {name: beta_tpa, label: "TPA coefficient β", ui_unit: cm/GW, scale: 1.0e-11, default: 0.8, min: 0}
       - {name: carrier_lifetime, label: "Free-carrier lifetime τ", ui_unit: ns, scale: 1.0e-9, default: 1, min: 0}
       - {name: sigma_fca, label: "FCA cross-section σ", ui_unit: 1e-21 m², scale: 1.0e-21, default: 1.45, min: 0}
+      - {name: alpha_3pa, label: "Three-photon absorption α₃", ui_unit: cm³/GW², scale: 1.0e-24, default: 0, min: 0}
     outputs:
       - {name: q_total, label: "Heat per length q'", ui_unit: mW/mm, scale: 1.0}
+      - {name: q_3pa, label: "Three-photon absorption", ui_unit: mW/mm, scale: 1.0}
       - {name: q_linear, label: "Linear absorption", ui_unit: mW/mm, scale: 1.0}
       - {name: q_tpa, label: "TPA", ui_unit: mW/mm, scale: 1.0}
       - {name: q_fca, label: "Free-carrier absorption", ui_unit: mW/mm, scale: 1.0}

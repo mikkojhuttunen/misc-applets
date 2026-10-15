@@ -11,8 +11,11 @@ The equivalent form is quantum defect + non-radiative decay + upconversion + que
 - `er_amplifier_heating(pump_power, signal_power, length, R_th, dneff_dT, …)`: gain, absorbed pump, total heat and heat fraction, peak and mean ΔT, the hot-spot position, peak Δn_eff, the thermal phase of the signal, inversion; arrays z, P_pump, P_signal, q, dT, inversion.
 - `er_pump_limit(dT_max, dneff_max, P_search, …)`: the largest launched pump power within the ΔT or Δn_eff budget (bisection), and the gain there.
 
+- `er_gain_vs_temperature(delta_T, ...)`: gain when the chip is ΔT warmer (McCumber: σ_e(T) = σ_a (σ_e,ref/σ_a)^(T_ref/T) with σ_a fixed) and with the amplifier's own heating fed back along z. At 1532 nm σ_e ≈ σ_a and the gain barely moves; on the long-wavelength side heating lowers the gain.
+- `concentration_effects(n_er, c_up_at_1e20, quench_per_1e20)`: C_up ∝ N_Er and clustering-quenched fraction f_q = k_q N_Er, as in the applet.
+
 Checks: energy conservation, the heat decomposition, the weak-pump limit (heat fraction → 1 − λ_p/λ_s), a fully quenched film (all of it becomes heat, Beer–Lambert pump decay), and in-band pumping heating less.
 
 What it shows for the default Al₂O₃:Er strip on TFLN (`examples/pump_heating.py`): once the pump bleaches the Er absorption, the ions add little heat. The absorbing part of the background loss and quenched ions dominate, and the input reaches 5 K only at several watts of pump.
 
-Version 1.
+Version 2.

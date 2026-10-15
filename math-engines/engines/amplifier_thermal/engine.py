@@ -63,13 +63,40 @@ def _params(pump_wavelength, signal_wavelength, n_er, quenched_fraction, tau, c_
                 fabs=absorbing_fraction, eta=eta_rad)
 
 
-def propagate(pump_power, signal_power, length, n_z, p):
-    """RK4 along z; returns z, P_p, P_s, q', N₂/N_total arrays."""
+def mccumber_emission(sigma_a, sigma_e_ref, temperature, T_ref=295.0):
+    """Emission cross-section at another temperature from McCumber, σ_e = σ_a exp((ε - hν)/kT), with σ_a held fixed:
+    σ_e(T) = σ_a (σ_e,ref/σ_a)^(T_ref/T). Captures the shift of the emission/absorption balance only (no change of
+    σ_a, line widths or lifetime)."""
+    if sigma_a <= 0 or sigma_e_ref <= 0:
+        return sigma_e_ref
+    return sigma_a * (sigma_e_ref / sigma_a) ** (T_ref / temperature)
+
+
+def _at_temperature(p, T, T_ref):
+    q = dict(p)
+    q["ses"] = mccumber_emission(p["sas"], p["ses"], T, T_ref)
+    q["sep"] = mccumber_emission(p["sap"], p["sep"], T, T_ref)
+    return q
+
+
+def concentration_effects(n_er, c_up_at_1e20=4e-24, quench_per_1e20=0.0):
+    """(C_up, f_q) growing with N_Er as in er-waveguide-amplifier.html: C_up = C_up(10²⁰ cm⁻³) N/10²⁰,
+    f_q = min(0.95, k_q N/10²⁰) (clustering). n_er in 1/m³ (10²⁰ cm⁻³ = 1e26 m⁻³)."""
+    x = float(n_er) / 1e26
+    return c_up_at_1e20 * x, min(0.95, quench_per_1e20 * x)
+
+
+def propagate(pump_power, signal_power, length, n_z, p, dT_z=None, T_ref=295.0):
+    """RK4 along z; returns z, P_p, P_s, q', N₂/N_total arrays. dT_z: optional temperature rise on the z grid that
+    rescales the emission cross-sections locally (McCumber)."""
     dz = length / n_z
     z = np.linspace(0.0, length, n_z + 1)
     Pp, Ps = np.empty(n_z + 1), np.empty(n_z + 1)
     Pp[0], Ps[0] = pump_power, signal_power
+    p0 = p
     for i in range(n_z):
+        if dT_z is not None:
+            p = _at_temperature(p0, T_ref + 0.5 * (dT_z[i] + dT_z[i + 1]), T_ref)
         a, b = Pp[i], Ps[i]
         k1 = _rhs(a, b, p)
         k2 = _rhs(a + 0.5 * dz * k1[0], b + 0.5 * dz * k1[1], p)
@@ -77,7 +104,10 @@ def propagate(pump_power, signal_power, length, n_z, p):
         k4 = _rhs(a + dz * k3[0], b + dz * k3[1], p)
         Pp[i + 1] = max(0.0, a + dz / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]))
         Ps[i + 1] = max(0.0, b + dz / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]))
-    hq = [_heat(a, b, p) for a, b in zip(Pp, Ps)]
+    if dT_z is None:
+        hq = [_heat(a, b, p0) for a, b in zip(Pp, Ps)]
+    else:
+        hq = [_heat(a, b, _at_temperature(p0, T_ref + d, T_ref)) for a, b, d in zip(Pp, Ps, dT_z)]
     q = np.array([h[0] for h in hq])
     inv = np.array([h[2] for h in hq]) / (p["N"] + p["Nq"])
     return z, Pp, Ps, q, inv
@@ -172,4 +202,40 @@ def er_pump_limit(dT_max=10.0, dneff_max=1e-3, P_search=20.0, signal_power=1e-6,
         units={"P_limit": "W", "limited": "", "gain_dB": "dB", "dT_max": "K", "dneff_max": "", "heat_total": "W", "limited_by_dn": ""},
         assumptions=r.assumptions + [f"Searched 0..{P_search:g} W; limited = False means even P_search stays within budget",
                                      "The hottest point is usually the input facet (undepleted pump)"],
+    )
+
+
+def er_gain_vs_temperature(delta_T=10.0, pump_power=0.2, signal_power=1e-6, length=0.03, R_th=0.5, T_ref=295.0,
+                           pump_wavelength=0.98e-6, signal_wavelength=1.532e-6, n_er=1.5e26, quenched_fraction=0.0,
+                           tau=7.5e-3, c_up=4e-24, sigma_a_pump=1.7e-25, sigma_e_pump=0.0, sigma_a_signal=5.7e-25,
+                           sigma_e_signal=5.7e-25, gamma_pump=0.5, gamma_signal=0.4, doped_area=0.8e-12,
+                           loss_db_per_cm=0.25, absorbing_fraction=0.5, eta_rad=0.8, n_z=300, feedback_iterations=4) -> Result:
+    """Signal gain when the whole chip is ΔT warmer (McCumber emission cross-sections at T_ref + ΔT), and with the
+    amplifier's own heating fed back: ΔT(z) = R' q'(z) sets the local cross-sections, iterated feedback_iterations times.
+
+    At 1532 nm σ_e ≈ σ_a, so the gain there changes little; on the long-wavelength side (σ_e > σ_a) heating lowers
+    σ_e/σ_a and the gain. Cross-sections given at T_ref."""
+    require_positive(T_ref=T_ref, R_th=R_th)
+    require_nonnegative(delta_T=delta_T)
+    p = _params(pump_wavelength, signal_wavelength, n_er, quenched_fraction, tau, c_up, sigma_a_pump, sigma_e_pump,
+                sigma_a_signal, sigma_e_signal, gamma_pump, gamma_signal, doped_area, loss_db_per_cm, absorbing_fraction, eta_rad)
+    n_z = int(n_z)
+    g = lambda Ps: 10 * math.log10(Ps[-1] / signal_power) if signal_power > 0 and Ps[-1] > 0 else float("nan")
+    _, _, Ps0, q0, _ = propagate(pump_power, signal_power, length, n_z, p)
+    _, _, Ps1, _, _ = propagate(pump_power, signal_power, length, n_z, _at_temperature(p, T_ref + delta_T, T_ref))
+    dT = R_th * q0
+    for _ in range(int(feedback_iterations)):
+        _, _, Psf, qf, _ = propagate(pump_power, signal_power, length, n_z, p, dT_z=dT, T_ref=T_ref)
+        dT = R_th * qf
+    if int(feedback_iterations) == 0:
+        Psf = Ps0
+    g0, g1, gf = g(Ps0), g(Ps1), g(Psf)
+    return Result(
+        values={"gain_ref": g0, "gain_hot": g1, "dgain_dT": (g1 - g0) / delta_T if delta_T > 0 else float("nan"),
+                "gain_self_heated": gf, "self_heating_penalty": g0 - gf, "dT_max_self": float(dT.max()),
+                "sigma_e_signal_hot": mccumber_emission(sigma_a_signal, sigma_e_signal, T_ref + delta_T, T_ref)},
+        units={"gain_ref": "dB", "gain_hot": "dB", "dgain_dT": "dB/K", "gain_self_heated": "dB", "self_heating_penalty": "dB",
+               "dT_max_self": "K", "sigma_e_signal_hot": "m^2"},
+        assumptions=["McCumber with fixed σ_a: only the emission/absorption balance moves; lifetime, upconversion and line shape fixed",
+                     "Self-heating: local 2D R' (no axial flow), iterated to convergence of ΔT(z)"],
     )

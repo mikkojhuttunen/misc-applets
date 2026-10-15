@@ -308,12 +308,13 @@ def db_per_cm_to_per_m(loss_db_per_cm):
     return np.asarray(loss_db_per_cm, dtype=float) * 100.0 * DB_TO_NEPER
 
 
-def heat_coefficients(wavelength, a_eff, alpha_abs=0.0, beta_tpa=0.0, carrier_lifetime=0.0, sigma_fca=0.0):
-    """(c1, c2, c3) with q' = c1 P + c2 P² + c3 P³ (W/m): linear absorption, TPA, free-carrier absorption."""
+def heat_coefficients(wavelength, a_eff, alpha_abs=0.0, beta_tpa=0.0, carrier_lifetime=0.0, sigma_fca=0.0, alpha_3pa=0.0):
+    """(c1, c2, c3) with q' = c1 P + c2 P² + c3 P³ (W/m): linear absorption, TPA, free-carrier absorption plus
+    three-photon absorption (dI/dz = -α₃ I³, α₃ in m³/W²; heat α₃ P³/A_eff², same effective area as TPA)."""
     hnu = H_PLANCK * C0 / wavelength
     c1 = float(alpha_abs)
     c2 = float(beta_tpa) / a_eff
-    c3 = float(sigma_fca) * float(carrier_lifetime) * float(beta_tpa) / (2 * hnu * a_eff**2)
+    c3 = float(sigma_fca) * float(carrier_lifetime) * float(beta_tpa) / (2 * hnu * a_eff**2) + float(alpha_3pa) / a_eff**2
     return c1, c2, c3
 
 
@@ -325,24 +326,26 @@ def si_free_carrier_index(carrier_density):
 
 
 def absorbed_heat(power, wavelength=1.55e-6, a_eff=0.1e-12, loss_abs_db_per_cm=0.0, beta_tpa=0.0,
-                  carrier_lifetime=0.0, sigma_fca=0.0) -> Result:
+                  carrier_lifetime=0.0, sigma_fca=0.0, alpha_3pa=0.0) -> Result:
     """Heat deposited per unit length q' (W/m) by a guided power P: linear absorption, TPA and FCA.
 
     loss_abs_db_per_cm: only the absorbing part of the propagation loss (scattering leaves the chip);
     A_eff: TPA effective area of the mode in the absorbing material; carrier_lifetime τ and σ_FCA
-    for semiconductors (Si: σ = 1.45e-21 m², τ 0.5-5 ns in SOI wires, ~10 ps with a reverse-biased p-i-n)."""
+    for semiconductors (Si: σ = 1.45e-21 m², τ 0.5-5 ns in SOI wires, ~10 ps with a reverse-biased p-i-n);
+    alpha_3pa: three-photon absorption α₃ (m³/W²), for wide-gap materials pumped below the half gap."""
     require_positive(wavelength=wavelength, a_eff=a_eff)
     require_nonnegative(power=power, loss_abs_db_per_cm=loss_abs_db_per_cm, beta_tpa=beta_tpa,
-                        carrier_lifetime=carrier_lifetime, sigma_fca=sigma_fca)
+                        carrier_lifetime=carrier_lifetime, sigma_fca=sigma_fca, alpha_3pa=alpha_3pa)
     P = np.asarray(power, dtype=float)
     a = db_per_cm_to_per_m(loss_abs_db_per_cm)
     c1, c2, c3 = heat_coefficients(wavelength, a_eff, a, beta_tpa, carrier_lifetime, sigma_fca)
+    c3pa = float(alpha_3pa) / a_eff**2
     hnu = H_PLANCK * C0 / wavelength
     N = carrier_lifetime * beta_tpa * (P / a_eff) ** 2 / (2 * hnu)
     return Result(
-        values={"q_linear": c1 * P, "q_tpa": c2 * P**2, "q_fca": c3 * P**3, "q_total": c1 * P + c2 * P**2 + c3 * P**3,
-                "carrier_density": N, "alpha_fca": sigma_fca * N, "dn_fc_si": si_free_carrier_index(N)},
-        units={"q_linear": "W/m", "q_tpa": "W/m", "q_fca": "W/m", "q_total": "W/m", "carrier_density": "1/m^3", "alpha_fca": "1/m",
+        values={"q_linear": c1 * P, "q_tpa": c2 * P**2, "q_fca": c3 * P**3, "q_3pa": c3pa * P**3,
+                "q_total": c1 * P + c2 * P**2 + (c3 + c3pa) * P**3, "carrier_density": N, "alpha_fca": sigma_fca * N, "dn_fc_si": si_free_carrier_index(N)},
+        units={"q_linear": "W/m", "q_tpa": "W/m", "q_fca": "W/m", "q_3pa": "W/m", "q_total": "W/m", "carrier_density": "1/m^3", "alpha_fca": "1/m",
                "dn_fc_si": ""},
         assumptions=["All absorbed power becomes heat (TPA carriers recombine non-radiatively)",
                      "Undepleted power (local value at one point of the waveguide); carriers from TPA only (no doping, no linear defect absorption)",
@@ -426,7 +429,7 @@ def _max_power(c, budget):
 
 def pump_budget(R_th=10.0, dneff_dT=1.8e-4, power=0.1, wavelength=1.55e-6, a_eff=0.1e-12, loss_abs_db_per_cm=0.0,
                 beta_tpa=0.0, carrier_lifetime=0.0, sigma_fca=0.0, pump_absorption_db_per_cm=0.0, eta_heat=0.0,
-                dT_max=10.0, dneff_max=1e-3) -> Result:
+                dT_max=10.0, dneff_max=1e-3, alpha_3pa=0.0) -> Result:
     """Temperature rise and index shift at a guided power P, and the largest power that stays within ΔT_max and Δn_eff,max.
 
     Heat per length at the hottest point (the input facet, undepleted): q' = (α_abs + η_heat α_p) P + β P²/A_eff + FCA.
@@ -436,7 +439,7 @@ def pump_budget(R_th=10.0, dneff_dT=1.8e-4, power=0.1, wavelength=1.55e-6, a_eff
     require_nonnegative(power=power, pump_absorption_db_per_cm=pump_absorption_db_per_cm)
     require_range("eta_heat", eta_heat, 0.0, 1.0)
     a = float(db_per_cm_to_per_m(loss_abs_db_per_cm) + eta_heat * db_per_cm_to_per_m(pump_absorption_db_per_cm))
-    c = heat_coefficients(wavelength, a_eff, a, beta_tpa, carrier_lifetime, sigma_fca)
+    c = heat_coefficients(wavelength, a_eff, a, beta_tpa, carrier_lifetime, sigma_fca, alpha_3pa)
     P = float(power)
     q = c[0] * P + c[1] * P**2 + c[2] * P**3
     dT = R_th * q
@@ -482,7 +485,8 @@ def _power_for(q_target, c1, c2, c3):
 
 
 def thermal_runaway(R_th=0.5, power=0.1, wavelength=1.55e-6, a_eff=0.1e-12, loss_abs_db_per_cm=1.0, T_scale=np.inf,
-                    beta_tpa=0.0, carrier_lifetime=0.0, sigma_fca=0.0, k_exponent=0.0, T0=300.0, dT_limit=3000.0) -> Result:
+                    beta_tpa=0.0, carrier_lifetime=0.0, sigma_fca=0.0, k_exponent=0.0, T0=300.0, dT_limit=3000.0,
+                    alpha_3pa=0.0) -> Result:
     """Steady temperature with feedback, and the power at which no steady state exists (thermal runaway).
 
         θ(ΔT) = R' [α_abs e^(ΔT/T_a) P + β P²/A_eff + FCA P³],   θ = ∫₀^ΔT k(T)/k₀ dT,  k ∝ T^-m
@@ -497,7 +501,7 @@ def thermal_runaway(R_th=0.5, power=0.1, wavelength=1.55e-6, a_eff=0.1e-12, loss
     if not Ta > 0:
         raise ValueError("T_scale must be positive (inf = no temperature dependence)")
     a0 = float(db_per_cm_to_per_m(loss_abs_db_per_cm))
-    _, c2, c3 = heat_coefficients(wavelength, a_eff, 0.0, beta_tpa, carrier_lifetime, sigma_fca)
+    _, c2, c3 = heat_coefficients(wavelength, a_eff, 0.0, beta_tpa, carrier_lifetime, sigma_fca, alpha_3pa)
     m = float(k_exponent)
 
     def q(dT, P):

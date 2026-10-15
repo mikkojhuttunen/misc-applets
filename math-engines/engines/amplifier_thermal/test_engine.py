@@ -73,3 +73,27 @@ def test_pump_limit_hits_the_budget():
 def test_pump_limit_not_reached():
     lim = at.er_pump_limit(dT_max=1e3, dneff_max=1.0, P_search=0.1)
     assert not lim["limited"] and lim["P_limit"] == 0.1
+
+
+def test_mccumber_scaling():
+    assert at.mccumber_emission(5e-25, 7e-25, 295.0) == pytest.approx(7e-25)
+    # ln(σe/σa) ∝ 1/T
+    hot = at.mccumber_emission(5e-25, 7e-25, 354.0)
+    assert math.log(hot / 5e-25) == pytest.approx(math.log(7 / 5) * 295 / 354, rel=1e-12)
+    assert at.mccumber_emission(5e-25, 5e-25, 400.0) == pytest.approx(5e-25)
+
+
+def test_gain_temperature_sign_and_self_heating():
+    peak = at.er_gain_vs_temperature(delta_T=20.0)                      # σe = σa at 1532 nm: no change
+    assert peak["dgain_dT"] == pytest.approx(0.0, abs=1e-12)
+    red = at.er_gain_vs_temperature(delta_T=20.0, signal_wavelength=1.56e-6, sigma_a_signal=1.0e-25, sigma_e_signal=2.2e-25,
+                                    pump_power=2.0, loss_db_per_cm=1.0, absorbing_fraction=1.0, length=0.1)
+    assert red["dgain_dT"] < 0 and red["self_heating_penalty"] > 0
+    # the hot spot reaches ~23 K but most of the device stays cooler than a uniform 20 K rise
+    assert red["gain_hot"] < red["gain_self_heated"] < red["gain_ref"]
+
+
+def test_concentration_effects_like_the_applet():
+    cup, fq = at.concentration_effects(3e26, 4e-24, 0.05)
+    assert cup == pytest.approx(1.2e-23) and fq == pytest.approx(0.15)
+    assert at.concentration_effects(1e28, 4e-24, 0.05)[1] == 0.95

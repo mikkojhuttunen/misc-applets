@@ -244,3 +244,91 @@ def test_athermal_sin_under_polymer():
     assert abs(r["dlambda_dT"]) < 0.5e-12
     none = wt.athermal_design(lower=0.3e-6, upper=0.6e-6, tol=5e-8, cells_per_wavelength=12)   # Si wire, oxide clad
     assert not none["found"]
+
+
+def test_heat_sink_interface_adds_series_resistance():
+    # 1D: a bottom interface conductance h adds 1/h per unit area in series
+    xe = np.linspace(0, 1e-6, 5)
+    ye = wt.graded_axis([0, 3e-6, 5e-6], 3e-6, 5e-6, 0.05e-6)
+    yc = 0.5 * (ye[1:] + ye[:-1])
+    k = np.where(yc < 3e-6, 148.0, 1.38)[:, None] * np.ones((1, 4))
+    q = np.where(yc > 4.9e-6, 1.0 / (ye[-1] - ye[np.searchsorted(ye, 4.9e-6)]), 0.0)[:, None] * np.ones((1, 4))
+    T0, _ = wt.solve_heat(xe, ye, k, q, h_top=0.0)
+    T1, sink = wt.solve_heat(xe, ye, k, q, h_top=0.0, h_bottom=2e4)
+    assert np.allclose(T1 - T0, 1.0 / 2e4, rtol=1e-6)
+    assert sink == pytest.approx(1e-6, rel=1e-9)
+    r = wt.ridge_heating(h_bottom=1e4)
+    assert r["heat_balance"] == pytest.approx(1.0, abs=1e-9)
+    assert r["R_th"] > wt.ridge_heating()["R_th"]
+
+
+def test_rects_trench_and_undercut_heater():
+    base = wt.heater_tuning(cells_per_wavelength=12)
+    tr = wt.heater_tuning(trench_gap=3e-6, cells_per_wavelength=12)
+    uc = wt.heater_tuning(trench_gap=3e-6, undercut_half_width=8e-6, undercut_depth=20e-6, cells_per_wavelength=12)
+    assert uc["P_pi"] < tr["P_pi"] < base["P_pi"]
+    assert uc["P_pi"] < 0.3 * base["P_pi"]            # published undercut SOI heaters: ~1-3 mW/π vs ~20 mW
+    assert tr["crosstalk"] < base["crosstalk"]
+    with pytest.raises(ValueError, match="trench"):
+        wt.heater_tuning(trench_gap=0.1e-6, cells_per_wavelength=12)
+
+
+def test_rect_metal_and_validation():
+    g = wt.build_ridge(rects=[(0.0, 1e-6, 1.0e-6, 1.1e-6, "au")])
+    assert np.any(g["painted"]) and np.all(g["k"][g["painted"]] == 315.0)
+    with pytest.raises(ValueError):
+        wt.build_ridge(rects=[(1e-6, 0.0, 0.0, 1e-6, "air")])
+    with pytest.raises(ValueError, match="material"):
+        wt.build_ridge(rects=[(0.0, 1e-6, 0.0, 1e-6, "unobtainium")])
+
+
+def test_pulsed_heating_limits_and_step_superposition():
+    slow = wt.pulsed_heating(rep_rate=1.0, duty=0.1)
+    fast = wt.pulsed_heating(rep_rate=1e7, duty=0.1)
+    assert slow["peak_ratio"] == pytest.approx(1.0, abs=5e-3)
+    assert fast["peak_ratio"] == pytest.approx(0.1, rel=0.6) and fast["peak_ratio"] < 0.2
+    assert np.mean(slow["dT_ratio"]) == pytest.approx(0.1, rel=1e-6)
+    # independent: periodic peak (end of a pulse) = Σ_k [s(D/f + k/f) - s(k/f)] from the step response s(t)
+    d = wt.ridge_dynamics(steps_per_doubling=16)
+    t, s = np.concatenate([[0.0], d["t"]]), np.concatenate([[0.0], d["step"]])
+    S = lambda x: np.interp(np.log(np.maximum(x, 1e-30)), np.log(np.maximum(t, 1e-30)), s) * (x > 0)
+    for f, D in ((1e5, 0.1), (1e6, 0.2)):
+        k = np.arange(0, 200000)
+        peak = float(np.sum(S(D / f + k / f) - S(k / f)))
+        assert wt.pulsed_heating(rep_rate=f, duty=D)["peak_ratio"] == pytest.approx(peak, rel=0.01)
+
+
+@pytest.mark.parametrize("pol", ["TE", "TM"])
+def test_semivectorial_wide_strip_matches_slab(pol):
+    from engines.slab_waveguide.engine import neff_three_layer
+    n_c, n_s = to.index_at("si3n4", 1.55e-6), to.index_at("sio2", 1.55e-6)
+    m = wt.ridge_mode(core_material="si3n4", core_width=8e-6, core_height=0.4e-6, cells_per_wavelength=14, polarization=pol)
+    assert m["neff"] == pytest.approx(neff_three_layer(1.55e-6, n_s, n_c, n_s, 0.4e-6, pol, 0), abs=3e-3)
+
+
+def test_semivectorial_tm_thermo_optic_matches_exact_slab():
+    # the |E|² formula misses the field jump of TM modes; the re-solve sensitivities do not
+    s = to.slab_thermal_shift(core="si", thickness=0.22e-6, polarization="TM")
+    m = wt.mode_thermo_optic(core_width=6e-6, cells_per_wavelength=12, polarization="TM")
+    assert m["dneff_dT"] == pytest.approx(s["dneff_dT"], rel=0.05)
+    te = wt.mode_thermo_optic(cells_per_wavelength=12, polarization="TE")
+    tm = wt.mode_thermo_optic(cells_per_wavelength=12, polarization="TM")
+    assert 2.35 < te["neff"] < 2.55 and 1.7 < tm["neff"] < 1.95        # SOI 500 x 220: full-vector 2.44 / 1.78
+    assert tm["dlambda_dT"] < te["dlambda_dT"]
+
+
+def test_qpm_waveguide_tfln():
+    r = wt.qpm_waveguide(cells_per_wavelength=10)
+    assert 3.2e-6 < r["period"] < 4.6e-6                  # TFLN SHG of 1550 nm: ~3.5-4.5 µm poling periods
+    assert r["dT_FWHM"] < r["bulk_dT_FWHM"]
+    assert r["neff_pump"] > r["neff_signal"]
+
+
+def test_fem_crosscheck_soi():
+    pytest.importorskip("skfem")
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+    import fem_crosscheck
+    fv = wt.ridge_heating(h_top=0.0)["R_th"]
+    assert fv == pytest.approx(fem_crosscheck.fem_R({}, refine=1.0), rel=0.02)

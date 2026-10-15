@@ -203,3 +203,12 @@ def test_runaway_conduction_limit_and_kirchhoff():
     for m in (-0.2, 0.5, 1.0, 1.3):
         assert to.kirchhoff_inverse(to.kirchhoff(37.0, m), m) == pytest.approx(37.0, rel=1e-9)
     assert to.thermal_runaway(power=1.0)["threshold_kind"] == "none"
+
+
+def test_three_photon_absorption_term():
+    P, A, a3 = 0.5, 1e-12, 2e-27
+    r = to.absorbed_heat(P, a_eff=A, alpha_3pa=a3)
+    assert r["q_3pa"] == pytest.approx(a3 * (P / A) ** 3 * A)
+    assert r["q_total"] == pytest.approx(r["q_3pa"])
+    b = to.pump_budget(R_th=0.5, power=P, a_eff=A, alpha_3pa=a3, dT_max=1.0, dneff_max=1.0)
+    assert b["P_max_dT"] == pytest.approx((1.0 / 0.5 / (a3 / A**2)) ** (1 / 3), rel=1e-9)

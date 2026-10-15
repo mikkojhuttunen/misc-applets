@@ -1,7 +1,7 @@
 engine: amplifier_thermal
-version: 1
+version: 2
 title: Er waveguide amplifier heating along z
-description: Pump depletion, heat per length (quantum defect, non-radiative decay, upconversion, quenched ions, background absorption), temperature rise ΔT(z) = R' q'(z), index shift and signal gain of an Er-doped waveguide amplifier; largest pump power within a ΔT or Δn_eff budget.
+description: Gain change with chip temperature and self-heating (McCumber emission cross-sections). Pump depletion, heat per length (quantum defect, non-radiative decay, upconversion, quenched ions, background absorption), temperature rise ΔT(z) = R' q'(z), index shift and signal gain of an Er-doped waveguide amplifier; largest pump power within a ΔT or Δn_eff budget.
 references:
   - "E. Desurvire, Erbium-Doped Fiber Amplifiers (Wiley, 1994), ch. 1 (two-level rate equations)"
   - "J. Bradley et al., J. Opt. Soc. Am. B 27, 187 (2010) (Al2O3:Er spectroscopy and upconversion)"
@@ -59,3 +59,22 @@ functions:
       - {name: dT_max, label: "Peak ΔT at the limit", ui_unit: K, scale: 1.0}
       - {name: dneff_max, label: "Peak Δn_eff at the limit", ui_unit: 1e-4, scale: 1.0e-4}
       - {name: limited_by_dn, label: "Limited by Δn_eff (else ΔT)", ui_unit: "", scale: 1.0}
+  er_gain_vs_temperature:
+    title: Gain against temperature and self-heating
+    equations: ["σ_e(T) = σ_a (σ_e,ref/σ_a)^(T_ref/T)  (McCumber, σ_a fixed)", "self-heating: ΔT(z) = R' q'(z) fed back into σ_e(z)"]
+    inputs:
+      - {name: delta_T, label: "Uniform chip temperature rise", ui_unit: K, scale: 1.0, default: 10, min: 0}
+      - {name: pump_power, label: "Launched pump power", ui_unit: mW, scale: 1.0e-3, default: 200, min: 0}
+      - {name: length, label: "Amplifier length", ui_unit: cm, scale: 1.0e-2, default: 3, min: 0}
+      - {name: R_th, label: "Thermal resistance R'", ui_unit: K m/W, scale: 1.0, default: 0.5, min: 0}
+      - {name: signal_wavelength, label: "Signal wavelength", ui_unit: nm, scale: 1.0e-9, default: 1532, min: 1400}
+      - {name: sigma_a_signal, label: "Signal absorption cross-section", ui_unit: 1e-21 cm², scale: 1.0e-25, default: 5.7, min: 0}
+      - {name: sigma_e_signal, label: "Signal emission cross-section (at T_ref)", ui_unit: 1e-21 cm², scale: 1.0e-25, default: 5.7, min: 0}
+      - {name: loss_db_per_cm, label: "Background loss", ui_unit: dB/cm, scale: 1.0, default: 0.25, min: 0}
+    outputs:
+      - {name: gain_ref, label: "Gain at T_ref", ui_unit: dB, scale: 1.0}
+      - {name: gain_hot, label: "Gain at T_ref + ΔT", ui_unit: dB, scale: 1.0}
+      - {name: dgain_dT, label: "dG/dT", ui_unit: dB/K, scale: 1.0}
+      - {name: gain_self_heated, label: "Gain with self-heating", ui_unit: dB, scale: 1.0}
+      - {name: self_heating_penalty, label: "Gain lost to self-heating", ui_unit: dB, scale: 1.0}
+      - {name: dT_max_self, label: "Peak self-heating ΔT", ui_unit: K, scale: 1.0}

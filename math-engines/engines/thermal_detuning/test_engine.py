@@ -65,3 +65,29 @@ def test_on_resonance_heating_and_buildup():
     # circulating power / input = 4 κ_e FSR/κ² ... = F/π for critical coupling, F = FSR/linewidth
     fsr = 1.55e-6**2 / (2.3 * 2 * np.pi * 100e-6)
     assert a["buildup"] == pytest.approx(fsr / a["linewidth"] / np.pi, rel=1e-9)
+
+
+def test_mzi_drift_and_arm_phase():
+    r = td.mzi_thermal(delta_length=100e-6, heated_length=1e-3, dneff_dT=1.8e-4, n_eff=2.4, n_group=4.2, alpha_L=0.0, dT_arm=2.0)
+    assert r["phase_arm"] == pytest.approx(2 * np.pi / 1.55e-6 * 1.8e-4 * 2.0 * 1e-3)
+    assert r["dT_pi_arm"] == pytest.approx(1.55e-6 / (2 * 1.8e-4 * 1e-3))
+    # fringe drift = λ dn/dT / n_g; in FSR units = ΔL dn/dT / λ = dΔφ/dT / 2π
+    assert r["drift_fsr_per_K"] == pytest.approx(r["dphi_dT_common"] / (2 * np.pi), rel=1e-9)
+
+
+def test_bragg_drift_matches_resonance_formula():
+    r = td.bragg_thermal(1.55e-6, 2.45e-5, 1.9, 2.1, 2.6e-6, 10.0, 0.5e-9)
+    assert r["dlambda_dT"] == pytest.approx(1.55e-6 * (2.45e-5 + 1.9 * 2.6e-6) / 2.1)
+    assert r["shift_in_bandwidths"] == pytest.approx(r["delta_lambda"] / 0.5e-9)
+
+
+def test_absorption_fraction_recovered_from_simulated_ring():
+    kw = dict(wavelength=1.55e-6, ring_length=2 * np.pi * 100e-6, n_group=2.3, R_th=0.5, dneff_dT=3e-5)
+    ring = td.ring_thermal_bistability(Q_intrinsic=1e6, Q_coupling=1e6, absorbing_fraction=0.3, power=0.01, **kw)
+    w = 2 * np.pi * td.C0 / 1.55e-6
+    P_diss = (w / 1e6) * ring["U_resonance"]                    # intrinsic loss rate × stored energy
+    slope = ring["delta_lambda_max"] / P_diss
+    r = td.absorption_from_thermal_shift(shift_per_dissipated_power=slope, Q_intrinsic=1e6, **kw)
+    assert r["absorbing_fraction"] == pytest.approx(0.3, rel=1e-9)
+    # Q_i = 1e6 at n_g 2.3: α_i = 2π n_g / (λ Q) ≈ 9.3 /m ≈ 0.40 dB/cm
+    assert r["alpha_intrinsic_db_per_cm"] == pytest.approx(0.405, abs=0.01)

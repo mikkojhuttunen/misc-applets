@@ -1,7 +1,7 @@
 engine: waveguide_thermal
-version: 3
+version: 4
 title: Waveguide cross-section heating (2D finite volumes)
-description: Steady-state and transient temperature rise of a heated ridge or strip waveguide on a layered substrate (substrate / BOX / film / ridge / cladding), thermal resistance per length, energy time constant, and the resulting index, phase and resonance shifts. Thermal step and frequency response; scalar mode solver for the mode-weighted temperature, per-region Γ and dn_eff/dT of channel waveguides. Conductivities from the thermo_optic LUT.
+description: Steady-state and transient temperature rise of a heated ridge or strip waveguide on a layered substrate (substrate / BOX / film / ridge / cladding), thermal resistance per length, energy time constant, and the resulting index, phase and resonance shifts. Thermal step and frequency response; scalar mode solver for the mode-weighted temperature, per-region Γ and dn_eff/dT of channel waveguides. Semi-vectorial TE/TM modes, pulse trains, heat-sink interface, trenches/undercut/metal heaters, TFLN waveguide QPM. Conductivities from the thermo_optic LUT.
 requires: [scipy]
 references:
   - "S. V. Patankar, Numerical Heat Transfer and Fluid Flow (Hemisphere, 1980) (finite-volume discretisation, harmonic-mean face conductances)"
@@ -79,6 +79,7 @@ functions:
       - {name: clad_thickness, label: "Cladding height above the buried layer", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
       - {name: domain_half_width, label: "Chip half-width", ui_unit: µm, scale: 1.0e-6, default: 500, min: 0}
       - {name: margin, label: "Mode window margin", ui_unit: µm, scale: 1.0e-6, default: 1.5, min: 0}
+      - {name: polarization, label: "Mode", type: choice, choices: [scalar, TE, TM], default: scalar}
     outputs:
       - {name: neff, label: "Effective index (scalar)", ui_unit: "", scale: 1.0}
       - {name: n_group, label: "Group index", ui_unit: "", scale: 1.0}
@@ -153,6 +154,12 @@ functions:
       - {name: clad_thickness, label: "Cladding height above the buried layer", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
       - {name: domain_half_width, label: "Chip half-width", ui_unit: µm, scale: 1.0e-6, default: 500, min: 0}
       - {name: cells_per_wavelength, label: "Mode grid cells per wavelength", ui_unit: "", scale: 1.0, default: 20, min: 6, step: 1}
+      - {name: heater_material, label: "Heater metal", type: choice, choices: [tin, ti, nicr, pt, w, au, al], default: tin}
+      - {name: trench_gap, label: "Trench distance from the ridge edge", ui_unit: µm, scale: 1.0e-6, default: 5, min: 0}
+      - {name: trench_width, label: "Trench width", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
+      - {name: undercut_half_width, label: "Undercut half-width (0 = none)", ui_unit: µm, scale: 1.0e-6, default: 0, min: 0}
+      - {name: undercut_depth, label: "Undercut depth into the substrate", ui_unit: µm, scale: 1.0e-6, default: 0, min: 0}
+      - {name: polarization, label: "Mode", type: choice, choices: [scalar, TE, TM], default: scalar}
     outputs:
       - {name: P_pi, label: "P_π", ui_unit: mW, scale: 1.0e-3}
       - {name: dT_mode_per_W_per_m, label: "Mode ΔT per mW/mm", ui_unit: K m/W, scale: 1.0}
@@ -179,3 +186,49 @@ functions:
       - {name: dlambda_dT, label: "Resonance drift dλ/dT", ui_unit: pm/K, scale: 1.0e-12}
       - {name: Gamma_core, label: "Γ ridge", ui_unit: "", scale: 1.0}
       - {name: Gamma_clad, label: "Γ cladding", ui_unit: "", scale: 1.0}
+  pulsed_heating:
+    title: Pulse-train heating
+    equations: ["ΔT(t)/ΔT_cw = Σ c_n H(n f) e^(i2πnft)", "c_0 = D, c_n = (1 - e^(-i2πnD))/(i2πn)"]
+    inputs:
+      - {name: rep_rate, label: "Repetition rate", ui_unit: kHz, scale: 1.0e+3, default: 10, min: 0}
+      - {name: duty, label: "Duty cycle", ui_unit: "", scale: 1.0, default: 0.1, min: 0, max: 1}
+      - {name: core_material, label: "Ridge / strip", type: choice, choices: [si, sio2, si3n4, sinx, ln_e, ln_o, lt_e, lt_o, gaas, algaas, inp, aln, al2o3_film, sapphire, tio2_film, su8], default: si}
+      - {name: core_width, label: "Ridge width", ui_unit: µm, scale: 1.0e-6, default: 0.5, min: 0}
+      - {name: core_height, label: "Ridge height (above the film)", ui_unit: µm, scale: 1.0e-6, default: 0.22, min: 0}
+      - {name: slab_material, label: "Film under the ridge", type: choice, choices: [si, sio2, si3n4, sinx, ln_e, ln_o, lt_e, lt_o, gaas, algaas, inp, aln, al2o3_film, sapphire, tio2_film, su8], default: si}
+      - {name: slab_thickness, label: "Film thickness (0 = none)", ui_unit: µm, scale: 1.0e-6, default: 0, min: 0}
+      - {name: box_material, label: "Buried layer", type: choice, choices: [sio2, si3n4, sinx, al2o3_film, sapphire, su8, aln], default: sio2}
+      - {name: box_thickness, label: "Buried-layer thickness", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
+      - {name: substrate_material, label: "Substrate", type: choice, choices: [si, sio2, sapphire, gaas, inp, ln_e, lt_e, aln], default: si}
+      - {name: substrate_thickness, label: "Substrate thickness", ui_unit: µm, scale: 1.0e-6, default: 500, min: 0}
+      - {name: clad_material, label: "Cladding", type: choice, choices: [sio2, si3n4, sinx, al2o3_film, tio2_film, su8, air], default: sio2}
+      - {name: clad_thickness, label: "Cladding height above the buried layer", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0}
+      - {name: domain_half_width, label: "Chip half-width", ui_unit: µm, scale: 1.0e-6, default: 500, min: 0}
+      - {name: h_top, label: "Top heat-transfer coefficient", ui_unit: W/(m² K), scale: 1.0, default: 10, min: 0}
+    outputs:
+      - {name: peak_ratio, label: "Peak ΔT / CW ΔT at peak power", ui_unit: "", scale: 1.0}
+      - {name: min_ratio, label: "Minimum ΔT / CW", ui_unit: "", scale: 1.0}
+      - {name: mean_ratio, label: "Mean ΔT / CW (= duty)", ui_unit: "", scale: 1.0}
+      - {name: swing, label: "Temperature swing / CW", ui_unit: "", scale: 1.0}
+      - {name: dT_cw_per_W_per_m, label: "CW ΔT per mW/mm", ui_unit: K m/W, scale: 1.0}
+  qpm_waveguide:
+    title: TFLN waveguide QPM period and temperature acceptance
+    equations: ["Δk = 2π(n_p/λ_p - n_s/λ_s - n_i/λ_i) with mode n_eff", "ΔT_FWHM = 5.566/(L |dΔk/dT|)"]
+    inputs:
+      - {name: pump_wavelength, label: "Pump (or SH) wavelength", ui_unit: nm, scale: 1.0e-9, default: 775, min: 300}
+      - {name: signal_wavelength, label: "Signal (or fundamental) wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 500}
+      - {name: temperature, label: "Temperature", ui_unit: K, scale: 1.0, default: 297.65, min: 250}
+      - {name: length, label: "Poled length", ui_unit: mm, scale: 1.0e-3, default: 10, min: 0}
+      - {name: core_width, label: "Rib width", ui_unit: µm, scale: 1.0e-6, default: 1.2, min: 0}
+      - {name: core_height, label: "Etch depth (rib height)", ui_unit: µm, scale: 1.0e-6, default: 0.3, min: 0}
+      - {name: slab_thickness, label: "Remaining film", ui_unit: µm, scale: 1.0e-6, default: 0.3, min: 0}
+      - {name: polarization, label: "Mode", type: choice, choices: [TE, TM, scalar], default: TE}
+      - {name: cells_per_wavelength, label: "Mode grid cells per wavelength", ui_unit: "", scale: 1.0, default: 10, min: 6, step: 1}
+    outputs:
+      - {name: period, label: "Poling period", ui_unit: µm, scale: 1.0e-6}
+      - {name: dDk_dT, label: "dΔk/dT", ui_unit: 1/(m K), scale: 1.0}
+      - {name: dT_FWHM, label: "Temperature acceptance (FWHM)", ui_unit: K, scale: 1.0}
+      - {name: bulk_period, label: "Bulk period", ui_unit: µm, scale: 1.0e-6}
+      - {name: bulk_dT_FWHM, label: "Bulk acceptance", ui_unit: K, scale: 1.0}
+      - {name: neff_pump, label: "n_eff pump", ui_unit: "", scale: 1.0}
+      - {name: neff_signal, label: "n_eff signal", ui_unit: "", scale: 1.0}

@@ -44,7 +44,9 @@ def thermal_vectors() -> dict:
     for m in to.MATERIALS:
         e = to.entry(m)
         t["lut"].append({"material": m, "n": to.index_at(m, 1.55e-6), "dn_dT": e["dn_dT"], "k": e["k"], "rho": e["rho"], "cp": e["cp"],
-                         "alpha_L": e["alpha_L"]})
+                         "alpha_L": e["alpha_L"],
+                         "dn_dT_min": e["dn_dT_range"][0], "dn_dT_max": e["dn_dT_range"][1], "k_min": e["k_range"][0],
+                         "k_max": e["k_range"][1], "confidence": e["confidence"]})
     for g in THERMAL_GEOMS:
         r = wt.ridge_heating(**g)
         t["ridge"].append({"geometry": g, **{k: float(r[k]) for k in ("dT_core", "dT_max", "tau_E", "dT_box_top", "n_cells")}})

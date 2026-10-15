@@ -51,9 +51,22 @@ function THERMALENGINE() {
     su8: ['SU-8 / polymer', null, 1.57, -1.1e-4, 0.2, 1200, 1200, 52e-6, 4.0, 0],
     air: ['Air', null, 1.00027, -0.92e-6, 0.026, 1.2, 1005, 0.0, 12.0, 0]
   };
+  /* dn/dT low, high; k low, high; confidence (thermo_optic LUT ranges) */
+  var RANGES = {
+    si: [0.000175, 0.00019, 50.0, 148.0, 'high'], sio2: [8e-06, 1.1e-05, 1.0, 1.4, 'high'],
+    si3n4: [2e-05, 4e-05, 2.5, 30.0, 'medium'], sinx: [2.5e-05, 6e-05, 0.7, 4.0, 'low'],
+    ln_e: [3e-05, 4e-05, 3.5, 5.6, 'medium'], ln_o: [-2e-06, 8e-06, 3.5, 5.6, 'low'],
+    lt_e: [1e-05, 2.5e-05, 3.0, 8.8, 'low'], lt_o: [0.0, 1.2e-05, 3.0, 8.8, 'low'],
+    gaas: [0.0002, 0.00027, 46.0, 55.0, 'medium'], algaas: [0.8 * (2.35e-4 - 0.95e-4 * 0.2), 1.2 * (2.35e-4 - 0.95e-4 * 0.2), 0.8 * 100 / (2.27 + 28.83 * 0.2 - 30 * 0.04), 1.2 * 100 / (2.27 + 28.83 * 0.2 - 30 * 0.04), 'low'],
+    inp: [0.00018, 0.00022, 60.0, 68.0, 'medium'], aln: [2e-05, 3e-05, 5.0, 285.0, 'low'],
+    al2o3_film: [5e-06, 2.5e-05, 1.0, 3.3, 'low'], sapphire: [1.1e-05, 1.5e-05, 30.0, 42.0, 'medium'],
+    tio2_film: [-0.00025, -5e-05, 0.5, 3.0, 'low'], su8: [-0.0002, -5e-05, 0.15, 0.3, 'low'],
+    air: [-1e-06, -8.5e-07, 0.024, 0.028, 'high']
+  };
   function entry(m) {
-    var r = LUT[m]; if (!r) throw new Error('unknown material ' + m);
-    return { name: r[0], sellmeier: r[1], n: r[2], dn_dT: r[3], k: r[4], rho: r[5], cp: r[6], alpha_L: r[7], Eg: r[8], beta_tpa: r[9] };
+    var r = LUT[m], g = RANGES[m]; if (!r) throw new Error('unknown material ' + m);
+    return { name: r[0], sellmeier: r[1], n: r[2], dn_dT: r[3], k: r[4], rho: r[5], cp: r[6], alpha_L: r[7], Eg: r[8], beta_tpa: r[9],
+      dn_dT_min: g[0], dn_dT_max: g[1], k_min: g[2], k_max: g[3], confidence: g[4] };
   }
   function indexAt(m, lam) { var e = entry(m); return e.sellmeier ? sellmeier(e.sellmeier, lam) : e.n; }
 
@@ -301,7 +314,7 @@ function THERMALENGINE() {
     var R = o.R_th, lam = o.wavelength || 1.55e-6, A = o.a_eff || 0.1e-12, Ta = o.T_scale != null ? o.T_scale : Infinity;
     var a0 = (o.loss_abs_db_per_cm != null ? o.loss_abs_db_per_cm : 1) * 100 * DB, beta = o.beta_tpa || 0, tau = o.carrier_lifetime || 0;
     var sig = o.sigma_fca || 0, m = o.k_exponent || 0, T0 = o.T0 || 300, lim = o.dT_limit || 3000, P = o.power;
-    var hnu = H * C0 / lam, c2 = beta / A, c3 = sig * tau * beta / (2 * hnu * A * A);
+    var hnu = H * C0 / lam, c2 = beta / A, c3 = sig * tau * beta / (2 * hnu * A * A) + (o.alpha_3pa || 0) / (A * A);
     var ex = function (v) { return Math.exp(Math.min(v / Ta, 700)); };
     var q = function (v, p) { return a0 * ex(v) * p + c2 * p * p + c3 * p * p * p; };
     var Pof = function (v) { return maxPower(a0 * ex(v), c2, c3, kirchhoff(v, m, T0) / R); };

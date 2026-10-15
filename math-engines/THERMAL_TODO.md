@@ -15,37 +15,37 @@ Done: `thermo_optic` (LUT, Δn, slab dn_eff/dT, heat sources, closed-form R′, 
 
 ## 2. Heat sources
 - [x] Longitudinal profile q′(z): pump depletion, signal growth, background absorption (`amplifier_thermal`, same rate equations as `er-waveguide-amplifier.html` with overlap-averaged intensities). Still open: per-cell mode-profile version and ASE.
-- [x] Er-specific heat: 980 nm vs 1480 nm quantum defect, upconversion, non-radiative decay (η_rad), quenched ions. Still open: excited-state absorption, concentration-dependent C_up and f_q as in the applet.
-- [ ] Three-photon absorption (TFLN, AlGaAs below the half-gap), Urbach-tail TPA in AlGaAs near x ≈ 0.18, defect/OH absorption in oxides near 1.4 µm, H-bond (N–H) absorption at 1520 nm in PECVD SiN.
+- [x] Er-specific heat: 980 nm vs 1480 nm quantum defect, upconversion, non-radiative decay (η_rad), quenched ions. Concentration-dependent C_up and f_q (`concentration_effects`). Still open: excited-state absorption.
+- [x] Three-photon absorption term `alpha_3pa` (heat, budget, runaway). Still open (needs data): α₃ values, Urbach-tail TPA in AlGaAs near x ≈ 0.18, OH absorption in oxides near 1.4 µm, N–H absorption at 1520 nm in PECVD SiN.
 - [x] Free-carrier dispersion of Si (`si_free_carrier_index`, `absorbed_heat` → `dn_fc_si`). GaAs still open.
-- [ ] Split measured propagation loss into absorption vs scattering (only absorption heats); helper with typical splits per platform.
+- [x] Absorption vs scattering from a measurement: `absorption_from_thermal_shift` (ring self-heating shift per dissipated power → absorbing share and α_abs). Typical splits per platform need data.
 
 ## 3. Thermal solver
-- [x] Optical-mode-weighted temperature and heat ∝ |E|² in the ridge (`mode_weighted_heating`, scalar FV mode solver). Still open: semi-vectorial/vectorial TE/TM modes (Si wires differ by up to ~10 %).
+- [x] Optical-mode-weighted temperature and heat ∝ |E|² in the ridge (`mode_weighted_heating`, scalar FV mode solver). Semi-vectorial TE/TM modes with exact re-solve sensitivities (`polarization`). Still open: full-vector modes.
 - [x] Self-consistent loop T → n(T) → mode → heat → k(T) → T (`self_consistent_heating`): thermal lens (exact vs first-order Δn_eff, A_eff, centroid) and runaway; lumped threshold model `thermo_optic.thermal_runaway` (absorption e^(ΔT/T_a), k ∝ T^-m via the Kirchhoff transform), agreeing with the 2D loop to 1 %. Still open: temperature-dependent TPA/FCA lifetime, runaway dynamics in time.
-- [x] Transient solver: step response (backward Euler) and exact frequency response, f₃dB (`ridge_dynamics`). Still open: arbitrary pulse trains.
-- [x] Axial heat flow: exact R(κ) by Fourier transform along z and ΔT(z) for any q′(z) (`axial_transfer`, `temperature_along_z`). Result: the axial length is ~µm, so the local 2D R′ is accurate for amplifiers. Still open: package and heat-sink models (thermal paste, TEC), finite chip width.
-- [x] Heater P_π and thermal crosstalk at a given pitch (`heater_tuning`). Still open: isolation trenches and undercut, the heater metal's own conductance.
+- [x] Transient solver: step response (backward Euler) and exact frequency response, f₃dB (`ridge_dynamics`). Pulse trains (`pulsed_heating`, exact frequency response, checked against step-response superposition).
+- [x] Axial heat flow: exact R(κ) by Fourier transform along z and ΔT(z) for any q′(z) (`axial_transfer`, `temperature_along_z`). Result: the axial length is ~µm, so the local 2D R′ is accurate for amplifiers. Heat-sink interface conductance `h_bottom` (die attach, paste, TEC plate); chip width via `domain_half_width`.
+- [x] Heater P_π and thermal crosstalk at a given pitch (`heater_tuning`). Trenches, undercut and heater metal (`rects`, `heater_tuning` options).
 - [x] Temperature-dependent k per region (iteration in `self_consistent_heating`; checked against the Kirchhoff transform for a uniform exponent).
 - [x] JS port `waveguide-thermal/thermal-engine.js` (heat solve, scalar mode, mode-weighted heating, runaway, Er heating, QPM, ring), worker-friendly, checked against the `thermal` vectors. Not ported: self-consistent loop, dynamics, axial transfer, heater, athermal design.
 
 ## 4. Optical consequences and limits
-- [x] QPM temperature acceptance in TFLN and the chirped Δk from z-dependent heating, with and without retuning (`qpm_thermal`). Still open: TFLT (needs a temperature Sellmeier for LT), waveguide n_eff instead of bulk, high-gain OPA.
+- [x] QPM temperature acceptance in TFLN and the chirped Δk from z-dependent heating, with and without retuning (`qpm_thermal`). Waveguide n_eff instead of bulk (`qpm_waveguide`). Still open: TFLT (needs a temperature Sellmeier for LT), high-gain OPA.
 - [x] Ring thermal bistability threshold and on-resonance heating (`ring_thermal_bistability`). Still open: thermal locking dynamics, OPO threshold shift.
-- [ ] MZI and grating devices: phase drift vs pump power, Bragg-wavelength drift of DBR mirrors (`bragg_grating`).
-- [ ] Gain-spectrum shift of Er with temperature (cross-section temperature dependence) for the Er amplifier.
+- [x] MZI and grating drift (`mzi_thermal`, `bragg_thermal`).
+- [x] Er gain against temperature and self-heating (`er_gain_vs_temperature`, McCumber with fixed σ_a). Still open: measured σ_a(T), lifetime(T).
 - [x] Mode-dependent dn_eff/dT for channel waveguides (Γ_r per region from the 2D mode). Athermal design helper `athermal_design` (bisection on width, height, film or BOX thickness for dλ/dT = 0).
 - [ ] Damage and stability thresholds: photorefraction (LN at visible pumps), polymer/SU-8 degradation temperature, Er clustering.
 
 ## 5. Front end
-- [x] `pump-heating-planner.html`: platform presets and geometry; cross-section ΔT and mode maps; R′, dn_eff/dT, dλ/dT; ΔT against power with feedback up to the runaway threshold; P_max from the ΔT and Δn budgets; Er amplifier ΔT(z). Still open: QPM and ring panels, LUT browser with ranges and sources.
-- [x] `er-waveguide-amplifier.html`: a peak-heating tile computed from the applet's own per-cell rate equations (heat = absorbed − radiated + absorbing background) with the closed-form R′. Still open: a thermal pump limit and ΔT(z) plot there.
+- [x] `pump-heating-planner.html`: platform presets and geometry; cross-section ΔT and mode maps; R′, dn_eff/dT, dλ/dT; ΔT against power with feedback up to the runaway threshold; P_max from the ΔT and Δn budgets; Er amplifier ΔT(z). Ring and QPM panels and a material table with ranges and confidence added. Still open: semi-vectorial modes in the JS port.
+- [x] `er-waveguide-amplifier.html`: a peak-heating tile computed from the applet's own per-cell rate equations (heat = absorbed − radiated + absorbing background) with the closed-form R′. ΔT(z) plot and the pump power reaching a 5 K budget added.
 - [x] Worked-example script `examples/pump_heating.py` (Er:Al₂O₃ on TFLN at 980/1480 nm, Si and AlGaAs wires, TFLN OPA, SiN ring). The engines are in `web/engines_index.json`; the Pyodide page itself has not been tried with them.
 
 ## 6. Validation
 - [x] PPLN 1550 nm SHG acceptance against a measured 40 mm waveguide (1.98 K, arXiv:2607.13215): model ~10 K·cm, within ~20 %.
 - [x] Heater P_π against published values: SOI 19 mW (published 20–25 mW), thick SiN ~120 mW. Still open: measured self-heating resonance shifts, TFLN heaters.
-- [ ] Cross-check against an independent FEM (e.g. FEniCS/Elmer) for one SOI, one TFLN and one SiN cross-section.
+- [x] Independent FEM cross-check (`tools/fem_crosscheck.py`, scikit-fem P2): R′ within 0.7 % for SOI, SiN and TFLN.
 
 ## Findings so far (examples/pump_heating.py)
 - Er:Al₂O₃ strip on TFLN: once the 980 nm pump bleaches the Er absorption, Er adds little heat. The absorbing part of the background loss and quenched ions set the temperature, and 5 K at the input needs several watts. Phase-matched or resonant devices on the same chip will feel it long before the amplifier does.

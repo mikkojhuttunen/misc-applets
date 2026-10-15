@@ -3107,7 +3107,12 @@
     "k": 148.0,
     "rho": 2329.0,
     "cp": 705.0,
-    "alpha_L": 2.6e-06
+    "alpha_L": 2.6e-06,
+    "dn_dT_min": 0.000175,
+    "dn_dT_max": 0.00019,
+    "k_min": 50.0,
+    "k_max": 148.0,
+    "confidence": "high"
    },
    {
     "material": "sio2",
@@ -3116,7 +3121,12 @@
     "k": 1.38,
     "rho": 2200.0,
     "cp": 740.0,
-    "alpha_L": 5.5e-07
+    "alpha_L": 5.5e-07,
+    "dn_dT_min": 8e-06,
+    "dn_dT_max": 1.1e-05,
+    "k_min": 1.0,
+    "k_max": 1.4,
+    "confidence": "high"
    },
    {
     "material": "si3n4",
@@ -3125,7 +3135,12 @@
     "k": 10.0,
     "rho": 3100.0,
     "cp": 700.0,
-    "alpha_L": 3.3e-06
+    "alpha_L": 3.3e-06,
+    "dn_dT_min": 2e-05,
+    "dn_dT_max": 4e-05,
+    "k_min": 2.5,
+    "k_max": 30.0,
+    "confidence": "medium"
    },
    {
     "material": "sinx",
@@ -3134,7 +3149,12 @@
     "k": 1.5,
     "rho": 2500.0,
     "cp": 750.0,
-    "alpha_L": 2e-06
+    "alpha_L": 2e-06,
+    "dn_dT_min": 2.5e-05,
+    "dn_dT_max": 6e-05,
+    "k_min": 0.7,
+    "k_max": 4.0,
+    "confidence": "low"
    },
    {
     "material": "ln_e",
@@ -3143,7 +3163,12 @@
     "k": 4.6,
     "rho": 4650.0,
     "cp": 630.0,
-    "alpha_L": 7.5e-06
+    "alpha_L": 7.5e-06,
+    "dn_dT_min": 3e-05,
+    "dn_dT_max": 4e-05,
+    "k_min": 3.5,
+    "k_max": 5.6,
+    "confidence": "medium"
    },
    {
     "material": "ln_o",
@@ -3152,7 +3177,12 @@
     "k": 4.6,
     "rho": 4650.0,
     "cp": 630.0,
-    "alpha_L": 1.54e-05
+    "alpha_L": 1.54e-05,
+    "dn_dT_min": -2e-06,
+    "dn_dT_max": 8e-06,
+    "k_min": 3.5,
+    "k_max": 5.6,
+    "confidence": "low"
    },
    {
     "material": "lt_e",
@@ -3161,7 +3191,12 @@
     "k": 4.6,
     "rho": 7450.0,
     "cp": 424.0,
-    "alpha_L": 4.1e-06
+    "alpha_L": 4.1e-06,
+    "dn_dT_min": 1e-05,
+    "dn_dT_max": 2.5e-05,
+    "k_min": 3.0,
+    "k_max": 8.8,
+    "confidence": "low"
    },
    {
     "material": "lt_o",
@@ -3170,7 +3205,12 @@
     "k": 4.6,
     "rho": 7450.0,
     "cp": 424.0,
-    "alpha_L": 1.61e-05
+    "alpha_L": 1.61e-05,
+    "dn_dT_min": 0.0,
+    "dn_dT_max": 1.2e-05,
+    "k_min": 3.0,
+    "k_max": 8.8,
+    "confidence": "low"
    },
    {
     "material": "gaas",
@@ -3179,7 +3219,12 @@
     "k": 55.0,
     "rho": 5317.0,
     "cp": 330.0,
-    "alpha_L": 5.73e-06
+    "alpha_L": 5.73e-06,
+    "dn_dT_min": 0.0002,
+    "dn_dT_max": 0.00027,
+    "k_min": 46.0,
+    "k_max": 55.0,
+    "confidence": "medium"
    },
    {
     "material": "algaas",
@@ -3188,7 +3233,12 @@
     "k": 14.628437682855472,
     "rho": 5005.6,
     "cp": 354.0,
-    "alpha_L": 5.624000000000001e-06
+    "alpha_L": 5.624000000000001e-06,
+    "dn_dT_min": 0.0001728,
+    "dn_dT_max": 0.00025919999999999996,
+    "k_min": 11.702750146284378,
+    "k_max": 17.554125219426567,
+    "confidence": "low"
    },
    {
     "material": "inp",
@@ -3197,7 +3247,12 @@
     "k": 68.0,
     "rho": 4810.0,
     "cp": 310.0,
-    "alpha_L": 4.6e-06
+    "alpha_L": 4.6e-06,
+    "dn_dT_min": 0.00018,
+    "dn_dT_max": 0.00022,
+    "k_min": 60.0,
+    "k_max": 68.0,
+    "confidence": "medium"
    },
    {
     "material": "aln",
@@ -3206,7 +3261,12 @@
     "k": 30.0,
     "rho": 3255.0,
     "cp": 740.0,
-    "alpha_L": 4.2e-06
+    "alpha_L": 4.2e-06,
+    "dn_dT_min": 2e-05,
+    "dn_dT_max": 3e-05,
+    "k_min": 5.0,
+    "k_max": 285.0,
+    "confidence": "low"
    },
    {
     "material": "al2o3_film",
@@ -3215,7 +3275,12 @@
     "k": 1.6,
     "rho": 3200.0,
     "cp": 780.0,
-    "alpha_L": 4.2e-06
+    "alpha_L": 4.2e-06,
+    "dn_dT_min": 5e-06,
+    "dn_dT_max": 2.5e-05,
+    "k_min": 1.0,
+    "k_max": 3.3,
+    "confidence": "low"
    },
    {
     "material": "sapphire",
@@ -3224,7 +3289,12 @@
     "k": 35.0,
     "rho": 3980.0,
     "cp": 760.0,
-    "alpha_L": 5e-06
+    "alpha_L": 5e-06,
+    "dn_dT_min": 1.1e-05,
+    "dn_dT_max": 1.5e-05,
+    "k_min": 30.0,
+    "k_max": 42.0,
+    "confidence": "medium"
    },
    {
     "material": "tio2_film",
@@ -3233,7 +3303,12 @@
     "k": 1.0,
     "rho": 3800.0,
     "cp": 690.0,
-    "alpha_L": 8e-06
+    "alpha_L": 8e-06,
+    "dn_dT_min": -0.00025,
+    "dn_dT_max": -5e-05,
+    "k_min": 0.5,
+    "k_max": 3.0,
+    "confidence": "low"
    },
    {
     "material": "su8",
@@ -3242,7 +3317,12 @@
     "k": 0.2,
     "rho": 1200.0,
     "cp": 1200.0,
-    "alpha_L": 5.2e-05
+    "alpha_L": 5.2e-05,
+    "dn_dT_min": -0.0002,
+    "dn_dT_max": -5e-05,
+    "k_min": 0.15,
+    "k_max": 0.3,
+    "confidence": "low"
    },
    {
     "material": "air",
@@ -3251,7 +3331,12 @@
     "k": 0.026,
     "rho": 1.2,
     "cp": 1005.0,
-    "alpha_L": 0.0
+    "alpha_L": 0.0,
+    "dn_dT_min": -1e-06,
+    "dn_dT_max": -8.5e-07,
+    "k_min": 0.024,
+    "k_max": 0.028,
+    "confidence": "high"
    }
   ],
   "ridge": [
@@ -3318,8 +3403,8 @@
     "wavelength": 1.55e-06,
     "cells_per_wavelength": 12,
     "heat_in_mode": false,
-    "neff": 2.630386592277332,
-    "n_group": 3.880386749808449,
+    "neff": 2.6303865922773317,
+    "n_group": 3.8803867498084488,
     "dneff_dT": 0.00019024203493175475,
     "dT_mode": 0.3931821476661737,
     "dT_core": 0.3932029404116744,
@@ -3339,12 +3424,12 @@
     "wavelength": 1.55e-06,
     "cells_per_wavelength": 12,
     "heat_in_mode": false,
-    "neff": 1.896388463443744,
-    "n_group": 2.266904874071508,
+    "neff": 1.8963884634437442,
+    "n_group": 2.2669048740714746,
     "dneff_dT": 3.440011243725717e-05,
-    "dT_mode": 0.5188223138692101,
+    "dT_mode": 0.51882231386921,
     "dT_core": 0.5410739997700603,
-    "Gamma_core": 0.43427705433723274
+    "Gamma_core": 0.4342770543372326
    },
    {
     "geometry": {
@@ -3360,12 +3445,12 @@
     "wavelength": 1.55e-06,
     "cells_per_wavelength": 12,
     "heat_in_mode": true,
-    "neff": 1.7909064249316384,
-    "n_group": 2.137639212149246,
-    "dneff_dT": 2.940052472941211e-05,
-    "dT_mode": 0.4632578284962264,
-    "dT_core": 0.5020971753086308,
-    "Gamma_core": 0.1822090576654769
+    "neff": 1.790906424931639,
+    "n_group": 2.137639212149235,
+    "dneff_dT": 2.9400524729412102e-05,
+    "dT_mode": 0.46325782849622626,
+    "dT_core": 0.5020971753086306,
+    "Gamma_core": 0.18220905766547693
    }
   ],
   "strip": [

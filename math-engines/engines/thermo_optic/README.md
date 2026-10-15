@@ -11,6 +11,7 @@ Thermal and thermo-optic properties of waveguide materials, the heat a guided be
 | `slab_thermal_shift(wavelength, core, substrate, cladding, thickness, polarization)` | dn_eff/dT of a slab mode, the share from each layer (Γ_i = ∂n_eff/∂n_i), n_g, resonance drift dλ/dT incl. substrate expansion |
 | `resonance_shift(wavelength, dneff_dT, n_group, n_eff, alpha_L, delta_T)` | dλ/dT, Δλ, dν/dT |
 | `absorbed_heat(power, wavelength, a_eff, loss_abs_db_per_cm, beta_tpa, carrier_lifetime, sigma_fca)` | heat per length q′ from linear absorption, TPA and free-carrier absorption; carrier density; Si free-carrier index change (`si_free_carrier_index`, Soref & Bennett), which has the opposite sign to the thermal one |
+| (three-photon absorption) | `alpha_3pa` (m³/W²) in `absorbed_heat` (`q_3pa`), `pump_budget` and `thermal_runaway`: heat α₃ P³/A_eff² |
 | `amplifier_heat_fraction(pump_wavelength, emission_wavelength, quantum_efficiency)` | quantum defect, η_heat = 1 − η_q λ_p/λ_em |
 | `strip_thermal_resistance(width, height, box_thickness, ..., clad_material, slab_thickness)` | closed-form R′ (K m/W), within ±30 % of the `waveguide_thermal` solver for the tested stacks |
 | `thermal_runaway(R_th, power, ..., T_scale, k_exponent)` | steady ΔT with feedback (absorption α e^(ΔT/T_a), conductivity k ∝ T^-m through the Kirchhoff transform θ = ∫k/k₀ dT) and the runaway threshold (fold of P(ΔT); with linear absorption alone P_th = T_a/(e R′ α); for m > 1 the conduction limit θ < T₀/(m−1)) |
@@ -25,4 +26,4 @@ Worked numbers (from the tests and `waveguide_thermal`):
 
 Not included yet: temperature dependence of dn/dT and k, stress-optic and pyroelectric/photorefractive effects, wavelength dispersion of dn/dT. Pump depletion along an amplifier is in `amplifier_thermal`, phase-matching and resonator detuning in `thermal_detuning`, and worked examples in `examples/pump_heating.py`. See [../../THERMAL_TODO.md](../../THERMAL_TODO.md).
 
-Version 3.
+Version 4.

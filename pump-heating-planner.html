@@ -154,6 +154,21 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
         <div class="ctl"><div class="row"><label for="bg">Background loss (half absorbing)</label><output id="bgOut"></output></div>
           <input id="bg" type="range" min="0" max="2" step="0.01" value="0.25"></div>
       </fieldset>
+
+      <fieldset>
+        <legend>Ring and phase matching</legend>
+        <div class="ctl"><div class="row"><label for="rr">Ring radius</label><output id="rrOut"></output></div>
+          <input id="rr" type="range" min="0.7" max="3" step="0.01" value="2"></div>
+        <div class="ctl"><div class="row"><label for="qi">Intrinsic Q</label><output id="qiOut"></output></div>
+          <input id="qi" type="range" min="4" max="8" step="0.01" value="6"></div>
+        <div class="ctl"><div class="row"><label for="qc">Coupling Q</label><output id="qcOut"></output></div>
+          <input id="qc" type="range" min="4" max="8" step="0.01" value="6"></div>
+        <div class="ctl"><div class="row"><label for="fa">Absorbing share of the intrinsic loss</label><output id="faOut"></output></div>
+          <input id="fa" type="range" min="0" max="1" step="0.01" value="0.5">
+          <p class="hint">The ring and the phase-matching panel use the guided power above as the bus or pump power.</p></div>
+        <div class="ctl"><div class="row"><label for="lq">Poled length (phase matching)</label><output id="lqOut"></output></div>
+          <input id="lq" type="range" min="1" max="50" step="0.5" value="10"></div>
+      </fieldset>
     </div>
 
     <div class="views">
@@ -198,6 +213,25 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
           <span id="zNote"></span>
         </div>
         <p class="hint">Two-level Er model with the overlaps of this cross-section (signal at 1532 nm, pump at the chosen wavelength), sputtered Al₂O₃:Er cross-sections (σ<sub>a</sub>(1532) = 5.7×10⁻²¹ cm², τ = 7.5 ms, C<sub>up</sub> = 4×10⁻¹⁸ cm³/s, 80 % radiative). Heat = absorbed − radiated: quantum defect, non-radiative decay, upconversion, quenched ions, and half of the background loss.</p>
+      </section>
+
+      <div class="duo">
+        <section class="panel">
+          <h2>Ring resonator made of this waveguide</h2>
+          <div class="stats" id="ringStats"></div>
+          <p class="hint">Coupled-mode theory with absorption heating, the ring's thermal resistance R′/L. Above the threshold the resonance becomes a thermal triangle (bistable): sweep the laser from the blue side to stay locked on it. Q<sub>c</sub> = Q<sub>i</sub> is critical coupling.</p>
+        </section>
+        <section class="panel">
+          <h2>Phase matching: SHG of λ in MgO:LiNbO₃</h2>
+          <div class="stats" id="qpmStats"></div>
+          <p class="hint">Bulk 5 % MgO:LiNbO₃, type-0 (Gayer Sellmeier); TFLN waveguides have shorter periods and about half the bulk acceptance (math-engines <span class="mono">qpm_waveguide</span>). The input is heated by the absorbing loss at the guided power; the heating decays over 1/α along the device, so retuning the chip temperature recovers only its mean.</p>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>Material table</h2>
+        <div style="overflow-x:auto"><table id="lutTable" style="border-collapse:collapse;font:12px var(--font-data);width:100%"></table></div>
+        <p class="hint">The thermo_optic LUT at about 300 K: index at the current wavelength (Sellmeier where available, else the 1550 nm value), dn/dT and thermal conductivity with their ranges. Low-confidence rows are design placeholders; sources in <span class="mono">math-engines/engines/thermo_optic/LUT.md</span>.</p>
       </section>
 
       <details class="how">
@@ -247,7 +281,9 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
       lam: +$('lam').value * 1e-9, cpw: +$('cpw').value, P: Math.pow(10, +$('P').value), abs: Math.pow(10, +$('abs').value),
       beta: +$('tpa').value * 1e-11, tau: Math.pow(10, +$('tau').value), Ta: Ta > 3 ? Infinity : Math.pow(10, Ta), mk: +$('mk').value,
       dTmax: +$('dTmax').value, dnmax: Math.pow(10, +$('dnmax').value), er: $('erOn').checked, pl: +$('pl').value * 1e-9,
-      Pp: Math.pow(10, +$('Pp').value), L: +$('L').value * 1e-2, nEr: +$('nEr').value * 1e26, fq: +$('fq').value / 100, bg: +$('bg').value };
+      Pp: Math.pow(10, +$('Pp').value), L: +$('L').value * 1e-2, nEr: +$('nEr').value * 1e26, fq: +$('fq').value / 100, bg: +$('bg').value,
+      rr: Math.pow(10, +$('rr').value) * 1e-6, qi: Math.pow(10, +$('qi').value), qc: Math.pow(10, +$('qc').value), fa: +$('fa').value,
+      lq: +$('lq').value * 1e-3 };
   }
   function labels(s) {
     $('wOut').textContent = fmt(s.geo.core_width * 1e6, 2) + ' µm'; $('hOut').textContent = fmt(s.geo.core_height * 1e6, 2) + ' µm';
@@ -260,6 +296,19 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
     $('PpOut').textContent = fmtP(s.Pp); $('LOut').textContent = fmt(s.L * 100, 1) + ' cm'; $('nErOut').textContent = fmt(s.nEr / 1e26, 2) + '×10²⁰ cm⁻³';
     $('fqOut').textContent = Math.round(s.fq * 100) + ' %'; $('bgOut').textContent = fmt(s.bg, 2) + ' dB/cm';
     $('erPanel').classList.toggle('hidden', !s.er);
+    $('rrOut').textContent = fmt(s.rr * 1e6, 0) + ' µm'; $('qiOut').textContent = s.qi.toExponential(1); $('qcOut').textContent = s.qc.toExponential(1);
+    $('faOut').textContent = Math.round(s.fa * 100) + ' %'; $('lqOut').textContent = fmt(s.lq * 1e3, 1) + ' mm';
+  }
+  function statsHTML(rows) { return rows.map(function (r) { return '<div class="stat"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>'; }).join(''); }
+  function lutTable(lam) {
+    var th = 'style="text-align:right;padding:3px 8px;border-bottom:1px solid var(--line);color:var(--muted);font-weight:500"', td = 'style="text-align:right;padding:3px 8px;border-bottom:1px solid var(--line);white-space:nowrap"';
+    var h = '<tr><th ' + th.replace('right', 'left') + '>material</th><th ' + th + '>n</th><th ' + th + '>dn/dT (10⁻⁵/K)</th><th ' + th + '>k (W/m/K)</th><th ' + th + '>ρc<sub>p</sub> (MJ/m³K)</th><th ' + th + '>α<sub>L</sub> (ppm/K)</th><th ' + th + '>E<sub>g</sub> (eV)</th><th ' + th + '>confidence</th></tr>';
+    Object.keys(E.LUT).forEach(function (m) {
+      var e = E.entry(m);
+      h += '<tr><td ' + td.replace('right', 'left') + '>' + e.name + '</td><td ' + td + '>' + E.indexAt(m, lam).toFixed(4) + '</td><td ' + td + '>' + fmt(e.dn_dT * 1e5) + ' [' + fmt(e.dn_dT_min * 1e5) + ', ' + fmt(e.dn_dT_max * 1e5) + ']</td><td ' + td + '>' +
+        fmt(e.k) + ' [' + fmt(e.k_min) + ', ' + fmt(e.k_max) + ']</td><td ' + td + '>' + fmt(e.rho * e.cp / 1e6, 2) + '</td><td ' + td + '>' + fmt(e.alpha_L * 1e6, 2) + '</td><td ' + td + '>' + fmt(e.Eg) + '</td><td ' + td + '><span style="color:' + (e.confidence === 'low' ? 'var(--bad)' : 'inherit') + '">' + e.confidence + '</span></td></tr>';
+    });
+    $('lutTable').innerHTML = h;
   }
 
   /* ---------- worker: cross-section heat + mode (+ pump mode for the Er overlaps) ---------- */
@@ -419,6 +468,17 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
       refs: [{ y: s.dTmax, color: css('--bad') }].concat(isFinite(here.P_threshold) && here.P_threshold < 10 ? [{ x: here.P_threshold, color: css('--bad') }] : []),
       marks: isFinite(dTnow) ? [{ x: s.P, y: dTnow, color: css('--fb') }] : [],
       tip: function (i) { return fmtP(sw.Ps[i]) + ' · ' + fmt(sw.base[i]) + ' K → ' + (isFinite(sw.fb[i]) ? fmt(sw.fb[i]) + ' K' : 'runaway'); } });
+
+    var ring = E.ringThermalBistability({ wavelength: s.lam, ring_length: 2 * Math.PI * s.rr, n_group: X.n_group, Q_intrinsic: s.qi, Q_coupling: s.qc,
+      absorbing_fraction: s.fa, R_th: X.R_mode, dneff_dT: X.dneff_dT, power: s.P });
+    $('ringStats').innerHTML = statsHTML([['Loaded Q', ring.Q_loaded.toExponential(2)], ['Linewidth', fmt(ring.linewidth * 1e12, 2) + ' pm'],
+      ['Bistability threshold', fmtP(ring.P_threshold)], ['ΔT on resonance at ' + fmtP(s.P), fmt(ring.dT_resonance) + ' K'],
+      ['Thermal shift', fmt(ring.delta_lambda_max * 1e12, 1) + ' pm = ' + fmt(ring.shift_linewidths, 1) + ' linewidths'], ['Power buildup', fmt(ring.buildup, 0) + '×']]);
+    var aq = E.dbToNeper(s.abs), dTin = isFinite(dTnow) ? dTnow : here.dT_no_feedback;
+    var qp = E.qpmThermal({ pump_wavelength: s.lam / 2, signal_wavelength: s.lam, length: s.lq, dT_in: dTin, decay_length: aq > 0 ? 1 / aq : 1e6, alpha_L: 2.6e-6, n_z: 801 });
+    $('qpmStats').innerHTML = statsHTML([['Bulk period', fmt(qp.period * 1e6, 2) + ' µm'], ['Acceptance (FWHM)', fmt(qp.dT_FWHM, 2) + ' K'],
+      ['ΔT at the input', fmt(dTin) + ' K'], ['Efficiency, heated', fmt(qp.eta_heated, 3)], ['After retuning', fmt(qp.eta_retuned, 3) + ' (' + (qp.retune_dT >= 0 ? '+' : '') + fmt(qp.retune_dT, 2) + ' K)']]);
+    lutTable(s.lam);
 
     if (s.er && X.er) {
       var r = E.erAmplifierHeating({ pump_power: s.Pp, length: s.L, R_th: X.er.R, dneff_dT: X.er.dndT, pump_wavelength: s.pl,

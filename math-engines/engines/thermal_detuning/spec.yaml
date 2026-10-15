@@ -1,7 +1,7 @@
 engine: thermal_detuning
-version: 1
+version: 2
 title: Thermal detuning of phase matching and resonators
-description: Temperature acceptance of type-0 PPLN interactions and the efficiency left under non-uniform (absorbed-pump) heating, with and without retuning; thermal bistability threshold and on-resonance heating of ring resonators.
+description: MZI and Bragg-grating thermal drift; absorbing share of a ring's loss from its self-heating shift. Temperature acceptance of type-0 PPLN interactions and the efficiency left under non-uniform (absorbed-pump) heating, with and without retuning; thermal bistability threshold and on-resonance heating of ring resonators.
 references:
   - "O. Gayer, Z. Sacks, E. Galun, A. Arie, Appl. Phys. B 91, 343 (2008)"
   - "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992) (QPM tolerances)"
@@ -51,3 +51,54 @@ functions:
       - {name: delta_lambda_max, label: "Thermal resonance shift", ui_unit: pm, scale: 1.0e-12}
       - {name: buildup, label: "Circulating / input power", ui_unit: "", scale: 1.0}
       - {name: bistable, label: "Bistable at this power", ui_unit: "", scale: 1.0}
+  mzi_thermal:
+    title: Mach-Zehnder thermal drift
+    equations: ["dΔφ/dT = (2π/λ) ΔL (dn_eff/dT + n_eff α_L)", "dλ/dT = λ (dn_eff/dT + n_eff α_L)/n_g", "Δφ_arm = (2π/λ)(dn_eff/dT) ΔT L_h"]
+    inputs:
+      - {name: wavelength, label: "Wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 300}
+      - {name: delta_length, label: "Arm length difference ΔL", ui_unit: µm, scale: 1.0e-6, default: 100, min: 0}
+      - {name: heated_length, label: "Heated length of one arm", ui_unit: mm, scale: 1.0e-3, default: 1, min: 0}
+      - {name: dneff_dT, label: "dn_eff/dT", ui_unit: 1e-5/K, scale: 1.0e-5, default: 18}
+      - {name: n_eff, label: "Effective index", ui_unit: "", scale: 1.0, default: 2.4, min: 1}
+      - {name: n_group, label: "Group index", ui_unit: "", scale: 1.0, default: 4.2, min: 1}
+      - {name: alpha_L, label: "Substrate expansion", ui_unit: ppm/K, scale: 1.0e-6, default: 2.6}
+      - {name: dT_arm, label: "ΔT of the heated arm", ui_unit: K, scale: 1.0, default: 1}
+    outputs:
+      - {name: dphi_dT_common, label: "Phase drift, whole chip", ui_unit: rad/K, scale: 1.0}
+      - {name: fringe_drift, label: "Fringe drift dλ/dT", ui_unit: pm/K, scale: 1.0e-12}
+      - {name: fsr, label: "Free spectral range", ui_unit: nm, scale: 1.0e-9}
+      - {name: drift_fsr_per_K, label: "Drift in FSR per K", ui_unit: 1/K, scale: 1.0}
+      - {name: phase_arm, label: "Phase from the heated arm", ui_unit: rad, scale: 1.0}
+      - {name: dT_pi_arm, label: "ΔT for π in that arm", ui_unit: K, scale: 1.0}
+  bragg_thermal:
+    title: Bragg grating / DBR thermal drift
+    equations: ["dλ_B/dT = λ_B (dn_eff/dT + n_eff α_L)/n_g"]
+    inputs:
+      - {name: bragg_wavelength, label: "Bragg wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 300}
+      - {name: dneff_dT, label: "dn_eff/dT", ui_unit: 1e-5/K, scale: 1.0e-5, default: 18}
+      - {name: n_eff, label: "Effective index", ui_unit: "", scale: 1.0, default: 2.4, min: 1}
+      - {name: n_group, label: "Group index", ui_unit: "", scale: 1.0, default: 4.2, min: 1}
+      - {name: alpha_L, label: "Substrate expansion", ui_unit: ppm/K, scale: 1.0e-6, default: 2.6}
+      - {name: delta_T, label: "Temperature rise", ui_unit: K, scale: 1.0, default: 1}
+      - {name: bandwidth, label: "Stop-band width", ui_unit: nm, scale: 1.0e-9, default: 1, min: 0}
+    outputs:
+      - {name: dlambda_dT, label: "dλ_B/dT", ui_unit: pm/K, scale: 1.0e-12}
+      - {name: delta_lambda, label: "Shift at ΔT", ui_unit: pm, scale: 1.0e-12}
+      - {name: shift_in_bandwidths, label: "Shift in stop-band widths", ui_unit: "", scale: 1.0}
+      - {name: dT_one_bandwidth, label: "ΔT for one stop-band width", ui_unit: K, scale: 1.0}
+  absorption_from_thermal_shift:
+    title: Absorbing share of a ring's loss from self-heating
+    equations: ["f_abs = (dλ/dP_diss) / (λ (dn_eff/dT) R' / (n_g L))", "α_abs = f_abs · 2π n_g / (λ Q_i)"]
+    inputs:
+      - {name: shift_per_dissipated_power, label: "Measured shift per dissipated power", ui_unit: pm/mW, scale: 1.0e-9, default: 1, min: 0}
+      - {name: wavelength, label: "Resonance wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 300}
+      - {name: ring_length, label: "Ring circumference", ui_unit: µm, scale: 1.0e-6, default: 628.3, min: 0}
+      - {name: n_group, label: "Group index", ui_unit: "", scale: 1.0, default: 2.3, min: 1}
+      - {name: dneff_dT, label: "dn_eff/dT", ui_unit: 1e-5/K, scale: 1.0e-5, default: 3}
+      - {name: R_th, label: "Thermal resistance R'", ui_unit: K m/W, scale: 1.0, default: 0.5, min: 0}
+      - {name: Q_intrinsic, label: "Intrinsic Q", ui_unit: 1e6, scale: 1.0e+6, default: 1, min: 0}
+    outputs:
+      - {name: absorbing_fraction, label: "Absorbing share of the intrinsic loss", ui_unit: "", scale: 1.0}
+      - {name: shift_if_all_absorbed, label: "Shift if all loss were absorption", ui_unit: pm/mW, scale: 1.0e-9}
+      - {name: alpha_intrinsic_db_per_cm, label: "Intrinsic loss", ui_unit: dB/cm, scale: 1.0}
+      - {name: alpha_abs_db_per_cm, label: "Absorption loss", ui_unit: dB/cm, scale: 1.0}

@@ -2444,7 +2444,7 @@
   },
   {
    "engine": "onchip_herriott",
-   "version": 2,
+   "version": 3,
    "title": "On-chip Herriott cell, Gaussian-beam path and volume budget",
    "description": "Effective path, absorption-weighted mode volume, angles of incidence and throughput of an integrated (in-plane) Herriott cell with constant or etched-trench DBR mirrors, the beam's angular spectrum, and Gaussian clipping at the mirror ends and the window.",
    "requires": [],
@@ -2463,6 +2463,7 @@
     "engines/cell_mirror/__init__.py",
     "engines/cell_mirror/engine.py",
     "engines/onchip_herriott/__init__.py",
+    "engines/onchip_herriott/amp2d.py",
     "engines/onchip_herriott/engine.py",
     "engines/onchip_herriott/erbium.py",
     "engines/onchip_herriott/stack.py",
@@ -3118,11 +3119,12 @@
      ]
     },
     "er_amplifier": {
-     "title": "Er:Al₂O₃ gain in the cell",
+     "title": "Er:Al₂O₃ gain in the cell (shared inversion, ASE)",
      "equations": [
-      "dPs/ds = [Γs(σe,s N2 − σa,s N1) − α] Ps",
-      "dPp/ds = −[Γp(σa,p N1 − σe,p N2) + α] Pp",
-      "N2 = 2RaN/(b + √(b² + 4 C_up Ra N)), b = Ra + Re + 1/τ"
+      "φ_b(X, z) = Σ_passes P_b √(2/π)/w e^{−2d²/w²} S_b(z)/h_eff,b / hν_b",
+      "N2 = 2RaN/(b + √(b² + 4 C_up Ra N)), b = Ra + Re + 1/τ",
+      "g_b = Σ_q ω_q Σ_m Γ_m,b [σe N2 − σa N1]",
+      "dP_ASE/ds = (g − α) P_ASE + m Γ σe N2 hν Δν (forward and backward)"
      ],
      "inputs": [
       {
@@ -3289,11 +3291,18 @@
       },
       {
        "name": "loss_db_cm",
-       "label": "Waveguide loss",
+       "label": "Waveguide loss (signal, ASE)",
        "ui_unit": "dB/cm",
        "scale": 1.0,
        "default": 0.25,
        "min": 0
+      },
+      {
+       "name": "loss_pump_db_cm",
+       "label": "Pump waveguide loss (< 0: as the signal)",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": -1
       },
       {
        "name": "periods",
@@ -3345,6 +3354,44 @@
        "scale": 1.0,
        "default": 1,
        "min": 0.05
+      },
+      {
+       "name": "model",
+       "label": "Amplifier model",
+       "type": "choice",
+       "choices": [
+        "coupled",
+        "independent",
+        "tophat"
+       ],
+       "default": "coupled"
+      },
+      {
+       "name": "ase",
+       "label": "Include ASE (1/0)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "n_bins",
+       "label": "ASE spectral bins (1450-1650 nm)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 2,
+       "step": 1
+      },
+      {
+       "name": "ase_modes",
+       "label": "Guided modes fed by spontaneous emission",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2,
+       "min": 1
       }
      ],
      "outputs": [
@@ -3352,6 +3399,36 @@
        "name": "gain_db",
        "label": "Net signal gain, window to window",
        "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "ase_fwd",
+       "label": "Forward ASE out of the window",
+       "ui_unit": "µW",
+       "scale": 1e-06
+      },
+      {
+       "name": "ase_bwd",
+       "label": "Backward ASE out of the window",
+       "ui_unit": "µW",
+       "scale": 1e-06
+      },
+      {
+       "name": "nf_db",
+       "label": "Noise figure",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "iterations",
+       "label": "Self-consistency iterations",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "converged",
+       "label": "Converged",
+       "ui_unit": "",
        "scale": 1.0
       },
       {

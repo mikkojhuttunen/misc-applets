@@ -516,17 +516,75 @@ def beam_stability(R=10e-3, N=20, M=3, A=1e-3, phase=0.0, port_width=100e-6, wav
         "Input: waist w_ratio × eigen waist, moved focus_shift along the first pass; coupling = 1D Gaussian overlap"])
 
 
+# ---------------------------------------------------------------- coupled amplifier (shared inversion, ASE)
+from . import amp2d as _a2  # noqa: E402
+
+
+def ase_grid(lam_lo=1.45e-6, lam_hi=1.65e-6, n_bins=20):
+    """Bin centres and widths of the ASE spectrum."""
+    e = np.linspace(lam_lo, lam_hi, n_bins + 1)
+    return 0.5 * (e[1:] + e[:-1]), np.diff(e)
+
+
+def amplifier_coupled(cell, sig, pump, er, Ps_in=1e-6, Pp_in=0.1, ase=True, coupled=True, clip=True, ns=17, nz=6,
+                      lam_lo=1.45e-6, lam_hi=1.65e-6, n_bins=20, ase_modes=2, R_ase=None, max_iter=300, tol=1e-6):
+    """Er amplifier with shared inversion between overlapping passes and forward/backward ASE (amp2d.solve).
+    sig / pump: dict(wavelength, n_eff, mode (stack_mode), z_er (z0, z1), alpha, R_of_chi, beam); er as for amplifier().
+    R_ase(λ, |χ|) is the mirror reflectance for the ASE bins (default: the signal's R_of_chi without beam averaging)."""
+    m = cell.meta
+    hits = trace_hits(cell, 0.0, "window", 4000)
+    n = len(hits["element"])
+    last = n - 1 if hits["exit"] else n
+    y, K, chi = hits["y"], hits["element"], hits["chi"]
+    a, y0, pw = m["aperture"], m["y0"], m["port_w"]
+    win = (y0 - pw / 2, y0 + pw / 2)
+    bps = []
+    for b in (sig, pump):
+        bp = beam_on_path(cell, hits, b["wavelength"] / b["n_eff"], b.get("beam"), n=ns)
+        bp["eta"] = gauss_fraction(*win, y0, bp["W"][0, 0]) if n else 0.0
+        c = np.ones(n)
+        for j in range(last):
+            if clip:
+                wv = bp["W"][j, -1]
+                on = gauss_fraction(-a, a, y[j + 1], wv)
+                off = gauss_fraction(*win, y[j + 1], wv) if K[j] == 0 else 0.0
+                c[j] = max(on - off, 0.0)
+        bp["clip"] = c
+        bps.append(bp)
+    bs, bq = bps
+    Rs = np.array([sig["R_of_chi"](abs(chi[j]), bs["theta0"][j]) * bs["clip"][j] if j < last else 1.0 for j in range(n)])
+    Rp = np.array([pump["R_of_chi"](abs(chi[j]), bq["theta0"][j]) * bq["clip"][j] if j < last else 1.0 for j in range(n)])
+    s2 = dict(sig, R=Rs, eta=bs["eta"])
+    p2 = dict(pump, R=Rp, eta=bq["eta"])
+    A = None
+    if ase:
+        lk, dl = ase_grid(lam_lo, lam_hi, n_bins)
+        Rk = np.ones((len(lk), n))
+        for k, lam in enumerate(lk):
+            for j in range(last):
+                Rk[k, j] = (R_ase(lam, abs(chi[j])) if R_ase else 1.0) * bs["clip"][j]
+        A = dict(lams=lk, dlam=dl, R=Rk, modes=ase_modes)
+    r = _a2.solve(cell, hits, s2, p2, er, Ps_in, Pp_in, bs, bq, A, coupled, nz, max_iter, tol)
+    r.update(hits=hits, bs=bs, bp=bq, eta_s=bs["eta"], eta_p=bq["eta"], path=float(bs["chords"][:n].sum()), exits=bool(hits["exit"]))
+    return r
+
+
 def er_amplifier(R=10e-3, N=20, M=3, A=1e-3, phase=0.0, port_width=100e-6, platform="al2o3", film_t=0.4e-6, er_t=0.4e-6,
                  substrate="sio2", cladding="air", polarization="TE", lam_s=1.532e-6, lam_p=980e-9, P_signal=1e-6,
-                 P_pump=0.1, N_er=1.5e26, tau=7.5e-3, Cup=4e-24, fq=0.0, loss_db_cm=0.25, periods=6, R_pump=0.99,
-                 pump_mirror="constant", w_ratio=1.0, focus_shift=0.0, scale=1.0) -> Result:
+                 P_pump=0.1, N_er=1.5e26, tau=7.5e-3, Cup=4e-24, fq=0.0, loss_db_cm=0.25, loss_pump_db_cm=-1.0, periods=6,
+                 R_pump=0.99, pump_mirror="constant", w_ratio=1.0, focus_shift=0.0, scale=1.0, model="coupled", ase=1,
+                 n_bins=20, ase_modes=2) -> Result:
     """Er:Al2O3 gain in an on-chip Herriott cell: signal and co-propagating pump enter through the window, travel the N
-    passes in the slab (stack modes at each wavelength), are amplified/absorbed in the Er layer and reflected by a trench
-    DBR (signal) and a constant mirror or the same DBR (pump); scale multiplies R, A and the window."""
-    require_positive(P_signal=P_signal, N_er=N_er, tau=tau, scale=scale)
-    require_nonnegative(P_pump=P_pump, Cup=Cup, er_t=er_t, loss_db_cm=loss_db_cm)
+    passes in the slab (stack modes at each wavelength) and are amplified/absorbed in the Er layer; signal mirror a trench
+    DBR, pump mirror constant or the same DBR. model 'coupled': passes share the inversion where their beams overlap,
+    the Er layer is resolved in depth, ASE forward and backward (amp2d); 'independent': each pass sees only its own beams
+    (same Gaussian/depth model); 'tophat': the earlier single-pass model (P Γ/(w√(π/2) t), no ASE). scale multiplies R,
+    A and the window; loss_pump_db_cm < 0 uses the signal loss for the pump."""
+    require_positive(P_signal=P_signal, N_er=N_er, tau=tau, scale=scale, er_t=er_t)
+    require_nonnegative(P_pump=P_pump, Cup=Cup, loss_db_cm=loss_db_cm)
     require_range("fq", fq, 0.0, 0.95)
     require_choice("pump_mirror", pump_mirror, ("constant", "dbr"))
+    require_choice("model", model, ("coupled", "independent", "tophat"))
     ms = _st.stack_mode(platform, film_t, er_t, substrate, cladding, lam_s, polarization)
     mp = _st.stack_mode(platform, film_t, er_t, substrate, cladding, lam_p, polarization)
     if not (math.isfinite(ms["neff"]) and math.isfinite(mp["neff"])):
@@ -538,23 +596,35 @@ def er_amplifier(R=10e-3, N=20, M=3, A=1e-3, phase=0.0, port_width=100e-6, platf
     Rp = (mirror_function("dbr", dbr=DBRAt(dbr, mp["neff"]), wavelength=lam_p) if pump_mirror == "dbr"
           else mirror_function("constant", R_pump))
     beam = dict(w_ratio=w_ratio, focus_shift=focus_shift)
-    a = DB_PER_CM * loss_db_cm
-    sig = dict(wavelength=lam_s, n_eff=ms["neff"], gamma_er=ms["gamma_er"], alpha=a, R_of_chi=Rs, beam=beam)
-    pmp = dict(wavelength=lam_p, n_eff=mp["neff"], gamma_er=mp["gamma_er"], alpha=a, R_of_chi=Rp, beam=beam)
-    r = amplifier(cell, sig, pmp, dict(N=N_er, t=er_t, tau=tau, Cup=Cup, fq=fq), P_signal, P_pump)
-    xs = r["cross_sections"]
+    a_s = DB_PER_CM * loss_db_cm
+    a_p = DB_PER_CM * (loss_db_cm if loss_pump_db_cm < 0 else loss_pump_db_cm)
+    z_er = (film_t, film_t + er_t)
+    sig = dict(wavelength=lam_s, n_eff=ms["neff"], gamma_er=ms["gamma_er"], alpha=a_s, R_of_chi=Rs, beam=beam, mode=ms, z_er=z_er)
+    pmp = dict(wavelength=lam_p, n_eff=mp["neff"], gamma_er=mp["gamma_er"], alpha=a_p, R_of_chi=Rp, beam=beam, mode=mp, z_er=z_er)
+    erd = dict(N=N_er, t=er_t, tau=tau, Cup=Cup, fq=fq)
+    if model == "tophat":
+        r = amplifier(cell, sig, pmp, erd, P_signal, P_pump)
+        r.update(ase_fwd_total=np.nan, ase_bwd_total=np.nan, nf_db=np.nan, iterations=1, converged=True)
+    else:
+        r = amplifier_coupled(cell, sig, pmp, erd, P_signal, P_pump, ase=bool(ase), coupled=model == "coupled", n_bins=int(n_bins),
+                              ase_modes=ase_modes, R_ase=lambda lam, chi: float(dbr.R(lam, abs(math.sin(chi)))))
+        r.setdefault("ase_fwd_total", 0.0); r.setdefault("ase_bwd_total", 0.0); r.setdefault("nf_db", np.nan)
+    xs = _er.cross_sections(lam_s, lam_p)
     v = {"gain_db": r["gain_db"], "internal_gain_db": r["internal_gain_db"], "Ps_out": r["Ps_out"], "pump_left": r["pump_left"],
-         "path": r["path"], "gain_per_cm": r["internal_gain_db"] / (100 * r["path"]) if r["path"] else np.nan,
+         "ase_fwd": r["ase_fwd_total"], "ase_bwd": r["ase_bwd_total"], "nf_db": r["nf_db"], "iterations": r["iterations"],
+         "converged": r["converged"], "path": r["path"], "gain_per_cm": r["internal_gain_db"] / (100 * r["path"]) if r["path"] else np.nan,
          "inversion_mean": float(np.mean(r["inversion"])), "neff_s": ms["neff"], "neff_p": mp["neff"], "gamma_er_s": ms["gamma_er"],
          "gamma_er_p": mp["gamma_er"], "R_dbr_signal": float(dbr.R(lam_s, 0.0)), "R_dbr_pump": float(DBRAt(dbr, mp["neff"]).R(lam_p, 0.0)),
          "small_signal_absorption_db_cm": 10 * math.log10(math.e) * ms["gamma_er"] * xs[0] * N_er / 100,
          "exits": r["exits"], "footprint_area": (cell.meta["d"] + 2 * cell.meta["aperture"] ** 2 / cell.meta["R"]) * 2 * cell.meta["aperture"]}
     u = {k: "" for k in v}
-    u.update(gain_db="dB", internal_gain_db="dB", Ps_out="W", path="m", gain_per_cm="dB/cm", small_signal_absorption_db_cm="dB/cm",
-             footprint_area="m^2")
+    u.update(gain_db="dB", internal_gain_db="dB", Ps_out="W", ase_fwd="W", ase_bwd="W", nf_db="dB", path="m", gain_per_cm="dB/cm",
+             small_signal_absorption_db_cm="dB/cm", footprint_area="m^2")
     return Result(values=v, units=u, assumptions=[
-        "Effective two-level Er³⁺ with upconversion and quenched ions (er-waveguide-amplifier model), no ASE",
-        "Er-layer intensity = P Γ_er/(w√(π/2) t_er): uniform across the thin layer and the beam's effective width",
+        "Effective two-level Er³⁺ with upconversion and quenched ions (er-waveguide-amplifier model)",
+        "coupled: pump, signal and ASE of all passes add incoherently in the Er layer (Gaussian lateral profiles, slab profile in depth); "
+        "the inversion and the fields are iterated to self-consistency",
+        "ASE: forward and backward, n_bins bins over 1450-1650 nm, spontaneous emission into ase_modes guided modes (Γ and n_eff of the signal), "
+        "mirror R(λ) of the signal DBR; NF from the forward ASE density at λs in the signal's polarisation",
         "Signal mirror: first-order trench DBR at λs (beam-averaged); pump mirror constant R_pump or the same DBR at λp",
-        "Mode-matched or mismatched input as for beam_stability; same waveguide loss at both wavelengths",
-        "Crossing passes do not share inversion (no transverse overlap of the passes)"])
+        "No excited-state absorption, no pair-induced quenching beyond fq, no thermal effects; interference of crossing beams averaged"])

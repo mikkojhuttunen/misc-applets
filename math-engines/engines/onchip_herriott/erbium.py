@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
+
 H, C = 6.62607015e-34, 2.99792458e8
 HCK, TK, LAM0 = 14387.77, 295.0, 1.532            # hc/k in µm·K, temperature, McCumber λ0 in µm
 _BANDS = [(1533, 2.9, 11), (1512, 2.35, 58), (1553, 1.15, 30), (1588, 0.4, 50), (1468, 0.7, 40)]
@@ -56,3 +58,11 @@ def populations(Ip, Is, xs, lam_s, lam_p, N, Nq, tau, Cup):
     b = Ra + Re + 1 / tau
     n2 = 2 * Ra * N / (b + math.sqrt(b * b + 4 * Cup * Ra * N)) if Ra > 0 else 0.0
     return N - n2 + Nq, n2
+
+
+def sigma_a_arr(wavelengths, sigma_peak=5.7e-25):
+    return np.array([sigma_a(float(l), sigma_peak) for l in np.atleast_1d(wavelengths)])
+
+
+def sigma_e_arr(wavelengths, sigma_peak=5.7e-25):
+    return np.array([sigma_e(float(l), sigma_peak) for l in np.atleast_1d(wavelengths)])

@@ -191,11 +191,14 @@ def build() -> dict:
                                  "w_hit": [float(x) for x in b["w_hit"]], "theta0": [float(x) for x in b["theta0"]],
                                  **{k: float(st[k]) for k in ("m_roundtrip", "gouy_roundtrip", "m_path", "w0_eigen", "waist_pos", "coupling")}})
     v["onchip_amp"] = []
-    for (pm, pp, ps, scl) in (("constant", 0.1, 1e-6, 1.0), ("dbr", 0.1, 1e-6, 1.0), ("constant", 0.02, 1e-4, 1.5)):
-        r = oh.er_amplifier(pump_mirror=pm, P_pump=pp, P_signal=ps, scale=scl, N=20 if scl == 1.0 else 24, M=3 if scl == 1.0 else 5)
-        v["onchip_amp"].append({"pump_mirror": pm, "P_pump": pp, "P_signal": ps, "scale": scl, "N": 20 if scl == 1.0 else 24,
-                                "M": 3 if scl == 1.0 else 5, **{k: float(r[k]) for k in ("gain_db", "internal_gain_db", "pump_left", "path",
-                                                                                  "inversion_mean", "R_dbr_signal", "R_dbr_pump")}})
+    for (pm, pp, ps, scl, model, nb) in (("constant", 0.1, 1e-6, 1.0, "coupled", 12), ("dbr", 0.1, 1e-6, 1.0, "coupled", 8),
+                                         ("constant", 0.3, 1e-4, 1.5, "independent", 10), ("constant", 0.1, 1e-6, 1.0, "tophat", 20),
+                                         ("constant", 0.5, 1e-6, 1.0, "coupled", 16)):
+        kw = dict(pump_mirror=pm, P_pump=pp, P_signal=ps, scale=scl, N=20 if scl == 1.0 else 24, M=3 if scl == 1.0 else 5, model=model,
+                  n_bins=nb, N_er=1.5e26 if pp < 0.5 else 3e26, loss_pump_db_cm=-1.0 if pp < 0.5 else 0.5)
+        r = oh.er_amplifier(**kw)
+        v["onchip_amp"].append({**kw, **{k: (float(r[k]) if np.isfinite(r[k]) else None) for k in ("gain_db", "internal_gain_db", "pump_left", "path", "inversion_mean",
+                                                                  "R_dbr_signal", "R_dbr_pump", "ase_fwd", "ase_bwd", "nf_db")}})
     v["bessel"] = [{"x": x, "J": [float(j) for j in fav.bessel_j_all(x, 40)]} for x in (0.0, 0.7, 5.5, 33.0, -12.0)]
     v["fringe"] = []
     for (x1, f1, w1, x2, f2, w2, psi, drift, coh, kind) in ((2.4, 1000, "sine", 0.0, 1300, "triangle", 0.0, 0.0, 1.0, "boxcar"),

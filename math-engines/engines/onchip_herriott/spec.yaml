@@ -1,5 +1,5 @@
 engine: onchip_herriott
-version: 2
+version: 3
 title: On-chip Herriott cell, Gaussian-beam path and volume budget
 description: Effective path, absorption-weighted mode volume, angles of incidence and throughput of an integrated (in-plane) Herriott cell with constant or etched-trench DBR mirrors, the beam's angular spectrum, and Gaussian clipping at the mirror ends and the window.
 references:
@@ -110,8 +110,8 @@ functions:
       - {name: breathing, label: "Breathing max/min", ui_unit: "", scale: 1.0}
       - {name: w_mirror_design, label: "Design radius on the mirrors", ui_unit: µm, scale: 1.0e-6}
   er_amplifier:
-    title: Er:Al₂O₃ gain in the cell
-    equations: ["dPs/ds = [Γs(σe,s N2 − σa,s N1) − α] Ps", "dPp/ds = −[Γp(σa,p N1 − σe,p N2) + α] Pp", "N2 = 2RaN/(b + √(b² + 4 C_up Ra N)), b = Ra + Re + 1/τ"]
+    title: Er:Al₂O₃ gain in the cell (shared inversion, ASE)
+    equations: ["φ_b(X, z) = Σ_passes P_b √(2/π)/w e^{−2d²/w²} S_b(z)/h_eff,b / hν_b", "N2 = 2RaN/(b + √(b² + 4 C_up Ra N)), b = Ra + Re + 1/τ", "g_b = Σ_q ω_q Σ_m Γ_m,b [σe N2 − σa N1]", "dP_ASE/ds = (g − α) P_ASE + m Γ σe N2 hν Δν (forward and backward)"]
     inputs:
       - {name: R, label: "Mirror radius R", ui_unit: mm, scale: 1.0e-3, default: 10}
       - {name: N, label: "Hits to re-entrance N", ui_unit: "", scale: 1.0, default: 20, min: 4, step: 1}
@@ -133,15 +133,25 @@ functions:
       - {name: tau, label: "Metastable lifetime", ui_unit: ms, scale: 1.0e-3, default: 7.5}
       - {name: Cup, label: "Upconversion coefficient", ui_unit: 10⁻¹⁸ cm³/s, scale: 1.0e-24, default: 4}
       - {name: fq, label: "Quenched ion fraction", ui_unit: "", scale: 1.0, default: 0, min: 0, max: 0.95}
-      - {name: loss_db_cm, label: "Waveguide loss", ui_unit: dB/cm, scale: 1.0, default: 0.25, min: 0}
+      - {name: loss_db_cm, label: "Waveguide loss (signal, ASE)", ui_unit: dB/cm, scale: 1.0, default: 0.25, min: 0}
+      - {name: loss_pump_db_cm, label: "Pump waveguide loss (< 0: as the signal)", ui_unit: dB/cm, scale: 1.0, default: -1}
       - {name: periods, label: "Signal DBR periods", ui_unit: "", scale: 1.0, default: 6, min: 1, step: 1}
       - {name: R_pump, label: "Pump mirror reflectance (constant)", ui_unit: "", scale: 1.0, default: 0.99, min: 0, max: 1}
       - {name: pump_mirror, label: "Pump mirror", type: choice, choices: [constant, dbr], default: constant}
       - {name: w_ratio, label: "Input waist / eigenmode waist", ui_unit: "", scale: 1.0, default: 1, min: 0.05}
       - {name: focus_shift, label: "Input focus shift", ui_unit: mm, scale: 1.0e-3, default: 0}
       - {name: scale, label: "Cell size factor (R, A, window)", ui_unit: "", scale: 1.0, default: 1, min: 0.05}
+      - {name: model, label: "Amplifier model", type: choice, choices: [coupled, independent, tophat], default: coupled}
+      - {name: ase, label: "Include ASE (1/0)", ui_unit: "", scale: 1.0, default: 1, min: 0, max: 1, step: 1}
+      - {name: n_bins, label: "ASE spectral bins (1450-1650 nm)", ui_unit: "", scale: 1.0, default: 20, min: 2, step: 1}
+      - {name: ase_modes, label: "Guided modes fed by spontaneous emission", ui_unit: "", scale: 1.0, default: 2, min: 1}
     outputs:
       - {name: gain_db, label: "Net signal gain, window to window", ui_unit: dB, scale: 1.0}
+      - {name: ase_fwd, label: "Forward ASE out of the window", ui_unit: µW, scale: 1.0e-6}
+      - {name: ase_bwd, label: "Backward ASE out of the window", ui_unit: µW, scale: 1.0e-6}
+      - {name: nf_db, label: "Noise figure", ui_unit: dB, scale: 1.0}
+      - {name: iterations, label: "Self-consistency iterations", ui_unit: "", scale: 1.0}
+      - {name: converged, label: "Converged", ui_unit: "", scale: 1.0}
       - {name: internal_gain_db, label: "Internal gain", ui_unit: dB, scale: 1.0}
       - {name: Ps_out, label: "Signal out", ui_unit: µW, scale: 1.0e-6}
       - {name: pump_left, label: "Pump left at the exit", ui_unit: "", scale: 1.0}

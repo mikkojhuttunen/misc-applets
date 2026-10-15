@@ -177,3 +177,71 @@ def test_new_front_ends():
     assert b["stable"] and b["breathing"] > 1.3 and b["coupling"] < 1
     p = O.path_budget(loss_db_cm=1.0)
     assert p["T_out"] < O.path_budget()["T_out"] and p["m_roundtrip"] == pytest.approx(b["m_roundtrip"])
+
+
+# ---------------------------------------------------------------- coupled amplifier: shared inversion and ASE
+from engines.onchip_herriott import amp2d as A2  # noqa: E402
+
+
+def _amp_setup(er_t=0.4e-6):
+    ms = ST.stack_mode("al2o3", 0.4e-6, er_t, "sio2", "air", 1.532e-6, "TE")
+    mp = ST.stack_mode("al2o3", 0.4e-6, er_t, "sio2", "air", 980e-9, "TE")
+    one = lambda chi, t=0.0: 1.0
+    z = (0.4e-6, 0.4e-6 + er_t)
+    sig = dict(wavelength=1.532e-6, n_eff=ms["neff"], gamma_er=ms["gamma_er"], alpha=0.0, R_of_chi=one, beam={}, mode=ms, z_er=z)
+    pmp = dict(wavelength=980e-9, n_eff=mp["neff"], gamma_er=mp["gamma_er"], alpha=0.0, R_of_chi=one, beam={}, mode=mp, z_er=z)
+    return ms, sig, pmp
+
+
+def test_coupled_amplifier_limits():
+    ms, sig, pmp = _amp_setup()
+    c = _cell()
+    er = dict(N=1.5e26, t=0.4e-6, tau=7.5e-3, Cup=0.0)
+    dark = O.amplifier_coupled(c, sig, pmp, er, 1e-9, 0.0, ase=False, clip=False, nz=16)
+    full = O.amplifier_coupled(c, sig, pmp, er, 1e-9, 1e3, ase=False, clip=False, nz=16)
+    L = dark["path"]
+    k = 10 * math.log10(math.e) * ms["gamma_er"] * 1.5e26 * L
+    assert dark["internal_gain_db"] == pytest.approx(-k * ER.sigma_a(1.532e-6) / 1, rel=3e-3)
+    assert full["internal_gain_db"] == pytest.approx(k * ER.sigma_e(1.532e-6), rel=3e-3)
+
+
+def test_coupled_amplifier_conserves_photons_and_differs_from_independent_passes():
+    _, sig, pmp = _amp_setup()
+    c = _cell()
+    er = dict(N=1.5e26, t=0.4e-6, tau=7.5e-3, Cup=4e-24)
+    r = O.amplifier_coupled(c, sig, pmp, er, 1e-6, 0.1, ase=True, clip=False)
+    beams, decay = A2.photon_balance(r, c, 0.4e-6, h=6e-6)
+    assert r["converged"] and beams == pytest.approx(decay, rel=0.01)
+    ri = O.amplifier_coupled(c, sig, pmp, er, 1e-6, 0.1, ase=True, coupled=False, clip=False)
+    bi, di = A2.photon_balance(ri, c, 0.4e-6, h=6e-6)
+    assert abs(bi / di - 1) > 0.1                                       # independent passes miscount the overlaps
+    assert r["gain_db"] > ri["gain_db"]                                 # crossing pumps add up
+
+
+def test_ase_scales_with_spontaneous_emission_and_vanishes_without_inversion():
+    _, sig, pmp = _amp_setup()
+    c = _cell()
+    er = dict(N=1.5e26, t=0.4e-6, tau=7.5e-3, Cup=0.0)
+    r1 = O.amplifier_coupled(c, sig, pmp, er, 1e-6, 0.1, ase_modes=1, clip=False)
+    r2 = O.amplifier_coupled(c, sig, pmp, er, 1e-6, 0.1, ase_modes=2, clip=False)
+    assert r2["ase_fwd_total"] == pytest.approx(2 * r1["ase_fwd_total"], rel=0.02)   # low gain: ASE ∝ spontaneous emission
+    dark = O.amplifier_coupled(c, sig, pmp, er, 1e-9, 0.0, clip=False)
+    assert dark["ase_fwd_total"] < 1e-5 * r2["ase_fwd_total"] and dark["ase_bwd_total"] < 1e-5 * r2["ase_bwd_total"]
+    assert np.all(r2["ase_fwd"] >= 0) and np.all(r2["ase_bwd"] >= 0)
+
+
+def test_ase_saturates_a_high_gain_cell():
+    _, sig, pmp = _amp_setup()
+    c = P.herriott_planar_cell(30e-3, 40, 9, 3e-3, 300e-6)
+    er = dict(N=3e26, t=0.4e-6, tau=7.5e-3, Cup=4e-24)
+    w = O.amplifier_coupled(c, sig, pmp, er, 1e-7, 1.0, ase=True, clip=False)
+    wo = O.amplifier_coupled(c, sig, pmp, er, 1e-7, 1.0, ase=False, clip=False)
+    assert w["converged"] and w["gain_db"] > 20 and wo["gain_db"] - w["gain_db"] > 3
+    assert w["ase_bwd_total"] > 1e-3 and w["nf_db"] > 3.0                  # high-gain quantum limit (2 n_sp)
+
+
+def test_er_amplifier_models():
+    rc, ri, rt = (O.er_amplifier(model=m) for m in ("coupled", "independent", "tophat"))
+    assert rc["converged"] and rc["ase_fwd"] > 0 and np.isfinite(rc["nf_db"]) and np.isnan(rt["ase_fwd"])
+    assert rc["gain_db"] > ri["gain_db"]
+    assert O.er_amplifier(loss_pump_db_cm=3.0)["pump_left"] < rc["pump_left"]

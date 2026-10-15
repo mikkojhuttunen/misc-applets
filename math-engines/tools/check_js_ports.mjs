@@ -320,10 +320,15 @@ const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Nu
     r.w_hit.forEach((v, j) => close(`beam[${i}] w${j}`, b.wHit[j], v, 1e-9));
     r.theta0.forEach((v, j) => close(`beam[${i}] th${j}`, b.theta0[j], v, 1e-9));
   }
+  /* coupled/independent runs stop at a 1e-6 relative change, so the iterated outputs get a looser tolerance; NaN in Python is null */
+  const closeN = (label, got, want, rel, abs) => (want === null ? (checks++, Number.isFinite(got) && (fails++, console.error(`FAIL ${label}: got ${got}, want NaN`))) : close(label, got, want, rel, abs));
   for (const [i, r] of V.onchip_amp.entries()) {
-    const a = O.erAmplifier({ pump_mirror: r.pump_mirror, P_pump: r.P_pump, P_signal: r.P_signal, scale: r.scale, N: r.N, M: r.M });
-    for (const k of ["gain_db", "internal_gain_db", "path", "inversion_mean", "R_dbr_signal", "R_dbr_pump"]) close(`amp[${i}] ${k}`, a[k], r[k], 1e-8, 1e-9);
-    close(`amp[${i}] pump_left`, a.pump_left, r.pump_left, 1e-7, 1e-20);
+    const a = O.erAmplifier({ pump_mirror: r.pump_mirror, P_pump: r.P_pump, P_signal: r.P_signal, scale: r.scale, N: r.N, M: r.M, model: r.model,
+      n_bins: r.n_bins, N_er: r.N_er, loss_pump_db_cm: r.loss_pump_db_cm });
+    for (const k of ["path", "R_dbr_signal", "R_dbr_pump"]) close(`amp[${i}] ${k}`, a[k], r[k], 1e-8, 1e-9);
+    const it = r.model === "tophat" ? 1e-8 : 2e-5;
+    for (const k of ["gain_db", "internal_gain_db", "inversion_mean", "nf_db"]) closeN(`amp[${i}] ${k}`, a[k], r[k], it, it);
+    for (const k of ["pump_left", "ase_fwd", "ase_bwd"]) closeN(`amp[${i}] ${k}`, a[k], r[k], r.model === "tophat" ? 1e-7 : 1e-4, 1e-20);
   }
 }
 

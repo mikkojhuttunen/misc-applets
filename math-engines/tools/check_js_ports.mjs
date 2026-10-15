@@ -20,7 +20,7 @@ const close = (label, got, want, rel, abs = 0) => {
   const ctx = vm.createContext({ Math, Float64Array, Array, Number, Map, Set, Object, JSON });
   vm.runInContext(fs.readFileSync(path.join(repo, 'dbr-structures/dbr-engine.js'), 'utf8') +
     '\n;HANDLE.__vec = () => globalThis.__handle;' +
-    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU, MAT_DATA, profileFn, sampleProfile, tableAt, neffProfile, fourier, radiation, farField, crigfAt, findResonance, tmWeights, mean };', ctx);
+    '\n;globalThis.__e = { nIdx, slabNeff, cmtR, layerMat, mmul, mpow, rtFromM, TAU, MAT_DATA, profileFn, sampleProfile, tableAt, neffProfile, fourier, radiation, farField, crigfAt, findResonance, tmWeights, mean, ridgeRef, neffFull, ridgeLateral, bounce, bestBounce };', ctx);
   const e = ctx.__e, um = x => x * 1e6;
   const key = { sio2: 'sio2', si3n4: 'si3n4', ln_e: 'lne', ln_o: 'lno' };      /* lt_e (approximate fit) is Python only */
   for (const r of V.materials) if (key[r.material]) close(`dbr n(${r.material}, ${r.wavelength})`, e.nIdx({ mat: key[r.material] }, um(r.wavelength), {}), r.n, 1e-12);
@@ -73,6 +73,25 @@ const close = (label, got, want, rel, abs = 0) => {
       const ff = e.farField(rad, gS, Lam, r.periods, rad.alphaTot, r.n_clad, r.theta.map(x => x * 180 / Math.PI));
       r.far_up.forEach((v, i) => close(`${id} far field θ=${r.theta[i]}`, ff[i], v, rel, 1e-12 * Math.max(...r.far_up)));
     }
+  }
+  /* lateral_optics: ridge effective index and confinement, ridge-mode beam overlap and SHG width, Gaussian bounce */
+  for (const r of V.ridge) {
+    const st = { t: um(r.thickness), pol: r.polarization, lat: { mode: 'ridge', W: um(r.width), tSide: um(r.side_thickness) } };
+    const id = `dbr ridge ${r.polarization} W=${r.width} tSide=${r.side_thickness}`;
+    const ref = e.ridgeRef(st, um(r.wavelength), r.n_sub, r.n_core, r.n_clad, 0);
+    close(`${id} v_t`, ref.vt, r.v_t, 1e-12); close(`${id} n_side`, ref.nO, r.n_side, 1e-12);
+    close(`${id} N_t`, ref.Nt, r.N_t, 1e-11); close(`${id} Γ`, ref.G, r.gamma, 1e-9);
+    r.local.forEach((d, i) => close(`${id} N(d=${d})`, e.neffFull(st, um(r.wavelength), r.n_sub, r.n_core, r.n_clad, um(d), 0), r.n_local[i], 1e-11));
+    const rl = e.ridgeLateral(st, um(r.wavelength), r.v_t, r.n_sub, r.n_core, r.n_clad, um(r.w0));
+    close(`${id} Oy²`, rl.Oy2, r.Oy2, 1e-9); close(`${id} w_eff`, rl.wEff * 1e-6, r.w_eff, 1e-9);
+  }
+  for (const r of V.bounce) {
+    const R = r.Rc === null ? Infinity : um(r.Rc), A = r.a === null ? Infinity : um(r.a), id = `dbr bounce w=${r.w} d=${r.d} Rc=${r.Rc}`;
+    const b = e.bounce(um(r.wavelength_medium), um(r.w), um(r.d), R, A), bb = e.bestBounce(um(r.wavelength_medium), um(r.d), R, A);
+    /* the port's erf is a 1.5e-7 approximation: clip and eta to 1e-6 */
+    close(`${id} overlap`, b.ov, r.overlap, 1e-12); close(`${id} clip`, b.clip, r.clip, 1e-6); close(`${id} eta`, b.eta, r.eta, 1e-6);
+    close(`${id} w_mirror`, b.wm * 1e-6, r.w_mirror, 1e-12);
+    close(`${id} best w`, bb.w * 1e-6, r.best_w, 1e-4); close(`${id} best eta`, bb.eta, r.best_eta, 1e-6);
   }
   /* crigf: DBR | spacer | coupler | spacer | DBR fed by a Gaussian beam (crigfAt, findResonance); the port takes
      lengths in µm, the angle in degrees and the propagation loss in 1/µm */

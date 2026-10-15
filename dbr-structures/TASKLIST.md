@@ -31,7 +31,7 @@ Python reference engines in `math-engines/`, tested:
 - [x] A7. TM radiation and κ: `grating_coupler.tm_weights` tooth model (D_x / E_z split, TM plane waves, wall screening c = 0.35 calibrated on `rcwa`), TM radiation, κ_TM = |ρ| κ_EIM with coupling sign −ρ; `crigf` TM (F_R/F_S local fields, complex radiative cross-coupling, −ρ on N₂ and on the DBR slices); JS port with vectors.
   Against `rcwa`: TM radiation mean 7 % (worst 33 %) for h ≤ 50 nm, up/down within 0.03; TM κ exact as h → 0, mean 9 % for h ≤ 20 nm; TM band-edge Q within 10 % with the right ordering; TE unchanged. Also fixed `rcwa.bragg_band` re-centring for deep etches.
   Left: wide teeth (f ≥ 0.7) in air and deep TM etches (corner fields), see A11.
-- [ ] A8. Python reference for the lateral models (ridge Γ_lat, curved-DBR `bounce`, `ridgeLateral`) with vectors.
+- [x] A8. `lateral_optics` engine: ridge reference (v_t, n_O, N_t, Γ), etched-slice ridge index, ridge-mode beam overlap and SHG width, Gaussian overlap, curved-DBR bounce and best waist; vectors and JS checks. Fixed the JS Γ for vertical TE (missing lateral-TM phase factor; Γ off by up to 0.2 %, κ 212.4 → 212.6 cm⁻¹ in the taper preset).
 - [ ] A9. Aperiodic rigorous check of a whole CRIGF (supercell RCWA with absorbing boundaries, or 2D FDTD/FEM): DBR + coupler + Gaussian beam, against `crigf.response`.
 - [ ] A10. EIM n_eff offset: the coupler resonance sits 0.1–0.9 nm short of the rigorous one (20–50 nm etch); a first-order correction from `rcwa` or a perturbative n_eff shift.
 - [ ] A11. TM corner-field correction for wide teeth and deep etches (or a low-order RCWA, M ≈ 3, as the fast TM model: worst κ error 0.07 κ_EIM in the A7 data set).

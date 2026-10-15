@@ -22,6 +22,7 @@ from engines.cell_mirror import engine as cmir  # noqa: E402
 from engines.fringe_averaging import engine as fav  # noqa: E402
 from engines.grating_coupler import engine as gcp  # noqa: E402
 from engines.crigf import engine as crg  # noqa: E402
+from engines.lateral_optics import engine as lat  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
@@ -137,6 +138,24 @@ def build() -> dict:
                             "floor": fav.static_floor(f, A, drift, coh), "n_groups": int(f.size)})
     v["grating_coupler"] = [_grating_vector(*c) for c in _GRATING_CASES]
     v["crigf"] = [_crigf_vector(**c) for c in _CRIGF_CASES]
+    v["ridge"] = []
+    for (ns, nf, nc, t, W, ts, pol) in ((1.444, 2.138, 1.0, 0.6e-6, 2e-6, 0.3e-6, "TE"), (1.444, 2.138, 1.0, 0.6e-6, 1.2e-6, 0.4e-6, "TM"),
+                                        (1.444, 2.138, 1.0, 0.6e-6, 3e-6, 0.0, "TE"), (1.444, 1.996, 1.444, 0.4e-6, 1.5e-6, 0.0, "TM"),
+                                        (1.444, 3.476, 1.444, 0.22e-6, 0.5e-6, 0.09e-6, "TE")):
+        r = lat.ridge_reference(1.55e-6, ns, nf, nc, t, W, ts, pol)
+        ov = lat.ridge_beam_overlap(1.55e-6, r["n_side"], r["v_t"], W, 2e-6, pol)
+        v["ridge"].append({"n_sub": ns, "n_core": nf, "n_clad": nc, "thickness": t, "width": W, "side_thickness": ts, "polarization": pol,
+                           "wavelength": 1.55e-6, "v_t": r["v_t"], "n_side": r["n_side"], "N_t": r["N_t"], "gamma": r["gamma"],
+                           "local": [0.8 * t, 0.5 * t], "n_local": [lat.ridge_neff(1.55e-6, ns, nf, nc, t, W, ts, x, pol) for x in (0.8 * t, 0.5 * t)],
+                           "w0": 2e-6, "Oy2": ov["Oy2"], "w_eff": ov["w_eff"]})
+    v["bounce"] = []
+    for (lamM, w, d, Rc, a) in ((0.8e-6, 3e-6, 50e-6, 120e-6, 10e-6), (0.8e-6, 5e-6, 100e-6, None, None), (0.75e-6, 2e-6, 20e-6, 40e-6, 4e-6),
+                                (0.82e-6, 4e-6, 200e-6, 150e-6, 30e-6)):
+        R = np.inf if Rc is None else Rc
+        A = np.inf if a is None else a
+        b, bb = lat.bounce(lamM, w, d, R, A), lat.best_bounce(lamM, d, R, A)
+        v["bounce"].append({"wavelength_medium": lamM, "w": w, "d": d, "Rc": Rc, "a": a, "eta": b["eta"], "overlap": b["overlap"],
+                            "clip": b["clip"], "w_mirror": b["w_mirror"], "best_w": bb["w"], "best_eta": bb["eta"]})
     return v
 
 

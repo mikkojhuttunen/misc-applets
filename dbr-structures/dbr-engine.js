@@ -177,7 +177,8 @@ function ridgeRef(st, lam, ns, nf, nc, order) {
   if (Number.isFinite(vt) && vt > nO) {
     const m = modeParams(lam, nO, vt, nO, st.lat.W, st.pol === 'TE' ? 'TM' : 'TE', 0);
     if (m.valid) {
-      const W = st.lat.W, ps = Math.atan2(m.gs, m.kx);
+      /* phase of cos(kx y − ps) in the ridge; the lateral step is TM for a vertical TE mode (factor (v_t/n_O)²) */
+      const W = st.lat.W, rs = st.pol === 'TE' ? (vt / nO) ** 2 : 1, ps = Math.atan2(rs * m.gs, m.kx);
       const core = W / 2 + (Math.sin(2 * (m.kx * W - ps)) + Math.sin(2 * ps)) / (4 * m.kx);
       out = { valid: true, vt, Nt: m.neff, G: Math.min(1, Math.max(0, core / m.norm)), nO };
     }

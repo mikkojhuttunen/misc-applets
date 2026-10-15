@@ -1,0 +1,46 @@
+engine: lateral_optics
+version: 1
+title: Lateral optics of gratings (ridge, curved DBRs)
+description: Ridge effective index with lateral confinement, ridge-mode overlap with a Gaussian beam, and the bounce efficiency of a lateral Gaussian on curved or finite DBRs.
+references:
+  - "K. Okamoto, Fundamentals of Optical Waveguides, 2nd ed. (Academic Press, 2006), effective-index method"
+  - "A. E. Siegman, Lasers (University Science Books, 1986) (Gaussian beams, ABCD law, resonator modes)"
+functions:
+  ridge_effective_index:
+    title: Ridge effective index and lateral mode
+    equations: ["N(d) = N_t + Γ (v(d) - v_t)", "Γ = ∫_ridge φ² / ∫ φ²", "w_SHG = 1 / ∫ φ⁴"]
+    inputs:
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: n_sub, label: "Substrate index", ui_unit: "", scale: 1.0, default: 1.444, min: 1}
+      - {name: n_core, label: "Core index", ui_unit: "", scale: 1.0, default: 2.138, min: 1}
+      - {name: n_clad, label: "Cladding index", ui_unit: "", scale: 1.0, default: 1.0, min: 1}
+      - {name: thickness, label: "Ridge thickness t", ui_unit: nm, scale: 1.0e-9, default: 600, min: 1}
+      - {name: width, label: "Ridge width W", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0.05}
+      - {name: side_thickness, label: "Side slab thickness (0: strip)", ui_unit: nm, scale: 1.0e-9, default: 300, min: 0}
+      - {name: etch_depth, label: "Grating etch depth", ui_unit: nm, scale: 1.0e-9, default: 100, min: 0}
+      - {name: polarization, label: "Polarisation", type: choice, choices: [TE, TM], default: TE}
+      - {name: beam_waist, label: "Lateral beam waist w₀", ui_unit: µm, scale: 1.0e-6, default: 2, min: 0.1}
+    outputs:
+      - {name: n_slab, label: "Slab n_eff (thickness t)", ui_unit: "", scale: 1.0}
+      - {name: n_side, label: "Side-region index", ui_unit: "", scale: 1.0}
+      - {name: n_ridge, label: "Ridge n_eff", ui_unit: "", scale: 1.0}
+      - {name: gamma_lateral, label: "Lateral confinement Γ", ui_unit: "", scale: 1.0}
+      - {name: n_etched, label: "n_eff of an etched slice", ui_unit: "", scale: 1.0}
+      - {name: beam_overlap, label: "Beam ↔ lateral mode overlap", ui_unit: "", scale: 1.0}
+      - {name: shg_width, label: "SHG width 1/∫φ⁴", ui_unit: µm, scale: 1.0e-6}
+  curved_dbr_bounce:
+    title: Lateral bounce on a curved DBR
+    equations: ["1/q' = 1/q - 2/R_c", "η = |⟨u_0|u_back⟩|² · erf(√2 a / w_m)"]
+    inputs:
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: n_eff, label: "Slab effective index", ui_unit: "", scale: 1.0, default: 1.9, min: 1}
+      - {name: distance, label: "Centre-to-mirror distance", ui_unit: µm, scale: 1.0e-6, default: 50, min: 0.01}
+      - {name: radius, label: "DBR radius of curvature", ui_unit: µm, scale: 1.0e-6, default: 120, min: 0.01}
+      - {name: aperture, label: "DBR width", ui_unit: µm, scale: 1.0e-6, default: 20, min: 0.01}
+    outputs:
+      - {name: waist, label: "Best lateral waist", ui_unit: µm, scale: 1.0e-6}
+      - {name: w_mirror, label: "Beam radius at the DBR", ui_unit: µm, scale: 1.0e-6}
+      - {name: eta, label: "Bounce efficiency η", ui_unit: "", scale: 1.0}
+      - {name: overlap, label: "Mode return", ui_unit: "", scale: 1.0}
+      - {name: clip, label: "Aperture clip", ui_unit: "", scale: 1.0}
+      - {name: g, label: "Resonator g = 1 - L/R_c", ui_unit: "", scale: 1.0}

@@ -245,3 +245,60 @@ def test_er_amplifier_models():
     assert rc["converged"] and rc["ase_fwd"] > 0 and np.isfinite(rc["nf_db"]) and np.isnan(rt["ase_fwd"])
     assert rc["gain_db"] > ri["gain_db"]
     assert O.er_amplifier(loss_pump_db_cm=3.0)["pump_left"] < rc["pump_left"]
+
+
+# ---------------------------------------------------------------- in-plane ASE (ase2d)
+from engines.onchip_herriott import ase2d as F2  # noqa: E402
+
+
+def test_inplane_field_geometry_and_uniform_medium_are_exact():
+    c = _cell()
+    F = F2.setup(c, h=2.2e-3 / 24, n_p=32)
+    area = F["b"].area
+    assert (F["e"][F["seg_chord"]] * F["seg_len"]).sum() == pytest.approx(2 * math.pi * area, rel=3e-3)      # Santaló
+    assert (F["frac"] * F["h"] ** 2).sum() == pytest.approx(area, rel=2e-3)
+    nc = F["nx"] * F["ny"]
+    g, S = -7.0, 2.5
+    o = F2.transport(F, np.full((1, nc), g), np.full((1, nc), S), np.zeros((1, F["n_chords"])))
+    exact = (S * F["e"] * np.expm1(g * F["len"]) / g).sum()           # every chord: S e (e^{gL} − 1)/g, nothing reflected
+    assert o["window"][0] + o["side"][0] + o["mirror_loss"][0] == pytest.approx(exact, rel=1e-10)
+
+
+def test_inplane_field_balances_power_with_gain_and_mirrors():
+    c = _cell()
+    F = F2.setup(c, h=2.2e-3 / 24, n_p=32)
+    nc = F["nx"] * F["ny"]
+    rng = np.random.default_rng(3)
+    G = -20 + 30 * rng.random((2, nc))
+    S = rng.random((2, nc))
+    Rm = np.where(F["end"] == F2.MIRROR, 0.98, 0.0)[None].repeat(2, 0)
+    o = F2.transport(F, G, S, Rm)
+    gen = o["source"].sum(1) + (G * o["intP"]).sum(1)
+    assert np.all(o["converged"]) and np.allclose(gen, o["window"] + o["side"] + o["mirror_loss"], rtol=1e-6)
+
+
+def _field_amp(RV, alpha_db=0.0, Pp=0.5):
+    ms, sig, pmp = _amp_setup()
+    a = O.DB_PER_CM * alpha_db
+    sig, pmp = dict(sig, alpha=a, R_of_chi=lambda chi, t=0.0: RV), dict(pmp, alpha=a, R_of_chi=lambda chi, t=0.0: RV)
+    er = dict(N=3e26, t=0.4e-6, tau=7.5e-3, Cup=4e-24)
+    return O.amplifier_coupled(_cell(), sig, pmp, er, 1e-6, Pp, field2d=True, n_bins=8, n_bins2d=4, n_p=32, h2d=2.2e-3 / 24,
+                               R_ase=lambda l, chi: RV + 0 * np.asarray(chi), clip=False)
+
+
+def test_inplane_ase_costs_little_gain_and_hardly_reaches_the_signal_mode():
+    r = _field_amp(0.99, alpha_db=0.25)
+    f = r["field"]
+    assert r["converged"] and not f["lasing"].any()
+    assert 0 < f["gain_db_without"] - r["gain_db"] < 0.1                    # off-axis ASE depletes a little gain
+    assert f["rho_spont_bt"] == pytest.approx(f["rho_onpath"], rel=0.1)     # back-traced mode ASE = on-path ASE
+    assert 0 < f["rho_offaxis"] < 0.02 * f["rho_onpath"]                    # scattered off-axis ASE in the mode: < 2 %
+    beams, decay = O._a2.photon_balance(r, _cell(), 0.4e-6)
+    assert beams == pytest.approx(decay, rel=0.01)
+
+
+def test_trapped_inplane_ase_lases_and_clamps_the_gain():
+    r = _field_amp(0.9999)
+    f = r["field"]
+    assert f["lasing"].any() and f["ratio"].max() == pytest.approx(1.0, abs=2e-3)
+    assert f["gain_db_without"] - r["gain_db"] > 0.3 and f["gain_spread_db"] < 0.02

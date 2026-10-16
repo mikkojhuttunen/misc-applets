@@ -189,6 +189,10 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
         <div class="ctl"><label class="check"><input id="ase" type="checkbox" checked> Amplified spontaneous emission (1450–1650 nm, 20 bins, both directions)</label></div>
         <div class="ctl"><div class="row"><label for="aseModes">ASE polarisation modes</label></div>
           <select id="aseModes"><option value="1">1 (polarisation-maintaining slab)</option><option value="2" selected>2 (both polarisations)</option></select></div>
+        <div class="ctl"><label class="check"><input id="ase2d" type="checkbox" checked> In-plane ASE in all directions (other lateral modes, ray-traced; a few seconds)</label></div>
+        <div class="ctl"><div class="row"><label for="scat">Share of the waveguide loss scattered in-plane</label><output id="scatOut"></output></div>
+          <input id="scat" type="range" min="0" max="1" step="0.05" value="0.25">
+          <p class="hint">Guided ASE scattered into other in-plane directions (the rest of the loss leaves the slab); also the only way off-axis ASE can enter the signal mode.</p></div>
         <div class="ctl"><div class="row"><label for="lamP">Pump wavelength</label></div>
           <select id="lamP"><option value="980" selected>980 nm (absorption only)</option><option value="1480">1480 nm (in-band)</option></select></div>
         <div class="ctl"><div class="row"><label for="Pp">Pump power into the window</label><output id="PpOut"></output></div>
@@ -330,7 +334,12 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
             <p class="hint">Spectral density out of the window, forward (with the signal) and backward (out of the input side, against the pump). Dotted: the signal wavelength. The noise figure uses the forward density at λs: NF = 1/G + 2ρ/(G hν).</p></div>
           <div class="sub" id="mapBox"><h3>Inversion across the cell</h3>
             <canvas class="chart" id="invMap" aria-label="Map of the Er inversion in the cell"></canvas>
-            <p class="hint">N₂/N averaged over the Er layer depth, from the total pump, signal and ASE of all passes (lines: the ray path). Where passes cross, they share the excited ions.</p></div>
+            <p class="hint">N₂/N averaged over the Er layer depth, from the total pump, signal and ASE of all passes and the in-plane ASE (lines: the ray path). Where passes cross, they share the excited ions.</p></div>
+        </div>
+        <div class="duo">
+          <div class="sub" id="phiBox"><h3>In-plane ASE flux</h3>
+            <canvas class="chart" id="phiMap" aria-label="Map of the in-plane ASE flux"></canvas>
+            <p class="hint">Lateral power density Φ (W/m, logarithmic, 3 decades) of the ASE travelling in all other in-plane directions, summed over wavelength. It is born where the Er is inverted and extracts gain wherever it crosses an inverted region, also far from its origin; orbits trapped by the two concave mirrors recirculate.</p></div>
         </div>
       </section>
 
@@ -352,8 +361,9 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
           <li><b>Waveguide loss</b> α (dB/cm × 0.2303 per cm): the power on a pass decays as e<sup>−αs</sup>; L<sub>eff</sub> and V<sub>eff</sub> integrate that weight along every chord.</li>
           <li><b>Layer stack</b>: substrate | film | Er:Al₂O₃ | cladding, fundamental TE or TM slab mode by transfer matrices (same Sellmeier/Cauchy data as the Er amplifier applet); TFLN/TFLT use n<sub>e</sub> for TE and n<sub>o</sub> for TM.</li>
           <li><b>Beam propagation</b>: the complex beam parameter q along the exact traced chords, with the in-plane (tangential) mirror power 2/(R cos χ) at each hit. The matched input is the eigenmode of the first round trip; its stability (A + D)/2 and Gouy phase are shown. Coupling: overlap of the input with the eigenmode at the window.</li>
-          <li><b>Erbium</b>: the effective two-level model of the Er amplifier applet (980 nm absorbs only, 1480 nm also emits; upconversion, quenched ions; McCumber emission). The Er-layer intensity is P Γ<sub>Er</sub>/(w√(π/2) t<sub>Er</sub>), uniform over the thin layer and the beam's effective width (flat-top model). <b>Coupled model</b>: every pass carries a Gaussian lateral profile and the slab profile in depth; at each point of the Er layer the photon fluxes of all passes (pump, signal and ASE, incoherently) add up, the rate equation gives N₂ there (6 sublayers × 7-point Gauss–Hermite across each beam), and each pass's gain is the overlap of its own profile with that inversion. Pump, signal and ASE are iterated to self-consistency (under-relaxed fixed point); the photon balance of the Python engine closes to 0.1 %. <b>ASE</b>: forward and backward, 20 bins over 1450–1650 nm, spontaneous source m Γ σ<sub>e</sub> N₂ hν Δν per unit length (m polarisation modes), reflected like the signal (the DBR at the bin's wavelength and angle).</li>
-          <li><b>Not included</b>: diffraction at the mirror ends beyond clipping, mode conversion at the trenches, coherent interference where passes cross (spatial hole burning by standing waves), ASE scattered out of the guided slab mode or into other lateral modes, Er clustering beyond the quenched fraction, thermal effects.</li>
+          <li><b>Erbium</b>: the effective two-level model of the Er amplifier applet (980 nm absorbs only, 1480 nm also emits; upconversion, quenched ions; McCumber emission). The Er-layer intensity is P Γ<sub>Er</sub>/(w√(π/2) t<sub>Er</sub>), uniform over the thin layer and the beam's effective width (flat-top model). <b>Coupled model</b>: every pass carries a Gaussian lateral profile and the slab profile in depth; at each point of the Er layer the photon fluxes of all passes (pump, signal and ASE, incoherently) add up, the rate equation gives N₂ there (6 sublayers × 7-point Gauss–Hermite across each beam), and each pass's gain is the overlap of its own profile with that inversion. Pump, signal and ASE are iterated to self-consistency (under-relaxed fixed point); the photon balance of the Python engine closes to 0.1 %. <b>ASE</b>: forward and backward, 20 bins over 1450–1650 nm, spontaneous source m Γ σ<sub>e</sub> N₂ hν Δν per unit length (m polarisation modes), reflected like the signal (the DBR at the bin's wavelength and angle). The noise figure uses the forward ASE density exactly at λs (a narrow probe bin).</li>
+          <li><b>In-plane ASE</b> (all other directions and lateral modes): the cell is closed by its open sides; every chord is a bin of boundary position s and tangential direction p = sin θ (étendue Δs Δp, one lateral mode per polarisation in λ/n<sub>eff</sub>). Along a chord dP/dl = g P + e[m (n<sub>eff</sub>/λ) hν Δν σ<sub>e</sub> A₂ + f α Φ/2π] on a grid of the Er layer; mirrors reflect with R(λ, χ) into the bins of the reflected direction, sides and window let it out. The steady state is the sum over bounces; a bounce-to-bounce ratio of 1 is parasitic lasing of trapped orbits, whose field then grows until it clamps the inversion. The flux Φ enters the rate equations together with all beams. The output signal mode is traced backwards (7 × 7 Gauss–Hermite rays of its Wigner function) to collect the ASE that reaches it: its own spontaneous emission (a check on the on-path ASE) and in-plane ASE scattered into it.</li>
+          <li><b>Not included</b>: diffraction at the mirror ends beyond clipping (the in-plane ASE is pure ray optics: no diffraction loss of high-order trapped modes), mode conversion at the trenches, coherent interference where passes cross, ASE scattered into radiation modes and back, scattering of the pump, Er clustering beyond the quenched fraction, thermal effects.</li>
         </ul>
       </details>
     </div>
@@ -1286,7 +1296,187 @@ const OnchipEngine = (() => {
     return { lams: e.slice(0, -1).map((v, i) => 0.5 * (v + e[i + 1])), dlam: e.slice(0, -1).map((v, i) => e[i + 1] - v) };
   }
   /* amp2d.solve */
-  function solveCoupled(c, h, sig, pump, er, PsIn, PpIn, bs, bp, ase, coupled = true, nz = 6, maxIter = 300, tol = 1e-6, relax = 0.5) {
+  /* ---------------------------------------------------------------- onchip_herriott.ase2d: in-plane ASE in all directions */
+  const F2_MIRROR = 0, F2_SIDE = 1, F2_WINDOW = 2;
+  function f2Boundary(c) {
+    const el = k => ({ A: [c.Ax[k], c.Ay[k]], B: [c.Bx[k], c.By[k]], kappa: c.kappa[k] });
+    const e0 = el(0), e1 = el(1);
+    return Pl.makeCell([Object.assign(e0, { label: "M1" }), { A: e0.B, B: e1.A, kappa: 0, label: "side-" }, Object.assign(e1, { label: "M2" }),
+      { A: e1.B, B: e0.A, kappa: 0, label: "side+" }], { name: "ASE boundary" });
+  }
+  /* planar_cell.Cell2D.inside on the 16-point outline */
+  function f2InsideFn(b) {
+    const ox = [], oy = [];
+    for (let k = 0; k < b.E; k++) for (let i = 0; i < 16; i++) { const p = Pl.pointAt(b, b.s0[k] + b.L[k] * (1 - 1e-12) * i / 15); ox.push(p[0]); oy.push(p[1]); }
+    return (x, y) => {
+      let ins = false;
+      for (let i = 0, j = ox.length - 1; i < ox.length; j = i++)
+        if (((oy[i] > y) !== (oy[j] > y)) && (x < (ox[j] - ox[i]) * (y - oy[i]) / (oy[j] - oy[i] + 1e-300) + ox[i])) ins = !ins;
+      return ins;
+    };
+  }
+  function f2Setup(c, h = null, ds = null, nP = 64, sub = 4) {
+    const m = c.meta, b = f2Boundary(c);
+    h = h || 2 * m.aperture / 48; ds = ds || 2 * h;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let k = 0; k < b.E; k++) for (let i = 0; i < 48; i++) {
+      const p = Pl.pointAt(b, Math.min(b.s0[k] + b.L[k] * i / 47, b.s0[k] + b.L[k] * (1 - 1e-12)));
+      x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]);
+    }
+    const nx = Math.ceil((x1 - x0) / h), ny = Math.ceil((y1 - y0) / h);
+    x0 -= (nx * h - (x1 - x0)) / 2; y0 -= (ny * h - (y1 - y0)) / 2;
+    const xc = Array.from({ length: nx }, (_, i) => x0 + (i + 0.5) * h), yc = Array.from({ length: ny }, (_, j) => y0 + (j + 0.5) * h);
+    const inside = f2InsideFn(b), frac = new Float64Array(nx * ny), area = new Float64Array(nx * ny);
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      let cnt = 0;
+      for (let a = 0; a < sub; a++) for (let bb = 0; bb < sub; bb++) if (inside(xc[i] + ((a + 0.5) / sub - 0.5) * h, yc[j] + ((bb + 0.5) / sub - 0.5) * h)) cnt++;
+      frac[i * ny + j] = cnt / (sub * sub); area[i * ny + j] = Math.max(frac[i * ny + j], 1 / (sub * sub)) * h * h;
+    }
+    const dp = 2 / nP, nk = [], dsk = [], off = [0];
+    for (let k = 0; k < 4; k++) { nk.push(Math.max(2, Math.round(b.L[k] / ds))); dsk.push(b.L[k] / nk[k]); off.push(off[k] + nk[k] * nP); }
+    const Cn = off[4], eps = 1e-9 * b.perimeter;
+    const len = new Float64Array(Cn), e = new Float64Array(Cn), end = new Int8Array(Cn), sEnd = new Float64Array(Cn), pEnd = new Float64Array(Cn), chiEnd = new Float64Array(Cn);
+    const win = [c.sIn - m.portW / 2, c.sIn + m.portW / 2];
+    const segCell = [], segLen = [], cfirst = new Int32Array(Cn), clast = new Int32Array(Cn), rows = [], cols = [], wts = [];
+    let ci = 0;
+    for (let k = 0; k < 4; k++) for (let i = 0; i < nk[k]; i++) {
+      const s = b.s0[k] + (i + 0.5) * dsk[k], [x, y, nxo, nyo] = Pl.pointAt(b, s), tx = -nyo, ty = nxo;
+      for (let j = 0; j < nP; j++, ci++) {
+        const p = -1 + (j + 0.5) * dp, q = Math.sqrt(1 - p * p), dx = p * tx - q * nxo, dy = p * ty - q * nyo;
+        const px = x - eps * nxo, py = y - eps * nyo, hh = Pl.hit(b, px, py, dx, dy);
+        const t = Number.isFinite(hh.t) ? hh.t : 0, pe = dx * (-hh.ny) + dy * hh.nx;
+        len[ci] = t; e[ci] = dsk[k] * dp; sEnd[ci] = hh.s; pEnd[ci] = pe; chiEnd[ci] = Math.asin(Math.min(Math.abs(pe), 1));
+        end[ci] = (hh.k === 0 || hh.k === 2) ? (hh.k === 0 && hh.s >= win[0] && hh.s <= win[1] ? F2_WINDOW : F2_MIRROR) : F2_SIDE;
+        if (end[ci] === F2_MIRROR) {
+          const ke = hh.k, u = (hh.s - b.s0[ke]) / dsk[ke] - 0.5, i0 = Math.min(Math.max(Math.floor(u), 0), nk[ke] - 2), a = Math.min(Math.max(u - i0, 0), 1);
+          const v = (pe + 1) / dp - 0.5, j0 = Math.min(Math.max(Math.floor(v), 0), nP - 2), bq = Math.min(Math.max(v - j0, 0), 1);
+          for (const [di, dj, w] of [[0, 0, (1 - a) * (1 - bq)], [1, 0, a * (1 - bq)], [0, 1, (1 - a) * bq], [1, 1, a * bq]]) {
+            rows.push(off[ke] + (i0 + di) * nP + j0 + dj); cols.push(ci); wts.push(w);
+          }
+        }
+        const nst = Math.max(1, Math.ceil(t / (0.5 * h)));
+        cfirst[ci] = segCell.length;
+        let prev = -1;
+        for (let l = 0; l < nst; l++) {
+          const fr = (l + 0.5) / nst, sx = px + fr * t * dx, sy = py + fr * t * dy;
+          const ix = Math.min(Math.max(Math.trunc((sx - x0) / h), 0), nx - 1), iy = Math.min(Math.max(Math.trunc((sy - y0) / h), 0), ny - 1), cell = ix * ny + iy;
+          if (cell !== prev) { segCell.push(cell); segLen.push(t / nst); prev = cell; } else segLen[segLen.length - 1] += t / nst;
+        }
+        clast[ci] = segCell.length - 1;
+      }
+    }
+    return { b, h, nx, ny, x0, y0, xc, yc, area, frac, nP, nk, dsk, off, e, len, end, sEnd, pEnd, chiEnd, rows: Int32Array.from(rows), cols: Int32Array.from(cols),
+      wts: Float64Array.from(wts), segCell: Int32Array.from(segCell), segLen: Float64Array.from(segLen), cfirst, clast, window: win, nChords: Cn };
+  }
+  function f2GridPoints(F) { const P = []; for (let i = 0; i < F.nx; i++) for (let j = 0; j < F.ny; j++) P.push([F.xc[i], F.yc[j], -1]); return P; }
+  function f2Bilinear(F, P) {
+    return P.map(p => {
+      const u = (p[0] - F.x0) / F.h - 0.5, v = (p[1] - F.y0) / F.h - 0.5;
+      const i0 = Math.min(Math.max(Math.floor(u), 0), F.nx - 2), j0 = Math.min(Math.max(Math.floor(v), 0), F.ny - 2);
+      const a = Math.min(Math.max(u - i0, 0), 1), b = Math.min(Math.max(v - j0, 0), 1), ny = F.ny;
+      return [[i0 * ny + j0, (i0 + 1) * ny + j0, i0 * ny + j0 + 1, (i0 + 1) * ny + j0 + 1], [(1 - a) * (1 - b), a * (1 - b), (1 - a) * b, a * b]];
+    });
+  }
+  function f2MirrorR(F, lams, Rof) {
+    return lams.map(l => { const R = new Float64Array(F.nChords); for (let c = 0; c < F.nChords; c++) if (F.end[c] === F2_MIRROR) R[c] = Rof ? Rof(l, F.chiEnd[c]) : 1; return R; });
+  }
+  const e1f = u => Math.abs(u) < 0.05 ? 1 + u * (1 / 2 + u * (1 / 6 + u * (1 / 24 + u * (1 / 120 + u / 720)))) : Math.expm1(u) / u;
+  const e2f = u => Math.abs(u) < 0.05 ? 1 / 2 + u * (1 / 6 + u * (1 / 24 + u * (1 / 120 + u * (1 / 720 + u / 5040)))) : (Math.expm1(u) - u) / (u * u);
+  /* steady field: G, S arrays (bins) of per-cell Float64Arrays, Rm per bin per chord */
+  function f2Transport(F, G, S, Rm, { tol = 1e-8, maxBounce = 4000, settleTol = 1e-5, cap = 1e8 } = {}) {
+    const nb = G.length, Cn = F.nChords, { segCell, segLen, cfirst, clast, e, rows, cols, wts } = F, ncell = F.nx * F.ny;
+    const out = { Phi: [], E: [], bounces: [], ratio: [], lasing: [], converged: [], window: [], side: [], mirror_loss: [], source: [], intP: [] };
+    for (let k = 0; k < nb; k++) {
+      const g = G[k], Sk = S[k], T = new Float64Array(Cn), Q = new Float64Array(Cn);
+      for (let c = 0; c < Cn; c++) {
+        let P = 0, Gc = 0;
+        for (let q = cfirst[c]; q <= clast[c]; q++) { const l = segLen[q], u = g[segCell[q]] * l, x = Math.exp(u); P = P * x + Sk[segCell[q]] * e[c] * l * e1f(u); Gc += u; }
+        T[c] = Math.exp(Gc); Q[c] = P;
+      }
+      const R = Rm[k];
+      let B = new Float64Array(Cn), dPrev = NaN, rPrev = NaN, first = 0, done = false, stop = false, ratio = 0, used = 0;
+      for (let it = 0; it < maxBounce; it++) {
+        const Bn = new Float64Array(Cn);
+        for (let z = 0; z < rows.length; z++) { const c = cols[z]; Bn[rows[z]] += wts[z] * R[c] * (T[c] * B[c] + Q[c]); }
+        let d = 0, tot = 0;
+        for (let c = 0; c < Cn; c++) { d += Math.abs(Bn[c] - B[c]); tot += Math.abs(Bn[c]); }
+        const r = dPrev > 0 ? d / dPrev : 0;
+        if (it === 0) first = Math.max(tot, 1e-300);
+        const conv = d <= tol * Math.max(tot, 1e-300), settle = !conv && it > 4 && r < 1 && Math.abs(r - rPrev) < settleTol * r;
+        const runaway = tot > cap * first;
+        if (settle) { const f = r / (1 - r); for (let c = 0; c < Cn; c++) Bn[c] += f * (Bn[c] - B[c]); }
+        B = Bn; ratio = r; used = it + 1;
+        if (conv || settle) { done = true; break; }
+        if (runaway) { stop = true; break; }
+        dPrev = d; rPrev = r;
+      }
+      const E = new Float64Array(Cn), Phi = new Float64Array(ncell), src = new Float64Array(ncell), intC = new Float64Array(ncell);
+      let win = 0, side = 0, ml = 0;
+      for (let c = 0; c < Cn; c++) {
+        let P = B[c];
+        for (let q = cfirst[c]; q <= clast[c]; q++) {
+          const cell = segCell[q], l = segLen[q], u = g[cell] * l, s = Sk[cell] * e[c], ip = P * l * e1f(u) + s * l * l * e2f(u);
+          intC[cell] += ip; src[cell] += s * l;
+          P = P * Math.exp(u) + s * l * e1f(u);
+        }
+        E[c] = P;
+        if (F.end[c] === F2_WINDOW) win += P; else if (F.end[c] === F2_SIDE) side += P; else ml += (1 - R[c]) * P;
+      }
+      for (let i = 0; i < ncell; i++) Phi[i] = intC[i] / F.area[i];
+      Object.entries({ Phi, E, bounces: used, ratio, lasing: !done && ratio >= 1, converged: done, window: win, side, mirror_loss: ml, source: src, intP: intC })
+        .forEach(([key, v]) => out[key].push(v));
+    }
+    return out;
+  }
+  /* ase2d.mode_noise: back-trace of the output mode at one or more wavelengths (W/Hz arriving at the window) */
+  function f2ModeNoise(fld, h, wOut, lamS, nEff, Rof, lams = null, maxBounce = 2000, tMin = 1e-7) {
+    const F = fld.F, b = F.b, L = lams || [lamS], nb = L.length, [A1, A2] = fld.A, ncell = F.nx * F.ny;
+    const sa = L.map(l => sigmaA(l, fld.sigma_peak)), se = L.map(l => sigmaE(l, fld.sigma_peak));
+    const G = L.map((l, k) => { const g = new Float64Array(ncell); for (let i = 0; i < ncell; i++) g[i] = se[k] * A2[i] - sa[k] * A1[i] - fld.alpha; return g; });
+    const Ssp = L.map((l, k) => { const s = new Float64Array(ncell), f = fld.modes * nEff / l * HP * CL / l * se[k]; for (let i = 0; i < ncell; i++) s[i] = f * A2[i]; return s; });
+    const lb = fld.lams, nB = lb.length;
+    const dens = X => L.map(l => { const w = lb.map((_, i) => interp(l, lb, lb.map((_, j) => (j === i ? 1 : 0)))), s = new Float64Array(ncell);
+      for (let i = 0; i < nB; i++) if (w[i]) for (let c = 0; c < ncell; c++) s[c] += w[i] * X[i][c] / fld.dnu[i]; return s; });
+    const comps = [Ssp, dens(fld.S_sc), dens(fld.S_cb)];
+    const n = h.x.length;
+    let dex = h.x[n - 1] - h.x[n - 2], dey = h.y[n - 1] - h.y[n - 2]; const dn = Math.hypot(dex, dey); dex /= dn; dey /= dn;
+    const se0 = Pl.hit(b, h.x[n - 2], h.y[n - 2], dex, dey).s, pn = Pl.pointAt(b, se0), cosChi = Math.abs(dex * pn[2] + dey * pn[3]);
+    const thW = lamS / (nEff * Math.PI * wOut), eps = 1e-9 * b.perimeter;
+    const acc = [0, 1, 2].map(() => new Float64Array(nb));
+    let nbounce = 0;
+    for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++) {
+      const wt = GH_W[i] * GH_W[j], S0 = se0 + wOut / Math.sqrt(2) * GH_X[i] / Math.max(cosChi, 1e-6), th = thW / Math.sqrt(2) * GH_X[j];
+      const p0 = Pl.pointAt(b, S0), co = Math.cos(th), sn = Math.sin(th);
+      let vx = -(dex * co - dey * sn), vy = -(dex * sn + dey * co), px = p0[0] - eps * p0[2], py = p0[1] - eps * p0[3];
+      const T = new Float64Array(nb).fill(1);
+      for (let it = 0; it < maxBounce; it++) {
+        nbounce = Math.max(nbounce, it + 1);
+        const hh = Pl.hit(b, px, py, vx, vy), t = Number.isFinite(hh.t) ? hh.t : 0, nst = Math.max(1, Math.ceil(t / (0.5 * F.h))), ln = t / nst;
+        for (let k = 0; k < nb; k++) {
+          let before = 0;
+          for (let l = 0; l < nst; l++) {
+            const fr = (l + 0.5) / nst, sx = px + fr * t * vx, sy = py + fr * t * vy;
+            const cell = Math.min(Math.max(Math.trunc((sx - F.x0) / F.h), 0), F.nx - 1) * F.ny + Math.min(Math.max(Math.trunc((sy - F.y0) / F.h), 0), F.ny - 1);
+            const u = G[k][cell] * ln, f = T[k] * Math.exp(before) * ln * e1f(u);
+            for (let q = 0; q < 3; q++) acc[q][k] += wt * f * comps[q][k][cell];
+            before += u;
+          }
+          T[k] *= Math.exp(before);
+        }
+        const win = hh.k === 0 && hh.s >= F.window[0] && hh.s <= F.window[1], mir = (hh.k === 0 || hh.k === 2) && !win;
+        const chi = Math.asin(Math.min(Math.abs(vx * (-hh.ny) + vy * hh.nx), 1));
+        for (let k = 0; k < nb; k++) T[k] *= mir ? (Rof ? Rof(L[k], chi) : 1) : 0;
+        const dot = vx * hh.nx + vy * hh.ny, ex = px + t * vx, ey = py + t * vy;
+        vx -= 2 * dot * hh.nx; vy -= 2 * dot * hh.ny; px = ex - eps * hh.nx; py = ey - eps * hh.ny;
+        if (!(mir && Math.max(...T) > tMin)) break;
+      }
+    }
+    const lm = L.map(l => l / nEff);
+    return { spont: Array.from(acc[0], (v, k) => v * lm[k]), scat_field: Array.from(acc[1], (v, k) => v * lm[k]), scat_beam: Array.from(acc[2], (v, k) => v * lm[k]),
+      bounces: nbounce, exit_s: se0, w_out: wOut, theta_w: thW };
+  }
+
+  function solveCoupled(c, h, sig, pump, er, PsIn, PpIn, bs, bp, ase, coupled = true, nz = 6, maxIter = 300, tol = 1e-6, relax = 0.5, field = null) {
     const Ws = bs.W, Wp = bp.W, n = Ws.length, ns = Ws[0].length, L = bs.chords.slice(0, n), q = GH_X.length;
     const Ntot = er.N, Nq = Ntot * (er.fq || 0), N = Ntot - Nq, tau = er.tau, Cup = er.Cup;
     const ls = sig.wavelength, lp = pump.wavelength, pk = er.sigma_peak || 5.7e-25;
@@ -1300,22 +1490,41 @@ const OnchipEngine = (() => {
       lk = ase.lams; nk = lk.length; dnu = lk.map((l, k) => CL / (l * l) * ase.dlam[k]);
       sak = lk.map(l => sigmaA(l, pk)); sek = lk.map(l => sigmaE(l, pk)); hvk = lk.map(l => HP * CL / l); Rk = ase.R; msp = ase.modes || 2;
     }
+    let Rprobe = null, probeEnd = 0;
+    if (ase) { let kb = 0; lk.forEach((l, k) => { if (Math.abs(l - ls) < Math.abs(lk[kb] - ls)) kb = k; }); Rprobe = ase.R_probe || Rk[kb]; }
+    /* in-plane field */
+    let F2 = null, l2, nb2 = 0, dnu2, sa2, se2, hv2, m2, fsc, gidx, Pg, Kgs, Kgp, bil, ncell, Phi, rebin, Ag = null, fout = null, G2, Ssp, Ssc, Scb;
+    if (field) {
+      F2 = field.F; l2 = field.lams; nb2 = l2.length; dnu2 = l2.map((l, k) => CL / (l * l) * field.dlam[k]);
+      sa2 = l2.map(l => sigmaA(l, pk)); se2 = l2.map(l => sigmaE(l, pk)); hv2 = l2.map(l => HP * CL / l); m2 = field.modes || 2; fsc = field.scatter || 0;
+      gidx = []; for (let i = 0; i < F2.frac.length; i++) if (F2.frac[i] > 0) gidx.push(i);
+      const all = f2GridPoints(F2); Pg = gidx.map(i => all[i]);
+      const hw = F2.h * F2.h / 3, wide = W => W.map(r => r.map(w => Math.sqrt(w * w + hw)));
+      Kgs = kernel(Pg, h.x, h.y, wide(Ws), false); Kgp = kernel(Pg, h.x, h.y, wide(Wp), false);
+      bil = [f2Bilinear(F2, Pts), f2Bilinear(F2, Ptp)];
+      ncell = F2.nx * F2.ny; Phi = l2.map(() => new Float64Array(ncell));
+      const edges = l2.map((l, k) => l - 0.5 * field.dlam[k]).concat([l2[nb2 - 1] + 0.5 * field.dlam[nb2 - 1]]);
+      rebin = lk ? lk.map(l => { let i = 0; while (i + 1 < edges.length && edges[i + 1] <= l) i++; return Math.min(Math.max(i, 0), nb2 - 1); }) : [];
+    }
+    let fon = false, itOn = 0, preField = null;
     const zeros = new Float64Array(n * ns);
     let Fs = propagate(zeros, null, sig.alpha, L, n, ns, PsIn * sig.eta, sig.R, false).F;
     let Fp = propagate(zeros, null, pump.alpha, L, n, ns, PpIn * pump.eta, pump.R, false).F;
     let Af = Array.from({ length: nk }, () => new Float64Array(n * ns)), Ab = Array.from({ length: nk }, () => new Float64Array(n * ns));
     let As = null, Ap = null, PsEnd = 0, PpEnd = 0, AfEnd = new Float64Array(nk), hist = [], it;
-    const popAgg = (Kxs, Kxp, Pt, v) => {           /* (A1, A2) per sample of the beam that owns points Pt, depth weights v.share */
+    const popAgg = (Kxs, Kxp, Pt, v, bl) => {           /* (A1, A2) per sample of the beam that owns points Pt, depth weights v.share */
       const lsig = applyKernel(Kxs, Fs), lpu = applyKernel(Kxp, Fp);
       const lase = [];
       for (let k = 0; k < nk; k++) { const T = new Float64Array(n * ns); for (let c2 = 0; c2 < n * ns; c2++) T[c2] = Af[k][c2] + Ab[k][c2]; lase.push(applyKernel(Kxs, T)); }
       const a1 = new Float64Array(n * ns), a2 = new Float64Array(n * ns);
+      const phq = field ? Phi.map(ph => Float64Array.from(bl, ([ix, w]) => ph[ix[0]] * w[0] + ph[ix[1]] * w[1] + ph[ix[2]] * w[2] + ph[ix[3]] * w[3])) : null;
       for (let pi = 0; pi < Pt.length; pi++) {
         const sample = Math.floor(pi / q), w = GH_W[pi % q];
         for (let m = 0; m < nz; m++) {
           const fs = lsig[pi] * vs.dens[m] / hvs, fp = lpu[pi] * vp.dens[m] / hvp;
           let Ra = sap * fp + sas * fs, Re = sep * fp + ses * fs;
           for (let k = 0; k < nk; k++) { const fa = lase[k][pi] * vs.dens[m] / hvk[k]; Ra += sak[k] * fa; Re += sek[k] * fa; }
+          if (field) for (let k = 0; k < nb2; k++) { const fa = phq[k][pi] * vs.dens[m] / hv2[k]; Ra += sa2[k] * fa; Re += se2[k] * fa; }
           const b = Ra + Re + 1 / tau, N2 = Ra > 0 ? 2 * Ra * N / (b + Math.sqrt(b * b + 4 * Cup * Ra * N)) : 0, N1 = N - N2 + Nq;
           a1[sample] += N1 * w * v.share[m]; a2[sample] += N2 * w * v.share[m];
         }
@@ -1323,7 +1532,7 @@ const OnchipEngine = (() => {
       return [a1, a2];
     };
     for (it = 0; it < maxIter; it++) {
-      const ns_ = popAgg(Kss, Ksp, Pts, vs), np_ = popAgg(Kps, Kpp, Ptp, vp);
+      const ns_ = popAgg(Kss, Ksp, Pts, vs, field && bil[0]), np_ = popAgg(Kps, Kpp, Ptp, vp, field && bil[1]);
       if (!As) { As = ns_; Ap = np_; }
       else for (let c2 = 0; c2 < n * ns; c2++) {
         As[0][c2] += relax * (ns_[0][c2] - As[0][c2]); As[1][c2] += relax * (ns_[1][c2] - As[1][c2]);
@@ -1340,10 +1549,50 @@ const OnchipEngine = (() => {
         const f1 = propagate(Gk, Sk, sig.alpha, L, n, ns, 0, Rk[k], false), b1 = propagate(Gk, Sk, sig.alpha, L, n, ns, 0, Rk[k], true);
         Af[k] = f1.F; Ab[k] = b1.F; AfEnd[k] = f1.P; aseTot += f1.P + b1.P;
       }
+      if (nk) {
+        const Gq = new Float64Array(n * ns), Sq = new Float64Array(n * ns);
+        for (let c2 = 0; c2 < n * ns; c2++) { Gq[c2] = Gs[c2]; Sq[c2] = msp * hvs * ses * As[1][c2]; }
+        probeEnd = propagate(Gq, Sq, sig.alpha, L, n, ns, 0, Rprobe, false).P;
+      }
+      if (fon) {
+        const ng = gidx.length, lsg = applyKernel(Kgs, Fs), lpg = applyKernel(Kgp, Fp);
+        const lag = [];
+        for (let k = 0; k < nk; k++) { const T = new Float64Array(n * ns); for (let c2 = 0; c2 < n * ns; c2++) T[c2] = Af[k][c2] + Ab[k][c2]; lag.push(applyKernel(Kgs, T)); }
+        const g1 = new Float64Array(ng), g2 = new Float64Array(ng);
+        for (let q = 0; q < ng; q++) {
+          for (let m = 0; m < nz; m++) {
+            const fs = lsg[q] * vs.dens[m] / hvs, fp = lpg[q] * vp.dens[m] / hvp;
+            let Ra = sap * fp + sas * fs, Re = sep * fp + ses * fs;
+            for (let k = 0; k < nk; k++) { const fa = lag[k][q] * vs.dens[m] / hvk[k]; Ra += sak[k] * fa; Re += sek[k] * fa; }
+            for (let k = 0; k < nb2; k++) { const fa = Phi[k][gidx[q]] * vs.dens[m] / hv2[k]; Ra += sa2[k] * fa; Re += se2[k] * fa; }
+            const b = Ra + Re + 1 / tau, N2 = Ra > 0 ? 2 * Ra * N / (b + Math.sqrt(b * b + 4 * Cup * Ra * N)) : 0, N1 = N - N2 + Nq;
+            g1[q] += N1 * vs.share[m]; g2[q] += N2 * vs.share[m];
+          }
+        }
+        if (!Ag) Ag = [g1, g2]; else for (let q = 0; q < ng; q++) { Ag[0][q] += relax * (g1[q] - Ag[0][q]); Ag[1][q] += relax * (g2[q] - Ag[1][q]); }
+        G2 = l2.map(() => new Float64Array(ncell).fill(-sig.alpha)); Ssp = l2.map(() => new Float64Array(ncell));
+        Ssc = l2.map(() => new Float64Array(ncell)); Scb = l2.map(() => new Float64Array(ncell));
+        for (let k = 0; k < nb2; k++) {
+          const fsp = m2 * sig.n_eff / l2[k] * hv2[k] * dnu2[k] * se2[k];
+          for (let q = 0; q < ng; q++) {
+            const i = gidx[q];
+            G2[k][i] += se2[k] * Ag[1][q] - sa2[k] * Ag[0][q];
+            Ssp[k][i] = fsp * Ag[1][q];
+            Ssc[k][i] = fsc * sig.alpha * Phi[k][i] / (2 * Math.PI);
+          }
+        }
+        for (let kk = 0; kk < nk; kk++) { const k = rebin[kk]; for (let q = 0; q < ng; q++) Scb[k][gidx[q]] += fsc * sig.alpha * lag[kk][q] / (2 * Math.PI); }
+        fout = f2Transport(F2, G2, l2.map((_, k) => Ssp[k].map((v, i) => v + Ssc[k][i] + Scb[k][i])), field.R);
+        Phi = fout.Phi;
+        for (let k = 0; k < nb2; k++) aseTot += fout.window[k] + fout.side[k] + fout.mirror_loss[k];
+      }
       hist.push([PsEnd, aseTot, PpEnd]);
-      if (it > 2) {
+      if (it > 2 && (!fon || it - itOn > 2)) {
         const [a, b2, c3] = hist[hist.length - 1], [a0, b0, c0] = hist[hist.length - 2];
-        if (Math.abs(a - a0) <= tol * Math.abs(a) && Math.abs(b2 - b0) <= tol * Math.max(Math.abs(b2), 1e-30) && Math.abs(c3 - c0) <= tol * Math.max(Math.abs(c3), 1e-30)) break;
+        if (Math.abs(a - a0) <= tol * Math.abs(a) && Math.abs(b2 - b0) <= tol * Math.max(Math.abs(b2), 1e-30) && Math.abs(c3 - c0) <= tol * Math.max(Math.abs(c3), 1e-30)) {
+          if (field && !fon) { fon = true; itOn = it; preField = [PsEnd, PpEnd]; continue; }
+          break;
+        }
       }
     }
     const outS = h.exit ? PsEnd * sig.eta : 0, shs = vs.share.reduce((u, w) => u + w, 0);
@@ -1355,8 +1604,25 @@ const OnchipEngine = (() => {
       const outF = Array.from(AfEnd, v => v * sig.eta), outB = Ab.map(F => F[0] * sig.eta);
       Object.assign(res, { ase_lams: lk, ase_dnu: dnu, ase_sa: sak, ase_se: sek, ase_fwd: outF, ase_bwd: outB, Af, Ab,
         ase_fwd_total: outF.reduce((u, w) => u + w, 0), ase_bwd_total: outB.reduce((u, w) => u + w, 0) });
-      const G = outS > 0 ? outS / PsIn : 0, rho = interp(ls, lk, outF.map((v, k) => v / dnu[k])) / msp;
+      res.ase_density_signal = probeEnd * sig.eta;
+      const G = outS > 0 ? outS / PsIn : 0, rho = probeEnd * sig.eta / msp;
       res.nf_db = G > 0 ? 10 * Math.log10(1 / G + 2 * rho / (G * hvs)) : Infinity;
+    }
+    if (field) {
+      const A1 = new Float64Array(ncell), A2 = new Float64Array(ncell);
+      gidx.forEach((i, q) => { A1[i] = Ag[0][q]; A2[i] = Ag[1][q]; });
+      const sum = (arr, f) => arr.map((x, k) => { let s = 0; for (let i = 0; i < ncell; i++) s += f(x, k, i); return s; });
+      const totS = (k, i) => Ssp[k][i] + Ssc[k][i] + Scb[k][i];
+      res.field = { F: F2, lams: l2, dlam: field.dlam, dnu: dnu2, sa: sa2, se: se2, hv: hv2, modes: m2, scatter: fsc, Phi, G: G2, S_sp: Ssp, S_sc: Ssc, S_cb: Scb,
+        A: [A1, A2], alpha: sig.alpha, n_eff: sig.n_eff, sigma_peak: pk, R: field.R, out: fout,
+        spont: sum(fout.source, (x, k, i) => totS(k, i) > 0 ? x[i] * Ssp[k][i] / totS(k, i) : 0),
+        scattered: sum(fout.source, (x, k, i) => totS(k, i) > 0 ? x[i] * (Ssc[k][i] + Scb[k][i]) / totS(k, i) : 0),
+        stimulated: sum(fout.intP, (x, k, i) => se2[k] * A2[i] * x[i]), absorbed: sum(fout.intP, (x, k, i) => sa2[k] * A1[i] * x[i]),
+        prop_loss: sum(fout.intP, (x, k, i) => sig.alpha * x[i]), window: fout.window, side: fout.side, mirror_loss: fout.mirror_loss,
+        ratio: fout.ratio, lasing: fout.lasing, bounces: fout.bounces };
+      const pf = preField || [PsEnd, PpEnd];
+      res.field.gain_db_without = h.exit && pf[0] > 0 ? 10 * Math.log10(pf[0] * sig.eta / PsIn) : -Infinity;
+      res.field.pump_left_without = PpIn ? pf[1] / (PpIn * pump.eta) : 0;
     }
     return res;
   }
@@ -1367,13 +1633,15 @@ const OnchipEngine = (() => {
     const lsig = applyKernel(Ks, res.Fs), lpu = applyKernel(Kp, res.Fp), lase = [];
     const nk = res.ase_lams ? res.ase_lams.length : 0;
     for (let k = 0; k < nk; k++) { const T = res.Af[k].map((v, c2) => v + res.Ab[k][c2]); lase.push(applyKernel(Ks, T)); }
-    const out = new Float64Array(P.length);
+    const out = new Float64Array(P.length), fl = res.field || null;
+    const phq = fl ? (bl => fl.Phi.map(ph => Float64Array.from(bl, ([ix, w]) => ph[ix[0]] * w[0] + ph[ix[1]] * w[1] + ph[ix[2]] * w[2] + ph[ix[3]] * w[3])))(f2Bilinear(fl.F, P)) : null;
     for (let pi = 0; pi < P.length; pi++) {
       let acc = 0;
       for (let m = 0; m < nz; m++) {
         const fs = lsig[pi] * vs.dens[m] / hvs, fp = lpu[pi] * vp.dens[m] / hvp;
         let Ra = sap * fp + sas * fs, Re = sep * fp + ses * fs;
         for (let k = 0; k < nk; k++) { const fa = lase[k][pi] * vs.dens[m] / (HP * CL / res.ase_lams[k]); Ra += res.ase_sa[k] * fa; Re += res.ase_se[k] * fa; }
+        if (fl) for (let k = 0; k < fl.lams.length; k++) { const fa = phq[k][pi] * vs.dens[m] / fl.hv[k]; Ra += fl.sa[k] * fa; Re += fl.se[k] * fa; }
         const b = Ra + Re + 1 / res.tau;
         acc += Ra > 0 ? 2 * Ra * res.N_act / (b + Math.sqrt(b * b + 4 * res.Cup * Ra * res.N_act)) : 0;
       }
@@ -1382,7 +1650,8 @@ const OnchipEngine = (() => {
     return out;
   }
   /* onchip_herriott.amplifier_coupled */
-  function amplifierCoupled(c, sig, pump, er, PsIn = 1e-6, PpIn = 0.1, { ase = true, coupled = true, clip = true, ns = 17, nz = 6, lo = 1.45e-6, hi = 1.65e-6, nBins = 20, aseModes = 2, Rase = null, maxIter = 300, tol = 1e-6 } = {}) {
+  function amplifierCoupled(c, sig, pump, er, PsIn = 1e-6, PpIn = 0.1, { ase = true, coupled = true, clip = true, ns = 17, nz = 6, lo = 1.45e-6, hi = 1.65e-6, nBins = 20, aseModes = 2, Rase = null, maxIter = 300, tol = 1e-6,
+    field2d = false, nBins2d = 8, h2d = null, ds2d = null, nP = 64, scatterFrac = 0.25, noise = true } = {}) {
     const m = c.meta, h = traceHits(c, 0, "window", 4000), n = h.elem.length, last = h.exit ? n - 1 : n;
     const a = m.aperture, wlo = m.y0 - m.portW / 2, whi = m.y0 + m.portW / 2;
     const bps = [sig, pump].map(b => {
@@ -1401,11 +1670,26 @@ const OnchipEngine = (() => {
     let A = null;
     if (ase) {
       const g = aseGrid(lo, hi, nBins);
-      A = { lams: g.lams, dlam: g.dlam, modes: aseModes, R: g.lams.map(l => Array.from({ length: n }, (_, j) => j < last ? (Rase ? Rase(l, Math.abs(h.chi[j])) : 1) * bs.clip[j] : 1)) };
+      A = { lams: g.lams, dlam: g.dlam, modes: aseModes, R: g.lams.map(l => Array.from({ length: n }, (_, j) => j < last ? (Rase ? Rase(l, Math.abs(h.chi[j])) : 1) * bs.clip[j] : 1)),
+        R_probe: Array.from({ length: n }, (_, j) => j < last ? (Rase ? Rase(sig.wavelength, Math.abs(h.chi[j])) : 1) * bs.clip[j] : 1) };
     }
-    const r = solveCoupled(c, h, Object.assign({}, sig, { R: Rs, eta: bs.eta }), Object.assign({}, pump, { R: Rp, eta: bq.eta }), er, PsIn, PpIn, bs, bq, A, coupled, nz, maxIter, tol);
+    let fld = null;
+    if (field2d) {
+      const F = f2Setup(c, h2d, ds2d, nP), g = aseGrid(lo, hi, nBins2d);
+      fld = { F, lams: g.lams, dlam: g.dlam, R: f2MirrorR(F, g.lams, Rase), modes: aseModes, scatter: scatterFrac };
+    }
+    const r = solveCoupled(c, h, Object.assign({}, sig, { R: Rs, eta: bs.eta }), Object.assign({}, pump, { R: Rp, eta: bq.eta }), er, PsIn, PpIn, bs, bq, A, coupled, nz, maxIter, tol, 0.5, fld);
     let path = 0; for (let j = 0; j < n; j++) path += bs.chords[j];
-    return Object.assign(r, { hits: h, bs, bp: bq, eta_s: bs.eta, eta_p: bq.eta, path, exits: h.exit });
+    Object.assign(r, { hits: h, bs, bp: bq, eta_s: bs.eta, eta_p: bq.eta, path, exits: h.exit });
+    if (field2d && noise && h.exit) {
+      const fl = r.field, Wl = bs.W[bs.W.length - 1], mn = f2ModeNoise(fl, h, Wl[Wl.length - 1], sig.wavelength, sig.n_eff, Rase);
+      fl.mode = mn;
+      const hvs = HP * CL / sig.wavelength, G = r.Ps_out > 0 ? r.Ps_out / PsIn : 0, e = bs.eta / aseModes;
+      fl.rho_spont_bt = mn.spont[0] * e; fl.rho_offaxis = (mn.scat_field[0] + mn.scat_beam[0]) * e;
+      fl.rho_onpath = (r.ase_density_signal || 0) / aseModes;
+      r.nf_total_db = G > 0 ? 10 * Math.log10(1 / G + 2 * (fl.rho_onpath + fl.rho_offaxis) / (G * hvs)) : Infinity;
+    }
+    return r;
   }
 
   /* onchip_herriott.er_amplifier (front end) */
@@ -1413,7 +1697,7 @@ const OnchipEngine = (() => {
     const p = Object.assign({ R: 10e-3, N: 20, M: 3, A: 1e-3, phase: 0, port_width: 100e-6, platform: "al2o3", film_t: 0.4e-6, er_t: 0.4e-6, substrate: "sio2",
       cladding: "air", polarization: "TE", lam_s: 1.532e-6, lam_p: 980e-9, P_signal: 1e-6, P_pump: 0.1, N_er: 1.5e26, tau: 7.5e-3, Cup: 4e-24, fq: 0,
       loss_db_cm: 0.25, loss_pump_db_cm: -1, periods: 6, R_pump: 0.99, pump_mirror: "constant", w_ratio: 1, focus_shift: 0, scale: 1, clip: true,
-      model: "coupled", ase: 1, n_bins: 20, ase_modes: 2 }, o);
+      model: "coupled", ase: 1, n_bins: 20, ase_modes: 2, ase2d: 0, n_bins2d: 8, n_p: 64, h2d: 0, scatter_frac: 0.25 }, o);
     const ms = stackMode(p.platform, p.film_t, p.er_t, p.substrate, p.cladding, p.lam_s, p.polarization);
     const mp = stackMode(p.platform, p.film_t, p.er_t, p.substrate, p.cladding, p.lam_p, p.polarization);
     if (!(Number.isFinite(ms.neff) && Number.isFinite(mp.neff))) throw new Error("the stack guides no mode at the signal or the pump wavelength");
@@ -1434,7 +1718,17 @@ const OnchipEngine = (() => {
       Object.assign(r, { ase_fwd_total: NaN, ase_bwd_total: NaN, nf_db: NaN, iterations: 1, converged: true });
     } else {
       r = amplifierCoupled(c, sig, pmp, erd, p.P_signal, p.P_pump, { ase: !!p.ase, coupled: p.model === "coupled", clip: p.clip, nBins: p.n_bins, aseModes: p.ase_modes,
-        Rase: (l, chi) => dbr.R(l, Math.abs(Math.sin(chi))) });
+        Rase: (l, chi) => dbr.R(l, Math.abs(Math.sin(chi))), field2d: !!p.ase2d && !!p.ase, nBins2d: p.n_bins2d, nP: p.n_p, h2d: p.h2d || null,
+        scatterFrac: p.scatter_frac });
+      if (r.field) {
+        const fl = r.field, sm = a => Array.from(a).reduce((x, y) => x + y, 0);
+        Object.assign(r, { gain_db_without_2d: fl.gain_db_without, pump_left_without_2d: fl.pump_left_without, ase2d_spont: sm(fl.spont),
+          ase2d_stimulated: sm(fl.stimulated), ase2d_absorbed: sm(fl.absorbed), ase2d_scattered_in: sm(fl.scattered), ase2d_side: sm(fl.side),
+          ase2d_window: sm(fl.window), ase2d_mirror: sm(fl.mirror_loss), ase2d_prop_loss: sm(fl.prop_loss), ase2d_ratio_max: Math.max(...fl.ratio),
+          ase2d_lasing: fl.lasing.some(x => x) });
+        if (fl.mode) Object.assign(r, { noise_onpath: fl.rho_onpath, noise_mode_spont: fl.rho_spont_bt, noise_offaxis: fl.rho_offaxis,
+          offaxis_noise_ratio: fl.rho_onpath > 0 ? fl.rho_offaxis / fl.rho_onpath : NaN });
+      }
       if (r.ase_fwd_total === undefined) Object.assign(r, { ase_fwd_total: 0, ase_bwd_total: 0, nf_db: NaN });
       const S = [];
       let acc = 0;
@@ -1482,6 +1776,7 @@ const OnchipEngine = (() => {
       lamP: +$("lamP").value * 1e-9, Pp: +$("Pp").value * 1e-3, Ps: 1e-3 * 10 ** +$("Ps").value, Ner: +$("Ner").value * 1e26, tau: +$("tau").value * 1e-3,
       cup: +$("cup").value * 1e-24, fq: +$("fq").value, pm: $("pm").value, Rp: +$("Rp").value,
       ampModel: $("ampModel").value, ase: $("ase").checked, aseModes: +$("aseModes").value, lossP: $("lossPSame").checked ? -1 : +$("lossP").value,
+      ase2d: $("ase2d").checked, scat: +$("scat").value,
     };
   };
 
@@ -1587,13 +1882,23 @@ ${ampSweep.toString()}`;
       o = { R: j.meta.R, N: j.meta.N, M: j.meta.M, A: j.meta.A, phase: j.meta.phase, port_width: j.meta.portW, platform: p.plat, film_t: p.filmT,
         er_t: p.erT, substrate: p.sub, cladding: p.clad, polarization: p.pol, lam_s: p.lam, lam_p: p.lamP, P_signal: p.Ps, P_pump: p.Pp, N_er: p.Ner,
         tau: p.tau, Cup: p.cup, fq: p.fq, loss_db_cm: p.loss, loss_pump_db_cm: p.lossP, periods: p.np, R_pump: p.Rp, pump_mirror: p.pm, w_ratio: p.wr,
-        focus_shift: p.fs, clip: p.clip, model: p.ampModel, ase: p.ase ? 1 : 0, n_bins: 20, ase_modes: p.aseModes };
+        focus_shift: p.fs, clip: p.clip, model: p.ampModel, ase: p.ase ? 1 : 0, n_bins: 20, ase_modes: p.aseModes,
+        ase2d: p.ase2d && p.ase && p.ampModel !== "tophat" ? 1 : 0, n_bins2d: 6, n_p: 48, scatter_frac: p.scat };
       try {
         const a = Oe.erAmplifier(o);
         amp = { model: p.ampModel, gain_db: a.gain_db, internal_gain_db: a.internal_gain_db, Ps_out: a.Ps_out, pump_left: a.pump_left, path: a.path,
           inversion_mean: a.inversion_mean, eta_s: a.eta_s, eta_p: a.eta_p, R_dbr_signal: a.R_dbr_signal, R_dbr_pump: a.R_dbr_pump, gs: a.ms.gamma_er,
           gp: a.mp.gamma_er, ns: a.ms.neff, np: a.mp.neff, xs: a.cross_sections, exits: a.exits, s: a.s, Ps: a.Ps, Pp: a.Pp, inv: a.inversion,
           nf_db: a.nf_db, ase_fwd: a.ase_fwd, ase_bwd: a.ase_bwd, iterations: a.iterations, converged: a.converged };
+        if (a.field) {
+          const f = a.field, F = f.F, nc = F.nx * F.ny, tot = new Float64Array(nc);
+          f.Phi.forEach(ph => { for (let i = 0; i < nc; i++) tot[i] += ph[i]; });
+          for (const k of ["gain_db_without_2d", "pump_left_without_2d", "ase2d_spont", "ase2d_stimulated", "ase2d_absorbed", "ase2d_scattered_in", "ase2d_side",
+            "ase2d_window", "ase2d_mirror", "ase2d_prop_loss", "ase2d_ratio_max", "ase2d_lasing", "noise_onpath", "noise_mode_spont", "noise_offaxis",
+            "offaxis_noise_ratio", "nf_total_db"]) amp[k] = a[k];
+          amp.f2 = { lams: f.lams, dlam: f.dlam, ratio: f.ratio, lasing: f.lasing, window: f.window, side: f.side, spread: f.gain_spread_db,
+            phi: { nx: F.nx, ny: F.ny, x0: F.x0, y0: F.y0, h: F.h, frac: Array.from(F.frac), v: Array.from(tot) } };
+        }
         if (a.ase_fwd_spec) Object.assign(amp, { lams: a.ase_lams, dlam: a.ase_lams.map((l, k) => l * l * a.ase_dnu[k] / 2.99792458e8), fwd: a.ase_fwd_spec, bwd: a.ase_bwd_spec });
         if (a.hits && a.Fs) {
           /* depth-averaged inversion N2/N over the cell (all passes, pump, signal and ASE together) */
@@ -1613,7 +1918,7 @@ ${ampSweep.toString()}`;
     for (let k = 0; k <= K; k++) {
       const P0 = pmax * k / K;
       let g = NaN;
-      try { g = OnchipEngine.erAmplifier(Object.assign({}, o, { P_pump: P0, n_bins: 8 })).gain_db; } catch (err) { g = NaN; }
+      try { g = OnchipEngine.erAmplifier(Object.assign({}, o, { P_pump: P0, n_bins: 8, ase2d: 0 })).gain_db; } catch (err) { g = NaN; }
       out.push({ P: P0, g });
     }
     return out;
@@ -1951,6 +2256,18 @@ ${ampSweep.toString()}`;
     if (a.model !== "tophat" && p.ase) items.push(["ASE out of the window, forward / backward", `${dbm(a.ase_fwd)} / ${dbm(a.ase_bwd)}`],
       ["Noise figure at λs", Number.isFinite(a.nf_db) ? `${a.nf_db.toFixed(2)} dB` : "–"]);
     if (a.model !== "tophat") items.push(["Self-consistent iterations", `${a.iterations}${a.converged ? "" : " (not converged)"}`]);
+    if (a.f2) {
+      const mw = v => `${fmt(v * 1e3, 3)} mW`;
+      items.push(["Net gain without / with the in-plane ASE", `${db(a.gain_db_without_2d)} / ${db(a.gain_db)}`],
+        ["Gain change from the in-plane ASE", `${a.gain_db >= a.gain_db_without_2d ? "+" : ""}${fmt(a.gain_db - a.gain_db_without_2d, 3)} dB${a.gain_db > a.gain_db_without_2d ? " (reabsorbed ASE re-pumps)" : ""}`],
+        ["In-plane spontaneous emission into the slab", mw(a.ase2d_spont)],
+        ["In-plane ASE: stimulated / reabsorbed by Er", `${mw(a.ase2d_stimulated)} / ${mw(a.ase2d_absorbed)}`],
+        ["In-plane ASE out: sides / mirrors / window", `${mw(a.ase2d_side)} / ${mw(a.ase2d_mirror)} / ${mw(a.ase2d_window)}`],
+        ["Trapped ASE, largest bounce-to-bounce ratio", `${fmt(a.ase2d_ratio_max, 4)}${a.ase2d_lasing ? " (lasing)" : ""}`],
+        ["ASE in the signal mode: on-path / back-traced", `${sig(a.noise_onpath, 3)} / ${sig(a.noise_mode_spont, 3)} W/Hz`],
+        ["Off-axis ASE scattered into the signal mode", `${sig(a.noise_offaxis, 3)} W/Hz (${fmt(100 * a.offaxis_noise_ratio, 2)} % of on-path)`],
+        ["Noise figure incl. off-axis ASE", Number.isFinite(a.nf_total_db) ? `${a.nf_total_db.toFixed(3)} dB` : "–"]);
+    }
     $("ampStats").innerHTML = items.map(([x, v]) => `<div class="stat"><span>${x}</span><span>${v}</span></div>`).join("");
     const notes = [];
     if (p.pm === "dbr") notes.push(`<div class="warn">The signal DBR reflects only ${fmt(100 * a.R_dbr_pump, 1)} % at ${Math.round(p.lamP * 1e9)} nm: the pump leaves the cell after the first bounces. A dual-band or separate pump reflector is needed.</div>`);
@@ -1960,6 +2277,11 @@ ${ampSweep.toString()}`;
       independent: `each pass sees only its own pump, signal${p.ase ? " and ASE" : ""} (crossings ignored, for comparison)`,
       tophat: "each pass integrated on its own with a flat-top intensity across its effective width, no ASE (the earlier model)" }[a.model];
     notes.push(`<div class="note">Model: effective two-level Er:Al₂O₃ (as in the Er amplifier applet); ${mtxt}. Signal ${(p.Ps * 1e3).toPrecision(2)} mW, pump ${fmt(p.Pp * 1e3, 0)} mW at the window.</div>`);
+    if (a.f2) {
+      const lz = a.f2.lams.map((l, k) => a.f2.lasing[k] ? Math.round(l * 1e9) : null).filter(x => x);
+      if (lz.length) notes.push(`<div class="warn">Parasitic lasing: ASE trapped by the two concave mirrors (orbits that never reach the window) has a round-trip gain of 1 near ${lz.join(", ")} nm. It clamps the inversion: the signal loses ${fmt(a.gain_db_without_2d - a.gain_db, 1)} dB. Lower mirror reflectance away from the signal's angles and wavelength, absorbing side trenches or a smaller aperture help. (Clamped solution, gain settled to ${fmt(a.f2.spread, 3)} dB.)</div>`);
+      notes.push(`<div class="note">In-plane ASE: spontaneous emission into every in-plane direction of the slab (all lateral modes), ray-traced through the cell with the mirrors' R(λ, χ), amplified or reabsorbed wherever it crosses the Er layer, and fed back into the same rate equations; ${Math.round(100 * p.scat)} % of the waveguide loss scatters guided ASE in-plane. The signal-mode noise is found by tracing the output mode backwards: off-axis ASE reaches it only by scattering, ${fmt(100 * a.offaxis_noise_ratio, 2)} % of the on-path ASE here.</div>`);
+    }
     if (a.model !== "tophat" && p.ase && a.ase_bwd > 10 * Math.max(a.Ps_out, 1e-30)) notes.push(`<div class="note">Backward ASE (${dbm(a.ase_bwd)}) exceeds the signal output: the ASE leaving through the window, not the signal, is draining the inversion.</div>`);
     $("ampNotes").innerHTML = notes.join("");
     {
@@ -1974,7 +2296,7 @@ ${ampSweep.toString()}`;
       line(g, a.s.map((s, i) => [X(s * 100), Y(gdb[i])]), css("--accent"));
       label(g, "— signal", m.l + 4, m.t + 12, css("--accent")); label(g, "-- pump", m.l + 4, m.t + 26, css("--port-in")); label(g, "·· inversion (0–1)", m.l + 4, m.t + 40, css("--muted"));
     }
-    drawAse(a); drawMap(a);
+    drawAse(a); drawMap(a); drawPhi(a);
     if (!sw.ampPump) { const [g, w, h] = fit($("ampPump")); label(g, "Computing the pump sweep…", w / 2, h / 2, css("--muted"), "center", "middle"); }
     if (sw.ampPump) {
       const [g, w, h] = fit($("ampPump"));
@@ -1993,7 +2315,7 @@ ${ampSweep.toString()}`;
     const [g, w, h] = fit($("aseSpec"));
     const m = { l: 48, r: 10, t: 10, b: 34 }, nm = a.lams.map(l => l * 1e9);
     const dens = arr => arr.map((v, k) => v > 0 ? 10 * Math.log10(v / 1e-3 / (a.dlam[k] * 1e9)) : NaN);
-    const F = dens(a.fwd), B = dens(a.bwd), all = F.concat(B).filter(Number.isFinite);
+    const F = dens(a.fwd), B = dens(a.bwd), all = F.concat(B).concat(a.f2 ? a.f2.lams.map((_, k) => a.f2.side[k] > 0 ? 10 * Math.log10(a.f2.side[k] / 1e-3 / (a.f2.dlam[k] * 1e9)) : NaN) : []).filter(Number.isFinite);
     if (!all.length) { label(g, "No ASE (no inversion).", w / 2, h / 2, css("--muted"), "center", "middle"); return; }
     const hi = Math.ceil(Math.max(...all) / 5) * 5 + 2, lo = Math.max(Math.min(...all), hi - 60) - 2;
     const [X, Y] = axes(g, w, h, m, "wavelength (nm)", "ASE (dBm/nm)", niceTicks(nm[0], nm[nm.length - 1], 5).map(v => [v, String(v)]),
@@ -2004,6 +2326,16 @@ ${ampSweep.toString()}`;
       line(g, pts, col, 1.6, dash);
     };
     step(B, css("--port-in"), [6, 4]); step(F, css("--accent"));
+    if (a.f2) {
+      const f2 = a.f2, dd = (arr, k) => arr[k] > 0 ? 10 * Math.log10(arr[k] / 1e-3 / (f2.dlam[k] * 1e9)) : NaN;
+      f2.lams.forEach((l, k) => {
+        for (const [arr, col] of [[f2.side, css("--muted")], [f2.window, css("--ink")]]) {
+          const v = dd(arr, k); if (!Number.isFinite(v) || v < lo) continue;
+          g.fillStyle = col; g.beginPath(); g.arc(X(l * 1e9), Y(Math.min(v, hi)), 3.2, 0, 7); g.fill();
+        }
+      });
+      label(g, "● in-plane ASE: sides (grey), window (dark)", m.l + 4, m.t + 40, css("--muted"));
+    }
     const xs = state.p.lam * 1e9; line(g, [[X(xs), Y(lo)], [X(xs), Y(hi)]], css("--muted"), 1, [2, 3]);
     label(g, "— forward (with the signal)", m.l + 4, m.t + 12, css("--accent")); label(g, "-- backward (out of the input window)", m.l + 4, m.t + 26, css("--port-in"));
   }
@@ -2032,6 +2364,38 @@ ${ampSweep.toString()}`;
     g.fillText(top.toFixed(2), bx + 13, m.t + 4); g.fillText("0", bx + 13, m.t + bh - 2);
   }
 
+  function drawPhi(a) {
+    const box = $("phiBox"); box.hidden = !(a.f2 && a.map);
+    if (box.hidden) return;
+    const M = a.map, Q = a.f2.phi, cv = $("phiMap");
+    cv.style.aspectRatio = `${Math.max(1.4, Math.min((M.x1 - M.x0) / (M.y1 - M.y0), 3.2)).toFixed(3)}`;
+    const [g, w, h] = fit(cv);
+    const m = { l: 44, r: 54, t: 8, b: 32 };
+    const [X, Y] = axes(g, w, h, m, "x (mm)", "y (mm)", niceTicks(M.x0 * 1e3, M.x1 * 1e3, 6).map(v => [v, String(v)]),
+      niceTicks(M.y0 * 1e3, M.y1 * 1e3, 4).map(v => [v, String(v)]), [M.x0 * 1e3, M.x1 * 1e3], [M.y0 * 1e3, M.y1 * 1e3]);
+    const vals = Q.v.map((v, i) => Q.frac[i] > 0 && v > 0 ? Math.log10(v) : NaN), fin = vals.filter(Number.isFinite);
+    if (!fin.length) return;
+    const top = Math.max(...fin), bot = top - 3;
+    const img = document.createElement("canvas"); img.width = Q.nx; img.height = Q.ny;
+    const ig = img.getContext("2d"), id = ig.createImageData(Q.nx, Q.ny);
+    for (let i = 0; i < Q.nx; i++) for (let j = 0; j < Q.ny; j++) {
+      const v = vals[i * Q.ny + j], o = 4 * ((Q.ny - 1 - j) * Q.nx + i);
+      if (!Number.isFinite(v)) { id.data[o + 3] = 0; continue; }
+      const c = ramp((v - bot) / (top - bot)); id.data[o] = c[0]; id.data[o + 1] = c[1]; id.data[o + 2] = c[2]; id.data[o + 3] = 255;
+    }
+    ig.putImageData(id, 0, 0);
+    const gx0 = Q.x0 * 1e3, gx1 = (Q.x0 + Q.nx * Q.h) * 1e3, gy0 = Q.y0 * 1e3, gy1 = (Q.y0 + Q.ny * Q.h) * 1e3;
+    g.save(); g.beginPath(); g.rect(m.l, m.t, w - m.l - m.r, h - m.t - m.b); g.clip();
+    g.imageSmoothingEnabled = true; g.drawImage(img, X(gx0), Y(gy1), X(gx1) - X(gx0), Y(gy0) - Y(gy1));
+    g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 0.6; g.beginPath();
+    M.hx.forEach((x, j) => { j ? g.lineTo(X(x * 1e3), Y(M.hy[j] * 1e3)) : g.moveTo(X(x * 1e3), Y(M.hy[j] * 1e3)); }); g.stroke(); g.restore();
+    const bx = w - m.r + 12, bh = h - m.t - m.b;
+    for (let k = 0; k < bh; k++) { const c = ramp(1 - k / bh); g.fillStyle = `rgb(${c.map(Math.round).join(",")})`; g.fillRect(bx, m.t + k, 10, 1.5); }
+    g.fillStyle = css("--muted"); g.font = `10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "middle";
+    const wm = v => `${sig(10 ** v, 2)}`;
+    g.fillText(wm(top), bx + 13, m.t + 4); g.fillText(wm(bot), bx + 13, m.t + bh - 2);
+  }
+
   /* ---------------------------------------------------------------- controls */
   function sync() {
     const p = P();
@@ -2053,6 +2417,7 @@ ${ampSweep.toString()}`;
     $("RpOut").value = p.Rp.toFixed(3); $("Rp").disabled = p.pm === "dbr";
     $("lossPOut").value = $("lossPSame").checked ? "= signal" : `${(+$("lossP").value).toFixed(2)} dB/cm`; $("lossP").disabled = $("lossPSame").checked;
     $("ase").disabled = $("aseModes").disabled = p.ampModel === "tophat";
+    $("ase2d").disabled = p.ampModel === "tophat" || !p.ase; $("scatOut").value = `${Math.round(100 * p.scat)} %`;
     $("dR2Out").value = `${$("dR2").value} µm`; $("tiltOut").value = `${(+$("tilt").value).toFixed(2)} mrad`; $("ddOut").value = `${$("dd").value} µm`;
   }
   let pending = false;
@@ -2066,7 +2431,7 @@ ${ampSweep.toString()}`;
     });
   }
   ["R", "N", "M", "A", "phMode", "pw", "lam", "heff", "gam", "model", "Rc", "np", "mg", "mt", "des", "avg", "sc", "clip", "dR2", "tilt", "dd", "exit", "stretch",
-    "src", "plat", "filmT", "erT", "sub", "clad", "loss", "wr", "fs", "beamModel", "lamP", "Pp", "Ps", "Ner", "tau", "cup", "fq", "pm", "Rp", "ampModel", "ase", "aseModes", "lossP", "lossPSame"]
+    "src", "plat", "filmT", "erT", "sub", "clad", "loss", "wr", "fs", "beamModel", "lamP", "Pp", "Ps", "Ner", "tau", "cup", "fq", "pm", "Rp", "ampModel", "ase", "aseModes", "lossP", "lossPSame", "ase2d", "scat"]
     .forEach(id => $(id).addEventListener("input", update));
   ["neff", "pol"].forEach(id => $(id).addEventListener("input", () => { $("preset").value = "custom"; update(); }));
   $("preset").addEventListener("input", () => {

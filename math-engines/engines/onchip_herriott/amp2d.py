@@ -25,6 +25,7 @@ import math
 
 import numpy as np
 
+from . import ase2d as _f2
 from . import erbium as _er
 
 GH_X = np.array([-2.6519613568352334, -1.6735516287674714, -0.8162878828589646, 0.0, 0.8162878828589646, 1.6735516287674714,
@@ -133,12 +134,13 @@ def _propagate(G, S, alpha, L, P0, refl, out_last, reverse=False):
 
 
 def solve(cell, hits, sig, pump, er, Ps_in, Pp_in, bs, bp, ase=None, coupled=True, nz=4, max_iter=300, tol=1e-6,
-          relax=0.5):
+          relax=0.5, field=None, tol_field=1e-4, max_field_iter=60):
     """Self-consistent coupled amplifier. sig / pump: dict(wavelength, n_eff, mode (stack_mode dict), z_er (z0, z1),
     alpha, R (per-hit reflectance array incl. clipping)); bs / bp: beam_on_path outputs (widths W (n, ns)) for the
     signal (also used by the ASE) and the pump; er: dict(N, tau, Cup, fq, sigma_peak, sig980); ase: None or
     dict(lams (bin centres), dlam (bin widths), R (bins × n per-hit reflectance incl. clipping), modes). Returns totals,
-    spectra, the inversion along the path and the convergence record."""
+    spectra, the inversion along the path and the convergence record. field: None or dict(F (ase2d.setup), lams, dlam,
+    R (bins × chords), modes, scatter) adds the in-plane ASE in all directions (ase2d), coupled to the same inversion."""
     x, y = hits["x"], hits["y"]
     Ws, Wp = bs["W"], bp["W"]
     n, ns = Ws.shape
@@ -168,6 +170,7 @@ def solve(cell, hits, sig, pump, er, Ps_in, Pp_in, bs, bp, ase=None, coupled=Tru
         Rk = np.asarray(ase["R"], float)
         msp = ase.get("modes", 2)
         nk = len(lk)
+        Rprobe = np.asarray(ase.get("R_probe", Rk[np.argmin(np.abs(lk - ls))]), float)
     else:
         nk = 0
     Rs, Rp = np.asarray(sig["R"], float), np.asarray(pump["R"], float)
@@ -177,6 +180,36 @@ def solve(cell, hits, sig, pump, er, Ps_in, Pp_in, bs, bp, ase=None, coupled=Tru
     Fp, _ = _propagate(np.zeros((n, ns)), 0.0, pump["alpha"], L, Pp_in * eta_p, Rp, True)
     Af = np.zeros((nk, n, ns)); Ab = np.zeros((nk, n, ns))
     A_s = A_p = None
+    if field:
+        F = field["F"]
+        l2 = np.asarray(field["lams"], float)
+        nb2 = len(l2)
+        dnu2 = C / l2**2 * np.asarray(field["dlam"], float)
+        sa2, se2, hv2 = _er.sigma_a_arr(l2, pk), _er.sigma_e_arr(l2, pk), H * C / l2
+        m2 = field.get("modes", 2)
+        f_sc = field.get("scatter", 0.0)
+        gidx = np.nonzero(F["frac"] > 0)[0]
+        Pg = _f2.grid_points(F)[gidx]
+        hw = F["h"] ** 2 / 3
+        K_gs, K_gp = kernel(Pg, x, y, np.sqrt(Ws**2 + hw)), kernel(Pg, x, y, np.sqrt(Wp**2 + hw))
+        bil = [_f2.bilinear(F, Pts), _f2.bilinear(F, Ptp)]
+        ncell = F["nx"] * F["ny"]
+        Phi = np.zeros((nb2, ncell))
+        # on-path ASE bins → field bins (by bin centre)
+        edges = np.r_[l2 - 0.5 * np.asarray(field["dlam"]), l2[-1] + 0.5 * field["dlam"][-1]]
+        rebin = np.zeros((nb2, nk))
+        if nk:
+            kk = np.clip(np.searchsorted(edges, lk) - 1, 0, nb2 - 1)
+            rebin[kk, np.arange(nk)] = 1.0
+        Ag = None
+        fout = None
+        beta = np.ones(nb2)                     # per-bin step of the (geometric) field relaxation
+        dlog_prev = np.zeros(nb2)
+        same = np.zeros(nb2, int)
+        f_tot = 0.0
+    f_tot = 0.0
+    conv = False
+    fon, it_on = False, 0          # the in-plane field joins once the beams have converged without it
     hist = []
     for it in range(max_iter):
         # fluxes at the signal-type and pump-type points (lateral line density × vertical density / hν)
@@ -186,7 +219,7 @@ def solve(cell, hits, sig, pump, er, Ps_in, Pp_in, bs, bp, ase=None, coupled=Tru
             Atot = (Af + Ab).reshape(nk, -1)
             la_s, la_p = apply_kernel(K_ss, Atot), apply_kernel(K_ps, Atot)
         A_new = []
-        for (lsig, lpu, lase) in ((ls_s, lp_s, la_s if nk else None), (ls_p, lp_p, la_p if nk else None)):
+        for bi, (lsig, lpu, lase) in enumerate(((ls_s, lp_s, la_s if nk else None), (ls_p, lp_p, la_p if nk else None))):
             fs = lsig[:, None] * de_s[None, :] / hvs                       # (points, nz)
             fp = lpu[:, None] * de_p[None, :] / hvp
             Ra = sa_p * fp + sa_s * fs
@@ -195,6 +228,12 @@ def solve(cell, hits, sig, pump, er, Ps_in, Pp_in, bs, bp, ase=None, coupled=Tru
                 fa = lase[:, :, None] * de_s[None, None, :] / hvk[:, None, None]     # (bins, points, nz)
                 Ra = Ra + (sa_k[:, None, None] * fa).sum(0)
                 Re = Re + (se_k[:, None, None] * fa).sum(0)
+            if field:
+                idx, wq = bil[bi]
+                ph = (Phi[:, idx] * wq[None]).sum(-1)                                   # (bins2, points)
+                f2 = ph[:, :, None] * de_s[None, None, :] / hv2[:, None, None]
+                Ra = Ra + (sa2[:, None, None] * f2).sum(0)
+                Re = Re + (se2[:, None, None] * f2).sum(0)
             b = Ra + Re + 1 / tau
             with np.errstate(invalid="ignore", divide="ignore"):
                 N2 = np.where(Ra > 0, 2 * Ra * N / (b + np.sqrt(b * b + 4 * Cup * Ra * N)), 0.0)
@@ -220,28 +259,106 @@ def solve(cell, hits, sig, pump, er, Ps_in, Pp_in, bs, bp, ase=None, coupled=Tru
             Gk = se_k[:, None, None] * A_s[1][None] - sa_k[:, None, None] * A_s[0][None]
             Sk = (msp * hvk * dnu)[:, None, None] * se_k[:, None, None] * A_s[1][None]
             Af, Af_end = _propagate(Gk, Sk, sig["alpha"], L, np.zeros(nk), Rk, True)
+            # probe at λs per unit frequency (for the noise figure; not fed back into the rates)
+            _, probe_end = _propagate(se_s * A_s[1] - sa_s * A_s[0], msp * hvs * se_s * A_s[1], sig["alpha"], L, 0.0, Rprobe, True)
             Ab, Ab_end = _propagate(Gk, Sk, sig["alpha"], L, np.zeros(nk), Rk, True, reverse=True)
             ase_tot = float(Af_end.sum() + Ab_end.sum())
         else:
             ase_tot = 0.0
-        hist.append((float(Ps_end), ase_tot, float(Pp_end)))
-        if it > 2:
-            (a, b2, c), (a0, b0, c0) = hist[-1], hist[-2]
-            if abs(a - a0) <= tol * abs(a) and abs(b2 - b0) <= tol * max(abs(b2), 1e-30) and abs(c - c0) <= tol * max(abs(c), 1e-30):
+        if fon:
+            # inversion on the grid (cell-averaged beams: w² + h²/3), with the field itself
+            fs = apply_kernel(K_gs, Fs.reshape(-1))[:, None] * de_s[None, :] / hvs
+            fp = apply_kernel(K_gp, Fp.reshape(-1))[:, None] * de_p[None, :] / hvp
+            Ra, Re = sa_p * fp + sa_s * fs, se_p * fp + se_s * fs
+            la_g = apply_kernel(K_gs, (Af + Ab).reshape(nk, -1)) if nk else np.zeros((0, len(gidx)))
+            if nk:
+                fa = la_g[:, :, None] * de_s[None, None, :] / hvk[:, None, None]
+                Ra = Ra + (sa_k[:, None, None] * fa).sum(0); Re = Re + (se_k[:, None, None] * fa).sum(0)
+            f2 = Phi[:, gidx][:, :, None] * de_s[None, None, :] / hv2[:, None, None]
+            Ra = Ra + (sa2[:, None, None] * f2).sum(0); Re = Re + (se2[:, None, None] * f2).sum(0)
+            b = Ra + Re + 1 / tau
+            with np.errstate(invalid="ignore", divide="ignore"):
+                N2 = np.where(Ra > 0, 2 * Ra * N / (b + np.sqrt(b * b + 4 * Cup * Ra * N)), 0.0)
+            N1 = N - N2 + Nq
+            ag = ((N1 * sh_s[None, :]).sum(1), (N2 * sh_s[None, :]).sum(1))
+            Ag = ag if Ag is None else (Ag[0] + relax * (ag[0] - Ag[0]), Ag[1] + relax * (ag[1] - Ag[1]))
+            G2 = np.full((nb2, ncell), -sig["alpha"])
+            G2[:, gidx] += se2[:, None] * Ag[1][None] - sa2[:, None] * Ag[0][None]
+            Ssp = np.zeros((nb2, ncell)); Ssc = np.zeros((nb2, ncell)); Scb = np.zeros((nb2, ncell))
+            Ssp[:, gidx] = (m2 * sig["n_eff"] / l2 * hv2 * dnu2 * se2)[:, None] * Ag[1][None]
+            Ssc[:, gidx] = f_sc * sig["alpha"] * Phi[:, gidx] / (2 * math.pi)
+            if nk:
+                Scb[:, gidx] = f_sc * sig["alpha"] * (rebin @ la_g) / (2 * math.pi)
+            fout = _f2.transport(F, G2, Ssp + Ssc + Scb, field["R"])
+            # near the parasitic-lasing threshold the field reacts violently to the inversion: relax its magnitude
+            # geometrically, halving the step of a bin whenever its direction of change flips. A bin above threshold
+            # (bounce ratio ≥ 1) has no steady state at this inversion: its field (shape of the growing mode) is pushed
+            # up by e^β per iteration until it depletes the gain back below threshold (gain clamping)
+            A_c = F["area"]
+            new_t, old_t = fout["Phi"] @ A_c, Phi @ A_c
+            Phi_n = fout["Phi"].copy()
+            for k in range(nb2):
+                if old_t[k] > 0 and new_t[k] > 0:
+                    dl = 1.0 if fout["lasing"][k] else math.log(new_t[k] / old_t[k])
+
+                    if dl * dlog_prev[k] < 0:
+                        beta[k] = max(beta[k] * 0.5, 1e-3); same[k] = 0
+                    elif dl * dlog_prev[k] > 0:
+                        same[k] += 1
+                        if same[k] >= 3:
+                            beta[k] = min(beta[k] * 1.2, 1.0)
+                    dlog_prev[k] = dl
+                    Phi_n[k] *= (old_t[k] / new_t[k]) * math.exp(beta[k]) if fout["lasing"][k] else math.exp((beta[k] - 1) * dl)
+            Phi = Phi_n
+            f_tot = float((Phi @ A_c).sum())
+        hist.append((float(Ps_end), ase_tot, float(Pp_end), f_tot))
+        if fon and it - it_on >= max_field_iter:
+            # a clamped (lasing) field keeps flickering at the 1e-4 level: accept it when the gain has settled
+            g10, f10 = [h_[0] for h_ in hist[-10:]], [h_[3] for h_ in hist[-10:]]
+            conv = min(g10) > 0 and 10 * math.log10(max(g10) / min(g10)) < 1e-2 and max(f10) - min(f10) < 1e-2 * max(f10)
+            break
+        if it > 2 and (not fon or it - it_on > 2):
+            (a, b2, c, f), (a0, b0, c0, f0) = hist[-1], hist[-2]
+            if (abs(a - a0) <= tol * abs(a) and abs(b2 - b0) <= tol * max(abs(b2), 1e-30) and abs(c - c0) <= tol * max(abs(c), 1e-30)
+                    and abs(f - f0) <= tol_field * max(abs(f), 1e-30)):
+                if field and not fon:
+                    fon, it_on = True, it
+                    pre_field = (float(Ps_end), float(Pp_end), float(probe_end) if nk else 0.0)
+                    continue
+                conv = True
                 break
     out_s = Ps_end * eta_s if hits["exit"] else 0.0
     res = dict(gain_db=10 * math.log10(out_s / Ps_in) if out_s > 0 else -math.inf,
                internal_gain_db=10 * math.log10(Ps_end / (Ps_in * eta_s)) if Ps_end > 0 else -math.inf,
                Ps_out=float(out_s), Pp_out=float(Pp_end * eta_p), pump_left=float(Pp_end / (Pp_in * eta_p)) if Pp_in else 0.0,
-               iterations=it + 1, converged=it + 1 < max_iter, Fs=Fs, Fp=Fp, A_s=A_s, A_p=A_p, chords=L,
+               iterations=it + 1, converged=conv, Fs=Fs, Fp=Fp, A_s=A_s, A_p=A_p, chords=L,
                inversion=A_s[1] / (N + Nq) / max(sh_s.sum(), 1e-300), history=hist, kernels=(K_ss, K_sp, K_ps, K_pp),
                verticals=(sh_s, de_s, sh_p, de_p), points=(Pts, Ptp), N_act=N, Nq=Nq, cross=(sa_s, se_s, sa_p, se_p),
                hv=(hvs, hvp), tau=tau, Cup=Cup)
+    if field:
+        src = fout["source"]
+        tot_src = np.where(Ssp + Ssc + Scb > 0, Ssp + Ssc + Scb, 1.0)
+        Aw2 = np.zeros((2, ncell)); Aw2[0, gidx], Aw2[1, gidx] = Ag
+        res_field = dict(F=F, lams=l2, dlam=np.asarray(field["dlam"], float), dnu=dnu2, sa=sa2, se=se2, hv=hv2, modes=m2, scatter=f_sc,
+                         Phi=Phi, G=G2, S_sp=Ssp, S_sc=Ssc, S_cb=Scb, A=Aw2, alpha=sig["alpha"], n_eff=sig["n_eff"], sigma_peak=pk, gidx=gidx, R=field["R"], out=fout,
+                         spont=(src * Ssp / tot_src).sum(1), scattered=(src * (Ssc + Scb) / tot_src).sum(1),
+                         stimulated=(se2[:, None] * Aw2[1][None] * fout["intP"]).sum(1),
+                         absorbed=(sa2[:, None] * Aw2[0][None] * fout["intP"]).sum(1),
+                         prop_loss=sig["alpha"] * fout["intP"].sum(1), window=fout["window"], side=fout["side"],
+                         mirror_loss=fout["mirror_loss"], ratio=fout["ratio"], lasing=fout["lasing"], bounces=fout["bounces"])
+        res["field"] = res_field
+        pf = pre_field if fon else (float(Ps_end), float(Pp_end), 0.0)
+        res_field["gain_db_without"] = 10 * math.log10(pf[0] * eta_s / Ps_in) if hits["exit"] and pf[0] > 0 else -math.inf
+        res_field["pump_left_without"] = pf[1] / (Pp_in * eta_p) if Pp_in else 0.0
+        last = [h_[0] for h_ in hist[-10:] if h_[0] > 0]
+        res_field["gain_spread_db"] = 10 * math.log10(max(last) / min(last)) if last else math.inf
+        res_field["iterations"] = it - it_on
     if nk:
         out_f, out_b = Af_end * eta_s, Ab[:, 0, 0] * eta_s
-        res.update(ase_sa=sa_k, ase_se=se_k, ase_dnu=dnu, ase_lams=lk, ase_fwd=out_f, ase_bwd=out_b, ase_fwd_total=float(out_f.sum()), ase_bwd_total=float(out_b.sum()), Af=Af, Ab=Ab)
+        res.update(ase_sa=sa_k, ase_se=se_k, ase_dnu=dnu, ase_lams=lk, ase_fwd=out_f, ase_bwd=out_b, ase_fwd_total=float(out_f.sum()), ase_bwd_total=float(out_b.sum()), Af=Af, Ab=Ab,
+                   ase_density_signal=float(probe_end) * eta_s)
         G = out_s / Ps_in if out_s > 0 else 0.0
-        rho = float(np.interp(ls, lk, out_f / dnu)) / msp           # forward ASE density at λs in the signal's mode, W/Hz
+        rho = float(probe_end) * eta_s / msp                         # forward ASE density at λs in the signal's mode, W/Hz
         res["nf_db"] = 10 * math.log10(1 / G + 2 * rho / (G * hvs)) if G > 0 else math.inf     # 1/G + 2 S_ASE/(G hν)
     return res
 
@@ -262,6 +379,12 @@ def inversion_at(res, hits, bs, bp, P, per_depth=False):
         fa = apply_kernel(Ks, (res["Af"] + res["Ab"]).reshape(len(lk), -1))[:, :, None] * de_s[None, None, :] / (H * C / lk)[:, None, None]
         Ra = Ra + (res["ase_sa"][:, None, None] * fa).sum(0)
         Re = Re + (res["ase_se"][:, None, None] * fa).sum(0)
+    if "field" in res:
+        fl = res["field"]
+        idx, wq = _f2.bilinear(fl["F"], P)
+        f2 = (fl["Phi"][:, idx] * wq[None]).sum(-1)[:, :, None] * de_s[None, None, :] / fl["hv"][:, None, None]
+        Ra = Ra + (fl["sa"][:, None, None] * f2).sum(0)
+        Re = Re + (fl["se"][:, None, None] * f2).sum(0)
     N, Nq, tau, Cup = res["N_act"], res["Nq"], res["tau"], res["Cup"]
     b = Ra + Re + 1 / tau
     with np.errstate(invalid="ignore", divide="ignore"):
@@ -283,6 +406,10 @@ def photon_balance(res, cell, er_t, h=6e-6):
     Gs = se_s * res["A_s"][1] - sa_s * res["A_s"][0]
     Gp = se_p * res["A_p"][1] - sa_p * res["A_p"][0]
     tot = trap(-Gs * res["Fs"]) / hvs + trap(-Gp * res["Fp"]) / hvp
+    if "field" in res:                                        # the in-plane field's net absorption in the Er layer
+        fl = res["field"]
+        A1, A2 = fl["A"]
+        tot += float(((-(fl["se"][:, None] * A2[None] - fl["sa"][:, None] * A1[None]) * fl["out"]["intP"]) / fl["hv"][:, None]).sum())
     if "Af" in res:
         Gk = res["ase_se"][:, None, None] * res["A_s"][1][None] - res["ase_sa"][:, None, None] * res["A_s"][0][None]
         hvk = H * C / res["ase_lams"]

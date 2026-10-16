@@ -199,6 +199,13 @@ def build() -> dict:
         r = oh.er_amplifier(**kw)
         v["onchip_amp"].append({**kw, **{k: (float(r[k]) if np.isfinite(r[k]) else None) for k in ("gain_db", "internal_gain_db", "pump_left", "path", "inversion_mean",
                                                                   "R_dbr_signal", "R_dbr_pump", "ase_fwd", "ase_bwd", "nf_db")}})
+    v["onchip_amp2d"] = []
+    for (pp, nper, ner, sc) in ((0.1, 6, 1.5e26, 0.25), (0.4, 10, 2.5e26, 0.5)):
+        kw = dict(P_pump=pp, periods=nper, N_er=ner, scatter_frac=sc, n_bins=8, ase2d=1, n_bins2d=4, n_p=32, h2d=2.2e-3 / 24)
+        r = oh.er_amplifier(**kw)
+        v["onchip_amp2d"].append({**kw, **{k: float(r[k]) for k in ("gain_db", "gain_db_without_2d", "nf_db", "nf_total_db", "ase2d_spont",
+                                                                    "ase2d_stimulated", "ase2d_absorbed", "ase2d_side", "ase2d_window", "ase2d_mirror",
+                                                                    "ase2d_ratio_max", "noise_onpath", "noise_mode_spont", "noise_offaxis")}})
     v["bessel"] = [{"x": x, "J": [float(j) for j in fav.bessel_j_all(x, 40)]} for x in (0.0, 0.7, 5.5, 33.0, -12.0)]
     v["fringe"] = []
     for (x1, f1, w1, x2, f2, w2, psi, drift, coh, kind) in ((2.4, 1000, "sine", 0.0, 1300, "triangle", 0.0, 0.0, 1.0, "boxcar"),

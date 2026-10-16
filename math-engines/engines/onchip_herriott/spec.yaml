@@ -1,5 +1,5 @@
 engine: onchip_herriott
-version: 3
+version: 4
 title: On-chip Herriott cell, Gaussian-beam path and volume budget
 description: Effective path, absorption-weighted mode volume, angles of incidence and throughput of an integrated (in-plane) Herriott cell with constant or etched-trench DBR mirrors, the beam's angular spectrum, and Gaussian clipping at the mirror ends and the window.
 references:
@@ -145,6 +145,11 @@ functions:
       - {name: ase, label: "Include ASE (1/0)", ui_unit: "", scale: 1.0, default: 1, min: 0, max: 1, step: 1}
       - {name: n_bins, label: "ASE spectral bins (1450-1650 nm)", ui_unit: "", scale: 1.0, default: 20, min: 2, step: 1}
       - {name: ase_modes, label: "Guided modes fed by spontaneous emission", ui_unit: "", scale: 1.0, default: 2, min: 1}
+      - {name: ase2d, label: "In-plane ASE in all directions (0/1)", ui_unit: "", scale: 1.0, default: 0, min: 0, max: 1}
+      - {name: n_bins2d, label: "In-plane ASE spectral bins", ui_unit: "", scale: 1.0, default: 8, min: 2, max: 40}
+      - {name: n_p, label: "In-plane ASE angle bins", ui_unit: "", scale: 1.0, default: 64, min: 8, max: 256}
+      - {name: h2d, label: "In-plane ASE grid pitch (0 = aperture/24)", ui_unit: µm, scale: 1.0e-6, default: 0, min: 0}
+      - {name: scatter_frac, label: "Share of the loss scattered in-plane", ui_unit: "", scale: 1.0, default: 0.25, min: 0, max: 1}
     outputs:
       - {name: gain_db, label: "Net signal gain, window to window", ui_unit: dB, scale: 1.0}
       - {name: ase_fwd, label: "Forward ASE out of the window", ui_unit: µW, scale: 1.0e-6}
@@ -167,3 +172,20 @@ functions:
       - {name: small_signal_absorption_db_cm, label: "Unpumped signal absorption", ui_unit: dB/cm, scale: 1.0}
       - {name: exits, label: "Leaves through the window", ui_unit: "", scale: 1.0}
       - {name: footprint_area, label: "Cell footprint", ui_unit: mm², scale: 1.0e-6}
+      - {name: gain_db_without_2d, label: "Net gain without the in-plane ASE", ui_unit: dB, scale: 1.0}
+      - {name: pump_left_without_2d, label: "Pump left without the in-plane ASE", ui_unit: "", scale: 1.0}
+      - {name: ase2d_spont, label: "In-plane spontaneous emission into the slab", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase2d_stimulated, label: "Stimulated emission into the in-plane field", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase2d_absorbed, label: "In-plane field reabsorbed by Er", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase2d_scattered_in, label: "Guided ASE scattered into the in-plane field", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase2d_side, label: "In-plane ASE leaving through the open sides", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase2d_window, label: "In-plane ASE leaving through the window", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase2d_mirror, label: "In-plane ASE transmitted by the mirrors", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase2d_prop_loss, label: "In-plane ASE lost to waveguide loss", ui_unit: mW, scale: 1.0e-3}
+      - {name: ase2d_ratio_max, label: "Largest bounce-to-bounce ratio of the trapped ASE (1 = lasing)", ui_unit: "", scale: 1.0}
+      - {name: ase2d_lasing, label: "Parasitic lasing of the trapped ASE", ui_unit: "", scale: 1.0}
+      - {name: nf_total_db, label: "Noise figure with off-axis ASE scattered into the mode", ui_unit: dB, scale: 1.0}
+      - {name: noise_onpath, label: "ASE density in the signal mode (on-path)", ui_unit: W/Hz, scale: 1.0}
+      - {name: noise_mode_spont, label: "ASE density in the mode, back-traced", ui_unit: W/Hz, scale: 1.0}
+      - {name: noise_offaxis, label: "Off-axis ASE scattered into the mode", ui_unit: W/Hz, scale: 1.0}
+      - {name: offaxis_noise_ratio, label: "Off-axis / on-path noise in the signal mode", ui_unit: "", scale: 1.0}

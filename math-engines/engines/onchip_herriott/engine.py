@@ -112,6 +112,7 @@ def trace_hits(cell, dtheta=0.0, exit_mode="window", n_max=4000):
 
 
 DB_PER_CM = 100 * math.log(10) / 10      # dB/cm -> power attenuation coefficient [1/m]
+H_PLANCK, C_LIGHT = 6.62607015e-34, 2.99792458e8
 
 
 def mirror_power(cell, k, chi):
@@ -518,6 +519,7 @@ def beam_stability(R=10e-3, N=20, M=3, A=1e-3, phase=0.0, port_width=100e-6, wav
 
 # ---------------------------------------------------------------- coupled amplifier (shared inversion, ASE)
 from . import amp2d as _a2  # noqa: E402
+from . import ase2d as _f2  # noqa: E402
 
 
 def ase_grid(lam_lo=1.45e-6, lam_hi=1.65e-6, n_bins=20):
@@ -527,10 +529,13 @@ def ase_grid(lam_lo=1.45e-6, lam_hi=1.65e-6, n_bins=20):
 
 
 def amplifier_coupled(cell, sig, pump, er, Ps_in=1e-6, Pp_in=0.1, ase=True, coupled=True, clip=True, ns=17, nz=6,
-                      lam_lo=1.45e-6, lam_hi=1.65e-6, n_bins=20, ase_modes=2, R_ase=None, max_iter=300, tol=1e-6):
+                      lam_lo=1.45e-6, lam_hi=1.65e-6, n_bins=20, ase_modes=2, R_ase=None, max_iter=300, tol=1e-6,
+                      field2d=False, n_bins2d=8, h2d=None, ds2d=None, n_p=64, scatter_frac=0.25, noise=True):
     """Er amplifier with shared inversion between overlapping passes and forward/backward ASE (amp2d.solve).
     sig / pump: dict(wavelength, n_eff, mode (stack_mode), z_er (z0, z1), alpha, R_of_chi, beam); er as for amplifier().
-    R_ase(λ, |χ|) is the mirror reflectance for the ASE bins (default: the signal's R_of_chi without beam averaging)."""
+    R_ase(λ, |χ|) is the mirror reflectance for the ASE bins (default: the signal's R_of_chi without beam averaging).
+    field2d: also the in-plane ASE in all directions (ase2d: n_bins2d bins, grid pitch h2d, chord bins ds2d × n_p,
+    fraction scatter_frac of the loss scattered in-plane); noise: back-trace the output mode (ase2d.mode_noise)."""
     m = cell.meta
     hits = trace_hits(cell, 0.0, "window", 4000)
     n = len(hits["element"])
@@ -563,9 +568,28 @@ def amplifier_coupled(cell, sig, pump, er, Ps_in=1e-6, Pp_in=0.1, ase=True, coup
         for k, lam in enumerate(lk):
             for j in range(last):
                 Rk[k, j] = (R_ase(lam, abs(chi[j])) if R_ase else 1.0) * bs["clip"][j]
-        A = dict(lams=lk, dlam=dl, R=Rk, modes=ase_modes)
-    r = _a2.solve(cell, hits, s2, p2, er, Ps_in, Pp_in, bs, bq, A, coupled, nz, max_iter, tol)
+        Rpr = np.array([(R_ase(sig["wavelength"], abs(chi[j])) if R_ase else 1.0) * bs["clip"][j] if j < last else 1.0 for j in range(n)])
+        A = dict(lams=lk, dlam=dl, R=Rk, modes=ase_modes, R_probe=Rpr)
+    fld = None
+    if field2d:
+        F = _f2.setup(cell, h2d, ds2d, n_p)
+        l2, d2 = ase_grid(lam_lo, lam_hi, n_bins2d)
+        Rv = (lambda lam, chi: R_ase(lam, chi)) if R_ase else None
+        fld = dict(F=F, lams=l2, dlam=d2, R=_f2.mirror_R(F, l2, Rv), modes=ase_modes, scatter=scatter_frac)
+    r = _a2.solve(cell, hits, s2, p2, er, Ps_in, Pp_in, bs, bq, A, coupled, nz, max_iter, tol, field=fld)
     r.update(hits=hits, bs=bs, bp=bq, eta_s=bs["eta"], eta_p=bq["eta"], path=float(bs["chords"][:n].sum()), exits=bool(hits["exit"]))
+    if field2d and noise and hits["exit"]:
+        fl = r["field"]
+        mn = _f2.mode_noise(fl, hits, float(bs["W"][-1, -1]), sig["wavelength"], sig["n_eff"], Rv)
+        fl["mode"] = mn
+        hvs = H_PLANCK * C_LIGHT / sig["wavelength"]
+        G = r["Ps_out"] / Ps_in if r["Ps_out"] > 0 else 0.0
+        e = bs["eta"] / ase_modes
+        fl["rho_spont_bt"] = float(mn["spont"][0]) * e
+        fl["rho_offaxis"] = float(mn["scat_field"][0] + mn["scat_beam"][0]) * e
+        rho1 = r.get("ase_density_signal", 0.0) / ase_modes
+        fl["rho_onpath"] = rho1
+        r["nf_total_db"] = 10 * math.log10(1 / G + 2 * (rho1 + fl["rho_offaxis"]) / (G * hvs)) if G > 0 else math.inf
     return r
 
 
@@ -573,13 +597,15 @@ def er_amplifier(R=10e-3, N=20, M=3, A=1e-3, phase=0.0, port_width=100e-6, platf
                  substrate="sio2", cladding="air", polarization="TE", lam_s=1.532e-6, lam_p=980e-9, P_signal=1e-6,
                  P_pump=0.1, N_er=1.5e26, tau=7.5e-3, Cup=4e-24, fq=0.0, loss_db_cm=0.25, loss_pump_db_cm=-1.0, periods=6,
                  R_pump=0.99, pump_mirror="constant", w_ratio=1.0, focus_shift=0.0, scale=1.0, model="coupled", ase=1,
-                 n_bins=20, ase_modes=2) -> Result:
+                 n_bins=20, ase_modes=2, ase2d=0, n_bins2d=8, n_p=64, h2d=0.0, scatter_frac=0.25) -> Result:
     """Er:Al2O3 gain in an on-chip Herriott cell: signal and co-propagating pump enter through the window, travel the N
     passes in the slab (stack modes at each wavelength) and are amplified/absorbed in the Er layer; signal mirror a trench
     DBR, pump mirror constant or the same DBR. model 'coupled': passes share the inversion where their beams overlap,
     the Er layer is resolved in depth, ASE forward and backward (amp2d); 'independent': each pass sees only its own beams
     (same Gaussian/depth model); 'tophat': the earlier single-pass model (P Γ/(w√(π/2) t), no ASE). scale multiplies R,
-    A and the window; loss_pump_db_cm < 0 uses the signal loss for the pump."""
+    A and the window; loss_pump_db_cm < 0 uses the signal loss for the pump. ase2d = 1 adds the in-plane ASE in all
+    directions (ase2d.py: n_bins2d bins, n_p angle bins, grid pitch h2d (0: aperture/24), a fraction scatter_frac of the
+    loss scattered in-plane) and the back-trace of the output mode (ASE noise reaching the signal's mode)."""
     require_positive(P_signal=P_signal, N_er=N_er, tau=tau, scale=scale, er_t=er_t)
     require_nonnegative(P_pump=P_pump, Cup=Cup, loss_db_cm=loss_db_cm)
     require_range("fq", fq, 0.0, 0.95)
@@ -607,7 +633,8 @@ def er_amplifier(R=10e-3, N=20, M=3, A=1e-3, phase=0.0, port_width=100e-6, platf
         r.update(ase_fwd_total=np.nan, ase_bwd_total=np.nan, nf_db=np.nan, iterations=1, converged=True)
     else:
         r = amplifier_coupled(cell, sig, pmp, erd, P_signal, P_pump, ase=bool(ase), coupled=model == "coupled", n_bins=int(n_bins),
-                              ase_modes=ase_modes, R_ase=lambda lam, chi: float(dbr.R(lam, abs(math.sin(chi)))))
+                              ase_modes=ase_modes, R_ase=lambda lam, chi: dbr.R(lam, np.abs(np.sin(chi))),
+                              field2d=bool(ase2d) and bool(ase), n_bins2d=int(n_bins2d), n_p=int(n_p), h2d=h2d or None, scatter_frac=scatter_frac)
         r.setdefault("ase_fwd_total", 0.0); r.setdefault("ase_bwd_total", 0.0); r.setdefault("nf_db", np.nan)
     xs = _er.cross_sections(lam_s, lam_p)
     v = {"gain_db": r["gain_db"], "internal_gain_db": r["internal_gain_db"], "Ps_out": r["Ps_out"], "pump_left": r["pump_left"],
@@ -617,7 +644,24 @@ def er_amplifier(R=10e-3, N=20, M=3, A=1e-3, phase=0.0, port_width=100e-6, platf
          "gamma_er_p": mp["gamma_er"], "R_dbr_signal": float(dbr.R(lam_s, 0.0)), "R_dbr_pump": float(DBRAt(dbr, mp["neff"]).R(lam_p, 0.0)),
          "small_signal_absorption_db_cm": 10 * math.log10(math.e) * ms["gamma_er"] * xs[0] * N_er / 100,
          "exits": r["exits"], "footprint_area": (cell.meta["d"] + 2 * cell.meta["aperture"] ** 2 / cell.meta["R"]) * 2 * cell.meta["aperture"]}
+    if "field" in r:
+        fl = r["field"]
+        v.update(gain_db_without_2d=fl["gain_db_without"], pump_left_without_2d=fl["pump_left_without"],
+                 ase2d_spont=float(fl["spont"].sum()), ase2d_stimulated=float(fl["stimulated"].sum()), ase2d_absorbed=float(fl["absorbed"].sum()),
+                 ase2d_scattered_in=float(fl["scattered"].sum()), ase2d_side=float(fl["side"].sum()), ase2d_window=float(fl["window"].sum()),
+                 ase2d_mirror=float(fl["mirror_loss"].sum()), ase2d_prop_loss=float(fl["prop_loss"].sum()),
+                 ase2d_ratio_max=float(np.max(fl["ratio"])), ase2d_lasing=bool(np.any(fl["lasing"])))
+        if "mode" in fl:
+            v.update(nf_total_db=r["nf_total_db"], noise_onpath=fl["rho_onpath"], noise_mode_spont=fl["rho_spont_bt"],
+                     noise_offaxis=fl["rho_offaxis"], offaxis_noise_ratio=fl["rho_offaxis"] / fl["rho_onpath"] if fl["rho_onpath"] > 0 else np.nan)
+    for k in ("gain_db_without_2d", "pump_left_without_2d", "ase2d_spont", "ase2d_stimulated", "ase2d_absorbed", "ase2d_scattered_in",
+              "ase2d_side", "ase2d_window", "ase2d_mirror", "ase2d_prop_loss", "ase2d_ratio_max", "nf_total_db", "noise_onpath",
+              "noise_mode_spont", "noise_offaxis", "offaxis_noise_ratio"):
+        v.setdefault(k, np.nan)
+    v.setdefault("ase2d_lasing", False)
     u = {k: "" for k in v}
+    u.update(gain_db_without_2d="dB", nf_total_db="dB", noise_onpath="W/Hz", noise_mode_spont="W/Hz", noise_offaxis="W/Hz",
+             **{k: "W" for k in v if k.startswith("ase2d_") and k not in ("ase2d_ratio_max", "ase2d_lasing")})
     u.update(gain_db="dB", internal_gain_db="dB", Ps_out="W", ase_fwd="W", ase_bwd="W", nf_db="dB", path="m", gain_per_cm="dB/cm",
              small_signal_absorption_db_cm="dB/cm", footprint_area="m^2")
     return Result(values=v, units=u, assumptions=[
@@ -627,4 +671,9 @@ def er_amplifier(R=10e-3, N=20, M=3, A=1e-3, phase=0.0, port_width=100e-6, platf
         "ASE: forward and backward, n_bins bins over 1450-1650 nm, spontaneous emission into ase_modes guided modes (Γ and n_eff of the signal), "
         "mirror R(λ) of the signal DBR; NF from the forward ASE density at λs in the signal's polarisation",
         "Signal mirror: first-order trench DBR at λs (beam-averaged); pump mirror constant R_pump or the same DBR at λp",
+        "ase2d: spontaneous emission into all in-plane guided directions (m (n_eff/λ) modes per unit étendue), ray-transported "
+        "through the closed cell (open sides lose, mirrors reflect with R(λ, χ), window leaves), Neumann series over bounces; "
+        "its flux enters the same rate equations; a fraction scatter_frac of α scatters guided ASE isotropically in-plane",
+        "noise: NF from the forward ASE density exactly at λs; the off-axis part is the field and on-path ASE scattered into the "
+        "back-traced output mode",
         "No excited-state absorption, no pair-induced quenching beyond fq, no thermal effects; interference of crossing beams averaged"])

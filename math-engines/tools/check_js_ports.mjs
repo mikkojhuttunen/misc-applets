@@ -265,9 +265,8 @@ const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Nu
   const html = fs.readFileSync(path.join(repo, 'onchip-herriott.html'), 'utf8');
   const a = html.indexOf('/* engine:begin'), b = html.indexOf('/* engine:end */');
   if (a < 0 || b < 0) throw new Error('engine block markers not found in onchip-herriott.html');
-  const ctx = vm.createContext({ Math, Number, Float64Array, Infinity, NaN, Array, Set, Object, Error, JSON });
-  vm.runInContext(html.slice(a, b) + '\n;globalThis.__o = { P: PlanarEngine, O: OnchipEngine };', ctx);
-  const { P: E, O } = ctx.__o;
+  /* a Function in this realm, not a vm context: the in-plane ASE transport runs ~10x slower behind vm's global proxy */
+  const { P: E, O } = new Function(html.slice(a, b) + '\n;return { P: PlanarEngine, O: OnchipEngine };')();
   /* erf against Python's math.erf; footprint is a grid count (2e-3 absolute) */
   [0, 0.3, -1.1, 1.9, 2.1, 3.5, -5].forEach(x => close(`erf(${x})`, O.erf(x), { 0: 0, 0.3: 0.3286267594591274, '-1.1': -0.8802050695740817, 1.9: 0.9927904292352575, 2.1: 0.997020533343667, 3.5: 0.9999992569016276, '-5': -0.9999999999984626 }[x], 1e-14, 1e-16));
   for (const [i, c] of V.onchip_herriott.entries()) {
@@ -329,6 +328,17 @@ const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Nu
     const it = r.model === "tophat" ? 1e-8 : 2e-5;
     for (const k of ["gain_db", "internal_gain_db", "inversion_mean", "nf_db"]) closeN(`amp[${i}] ${k}`, a[k], r[k], it, it);
     for (const k of ["pump_left", "ase_fwd", "ase_bwd"]) closeN(`amp[${i}] ${k}`, a[k], r[k], r.model === "tophat" ? 1e-7 : 1e-4, 1e-20);
+  }
+  /* in-plane ASE field: iterated to 1e-6 (beams) / 1e-4 (field) and a different summation order of the chord series */
+  for (const [i, r] of V.onchip_amp2d.entries()) {
+    const a = O.erAmplifier({ P_pump: r.P_pump, periods: r.periods, N_er: r.N_er, scatter_frac: r.scatter_frac, n_bins: r.n_bins, ase2d: r.ase2d,
+      n_bins2d: r.n_bins2d, n_p: r.n_p, h2d: r.h2d });
+    for (const k of ["gain_db", "gain_db_without_2d", "nf_db", "nf_total_db"]) close(`amp2d[${i}] ${k}`, a[k], r[k], 1e-4, 1e-4);
+    for (const k of ["ase2d_spont", "ase2d_stimulated", "ase2d_absorbed", "ase2d_side", "ase2d_window", "ase2d_mirror", "ase2d_ratio_max",
+      "noise_onpath"]) close(`amp2d[${i}] ${k}`, a[k], r[k], 2e-3, 1e-30);
+    /* the 49 back-traced rays of the output mode: a ray grazing the window edge escapes a bounce earlier or later on
+       1e-15 differences of the traced path (a discontinuous event), so these two agree to ~1 % only */
+    for (const k of ["noise_mode_spont", "noise_offaxis"]) close(`amp2d[${i}] ${k}`, a[k], r[k], 2e-2, 1e-30);
   }
 }
 

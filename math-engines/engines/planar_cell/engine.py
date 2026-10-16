@@ -8,7 +8,15 @@ Every element is a chord A -> B (counter-clockwise around the cell) with a signe
     κ < 0   concave as seen from inside: the element bulges outward (a piece of a circular wall, radius 1/|κ|)
     κ > 0   convex as seen from inside: bulges inward (dispersing, strongly mixing)
 
-so one element type covers smooth circular walls, flat facets and curved facets. The outward normal of a chord is
+so one element type covers smooth circular walls, flat facets and curved facets. A fourth kind, the smooth
+profile mirror (Element.profile = Profile(...)), is a general aspheric/deformed mirror: in its own frame (vertex V,
+unit axis u pointing into the cell, lateral e = (−u_y, u_x)) the surface is ξ = S(η) with
+
+    S(η) = c η² / (1 + sqrt(1 − (1 + k) c² η²)) + a3 η³ + a4 η⁴      (c = 1/R at the vertex, k conic constant)
+
+for η from eta0 (end A) to eta1 (end B). It must stay concave (S'' > 0) over that range: the ray–surface equation
+g(t) = ξ(t) − S(η(t)) is then concave in t and safeguarded Newton from the far end of the η range converges
+monotonically onto the first hit. Its boundary coordinate is the arclength (129-point table). The outward normal of a chord is
 n = (t_y, -t_x), t = (B - A)/|B - A|. The wall does not have to be closed: the integrated Herriott cell is two
 facing concave arcs, and rays that pass the mirror ends leave the cell (exit -2, "leaked").
 
@@ -42,12 +50,58 @@ SHAPES = ("circle", "polygon", "stadium", "faceted_stadium")
 
 
 @dataclass
+class Profile:
+    """Smooth profile mirror in its own frame (see the module docstring)."""
+    V: tuple
+    axis: tuple
+    c: float
+    k: float = 0.0
+    a3: float = 0.0
+    a4: float = 0.0
+    eta0: float = 0.0
+    eta1: float = 0.0
+
+    def S(self, eta):
+        eta = np.asarray(eta, float)
+        c, k = self.c, self.k
+        return c * eta**2 / (1 + np.sqrt(np.maximum(1 - (1 + k) * c * c * eta**2, 0.0))) + self.a3 * eta**3 + self.a4 * eta**4
+
+    def dS(self, eta):
+        eta = np.asarray(eta, float)
+        c, k = self.c, self.k
+        return c * eta / np.sqrt(np.maximum(1 - (1 + k) * c * c * eta**2, 1e-300)) + 3 * self.a3 * eta**2 + 4 * self.a4 * eta**3
+
+    def d2S(self, eta):
+        eta = np.asarray(eta, float)
+        c, k = self.c, self.k
+        return c / np.maximum(1 - (1 + k) * c * c * eta**2, 1e-300) ** 1.5 + 6 * self.a3 * eta + 12 * self.a4 * eta**2
+
+    def frame(self):
+        ux, uy = self.axis
+        return np.asarray(self.V, float), np.array([ux, uy], float), np.array([-uy, ux], float)
+
+    def point(self, eta):
+        V, u, e = self.frame()
+        S = self.S(eta)
+        eta = np.asarray(eta, float)
+        return V[0] + S * u[0] + eta * e[0], V[1] + S * u[1] + eta * e[1]
+
+    def curvature(self, eta):
+        """Local curvature (> 0: concave as seen from inside)."""
+        return self.d2S(eta) / (1 + self.dS(eta) ** 2) ** 1.5
+
+
+PROFILE_TABLE = 129
+
+
+@dataclass
 class Element:
     A: tuple
     B: tuple
     kappa: float = 0.0
     ext: float = 0.0
     label: str = ""
+    profile: Profile = None
 
 
 class Cell2D:
@@ -73,7 +127,17 @@ class Cell2D:
         self.C = np.full((E, 2), np.nan)
         self.L = 2 * self.h.copy()
         self.sense = np.ones(E)
+        self.prof = [e.profile for e in elements]
+        self.ptab = [None] * E
         for k in range(E):
+            pr = self.prof[k]
+            if pr is not None:
+                eta = np.linspace(pr.eta0, pr.eta1, PROFILE_TABLE)
+                ds = np.sqrt(1 + pr.dS(eta) ** 2)
+                sl = np.r_[0.0, np.cumsum(0.5 * (ds[1:] + ds[:-1]) * np.abs(np.diff(eta)))]
+                self.ptab[k] = (eta, sl)
+                self.L[k] = sl[-1]
+                continue
             if self.kappa[k] == 0:
                 continue
             R = 1 / abs(self.kappa[k])
@@ -107,6 +171,10 @@ class Cell2D:
         a = 0.5 * np.sum(x * yn - xn * y)
         nxt = np.r_[1:self.n_elements, 0]
         a += 0.5 * np.sum(self.B[:, 0] * self.A[nxt, 1] - self.A[nxt, 0] * self.B[:, 1])   # joints (0 when closed)
+        for k in range(self.n_elements):
+            if self.prof[k] is not None:                    # profile: the table polyline instead of the chord
+                px, py = self.prof[k].point(self.ptab[k][0])
+                a += 0.5 * np.sum(px[:-1] * py[1:] - px[1:] * py[:-1]) - 0.5 * (x[k] * yn[k] - xn[k] * y[k])
         for k in np.nonzero(self.kappa)[0]:
             R, al = self.R[k], np.arcsin(min(self.h[k] / self.R[k], 1.0))
             seg = R * R * (al - np.sin(al) * np.cos(al))
@@ -148,7 +216,72 @@ class Cell2D:
             x[~flat], y[~flat] = self.C[kc, 0] + px, self.C[kc, 1] + py
             sg = np.where(self.kappa[kc] < 0, 1.0, -1.0)
             nx[~flat], ny[~flat] = sg * px / self.R[kc], sg * py / self.R[kc]
+        for kp in {int(v) for v in np.unique(k)} if any(p is not None for p in self.prof) else ():
+            pr = self.prof[kp]
+            if pr is None:
+                continue
+            sel = k == kp
+            eta = self._eta_of(kp, loc[sel])
+            x[sel], y[sel] = pr.point(eta)
+            nx[sel], ny[sel] = self._profile_normal(kp, eta)
         return x, y, nx, ny
+
+    # ---------------------------------------------------------------- profile mirrors
+    def _eta_of(self, k, sloc):
+        eta, sl = self.ptab[k]
+        return np.interp(sloc, sl, eta)
+
+    def _sloc_of(self, k, eta):
+        et, sl = self.ptab[k]
+        return np.interp(eta, et, sl) if et[-1] > et[0] else np.interp(-eta, -et, sl)
+
+    def _profile_normal(self, k, eta):
+        """Outward unit normal of profile element k at η: (−u + S'(η) e) / |…|."""
+        _, u, e = self.prof[k].frame()
+        d = self.prof[k].dS(eta)
+        nn = np.sqrt(1 + d * d)
+        return (-u[0] + d * e[0]) / nn, (-u[1] + d * e[1]) / nn
+
+    def _profile_hit(self, k, px, py, dx, dy, eps):
+        """First hit of rays with profile element k: t (inf: none) and η."""
+        pr = self.prof[k]
+        V, u, e = pr.frame()
+        xi0 = (px - V[0]) * u[0] + (py - V[1]) * u[1]
+        et0 = (px - V[0]) * e[0] + (py - V[1]) * e[1]
+        dxi = dx * u[0] + dy * u[1]
+        det = dx * e[0] + dy * e[1]
+        lo, hi = min(pr.eta0, pr.eta1), max(pr.eta0, pr.eta1)
+        pad = self.ext[k] * (hi - lo) / 2
+        lo, hi = lo - pad, hi + pad
+        with np.errstate(divide="ignore", invalid="ignore"):
+            tmax = np.where(det > 0, (hi - et0) / det, np.where(det < 0, (lo - et0) / det, np.inf))
+            tlin = np.where(dxi < 0, (pr.S(et0) - xi0) / dxi, np.inf)          # the case det = 0 (S constant along the ray)
+        t = np.where(np.isfinite(tmax), tmax, tlin)
+        g = lambda tt: xi0 + tt * dxi - pr.S(et0 + tt * det)
+        ok = np.isfinite(t) & (t > eps) & (g(np.where(np.isfinite(t), t, 0.0)) <= 0)
+        t = np.where(ok, t, 0.0)
+        scale = 2 * self.h[k] + 1e-300
+        for _ in range(80):                                                    # monotone from the right (g concave)
+            et = et0 + t * det
+            gp = dxi - pr.dS(et) * det
+            with np.errstate(divide="ignore", invalid="ignore"):
+                step = np.where(ok & (gp < 0), g(t) / gp, 0.0)
+            t = t - step
+            if np.all(np.abs(step) <= 1e-15 * scale):
+                break
+        ok &= t > eps
+        return np.where(ok, t, np.inf), et0 + np.where(ok, t, 0.0) * det
+
+    def curvature_at(self, s):
+        """Local wall curvature at boundary coordinate s (> 0 concave as seen from inside, 0 for flat facets)."""
+        s = np.mod(np.asarray(s, float), self.perimeter)
+        k = self.segment_of(s)
+        out = np.where(self.kappa[k] != 0, -self.kappa[k], 0.0)
+        for kp in {int(v) for v in np.unique(k)}:
+            if self.prof[kp] is not None:
+                sel = k == kp
+                out[sel] = self.prof[kp].curvature(self._eta_of(kp, s[sel] - self.s0[kp]))
+        return out
 
     def outline(self, per_element=24):
         """Wall points element by element (closed walls: back to the start; open walls: NaN between elements)."""
@@ -192,6 +325,16 @@ class Cell2D:
         bnx, bny, bs = np.zeros(n), np.zeros(n), np.zeros(n)
         bk = np.full(n, -1)
         for k in range(self.n_elements):
+            if self.prof[k] is not None:
+                t, et = self._profile_hit(k, px, py, dx, dy, eps)
+                upd = np.isfinite(t) & (t < bt)
+                if upd.any():
+                    nx_, ny_ = self._profile_normal(k, et)
+                    bt = np.where(upd, t, bt)
+                    bnx, bny = np.where(upd, nx_, bnx), np.where(upd, ny_, bny)
+                    bs = np.where(upd, self.s0[k] + self._sloc_of(k, et), bs)
+                    bk = np.where(upd, k, bk)
+                continue
             hh = self.h[k] * (1 + self.ext[k])
             Mx, My = self.M[k]
             tx, ty = self.t[k]
@@ -324,6 +467,59 @@ def herriott_planar_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=None
     return Cell2D(m1 + m2, f"integrated Herriott R={R:g} d={d:g}", s_in=s_in, s_out=s_in, meta=meta)
 
 
+def deformed_herriott_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=None, phase=0.0, conic=0.0, eps3=0.0,
+                           eps4=0.0, deform="both", walls=False):
+    """Integrated Herriott cell with smooth deformed mirrors (profile elements), same geometry, window and launch as
+    herriott_planar_cell. The deformation is given relative to the paraxial edge sag a²/(2R) (a = aperture):
+    a4 = eps4 c / (2 a²) adds eps4 × that sag at the edges (quartic), a3 = eps3 c / (2 a) a cubic (asymmetric) term;
+    conic is the conic constant (0 sphere, −1 parabola). deform = 'both', 'M1' or 'M2' picks the deformed mirror(s).
+    walls=True closes the cell with flat side mirrors between the mirror ends (an elongated closed cell); otherwise
+    rays that pass the mirror ends leave. With conic = eps3 = eps4 = 0 it traces like herriott_planar_cell."""
+    require_positive(R=R, A=A)
+    require_choice("deform", deform, ("both", "M1", "M2"))
+    N, M = int(N), int(M)
+    if N < 4 or N % 2:
+        raise ValueError("N must be even and >= 4 (the ray returns to the window on M1 after N hits)")
+    if not 0 < M < N / 2:
+        raise ValueError("need 0 < M < N/2 for a stable re-entrant design")
+    d = reentrant_spacing(R, N, M) if d is None else float(d)
+    require_positive(d=d)
+    R2 = R if R2 is None else float(R2)
+    w = A / 10 if port_w is None else float(port_w)
+    a = A + w if aperture is None else float(aperture)
+    y0 = A * np.cos(phase)
+    if a >= min(R, R2):
+        raise ValueError("aperture must be smaller than the mirror radii")
+    if a < max(A, abs(y0) + w / 2):
+        raise ValueError("aperture must hold the spot pattern and the window")
+    profs = []
+    for i, (Rm, V, ax) in enumerate(((R, (-d / 2, 0.0), (1.0, 0.0)), (R2, (d / 2, 0.0), (-1.0, 0.0)))):
+        on = deform == "both" or deform == f"M{i + 1}"
+        c = 1.0 / Rm
+        pr = Profile(V, ax, c, conic, (eps3 * c / (2 * a)) if on else 0.0, (eps4 * c / (2 * a * a)) if on else 0.0, a, -a)
+        if 1 - (1 + conic) * c * c * a * a <= 0:
+            raise ValueError("the conic mirror is not defined out to the aperture")
+        if np.min(pr.d2S(np.linspace(-a, a, 257))) <= 0:
+            raise ValueError("the deformation makes a mirror convex somewhere: reduce eps3 / eps4")
+        profs.append(pr)
+    pts = [tuple(float(v) for v in pr.point(pr.eta0)) for pr in profs], [tuple(float(v) for v in pr.point(pr.eta1)) for pr in profs]
+    (A1, A2), (B1, B2) = pts
+    els = [Element(A1, B1, 0.0, 0.0, "M1", profs[0])]
+    if walls:
+        els.append(Element(B1, A2, 0.0, 0.0, "side_bottom"))
+    els.append(Element(A2, B2, 0.0, 0.0, "M2", profs[1]))
+    if walls:
+        els.append(Element(B2, A1, 0.0, 0.0, "side_top"))
+    th = theta_of(R, d)
+    th_launch = float(np.arctan(-A * np.sin(phase) * np.sqrt((2 * R - d) / d) / R)) if phase else 0.0
+    meta = dict(R=R, R2=R2, d=d, N=N, M=M, A=A, aperture=a, port_w=w, theta=th, phase=float(phase), y0=float(y0),
+                theta_launch=th_launch, conic=float(conic), eps3=float(eps3), eps4=float(eps4), deform=deform, walls=bool(walls))
+    cell = Cell2D(els, f"deformed Herriott R={R:g} d={d:g} eps4={eps4:g} eps3={eps3:g}", meta=meta)
+    s_in = float(cell._sloc_of(0, y0))
+    cell.s_in_default, cell.s_out_default = s_in, s_in
+    return cell
+
+
 def herriott_planar_spots(meta):
     """Paraxial design spots: (y on M1 for even hits 2..N-2, y on M2 for odd hits 1..N-1), the minimum spot-to-spot
     distance on each mirror, and the window clearance (closest M1 spot to the window centre minus half the window)."""
@@ -360,6 +556,14 @@ def perturb(cell, tilt_rms=0.0, offset_rms=0.0, curvature_rms=0.0, seed=0, selec
         M = M0 + of[k] * cell.n[k]
         c, s = np.cos(tl[k]), np.sin(tl[k])
         rot = lambda P: (M[0] + c * (P[0] - M0[0]) - s * (P[1] - M0[1]), M[1] + s * (P[0] - M0[0]) + c * (P[1] - M0[1]))
+        if e.profile is not None:
+            pr = e.profile
+            Vn = rot(pr.V)
+            ax = (c * pr.axis[0] - s * pr.axis[1], s * pr.axis[0] + c * pr.axis[1])
+            pn = Profile(Vn, ax, pr.c + cu[k], pr.k, pr.a3, pr.a4, pr.eta0, pr.eta1)
+            A_, B_ = pn.point(pr.eta0), pn.point(pr.eta1)
+            els.append(Element((float(A_[0]), float(A_[1])), (float(B_[0]), float(B_[1])), 0.0, e.ext, e.label, pn))
+            continue
         els.append(Element(rot(e.A), rot(e.B), e.kappa + cu[k], e.ext, e.label))
     return Cell2D(els, cell.name + " (perturbed)", s_in=cell.s_in_default, s_out=cell.s_out_default, meta=cell.meta)
 
@@ -460,17 +664,22 @@ class RayTable:
 
 
 def trace_rays(cell, port_w, n_rays=1000, n_bounce=1500, theta0=0.35, s_in=None, s_out_frac=0.37, seed=1,
-               theta_c=0.0, max_path=None, keep_hits=False, ports=True, s_out=None) -> RayTable:
+               theta_c=0.0, max_path=None, keep_hits=False, ports=True, s_out=None, starts=None) -> RayTable:
     """Rays launched across the input port window (position uniform, angle uniform in theta_c ± theta0) and traced
     until they hit the output window (checked first) or the input window, n_bounce or max_path. The output window is
     centred on s_out, else cell.s_out_default (the integrated Herriott cell: the input window itself), else
-    s_in + s_out_frac × perimeter. ports=False traces a closed cell (no exits)."""
+    s_in + s_out_frac × perimeter. ports=False traces a closed cell (no exits). starts = (x, y, dx, dy) arrays replaces
+    the random launch (n_rays is then their number)."""
     rng = np.random.default_rng(seed)
     P = cell.perimeter
     s_in = cell.s_in_default if s_in is None else s_in
     if s_out is None:
         s_out = cell.s_out_default if getattr(cell, "s_out_default", None) is not None else s_in + s_out_frac * P
-    x, y, dx, dy = launch(cell, s_in + (rng.random(n_rays) - 0.5) * port_w, theta_c + (rng.random(n_rays) * 2 - 1) * theta0)
+    if starts is not None:
+        x, y, dx, dy = (np.array(v, float) for v in starts)
+        n_rays = x.size
+    else:
+        x, y, dx, dy = launch(cell, s_in + (rng.random(n_rays) - 0.5) * port_w, theta_c + (rng.random(n_rays) * 2 - 1) * theta0)
     start = np.stack([x, y, dx, dy], 1).copy()
     chord = np.zeros((n_rays, n_bounce))
     sinchi = np.zeros((n_rays, n_bounce))

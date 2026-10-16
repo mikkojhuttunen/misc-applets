@@ -1,0 +1,65 @@
+engine: gas_cell
+version: 1
+title: Gas-sensing cells, deformed Herriott against CMPC
+description: An elongated integrated Herriott cell with smooth deformed mirrors (the baseline) against a circular multipass cell of the same footprint area, both fed by the same Gaussian beam. Path, throughput and absorbance per ppm (what you gain) against chaos (twin-ray Lyapunov exponent, dither visibility of the fringes) and a Gaussian-beam two-mirror model along the traced path; shot-noise and fringe-limited detection limits.
+references:
+  - "D. Herriott, H. Kogelnik, R. Kompfner, Appl. Opt. 3, 523 (1964) (off-axis paths in spherical mirror interferometers)"
+  - "H. Kogelnik, T. Li, Appl. Opt. 5, 1550 (1966) (laser beams and resonators, ABCD)"
+  - "J. B. McManus, P. L. Kebabian, M. S. Zahniser, Appl. Opt. 34, 3336 (1995) (astigmatic multipass cells, fringe and path design)"
+  - "L. A. Bunimovich, Commun. Math. Phys. 65, 295 (1979) (ergodic billiards); G. Benettin et al., Meccanica 15, 9 (1980) (Lyapunov exponents)"
+  - "P. J. Acklam, An algorithm for computing the inverse normal cumulative distribution function (2003)"
+functions:
+  compare:
+    title: Deformed Herriott cell against the CMPC
+    equations: ["R = L / (1 − cos 2πM/N),  S(η) = cη²/(1 + √(1 − (1+k)c²η²)) + a3 η³ + a4 η⁴,  a4 = eps4 c/(2a²)", "A_ppm = 100 α_ppm Γ ⟨L⟩,  NEC_shot = √(2qB/(P_in T))/A_ppm", "NEC_fringe = 2 √f_par V / A_ppm", "q' = (Aq + B)/(Cq + D),  mirror C = −2κ/cos χ"]
+    inputs:
+      - {name: L, label: "Cell length (mirror spacing)", ui_unit: mm, scale: 1.0e-3, default: 15}
+      - {name: W, label: "Cell width (mirror aperture)", ui_unit: mm, scale: 1.0e-3, default: 1.5}
+      - {name: N, label: "Hits to re-entrance N (even)", ui_unit: "", scale: 1.0, default: 14, min: 4, step: 1}
+      - {name: M, label: "Pattern turns M", ui_unit: "", scale: 1.0, default: 3, min: 1, step: 1}
+      - {name: distinct, label: "Distinct spots (phase π/N) 1/0", ui_unit: "", scale: 1.0, default: 1, min: 0, max: 1, step: 1}
+      - {name: port_width, label: "Window width (0 = 2.5 mode radii)", ui_unit: µm, scale: 1.0e-6, default: 0, min: 0}
+      - {name: eps4, label: "Quartic deformation (fraction of the edge sag)", ui_unit: "", scale: 1.0, default: 0}
+      - {name: eps3, label: "Cubic deformation (fraction of the edge sag)", ui_unit: "", scale: 1.0, default: 0}
+      - {name: conic, label: "Conic constant", ui_unit: "", scale: 1.0, default: 0}
+      - {name: deform, label: "Deformed mirror(s)", type: choice, choices: [both, M1, M2], default: both}
+      - {name: walls, label: "Reflecting side walls 1/0", ui_unit: "", scale: 1.0, default: 0, min: 0, max: 1, step: 1}
+      - {name: n_facets, label: "CMPC facets", ui_unit: "", scale: 1.0, default: 24, min: 3, step: 1}
+      - {name: circle_theta, label: "CMPC launch angle", ui_unit: rad, scale: 1.0, default: 0.35}
+      - {name: out_frac, label: "CMPC output port position (fraction of the perimeter)", ui_unit: "", scale: 1.0, default: 0.37}
+      - {name: smooth_circle, label: "Smooth circle instead of facets 1/0", ui_unit: "", scale: 1.0, default: 0, min: 0, max: 1, step: 1}
+      - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1653.7}
+      - {name: n_eff, label: "Slab n_eff", ui_unit: "", scale: 1.0, default: 2.0, min: 1}
+      - {name: gamma, label: "Gas overlap Γ", ui_unit: "", scale: 1.0, default: 0.2, min: 0, max: 1}
+      - {name: species, label: "Gas (strongest listed line)", type: choice, choices: [CH4, NH3, CO2, H2O], default: CH4}
+      - {name: R_mirror, label: "Mirror reflectance", ui_unit: "", scale: 1.0, default: 0.995, min: 0, max: 1}
+      - {name: dither, label: "Launch-angle dither amplitude", ui_unit: mrad, scale: 1.0e-3, default: 2}
+      - {name: waveform, label: "Dither waveform", type: choice, choices: [sine, triangle], default: sine}
+      - {name: f_parasitic, label: "Parasitic (fringe) power fraction", ui_unit: "", scale: 1.0, default: 1.0e-6}
+      - {name: P_in, label: "Input power", ui_unit: mW, scale: 1.0e-3, default: 1}
+      - {name: bandwidth, label: "Noise bandwidth", ui_unit: Hz, scale: 1.0, default: 1}
+      - {name: n_side, label: "Beam rays per side (n_side² rays)", ui_unit: "", scale: 1.0, default: 24, min: 4, step: 1}
+      - {name: n_bounce, label: "Hit limit per ray", ui_unit: "", scale: 1.0, default: 2000, min: 10, step: 1}
+      - {name: retune_launch, label: "Re-aim the baseline launch for the best Γ T ⟨L⟩ 1/0", ui_unit: "", scale: 1.0, default: 1, min: 0, max: 1, step: 1}
+    outputs:
+      - {name: h_L_mean, label: "Herriott: mean detected path", ui_unit: cm, scale: 1.0e-2}
+      - {name: h_T, label: "Herriott: detected power", ui_unit: "", scale: 1.0}
+      - {name: h_A_ppm, label: "Herriott: absorbance per ppm", ui_unit: 1/ppm, scale: 1.0}
+      - {name: h_nec, label: "Herriott: noise-equivalent concentration", ui_unit: ppm, scale: 1.0}
+      - {name: h_lam, label: "Herriott: Lyapunov exponent", ui_unit: 1/hit, scale: 1.0}
+      - {name: h_V, label: "Herriott: dither visibility at the exit", ui_unit: "", scale: 1.0}
+      - {name: h_T_G, label: "Herriott: power kept in one Gaussian beam", ui_unit: "", scale: 1.0}
+      - {name: h_m_max, label: "Herriott: largest round-trip |m|", ui_unit: "", scale: 1.0}
+      - {name: h_theta, label: "Herriott: launch angle used", ui_unit: mrad, scale: 1.0e-3}
+      - {name: c_L_mean, label: "CMPC: mean detected path", ui_unit: cm, scale: 1.0e-2}
+      - {name: c_T, label: "CMPC: detected power", ui_unit: "", scale: 1.0}
+      - {name: c_A_ppm, label: "CMPC: absorbance per ppm", ui_unit: 1/ppm, scale: 1.0}
+      - {name: c_nec, label: "CMPC: noise-equivalent concentration", ui_unit: ppm, scale: 1.0}
+      - {name: c_lam, label: "CMPC: Lyapunov exponent", ui_unit: 1/hit, scale: 1.0}
+      - {name: c_V, label: "CMPC: dither visibility at the exit", ui_unit: "", scale: 1.0}
+      - {name: c_T_G, label: "CMPC: power kept in one Gaussian beam", ui_unit: "", scale: 1.0}
+      - {name: path_gain, label: "Path gain ⟨L⟩_H / ⟨L⟩_C", ui_unit: "", scale: 1.0}
+      - {name: sensitivity_gain, label: "Sensitivity gain (Γ T ⟨L⟩)_H / (…)_C", ui_unit: "", scale: 1.0}
+      - {name: washout_lost, label: "Washout lost V_H − V_C", ui_unit: "", scale: 1.0}
+      - {name: chaos_lost, label: "Chaos lost λ_C − λ_H", ui_unit: 1/hit, scale: 1.0}
+      - {name: nec_ratio, label: "NEC_H / NEC_C", ui_unit: "", scale: 1.0}

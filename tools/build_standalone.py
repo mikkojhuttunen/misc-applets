@@ -15,6 +15,7 @@ APPLETS = {
     "planar-mpc-ray-tracer.html": ("Planar MPC Ray Tracer", "planar_cell, ray_phase, bragg_grating (stack_R_oblique, TrenchDBR) and cell_mirror engines"),
     "herriott-ray-tracer.html": ("Herriott Cell Ray Tracer", "herriott_cell and ray_phase engines"),
     "onchip-herriott.html": ("On-chip Herriott Cell", "onchip_herriott, planar_cell and bragg_grating (stack_R_oblique, TrenchDBR) engines"),
+    "gas-cell-ray-tracer.html": ("Gas Cell Ray Tracer", "gas_cell, planar_cell (smooth profile mirrors) and ray_phase engines"),
 }
 
 

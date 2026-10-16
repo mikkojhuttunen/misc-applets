@@ -260,6 +260,43 @@ const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Nu
 }
 
 
+/* ---- gas-cell-ray-tracer.html: gas_cell engine block (planar_cell with smooth profile mirrors, ray_phase) ---- */
+{
+  const html = fs.readFileSync(path.join(repo, 'gas-cell-ray-tracer.html'), 'utf8');
+  const a = html.indexOf('/* engine:begin'), b = html.indexOf('/* engine:end */');
+  if (a < 0 || b < 0) throw new Error('engine block markers not found in gas-cell-ray-tracer.html');
+  const { P, G } = new Function(html.slice(a, b) + '\n;return { P: PlanarEngine, G: GasEngine };')();
+  for (const [i, r] of V.deformed_herriott.entries()) {
+    const c = P.deformedHerriottCell(r.R, r.N, r.M, r.A, { portW: r.port_w, aperture: r.aperture, d: r.d, phase: r.phase, conic: r.conic, eps3: r.eps3,
+      eps4: r.eps4, deform: r.deform, walls: r.walls });
+    close(`dh[${i}] perimeter`, c.perimeter, r.perimeter, 1e-12); close(`dh[${i}] area`, c.area, r.area, 1e-10); close(`dh[${i}] s_in`, c.sIn, r.s_in, 1e-12);
+    const tr = P.herriottTrace(c, 0, 400);
+    checks++; if (tr.exit !== r.exit) { fails++; console.error(`FAIL dh[${i}] exit: got ${tr.exit}, want ${r.exit}`); }
+    close(`dh[${i}] n_hits`, tr.nHits, r.n_hits, 0, 0.5); close(`dh[${i}] path`, tr.path, r.path, 1e-11);
+    r.xs.forEach((v, j) => close(`dh[${i}] x${j}`, tr.tr.xs[j], v, 0, 1e-13)); r.ys.forEach((v, j) => close(`dh[${i}] y${j}`, tr.tr.ys[j], v, 0, 1e-13));
+    const d = c.meta.d, ap = c.meta.aperture;
+    for (let j = 0; j < 60; j++) {
+      const px = -d * 0.45 + d * 0.9 * ((j * 0.618034) % 1), py = ap * (2 * ((j * 0.414214) % 1) - 1) * 0.9, ang = Math.PI * (j % 2) + 0.6 * (((j * 0.732051) % 1) - 0.5);
+      const h = P.hit(c, px, py, Math.cos(ang), Math.sin(ang));
+      checks++;
+      if (r.hit_t[j] === null) { if (Number.isFinite(h.t)) { fails++; console.error(`FAIL dh[${i}] t${j}: got ${h.t}, want no hit`); } continue; }
+      close(`dh[${i}] t${j}`, h.t, r.hit_t[j], 1e-11, 1e-16); close(`dh[${i}] s${j}`, h.s, r.hit_s[j], 1e-10, 1e-15);
+      close(`dh[${i}] nx${j}`, h.nx, r.hit_nx[j], 0, 1e-12); close(`dh[${i}] k${j}`, h.k, r.hit_k[j], 0, 0.5);
+    }
+    r.curv.forEach((v, j) => close(`dh[${i}] curv${j}`, P.curvatureAt(c, c.perimeter * j / 12), v, 1e-9, 1e-12));
+  }
+  /* compare(): the twin-ray Lyapunov fit is a slope through separations near 1e-10 m, so it gets 1e-4 */
+  const inputs = ["eps4", "eps3", "walls", "retune_launch", "smooth_circle", "n_side", "n_bounce"];
+  for (const [i, r] of V.gas_cell.entries()) {
+    const a = G.compare(Object.fromEntries(inputs.map(k => [k, r[k]])));
+    for (const k of Object.keys(r)) {
+      if (inputs.includes(k)) continue;
+      if (r[k] === null) { checks++; if (Number.isFinite(a[k])) { fails++; console.error(`FAIL gas[${i}] ${k}: got ${a[k]}, want non-finite`); } continue; }
+      close(`gas[${i}] ${k}`, a[k], r[k], /lam|chaos/.test(k) ? 1e-4 : 1e-6, /lam|chaos/.test(k) ? 1e-7 : 1e-12);
+    }
+  }
+}
+
 /* ---- onchip-herriott.html: onchip_herriott engine block (on planar_cell and bragg_grating) ---- */
 {
   const html = fs.readFileSync(path.join(repo, 'onchip-herriott.html'), 'utf8');

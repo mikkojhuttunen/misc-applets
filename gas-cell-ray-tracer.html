@@ -1,0 +1,1485 @@
+<title>Gas Cell Ray Tracer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument panel. Controls in a left rail; the head-to-head numbers first, then both cells, then the evidence (beam, chaos, fringes, paths) and the deformation sweep. */
+:root {
+  --bg: #eef1f0;
+  --surface: #ffffff;
+  --ink: #142026;
+  --muted: #5a6a6f;
+  --line: #d3dcdc;
+  --mirror: #6d8188;
+  --sel: #b86e00;
+  --port-in: #1f8a4c;
+  --port-out: #c43d2a;
+  --accent: #1d5f86;
+  --circ: #8a4fb0;
+  --beam-l: 42%;
+  --beam-s: 78%;
+  --font-display: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+    --mirror: #9db3ba; --sel: #ffb547; --port-in: #4fd18a; --port-out: #ff7a63; --accent: #6cb8e6; --circ: #c99bea;
+    --beam-l: 64%; --beam-s: 85%; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+  --mirror: #9db3ba; --sel: #ffb547; --port-in: #4fd18a; --port-out: #ff7a63; --accent: #6cb8e6; --circ: #c99bea;
+  --beam-l: 64%; --beam-s: 85%; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 32px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+h1 { font: 700 22px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 75ch; }
+.main { display: grid; grid-template-columns: minmax(270px, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.rail { display: grid; gap: 12px; }
+fieldset { margin: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 10px 12px 12px; display: grid; gap: 10px; min-width: 0; }
+legend { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+.ctl { display: grid; gap: 3px; }
+.ctl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { font-weight: 500; }
+.ctl output, .mono { font-family: var(--font-data); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+input[type="number"] { width: 5.5em; font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button { font: 500 13px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; gap: 6px; align-items: center; }
+.check input { accent-color: var(--accent); }
+.views { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; display: grid; gap: 8px; }
+.panel h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.cellview { position: relative; width: 100%; max-width: 100%; aspect-ratio: var(--cell-aspect, 2); max-height: 78vh; margin: 0 auto; }
+[hidden] { display: none !important; }
+canvas { display: block; width: 100%; height: 100%; }
+#cell { cursor: crosshair; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 640px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+.chart { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; }
+.chart.wide { aspect-ratio: 3 / 1; }
+@media (max-width: 640px) { .chart.wide { aspect-ratio: 3 / 2; } }
+.phasectl { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 18px; }
+.phasectl select { max-width: 100%; }
+.phasectl .ctl > select { width: 100%; }
+.sub { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.tablewrap { overflow-x: auto; }
+#mirTable { border-collapse: collapse; font-size: 12.5px; min-width: 520px; width: 100%; }
+#mirTable th, #mirTable td { padding: 4px 10px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+#mirTable th:first-child, #mirTable td:first-child { text-align: left; font-family: var(--font-body); }
+#mirTable thead th { color: var(--muted); font-weight: 500; font-family: var(--font-body); }
+#mirTable td.bad { color: var(--port-out); }
+#mirTable td.good { color: var(--port-in); }
+.explain { border-left: 3px solid var(--accent); background: var(--bg); padding: 8px 12px; border-radius: 0 4px 4px 0; display: grid; gap: 4px; font-size: 13px; }
+.explain .eq { font-family: var(--font-data); font-size: 12.5px; overflow-wrap: anywhere; }
+.explain .note { color: var(--muted); }
+.explain .warn { color: var(--port-out); }
+.status { color: var(--muted); font: 12px var(--font-data); }
+details.how { border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; }
+details.how summary { cursor: pointer; font-weight: 600; }
+details.how ul { margin: 8px 0 4px; padding-left: 18px; display: grid; gap: 4px; max-width: 95ch; }
+.sub h3 { font: 500 12.5px var(--font-body); margin: 0; color: var(--ink); }
+select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; }
+.stat { display: grid; gap: 1px; }
+.stat span:first-child { color: var(--muted); font-size: 12px; }
+.stat span:last-child { font: 500 15px var(--font-data); font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.manual { font: 12px var(--font-data); color: var(--muted); min-height: 1.2em; overflow-wrap: anywhere; }
+footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
+.rail select { width: 100%; max-width: 100%; }
+.rail .btns select { width: auto; }
+.tbl { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+.tbl th, .tbl td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; font-family: var(--font-body); }
+.tbl thead th { color: var(--muted); font-weight: 500; font-family: var(--font-body); }
+.vs th.h, .vs td.h { color: var(--accent); }
+.vs th.c { color: var(--circ); }
+.vs td.win { font-weight: 600; }
+.vs td.win::after { content: " ◂"; color: var(--port-in); font-size: 10px; }
+.cellbox { width: 100%; max-width: 100%; aspect-ratio: var(--asp, 3); }
+.circbox { width: 100%; max-width: 100%; aspect-ratio: 1.6; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.kpi { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; display: grid; gap: 2px; background: var(--bg); }
+.kpi span:first-child { color: var(--muted); font-size: 12px; }
+.kpi b { font: 600 20px var(--font-data); font-variant-numeric: tabular-nums; }
+.kpi i { font-style: normal; color: var(--muted); font-size: 12px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Gas Cell Ray Tracer</h1>
+    <p>An elongated on-chip Herriott cell with smooth, deformable mirrors against a circular multipass cell (CMPC) of the same footprint, both fed by the same Gaussian beam. The Herriott cell keeps one clean beam on a long, stable path; the CMPC scrambles its rays, which washes out interference fringes but spreads the beam. Read off the path you gain against the chaos you lose, and what that means for the detection limit of a gas line.</p>
+  </header>
+
+  <div class="main">
+    <div class="rail">
+      <fieldset>
+        <legend>Baseline: elongated Herriott cell</legend>
+        <div class="ctl"><div class="row"><label for="L">Length L (mirror spacing)</label><output id="LOut"></output></div>
+          <input id="L" type="range" min="5" max="30" step="0.5" value="15"></div>
+        <div class="ctl"><div class="row"><label for="W">Width W (mirror aperture)</label><output id="WOut"></output></div>
+          <input id="W" type="range" min="0.6" max="4" step="0.05" value="1.5"></div>
+        <div class="ctl"><div class="row"><label for="N">Passes to re-entrance N</label><output id="NOut"></output></div>
+          <input id="N" type="range" min="4" max="40" step="2" value="14"></div>
+        <div class="ctl"><div class="row"><label for="M">Turns M</label><output id="MOut"></output></div>
+          <input id="M" type="range" min="1" max="19" step="1" value="3"></div>
+        <div class="ctl"><label class="check"><input id="distinct" type="checkbox" checked> Distinct spots (pattern phase π/N)</label></div>
+        <div class="ctl"><div class="row"><label for="pw">Window width (0 = 2.5 mode radii)</label><output id="pwOut"></output></div>
+          <input id="pw" type="range" min="0" max="400" step="5" value="0"></div>
+        <div class="ctl"><label class="check"><input id="walls" type="checkbox"> Reflecting side walls (closed cell)</label></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Mirror deformation</legend>
+        <div class="ctl"><div class="row"><label for="eps4">Quartic ε₄ (share of the edge sag)</label><output id="eps4Out"></output></div>
+          <input id="eps4" type="range" min="-0.15" max="0.4" step="0.005" value="0"></div>
+        <div class="ctl"><div class="row"><label for="eps3">Cubic ε₃ (asymmetric)</label><output id="eps3Out"></output></div>
+          <input id="eps3" type="range" min="-0.2" max="0.2" step="0.005" value="0"></div>
+        <div class="ctl"><div class="row"><label for="conic">Conic constant k</label><output id="conicOut"></output></div>
+          <input id="conic" type="range" min="-1" max="1" step="0.05" value="0"></div>
+        <div class="ctl"><div class="row"><label for="deform">Deformed mirror</label></div>
+          <select id="deform"><option value="both" selected>both mirrors</option><option value="M1">M1 (window side)</option><option value="M2">M2</option></select></div>
+        <div class="ctl"><label class="check"><input id="retune" type="checkbox" checked> Re-aim the launch for the best Γ T ⟨L⟩</label>
+          <p class="hint">A deformed mirror moves the spot pattern off re-entrance; re-aiming scans ± 4 beam divergences around the design angle.</p></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Comparison: circular cell</legend>
+        <div class="ctl"><div class="row"><label for="nf">Facets (0 = smooth circle)</label><output id="nfOut"></output></div>
+          <input id="nf" type="range" min="0" max="60" step="1" value="24"></div>
+        <div class="ctl"><div class="row"><label for="cth">Launch angle from the normal</label><output id="cthOut"></output></div>
+          <input id="cth" type="range" min="0" max="60" step="0.5" value="20"></div>
+        <div class="ctl"><div class="row"><label for="of">Output port position</label><output id="ofOut"></output></div>
+          <input id="of" type="range" min="0.05" max="0.95" step="0.01" value="0.37"></div>
+        <p class="hint">Same area as the Herriott cell, same window width and input beam.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Light, gas and mirrors</legend>
+        <div class="ctl"><div class="row"><label for="sp">Gas (strongest listed line)</label></div>
+          <select id="sp"><option value="CH4" selected>CH₄, 1653.7 nm</option><option value="NH3">NH₃, 1531.7 nm</option><option value="CO2">CO₂, 1572.3 nm</option><option value="H2O">H₂O, 1529.0 nm</option></select></div>
+        <div class="ctl"><div class="row"><label for="neff">Slab n_eff</label><output id="neffOut"></output></div>
+          <input id="neff" type="range" min="1" max="3.5" step="0.01" value="2"></div>
+        <div class="ctl"><div class="row"><label for="gam">Gas overlap Γ</label><output id="gamOut"></output></div>
+          <input id="gam" type="range" min="0.01" max="1" step="0.01" value="0.2"></div>
+        <div class="ctl"><div class="row"><label for="Rm">Mirror reflectance</label><output id="RmOut"></output></div>
+          <input id="Rm" type="range" min="0.9" max="1" step="0.0005" value="0.995"></div>
+        <div class="ctl"><div class="row"><label for="Pin">Input power</label><output id="PinOut"></output></div>
+          <input id="Pin" type="range" min="-2" max="1" step="0.1" value="0"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Fringes and dither</legend>
+        <div class="ctl"><div class="row"><label for="dit">Launch-angle dither amplitude</label><output id="ditOut"></output></div>
+          <input id="dit" type="range" min="0" max="10" step="0.1" value="2"></div>
+        <div class="ctl"><div class="row"><label for="wave">Dither waveform</label></div>
+          <select id="wave"><option value="sine" selected>sine</option><option value="triangle">triangle</option></select></div>
+        <div class="ctl"><div class="row"><label for="fp">Parasitic (fringe) power fraction</label><output id="fpOut"></output></div>
+          <input id="fp" type="range" min="-10" max="-3" step="0.1" value="-6"></div>
+        <div class="ctl"><div class="row"><label for="ns">Beam rays (per side)</label><output id="nsOut"></output></div>
+          <input id="ns" type="range" min="6" max="32" step="1" value="16"></div>
+      </fieldset>
+    </div>
+
+    <div class="views">
+      <section class="panel">
+        <h2>Path gained against chaos lost</h2>
+        <div class="explain" id="verdict"><span class="status">Tracing both cells…</span></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="tablewrap"><table class="tbl vs" id="vs"></table></div>
+      </section>
+
+      <section class="panel">
+        <h2>The two cells</h2>
+        <div class="sub"><h3>Elongated Herriott cell (baseline)</h3>
+          <div class="cellbox" id="hbox"><canvas id="hcell" aria-label="Herriott cell with the Gaussian beam along the centre ray"></canvas></div>
+          <p class="hint">Band: the Gaussian beam (±w) along the centre ray, opacity ∝ power. Green: the input/output window. Transverse scale stretched as labelled.</p></div>
+        <div class="duo">
+          <div class="sub"><h3>Circular multipass cell, same area</h3>
+            <div class="circbox"><canvas id="ccell" aria-label="Circular multipass cell with its centre ray"></canvas></div>
+            <p class="hint">Centre ray (up to 300 chords) on its way to the output port (red); input port green.</p></div>
+          <div class="sub"><h3>Re-aiming the Herriott launch</h3>
+            <canvas class="chart" id="retuneChart" aria-label="Sensitivity against launch angle"></canvas>
+            <p class="hint">Γ T ⟨L⟩ of a small ray bundle against the launch angle around the design; ring: the angle used.</p></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>What you gain and what you lose</h2>
+        <div class="duo">
+          <div class="sub"><h3>Gaussian beam along the path</h3>
+            <canvas class="chart" id="beamChart" aria-label="Beam radius per hit"></canvas>
+            <p class="hint">Two-mirror ABCD model with the local curvature and angle at every hit: beam radius relative to the input (log). The Herriott beam breathes and stays; on flat facets the CMPC beam diffracts and spills over facet edges.</p></div>
+          <div class="sub"><h3>Twin rays 10⁻⁹ rad apart</h3>
+            <canvas class="chart" id="twinChart" aria-label="Twin-ray separation per hit"></canvas>
+            <p class="hint">Separation of the hit points (log). Linear growth: regular motion; a straight rise on this log scale: chaos (slope = Lyapunov exponent); jumps: facet edges splitting the twins.</p></div>
+          <div class="sub"><h3>Fringe left after the dither, pass by pass</h3>
+            <canvas class="chart" id="visChart" aria-label="Dither visibility per pass"></canvas>
+            <p class="hint">Visibility of the interference between the light leaving at pass p and a copy that does not follow the dither. 1: the fringe stays; 0: washed out. Ring: the exit pass.</p></div>
+          <div class="sub"><h3>Detected path lengths</h3>
+            <canvas class="chart" id="pathChart" aria-label="Distribution of detected path lengths"></canvas>
+            <p class="hint">Power-weighted histogram of the paths of the beam's rays that reach the output (mirror losses included).</p></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Phase space</h2>
+        <div class="duo">
+          <div class="sub"><h3>Herriott cell: Poincaré section</h3>
+            <canvas class="chart" id="hPoin" aria-label="Poincaré section of the Herriott cell"></canvas></div>
+          <div class="sub"><h3>Circular cell: Poincaré section</h3>
+            <canvas class="chart" id="cPoin" aria-label="Poincaré section of the circular cell"></canvas></div>
+        </div>
+        <p class="hint">Every hit of rays started across the whole wall: position along the wall (fraction of the perimeter) against sin χ. Closed curves and islands: regular orbits; a speckled sea: chaos. Rays that leave an open cell stop; for the open Herriott cell only the narrow angle range the far mirror subtends is sampled.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Deformation sweep</h2>
+        <div class="btns"><button id="sweepBtn" type="button">Run the sweep</button><span class="status" id="sweepStatus">ε₄ from −0.10 to +0.30, re-aimed launch at each step; takes a few seconds.</span></div>
+        <div class="duo">
+          <div class="sub"><h3>Path and chaos against ε₄</h3>
+            <canvas class="chart" id="sweepA" aria-label="Path and chaos against the quartic deformation"></canvas></div>
+          <div class="sub"><h3>Detection limit against ε₄</h3>
+            <canvas class="chart" id="sweepB" aria-label="Noise-equivalent concentration against the quartic deformation"></canvas></div>
+        </div>
+        <p class="hint">Left: mean detected path (cm) and the fringe visibility left after the dither. Right: noise-equivalent concentration (ppm, log): shot noise and fringe floor 2√f V/A. Dashed: the circular cell.</p>
+      </section>
+
+      <details class="how">
+        <summary>Model and definitions</summary>
+        <ul>
+          <li><b>Baseline</b>: two concave in-plane mirrors at spacing L, aperture W, re-entrant design R = L/(1 − cos 2πM/N), one window on M1 for input and output. Each mirror is a smooth profile ξ = cη²/(1 + √(1 − (1+k)c²η²)) + a₃η³ + a₄η⁴ with a₄ = ε₄ c/(2a²) and a₃ = ε₃ c/(2a) (a = W/2), so ε is the extra sag at the edge as a share of a²/(2R); rays meet it exactly (safeguarded Newton).</li>
+          <li><b>Comparison</b>: a regular polygon of flat facets (the CMPC) or a smooth circle with the same area, input port mid facet 0, output port further along the wall.</li>
+          <li><b>Input beam</b>: the eigenmode of the undeformed baseline at its window, sampled as an n × n grid of rays from its Wigner function (normal quantiles in offset and angle, wavefront curvature included). Both cells get the same beam.</li>
+          <li><b>Path</b>: the rays are traced port to port; each reflection multiplies by R. T = detected power, ⟨L⟩ its power-weighted mean path, absorbance per ppm A = 100 α Γ ⟨L⟩ with α of the strongest listed line (illustrative data, ±30 %).</li>
+          <li><b>Detection limit</b>: shot noise √(2qB/(P T)) with 1 A/W and 1 Hz; fringe floor 2√f V, f the parasitic power fraction that interferes with the signal and V the visibility left after the launch-angle dither; NEC = √(shot² + fringe²)/A.</li>
+          <li><b>Chaos</b>: Lyapunov exponent = slope of ln(twin separation) per hit over its exponential stretch (0: none found); dither visibility from the phase of the exiting light across the dither (adaptive sampling).</li>
+          <li><b>Gaussian-beam two-mirror model</b>: q propagated along the traced centre ray, mirror term −2κ/cos χ with the local curvature κ; per hit the beam radius and the share of its footprint left on the reflecting element (not past the mirror end, not in a window). "Power kept in one Gaussian beam" is the product of those shares and R; |m| = |A + D|/2 of each round trip (two chords), above 1 the orbit is locally unstable.</li>
+          <li><b>Not included</b>: diffraction beyond the paraxial Gaussian model, interference between different rays, angle-dependent mirror reflectance, scattering, strong-line saturation.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+  <footer>JavaScript port of misc-applets <span class="mono">math-engines/engines/gas_cell</span> on <span class="mono">planar_cell</span> (smooth profile mirrors) and <span class="mono">ray_phase</span>, checked against the Python engines' test vectors (<span class="mono">tools/check_js_ports.mjs</span>). 2D ray optics in the slab with a paraxial Gaussian beam.</footer>
+</div>
+
+<script id="app">
+/* engine:begin  JS ports of math-engines/engines/gas_cell (GasEngine) and planar_cell (Cell2D with smooth profile mirrors,
+   builders, tracing) with ray_phase (dither analysis); checked by math-engines/tools/check_js_ports.mjs */
+const PlanarEngine = (() => {
+  /* planar_cell.Cell2D: elements [{A: [x, y], B: [x, y], kappa, ext, label}] in counter-clockwise order */
+  /* planar_cell.Profile: smooth profile mirror ξ = S(η) in its own frame (vertex V, axis u into the cell, e = (−u_y, u_x)) */
+  const PROFILE_TABLE = 129;
+  const prS = (p, eta) => p.c * eta * eta / (1 + Math.sqrt(Math.max(1 - (1 + p.k) * p.c * p.c * eta * eta, 0))) + p.a3 * eta ** 3 + p.a4 * eta ** 4;
+  const prdS = (p, eta) => p.c * eta / Math.sqrt(Math.max(1 - (1 + p.k) * p.c * p.c * eta * eta, 1e-300)) + 3 * p.a3 * eta ** 2 + 4 * p.a4 * eta ** 3;
+  const prd2S = (p, eta) => p.c / Math.max(1 - (1 + p.k) * p.c * p.c * eta * eta, 1e-300) ** 1.5 + 6 * p.a3 * eta + 12 * p.a4 * eta ** 2;
+  const prPoint = (p, eta) => { const S = prS(p, eta), ux = p.axis[0], uy = p.axis[1]; return [p.V[0] + S * ux - eta * uy, p.V[1] + S * uy + eta * ux]; };
+  const prCurv = (p, eta) => prd2S(p, eta) / (1 + prdS(p, eta) ** 2) ** 1.5;
+  function makeProfile({ V, axis, c, k = 0, a3 = 0, a4 = 0, eta0 = 0, eta1 = 0 }) { return { V, axis, c, k, a3, a4, eta0, eta1 }; }
+  function interpInc(x, xs, ys) {                     /* numpy.interp for increasing xs */
+    const n = xs.length;
+    if (x <= xs[0]) return ys[0];
+    if (x >= xs[n - 1]) return ys[n - 1];
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (xs[m] <= x) lo = m; else hi = m; }
+    return ys[lo] + (x - xs[lo]) * (ys[hi] - ys[lo]) / (xs[hi] - xs[lo]);
+  }
+
+  function makeCell(els, opts = {}) {
+    const E = els.length;
+    const c = { els, E, name: opts.name || "cell", meta: Object.assign({}, opts.meta || {}),
+      Ax: new Float64Array(E), Ay: new Float64Array(E), Bx: new Float64Array(E), By: new Float64Array(E),
+      kappa: new Float64Array(E), ext: new Float64Array(E), labels: els.map(e => e.label || ""),
+      h: new Float64Array(E), tx: new Float64Array(E), ty: new Float64Array(E), nx: new Float64Array(E), ny: new Float64Array(E),
+      Mx: new Float64Array(E), My: new Float64Array(E), R: new Float64Array(E).fill(Infinity), Cx: new Float64Array(E).fill(NaN),
+      Cy: new Float64Array(E).fill(NaN), L: new Float64Array(E), sense: new Float64Array(E).fill(1), s0: new Float64Array(E),
+      prof: els.map(e => e.profile || null), ptab: new Array(E).fill(null) };
+    for (let k = 0; k < E; k++) {
+      const e = els[k];
+      c.Ax[k] = e.A[0]; c.Ay[k] = e.A[1]; c.Bx[k] = e.B[0]; c.By[k] = e.B[1]; c.kappa[k] = e.kappa || 0; c.ext[k] = e.ext || 0;
+      const chx = c.Bx[k] - c.Ax[k], chy = c.By[k] - c.Ay[k];
+      c.h[k] = 0.5 * Math.hypot(chx, chy);
+      c.tx[k] = chx / (2 * c.h[k]); c.ty[k] = chy / (2 * c.h[k]);
+      c.nx[k] = c.ty[k]; c.ny[k] = -c.tx[k];
+      c.Mx[k] = 0.5 * (c.Ax[k] + c.Bx[k]); c.My[k] = 0.5 * (c.Ay[k] + c.By[k]);
+      c.L[k] = 2 * c.h[k];
+      const pr = c.prof[k];
+      if (pr) {
+        const n = PROFILE_TABLE, eta = new Float64Array(n), sl = new Float64Array(n), step = (pr.eta1 - pr.eta0) / (n - 1);
+        for (let i = 0; i < n; i++) eta[i] = i === n - 1 ? pr.eta1 : pr.eta0 + i * step;
+        let dPrev = Math.sqrt(1 + prdS(pr, eta[0]) ** 2);
+        for (let i = 1; i < n; i++) { const d = Math.sqrt(1 + prdS(pr, eta[i]) ** 2); sl[i] = sl[i - 1] + 0.5 * (d + dPrev) * Math.abs(eta[i] - eta[i - 1]); dPrev = d; }
+        const inc = eta[n - 1] > eta[0];
+        c.ptab[k] = { eta, sl, etaInc: inc ? eta : Float64Array.from(eta, v => -v), sign: inc ? 1 : -1 };
+        c.L[k] = sl[n - 1];
+        continue;
+      }
+      if (c.kappa[k] !== 0) {
+        const R = 1 / Math.abs(c.kappa[k]);
+        if (R < c.h[k] * (1 - 1e-12)) throw new Error(`element ${k}: radius smaller than half its chord`);
+        const d0 = Math.sqrt(Math.max(R * R - c.h[k] ** 2, 0));
+        c.R[k] = R;
+        const sg = c.kappa[k] < 0 ? -1 : 1;
+        c.Cx[k] = c.Mx[k] + sg * d0 * c.nx[k]; c.Cy[k] = c.My[k] + sg * d0 * c.ny[k];
+        c.L[k] = 2 * R * Math.asin(Math.min(c.h[k] / R, 1));
+        const vAx = c.Ax[k] - c.Cx[k], vAy = c.Ay[k] - c.Cy[k], vBx = c.Bx[k] - c.Cx[k], vBy = c.By[k] - c.Cy[k];
+        c.sense[k] = Math.sign(vAx * vBy - vAy * vBx) || 1;
+      }
+    }
+    let acc = 0;
+    for (let k = 0; k < E; k++) { c.s0[k] = acc; acc += c.L[k]; }
+    c.perimeter = acc;
+    let a = 0, gapMax = 0;
+    for (let k = 0; k < E; k++) {
+      const j = (k + 1) % E;
+      a += 0.5 * (c.Ax[k] * c.By[k] - c.Bx[k] * c.Ay[k]);
+      gapMax = Math.max(gapMax, Math.hypot(c.Ax[j] - c.Bx[k], c.Ay[j] - c.By[k]));
+    }
+    for (let k = 0; k < E; k++) { const j = (k + 1) % E; a += 0.5 * (c.Bx[k] * c.Ay[j] - c.Ax[j] * c.By[k]); }
+    for (let k = 0; k < E; k++) {
+      if (!c.prof[k]) continue;
+      const eta = c.ptab[k].eta, pts = Array.from(eta, v => prPoint(c.prof[k], v));
+      for (let i = 0; i + 1 < pts.length; i++) a += 0.5 * (pts[i][0] * pts[i + 1][1] - pts[i + 1][0] * pts[i][1]);
+      a -= 0.5 * (c.Ax[k] * c.By[k] - c.Bx[k] * c.Ay[k]);
+    }
+    for (let k = 0; k < E; k++) {
+      if (c.kappa[k] === 0) continue;
+      const R = c.R[k], al = Math.asin(Math.min(c.h[k] / R, 1)), seg = R * R * (al - Math.sin(al) * Math.cos(al));
+      a += c.kappa[k] < 0 ? seg : -seg;
+    }
+    c.area = a;
+    c.closed = gapMax <= 1e-6 * c.perimeter;
+    c.meanChord = Math.PI * a / c.perimeter;
+    c.sIn = opts.sIn === undefined || opts.sIn === null ? c.L[0] / 2 : opts.sIn;
+    c.sOut = opts.sOut === undefined ? null : opts.sOut;
+    return c;
+  }
+
+  function arcElements(cx, cy, r, phi0, phi1, n, faceted, ext, label) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const a = i === 0 ? phi0 : phi0 + i * ((phi1 - phi0) / n), b = i + 1 === n ? phi1 : phi0 + (i + 1) * ((phi1 - phi0) / n);
+      out.push({ A: [cx + r * Math.cos(a), cy + r * Math.sin(a)], B: [cx + r * Math.cos(b), cy + r * Math.sin(b)],
+        kappa: faceted ? 0 : -1 / r, ext: faceted ? ext : 0, label });
+    }
+    return out;
+  }
+
+  function polygonCell(r, N, ext = 0.15) {
+    const els = [];
+    for (let k = 0; k < N; k++) {
+      const a = 2 * Math.PI * k / N - Math.PI / N, b = 2 * Math.PI * k / N + Math.PI / N;
+      els.push({ A: [r * Math.cos(a), r * Math.sin(a)], B: [r * Math.cos(b), r * Math.sin(b)], kappa: 0, ext, label: `facet${k}` });
+    }
+    return makeCell(els, { name: `polygon N=${N}` });
+  }
+
+  function circleCell(r, nArcs = 4) {
+    return makeCell(arcElements(0, 0, r, -Math.PI / nArcs, 2 * Math.PI - Math.PI / nArcs, nArcs, false, 0, "circle"), { name: "circle" });
+  }
+
+  function stadiumCell(r, a, capFacets = null, straightSegments = 1, ext = 0.15) {
+    const ns = straightSegments, els = [];
+    const xs = Array.from({ length: ns + 1 }, (_, i) => i === ns ? a / 2 : -a / 2 + i * (a / ns));
+    const segExt = ns > 1 || capFacets ? ext : 0;
+    if (a > 0) for (let i = 0; i < ns; i++) els.push({ A: [xs[i], -r], B: [xs[i + 1], -r], kappa: 0, ext: segExt, label: "straight_bottom" });
+    const faceted = capFacets !== null && capFacets !== undefined, npc = faceted ? capFacets : 2;
+    els.push(...arcElements(a / 2, 0, r, -Math.PI / 2, Math.PI / 2, npc, faceted, ext, "cap_right"));
+    if (a > 0) for (let i = 0; i < ns; i++) els.push({ A: [xs[ns - i], r], B: [xs[ns - i - 1], r], kappa: 0, ext: segExt, label: "straight_top" });
+    els.push(...arcElements(-a / 2, 0, r, Math.PI / 2, 3 * Math.PI / 2, npc, faceted, ext, "cap_left"));
+    return makeCell(els, { name: "stadium", sIn: a > 0 ? a / 2 : null });
+  }
+
+  /* planar_cell integrated Herriott design helpers */
+  const thetaOf = (R, d) => { const c = 1 - d / R; return c > -1 && c < 1 ? Math.acos(c) : NaN; };
+  const reentrantSpacing = (R, N, M) => R * (1 - Math.cos(2 * Math.PI * M / N));
+  const modeRadius = (R, d, lam, n = 1) => { const g = 1 - d / R; return Math.sqrt(lam / n * d / Math.PI / Math.sqrt(1 - g * g)); };
+
+  function herriottPlanarCell(R, N, M, A, { portW = null, aperture = null, R2 = null, d = null, phase = 0 } = {}) {
+    if (N < 4 || N % 2) throw new Error("N must be even and >= 4");
+    if (!(M > 0 && M < N / 2)) throw new Error("need 0 < M < N/2");
+    d = d === null ? reentrantSpacing(R, N, M) : d;
+    R2 = R2 === null ? R : R2;
+    const w = portW === null ? A / 10 : portW, a = aperture === null ? A + w : aperture, y0 = A * Math.cos(phase);
+    if (a >= Math.min(R, R2)) throw new Error("aperture must be smaller than the mirror radii");
+    if (a < Math.max(A, Math.abs(y0) + w / 2)) throw new Error("aperture must hold the spot pattern and the window");
+    const p1 = Math.asin(a / R), p2 = Math.asin(a / R2);
+    const els = [...arcElements(-d / 2 + R, 0, R, Math.PI - p1, Math.PI + p1, 1, false, 0, "M1"), ...arcElements(d / 2 - R2, 0, R2, -p2, p2, 1, false, 0, "M2")];
+    const sIn = R * (p1 - Math.asin(y0 / R));
+    const thLaunch = phase ? Math.atan(-A * Math.sin(phase) * Math.sqrt((2 * R - d) / d) / R) : 0;
+    return makeCell(els, { name: "integrated Herriott", sIn, sOut: sIn,
+      meta: { R, R2, d, N, M, A, aperture: a, portW: w, theta: thetaOf(R, d), phase, y0, thetaLaunch: thLaunch } });
+  }
+
+  /* planar_cell.deformed_herriott_cell: smooth profile mirrors (conic + cubic/quartic deformation), optional side walls */
+  function deformedHerriottCell(R, N, M, A, { portW = null, aperture = null, R2 = null, d = null, phase = 0, conic = 0, eps3 = 0, eps4 = 0, deform = "both", walls = false } = {}) {
+    if (N < 4 || N % 2) throw new Error("N must be even and >= 4");
+    if (!(M > 0 && M < N / 2)) throw new Error("need 0 < M < N/2");
+    d = d === null ? reentrantSpacing(R, N, M) : d;
+    R2 = R2 === null ? R : R2;
+    const w = portW === null ? A / 10 : portW, a = aperture === null ? A + w : aperture, y0 = A * Math.cos(phase);
+    if (a >= Math.min(R, R2)) throw new Error("aperture must be smaller than the mirror radii");
+    if (a < Math.max(A, Math.abs(y0) + w / 2)) throw new Error("aperture must hold the spot pattern and the window");
+    const profs = [[R, [-d / 2, 0], [1, 0]], [R2, [d / 2, 0], [-1, 0]]].map(([Rm, V, ax], i) => {
+      const on = deform === "both" || deform === `M${i + 1}`, c = 1 / Rm;
+      const p = makeProfile({ V, axis: ax, c, k: conic, a3: on ? eps3 * c / (2 * a) : 0, a4: on ? eps4 * c / (2 * a * a) : 0, eta0: a, eta1: -a });
+      if (1 - (1 + conic) * c * c * a * a <= 0) throw new Error("the conic mirror is not defined out to the aperture");
+      for (let i = 0; i < 257; i++) if (prd2S(p, -a + 2 * a * i / 256) <= 0) throw new Error("the deformation makes a mirror convex somewhere: reduce eps3 / eps4");
+      return p;
+    });
+    const A1 = prPoint(profs[0], a), B1 = prPoint(profs[0], -a), A2 = prPoint(profs[1], a), B2 = prPoint(profs[1], -a);
+    const els = [{ A: A1, B: B1, kappa: 0, ext: 0, label: "M1", profile: profs[0] }];
+    if (walls) els.push({ A: B1, B: A2, kappa: 0, ext: 0, label: "side_bottom" });
+    els.push({ A: A2, B: B2, kappa: 0, ext: 0, label: "M2", profile: profs[1] });
+    if (walls) els.push({ A: B2, B: A1, kappa: 0, ext: 0, label: "side_top" });
+    const thLaunch = phase ? Math.atan(-A * Math.sin(phase) * Math.sqrt((2 * R - d) / d) / R) : 0;
+    const meta = { R, R2, d, N, M, A, aperture: a, portW: w, theta: thetaOf(R, d), phase, y0, thetaLaunch: thLaunch, conic, eps3, eps4, deform, walls: !!walls };
+    const c = makeCell(els, { name: "deformed Herriott", meta });
+    c.sIn = c.sOut = slocOf(c, 0, y0);
+    return c;
+  }
+
+  /* planar_cell.herriott_planar_spots: design spots per mirror, closest spots, window clearance */
+  function herriottSpots(m) {
+    const y1 = [], y2 = [];
+    for (let n = 1; n < m.N; n++) (n % 2 ? y2 : y1).push(m.A * Math.cos(n * m.theta + m.phase));
+    const minSep = arr => { let s = Infinity; for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) s = Math.min(s, Math.abs(arr[i] - arr[j])); return s; };
+    let clear = Infinity; for (const y of y1) clear = Math.min(clear, Math.abs(y - m.y0));
+    return { y1, y2, spacing: Math.min(minSep(y1.concat([m.y0])), minSep(y2)), clearance: clear - m.portW / 2 };
+  }
+
+  /* planar_cell.perturb with explicit per-element arrays (null = 0): tilt about the chord midpoint, shift along the
+     outward normal, curvature change; ports and meta kept */
+  function perturb(c, tilts, offsets, curvatures) {
+    const els = c.els.map((e, k) => {
+      const tl = tilts ? tilts[k] : 0, of = offsets ? offsets[k] : 0, cu = curvatures ? curvatures[k] : 0;
+      const M0x = c.Mx[k], M0y = c.My[k], Mx = M0x + of * c.nx[k], My = M0y + of * c.ny[k];
+      const co = Math.cos(tl), si = Math.sin(tl);
+      const rot = P => [Mx + co * (P[0] - M0x) - si * (P[1] - M0y), My + si * (P[0] - M0x) + co * (P[1] - M0y)];
+      if (e.profile) {
+        const p = e.profile, ax = [co * p.axis[0] - si * p.axis[1], si * p.axis[0] + co * p.axis[1]];
+        const pn = makeProfile({ V: rot(p.V), axis: ax, c: p.c + cu, k: p.k, a3: p.a3, a4: p.a4, eta0: p.eta0, eta1: p.eta1 });
+        return { A: prPoint(pn, p.eta0), B: prPoint(pn, p.eta1), kappa: 0, ext: e.ext || 0, label: e.label, profile: pn };
+      }
+      return { A: rot(e.A), B: rot(e.B), kappa: (e.kappa || 0) + cu, ext: e.ext || 0, label: e.label };
+    });
+    return makeCell(els, { name: c.name + " (perturbed)", sIn: c.sIn, sOut: c.sOut, meta: c.meta });
+  }
+
+  const modP = (s, P) => ((s % P) + P) % P;
+  function segmentOf(c, s) {
+    s = modP(s, c.perimeter);
+    let k = 0; while (k + 1 < c.E && c.s0[k + 1] <= s) k++;
+    return k;
+  }
+
+  const etaOf = (c, k, sloc) => interpInc(sloc, c.ptab[k].sl, c.ptab[k].eta);
+  const slocOf = (c, k, eta) => interpInc(c.ptab[k].sign * eta, c.ptab[k].etaInc, c.ptab[k].sl);
+  function profileNormal(p, eta) { const d = prdS(p, eta), nn = Math.sqrt(1 + d * d), ux = p.axis[0], uy = p.axis[1]; return [(-ux - d * uy) / nn, (-uy + d * ux) / nn]; }
+  /* planar_cell.Cell2D._profile_hit: t (Infinity: none) and η */
+  function profileHit(c, k, px, py, dx, dy, eps) {
+    const p = c.prof[k], ux = p.axis[0], uy = p.axis[1], ex = -uy, ey = ux;
+    const xi0 = (px - p.V[0]) * ux + (py - p.V[1]) * uy, et0 = (px - p.V[0]) * ex + (py - p.V[1]) * ey;
+    const dxi = dx * ux + dy * uy, det = dx * ex + dy * ey;
+    let lo = Math.min(p.eta0, p.eta1), hi = Math.max(p.eta0, p.eta1);
+    const pad = c.ext[k] * (hi - lo) / 2; lo -= pad; hi += pad;
+    const tmax = det > 0 ? (hi - et0) / det : det < 0 ? (lo - et0) / det : Infinity;
+    const tlin = dxi < 0 ? (prS(p, et0) - xi0) / dxi : Infinity;
+    let t = Number.isFinite(tmax) ? tmax : tlin;
+    const g = tt => xi0 + tt * dxi - prS(p, et0 + tt * det);
+    if (!(Number.isFinite(t) && t > eps && g(t) <= 0)) return { t: Infinity, eta: et0 };
+    const scale = 2 * c.h[k] + 1e-300;
+    for (let it = 0; it < 80; it++) {
+      const gp = dxi - prdS(p, et0 + t * det) * det, step = gp < 0 ? g(t) / gp : 0;
+      t -= step;
+      if (Math.abs(step) <= 1e-15 * scale) break;
+    }
+    return t > eps ? { t, eta: et0 + t * det } : { t: Infinity, eta: et0 };
+  }
+  function curvatureAt(c, s) {
+    s = modP(s, c.perimeter);
+    const k = segmentOf(c, s);
+    if (c.prof[k]) return prCurv(c.prof[k], etaOf(c, k, s - c.s0[k]));
+    return c.kappa[k] !== 0 ? -c.kappa[k] : 0;
+  }
+
+  function pointAt(c, s) {
+    s = modP(s, c.perimeter);
+    const k = segmentOf(c, s), loc = s - c.s0[k];
+    if (c.prof[k]) { const eta = etaOf(c, k, loc), P = prPoint(c.prof[k], eta), n = profileNormal(c.prof[k], eta); return [P[0], P[1], n[0], n[1]]; }
+    if (c.kappa[k] === 0) {
+      const f = loc / c.L[k];
+      return [c.Ax[k] + f * (c.Bx[k] - c.Ax[k]), c.Ay[k] + f * (c.By[k] - c.Ay[k]), c.nx[k], c.ny[k]];
+    }
+    const ang = loc / c.R[k] * c.sense[k], vx = c.Ax[k] - c.Cx[k], vy = c.Ay[k] - c.Cy[k];
+    const co = Math.cos(ang), sn = Math.sin(ang), px = vx * co - vy * sn, py = vx * sn + vy * co, sg = c.kappa[k] < 0 ? 1 : -1;
+    return [c.Cx[k] + px, c.Cy[k] + py, sg * px / c.R[k], sg * py / c.R[k]];
+  }
+
+  /* planar_cell.Cell2D.hit_k */
+  function hit(c, px, py, dx, dy) {
+    const eps = 1e-12 * c.perimeter;
+    let bt = Infinity, bnx = 0, bny = 0, bs = 0, bk = -1;
+    for (let k = 0; k < c.E; k++) {
+      if (c.prof[k]) {
+        const r = profileHit(c, k, px, py, dx, dy, eps);
+        if (Number.isFinite(r.t) && r.t < bt) { const n = profileNormal(c.prof[k], r.eta); bt = r.t; bnx = n[0]; bny = n[1]; bs = c.s0[k] + slocOf(c, k, r.eta); bk = k; }
+        continue;
+      }
+      const hh = c.h[k] * (1 + c.ext[k]), Mx = c.Mx[k], My = c.My[k], tx = c.tx[k], ty = c.ty[k], nkx = c.nx[k], nky = c.ny[k];
+      let t, ok, nx_, ny_, sl;
+      if (c.kappa[k] === 0) {
+        const dn = dx * nkx + dy * nky;
+        t = ((Mx - px) * nkx + (My - py) * nky) / dn;
+        const u = (px + t * dx - Mx) * tx + (py + t * dy - My) * ty;
+        ok = dn > 1e-12 && t > eps && Math.abs(u) <= hh;
+        nx_ = nkx; ny_ = nky; sl = Math.min(Math.max(u, -c.h[k]), c.h[k]) + c.h[k];
+      } else {
+        const R = c.R[k], cx = c.Cx[k], cy = c.Cy[k], ox = px - cx, oy = py - cy;
+        const b = ox * dx + oy * dy, disc = b * b - (ox * ox + oy * oy - R * R), sq = Math.sqrt(Math.max(disc, 0));
+        t = c.kappa[k] < 0 ? -b + sq : -b - sq;
+        const hx = px + t * dx, hy = py + t * dy;
+        const side = ((hx - cx) * nkx + (hy - cy) * nky) * (-Math.sign(c.kappa[k])) > 0;
+        const u = (hx - Mx) * tx + (hy - My) * ty;
+        ok = disc >= 0 && t > eps && side && Math.abs(u) <= hh;
+        if (!ok) continue;
+        const sg = c.kappa[k] < 0 ? 1 : -1;
+        nx_ = sg * (hx - cx) / R; ny_ = sg * (hy - cy) / R;
+        const vAx = c.Ax[k] - cx, vAy = c.Ay[k] - cy, vHx = hx - cx, vHy = hy - cy;
+        const ang = Math.atan2(vAx * vHy - vAy * vHx, vAx * vHx + vAy * vHy) * c.sense[k];
+        sl = Math.min(Math.max(R * ang, 0), c.L[k]);
+      }
+      if (ok && t < bt) { bt = t; bnx = nx_; bny = ny_; bs = c.s0[k] + sl; bk = k; }
+    }
+    return { t: bt, nx: bnx, ny: bny, s: bs, k: bk };
+  }
+
+  function reflect(dx, dy, nx, ny) {
+    const dn = dx * nx + dy * ny;
+    const rx = dx - 2 * dn * nx, ry = dy - 2 * dn * ny, nn = Math.hypot(rx, ry);
+    return [rx / nn, ry / nn];
+  }
+
+  function launch(c, s, theta) {
+    const [x, y, nx, ny] = pointAt(c, s);
+    const ux = -nx, uy = -ny;
+    return [x, y, ux * Math.cos(theta) - uy * Math.sin(theta), ux * Math.sin(theta) + uy * Math.cos(theta)];
+  }
+
+  function inWindow(s, s0, w, P) { const d = modP(s - s0 + P / 2, P) - P / 2; return Math.abs(d) <= w / 2; }
+
+  /* trace up to nHits; ports = {sIn, sOut, w} or null (output window checked first, as trace_rays).
+     exit: 1 output, 0 input, -1 still inside, -2 left through a gap or past an open wall (dir: the leaving direction) */
+  function trace(c, start, nHits, ports) {
+    let [x, y, dx, dy] = start;
+    const xs = [x], ys = [y], S = [], SC = [], K = [];
+    let L = 0, exit = -1;
+    for (let j = 0; j < nHits; j++) {
+      const h = hit(c, x, y, dx, dy);
+      if (!Number.isFinite(h.t)) { exit = -2; break; }
+      x += h.t * dx; y += h.t * dy; L += h.t;
+      xs.push(x); ys.push(y); S.push(h.s); SC.push(dx * h.ny - dy * h.nx); K.push(h.k);
+      if (ports) {
+        if (inWindow(h.s, ports.sOut, ports.w, c.perimeter)) { exit = 1; break; }
+        if (inWindow(h.s, ports.sIn, ports.w, c.perimeter)) { exit = 0; break; }
+      }
+      [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+    }
+    return { xs, ys, s: S, sinchi: SC, elem: K, L, exit, dir: [dx, dy] };
+  }
+
+  /* planar_cell.herriott_planar_trace: the centre ray from the window until it leaves */
+  function herriottTrace(c, dtheta = 0, nMax = 2000) {
+    const m = c.meta, theta = m.thetaLaunch + dtheta, w = m.portW;
+    const tr = trace(c, launch(c, c.sIn, theta), nMax, { sIn: c.sIn, sOut: c.sIn, w });
+    const n = tr.s.length, out = { tr, nHits: n, path: tr.L, theta };
+    if (tr.exit === 1) {
+      out.exit = "port"; out.reflections = n - 1;
+      const P = c.perimeter; out.exitOffset = modP(tr.s[n - 1] - c.sIn + P / 2, P) - P / 2;
+      out.exitAngle = Math.asin(Math.min(Math.max(tr.sinchi[n - 1], -1), 1)) - theta;
+    } else { out.exit = tr.exit === -2 ? "leak" : "trapped"; out.reflections = n; }
+    return out;
+  }
+
+  function reflectionWeightedPath(chords, R) {
+    let I = 1, L = 0, Leff = 0;
+    for (let j = 0; j < chords.length; j++) { const c = chords[j]; L += c; Leff += I * c; I *= Array.isArray(R) ? R[j] : R; }
+    return { L, Leff, Iend: I };
+  }
+
+  /* ray_phase.path_lengths: cumulative path per hit and a path id (hash of the element sequence, -1 once gone) */
+  const HASH_M = 2147483647;
+  function pathLengths(c, thetas, nPass, sIn, withIds) {
+    const Ls = [], IDs = [];
+    for (const th of thetas) {
+      let [x, y, dx, dy] = launch(c, sIn === undefined ? c.sIn : sIn, th);
+      const L = new Float64Array(nPass), ids = new Float64Array(nPass);
+      let acc = 0, pid = 0;
+      for (let j = 0; j < nPass; j++) {
+        if (pid < 0) { L[j] = NaN; ids[j] = -1; continue; }
+        const h = hit(c, x, y, dx, dy);
+        if (!Number.isFinite(h.t)) { pid = -1; L[j] = NaN; ids[j] = -1; continue; }
+        pid = (pid * 1000003 + h.k + 1) % HASH_M; ids[j] = pid;
+        acc += h.t; L[j] = acc;
+        x += h.t * dx; y += h.t * dy;
+        [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+      }
+      Ls.push(L); IDs.push(ids);
+    }
+    return withIds ? { L: Ls, ids: IDs } : Ls;
+  }
+
+  function ditherOffsets(A, n, waveform) {
+    const d = new Float64Array(n);
+    for (let j = 0; j < n; j++) { const t = (j + 0.5) / n; d[j] = waveform === "sine" ? A * Math.sin(2 * Math.PI * t) : A * (2 * t - 1); }
+    return d;
+  }
+
+  function visibility(dphi) {
+    let re = 0, im = 0, n = 0;
+    for (const v of dphi) if (Number.isFinite(v)) { re += Math.cos(v); im += Math.sin(v); n++; }
+    return n ? Math.hypot(re, im) / n : NaN;
+  }
+
+  const X_V09 = { sine: 0.6406308771588489, triangle: 0.786683072049212 };
+  const X_V05 = { sine: 1.521144057668765, triangle: 1.8954942670340231 };
+  const X_V0 = { sine: 2.404825557695807, triangle: Math.PI };
+  function modelVisibility(x, waveform) {
+    if (!Number.isFinite(x)) return NaN;
+    if (waveform !== "sine") return x === 0 ? 1 : Math.abs(Math.sin(x) / x);
+    const n = Math.max(64, Math.ceil(Math.abs(x)) + 64);
+    let s = 0;
+    for (let j = 0; j < n; j++) s += Math.cos(x * Math.sin(2 * Math.PI * ((j + 0.5) / n)));
+    return Math.abs(s / n);
+  }
+
+  /* ray_phase.phase_derivatives and dither_analysis for any path function pf(thetas, nPass) -> {L, ids} */
+  function phaseDerivatives(pf, thetaC, nPass, lam, nIdx, h1 = 1e-9, h2 = 1e-6) {
+    const k = 2 * Math.PI * nIdx / lam;
+    const { L, ids } = pf([thetaC - h2, thetaC - h1, thetaC, thetaC + h1, thetaC + h2], nPass);
+    const a = new Float64Array(nPass), b = new Float64Array(nPass);
+    for (let p = 0; p < nPass; p++) {
+      const s1 = ids[1][p] === ids[2][p] && ids[3][p] === ids[2][p], s2 = ids[0][p] === ids[2][p] && ids[4][p] === ids[2][p];
+      a[p] = s1 ? k * (L[3][p] - L[1][p]) / (2 * h1) : NaN;
+      b[p] = s2 ? k * (L[4][p] - 2 * L[2][p] + L[0][p]) / (h2 * h2) : NaN;
+    }
+    return { a, b };
+  }
+
+  function ditherAnalysis(pf, thetaC, A, nPass, lam, nIdx, waveform, nMin = 401, nMax = 12801, stepTol = Math.PI / 2, onProgress) {
+    const k = 2 * Math.PI * nIdx / lam;
+    const c0 = pf([thetaC], nPass), L0 = c0.L[0], id0 = c0.ids[0];
+    const { a, b } = phaseDerivatives(pf, thetaC, nPass, lam, nIdx);
+    const x = Array.from(a, v => Math.abs(v) * A);
+    const base = {
+      a, b, x, L0, Vmodel: x.map(v => modelVisibility(v, waveform)), q: Array.from(b, v => 0.5 * Math.abs(v) * A * A),
+      A09: Array.from(a, v => X_V09[waveform] / Math.abs(v)), A05: Array.from(a, v => X_V05[waveform] / Math.abs(v)),
+      A0: Array.from(a, v => X_V0[waveform] / Math.abs(v)),
+    };
+    let n = nMin, res;
+    for (;;) {
+      const d = ditherOffsets(A, n, waveform);
+      const { L, ids } = pf(Array.from(d, v => thetaC + v), nPass);
+      const order = Array.from(d.keys()).sort((i, j) => d[i] - d[j]);
+      const V = new Float64Array(nPass), maxStep = new Float64Array(nPass), same = new Float64Array(nPass);
+      const ph = new Float64Array(n);
+      let worst = 0;
+      for (let p = 0; p < nPass; p++) {
+        let cnt = 0;
+        for (let i = 0; i < n; i++) { ph[i] = k * (L[i][p] - L0[p]); if (ids[i][p] === id0[p]) cnt++; }
+        V[p] = visibility(ph); same[p] = cnt / n;
+        let m = 0;
+        for (let q = 1; q < n; q++) {
+          const i = order[q], j = order[q - 1];
+          if (ids[i][p] === ids[j][p] && ids[i][p] >= 0) { const st = Math.abs(ph[i] - ph[j]); if (st > m) m = st; }
+        }
+        maxStep[p] = m; if (m > worst) worst = m;
+      }
+      res = Object.assign({}, base, { V, maxStep, same, resolved: Array.from(maxStep, v => v <= stepTol), nUsed: n,
+        noiseFloor: Math.sqrt(Math.PI) / (2 * Math.sqrt(n)) });
+      const done = worst <= stepTol || n >= nMax;
+      if (onProgress) onProgress(res, done);
+      if (done) return res;
+      n = Math.min(nMax, Math.max(2 * n - 1, Math.ceil(n * worst / stepTol * 1.25)));
+      n += 1 - n % 2;
+    }
+  }
+  const cellPaths = (c, sIn) => (th, n) => pathLengths(c, th, n, sIn, true);
+
+  /* bragg_grating.stack_R_oblique for real indices: tilted admittances (s: n cos θ, p: n / cos θ), Im(cos θ) >= 0 */
+  const cx = (re, im) => ({ re, im });
+  const cmul = (a, b) => cx(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+  const cadd = (a, b) => cx(a.re + b.re, a.im + b.im);
+  const csub = (a, b) => cx(a.re - b.re, a.im - b.im);
+  const cdiv = (a, b) => { const d = b.re * b.re + b.im * b.im; return cx((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d); };
+  function stackROblique(lam, sinIn, nIn, layers, nOut, pol) {
+    const s = nIn * Math.min(Math.abs(sinIn), 1 - 1e-9), k = 2 * Math.PI / lam;
+    const cosOf = n => { const q = 1 - (s / n) ** 2; return q >= 0 ? cx(Math.sqrt(q), 0) : cx(0, Math.sqrt(-q)); };
+    const adm = n => { const c = cosOf(n); return pol === "s" ? cx(n * c.re, n * c.im) : cdiv(cx(n, 0), c); };
+    let A = cx(1, 0), B = cx(0, 0), C = cx(0, 0), D = cx(1, 0);
+    for (const [n, d] of layers) {
+      const c = cosOf(n), q = adm(n);
+      const dr = k * n * d * c.re, di = k * n * d * c.im;
+      const cs = cx(Math.cos(dr) * Math.cosh(di), -Math.sin(dr) * Math.sinh(di));
+      const sn = cx(Math.sin(dr) * Math.cosh(di), Math.cos(dr) * Math.sinh(di));
+      const isn = cx(sn.im, -sn.re);
+      const L01 = cdiv(isn, q), L10 = cmul(isn, q);
+      const nA = cadd(cmul(A, cs), cmul(B, L10)), nB = cadd(cmul(A, L01), cmul(B, cs));
+      const nC = cadd(cmul(C, cs), cmul(D, L10)), nD = cadd(cmul(C, L01), cmul(D, cs));
+      const m = Math.max(Math.hypot(nA.re, nA.im), Math.hypot(nB.re, nB.im), Math.hypot(nC.re, nC.im), Math.hypot(nD.re, nD.im)) || 1;
+      A = cx(nA.re / m, nA.im / m); B = cx(nB.re / m, nB.im / m); C = cx(nC.re / m, nC.im / m); D = cx(nD.re / m, nD.im / m);
+    }
+    const qi = adm(nIn), qo = adm(nOut);
+    const x = cmul(qi, cadd(A, cmul(B, qo))), y = cadd(C, cmul(D, qo));
+    const r = cdiv(csub(x, y), cadd(x, y));
+    return r.re * r.re + r.im * r.im;
+  }
+
+  /* bragg_grating.TrenchDBR: membrane | [gap, tooth] x N | gap, quarter-wave orders at the design angle */
+  const LATERAL_POL = { TE: "p", TM: "s" };
+  function trenchDBR({ nTooth, lam, N, mGap = 1, mTooth = 1, nGap = 1, loss = 0, slabPol = "TM", sinDesign = 0 }) {
+    const sCrit = nGap / nTooth;
+    if (!(sinDesign >= 0 && sinDesign < sCrit)) throw new Error(`design angle beyond the critical angle (sin < ${sCrit.toFixed(4)})`);
+    const dGap = mGap * lam / (4 * nGap * Math.sqrt(1 - (nTooth * sinDesign / nGap) ** 2));
+    const dTooth = mTooth * lam / (4 * nTooth * Math.sqrt(1 - sinDesign * sinDesign));
+    const layers = []; for (let i = 0; i < N; i++) layers.push([nGap, dGap], [nTooth, dTooth]);
+    const pol = LATERAL_POL[slabPol];
+    return { dGap, dTooth, sCrit, sinDesign, R: (l, s) => stackROblique(l, s, nTooth, layers, nGap, pol) * (1 - loss) };
+  }
+
+  /* cell_mirror.hit_angles: |sin χ| and chord per hit, NaN once a ray has left */
+  function hitAngles(c, thetas, nHits, sIn) {
+    const S = [], C = [];
+    for (const th of thetas) {
+      let [x, y, dx, dy] = launch(c, sIn === undefined ? c.sIn : sIn, th);
+      const s = new Float64Array(nHits).fill(NaN), ch = new Float64Array(nHits).fill(NaN);
+      for (let j = 0; j < nHits; j++) {
+        const h = hit(c, x, y, dx, dy);
+        if (!Number.isFinite(h.t)) break;
+        s[j] = Math.abs(dx * h.ny - dy * h.nx); ch[j] = h.t;
+        x += h.t * dx; y += h.t * dy;
+        [dx, dy] = reflect(dx, dy, h.nx, h.ny);
+      }
+      S.push(s); C.push(ch);
+    }
+    return { S, C };
+  }
+
+  function weightedQuantile(values, weights, q) {
+    const o = Array.from(values.keys()).sort((i, j) => values[i] - values[j]);
+    let tot = 0; for (const w of weights) tot += w;
+    let cw = 0;
+    for (const i of o) { cw += weights[i]; if (cw >= q * tot) return values[i]; }
+    return values[o[o.length - 1]];
+  }
+
+  /* cell_mirror.weighted_stats: exact R at every hit; I_j = product of the R met before hit j */
+  function weightedStats(S, C, Rf, binDeg = 1) {
+    const nb = Math.round(90 / binDeg), hist = new Float64Array(nb);
+    const chis = [], ws = [], perRay = [];
+    let W = 0, WR = 0, nHit = 0, sumIend = 0, sumLeff = 0, sumL = 0, chiMax = -Infinity;
+    for (let r = 0; r < S.length; r++) {
+      let cum = 0, Leff = 0, L = 0;
+      const Iray = [];
+      for (let j = 0; j < S[r].length; j++) {
+        const s = S[r][j];
+        if (!Number.isFinite(s)) continue;
+        const R = Rf(s), lr = Math.log(Math.min(Math.max(R, 1e-300), 1));
+        const I = Math.exp(cum);
+        W += I; WR += I * Math.exp(lr); nHit++;
+        Leff += I * C[r][j]; L += C[r][j];
+        const chi = Math.asin(Math.min(Math.max(s, 0), 1)) * 180 / Math.PI;
+        chis.push(chi); ws.push(I); if (chi > chiMax) chiMax = chi;
+        hist[Math.min(Math.floor(chi / binDeg), nb - 1)] += I;
+        Iray.push(I);
+        cum += lr;
+      }
+      sumIend += Math.exp(cum); sumLeff += Leff; sumL += L;
+      perRay.push({ I: Iray, Iend: Math.exp(cum) });
+    }
+    const nR = S.length;
+    return { R_mean: WR / W, R_eff: S[0] && S[0].length ? (sumIend / nR) ** (nR / Math.max(nHit, 1)) : 1, I_end: sumIend / nR, L_eff: sumLeff / nR, L_geom: sumL / nR,
+      chi_50: weightedQuantile(chis, ws, 0.5), chi_95: weightedQuantile(chis, ws, 0.95), chi_max: chiMax,
+      hist: Array.from(hist, v => v / W), n_hits: nHit, perRay };
+  }
+
+  function uniformAverage(Rf, n = 4097) {
+    let acc = 0, prev = Rf(0);
+    for (let i = 1; i < n; i++) { const s = i / (n - 1), R = Rf(s); acc += 0.5 * (R + prev) / (n - 1); prev = R; }
+    return acc;
+  }
+
+  function launchAngles(thetaC, fan, nBeams) {
+    return nBeams === 1 ? [thetaC] : Array.from({ length: nBeams }, (_, i) => thetaC + fan * (i / (nBeams - 1) - 0.5));
+  }
+
+  function cellMirrorStats(c, thetaC, fan, nBeams, nHits, dbr, lam, withUniform = true) {
+    const Rf = s => dbr.R(lam, s);
+    const { S, C } = hitAngles(c, launchAngles(thetaC, fan, nBeams), nHits);
+    const out = weightedStats(S, C, Rf);
+    out.R_design = dbr.R(lam, dbr.sinDesign);
+    out.R_uniform = withUniform ? uniformAverage(Rf) : NaN;
+    return out;
+  }
+
+  /* planar_cell.trace_rays + evaluate with a constant R (mulberry32 draws, not numpy's): T, mean path, histogram */
+  function portStatistics(c, { portW, sIn, sOut, nRays, nBounce, theta0, thetaC = 0, R = 1, seed = 1, alpha = 0, nBins = 40 }) {
+    let a = seed >>> 0;
+    const u = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const ports = { sIn, sOut, w: portW };
+    const det = [], cnt = { 1: 0, 0: 0, [-1]: 0, [-2]: 0 };
+    for (let i = 0; i < nRays; i++) {
+      const s = sIn + (u() - 0.5) * portW, th = thetaC + (u() * 2 - 1) * theta0;
+      const tr = trace(c, launch(c, s, th), nBounce, ports);
+      cnt[tr.exit]++;
+      if (tr.exit === 1) det.push({ L: tr.L, W: R ** (tr.s.length - 1) * Math.exp(-alpha * tr.L) });
+    }
+    let SW = 0, SWL = 0, SWLL = 0, SW2 = 0, Lmax = 0;
+    for (const d of det) { SW += d.W; SWL += d.W * d.L; SWLL += d.W * d.L * d.L; SW2 += d.W * d.W; Lmax = Math.max(Lmax, d.L); }
+    const Lm = SWL / SW, varL = SWLL / SW - Lm * Lm, nk = SW * SW / SW2;
+    const hist = new Float64Array(nBins), top = Lmax * 1.0001 || 1;
+    for (const d of det) hist[Math.min(Math.floor(d.L / top * nBins), nBins - 1)] += d.W / Math.max(SW, 1e-300);
+    const ell = c.meanChord, eta = portW / c.perimeter, surv = (1 - 2 * eta) * R * Math.exp(-alpha * ell);
+    return { T: SW / nRays, Lmean: Lm, Lerr: Math.sqrt(Math.max(varL, 0) / Math.max(nk, 1)), nDet: det.length, counts: cnt, hist, Ltop: top,
+      mf: { T: eta * Math.exp(-alpha * ell) / (1 - surv), L: ell / (1 - surv) } };
+  }
+
+  /* planar_cell.lyapunov_fit (scale: sqrt(area)) */
+  function lyapunovFit(sep, scale, lo = 1e-10, hi = 1e-2, minPts = 6) {
+    const pts = sep.map((v, j) => [j + 1, v]).filter(([, v]) => v > lo * scale && v < hi * scale);
+    if (pts.length < minPts) return null;
+    const n = pts.length, mx = pts.reduce((a, [x]) => a + x, 0) / n, my = pts.reduce((a, [, v]) => a + Math.log(v), 0) / n;
+    let sxy = 0, sxx = 0; pts.forEach(([x, v]) => { sxy += (x - mx) * (Math.log(v) - my); sxx += (x - mx) ** 2; });
+    return { lam: sxy / sxx, a: my - sxy / sxx * mx, x0: pts[0][0], x1: pts[n - 1][0] };
+  }
+
+  return { makeProfile, deformedHerriottCell, curvatureAt, profileHit, makeCell, arcElements, polygonCell, circleCell, stadiumCell, herriottPlanarCell, herriottSpots, thetaOf, reentrantSpacing,
+    modeRadius, perturb, segmentOf, pointAt, hit, reflect, launch, inWindow, trace, herriottTrace, reflectionWeightedPath, pathLengths,
+    cellPaths, ditherOffsets, visibility, modelVisibility, phaseDerivatives, ditherAnalysis, X_V09, X_V05, X_V0, stackROblique, trenchDBR,
+    hitAngles, weightedQuantile, weightedStats, uniformAverage, launchAngles, cellMirrorStats, portStatistics, lyapunovFit };
+})();
+/* JS port of math-engines/engines/gas_cell: deformed elongated Herriott cell against the CMPC (uses PlanarEngine) */
+const GasEngine = (() => {
+  const Pl = PlanarEngine;
+  const Q_E = 1.602176634e-19;
+  const SPECIES = { CH4: [1.9404499757559918e-07, 1653.7262586923987e-9], NH3: [9.070328505920917e-07, 1531.6844239947554e-9],
+    CO2: [1.8544907877951942e-09, 1572.3344606971416e-9], H2O: [2.9303442119426514e-09, 1528.9584734878601e-9] };
+  const A_ = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+  const B_ = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+  const C_ = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+  const D_ = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+  function invNormal(p) {
+    if (p < 0.02425) {
+      const q = Math.sqrt(-2 * Math.log(p));
+      return (((((C_[0] * q + C_[1]) * q + C_[2]) * q + C_[3]) * q + C_[4]) * q + C_[5]) / ((((D_[0] * q + D_[1]) * q + D_[2]) * q + D_[3]) * q + 1);
+    }
+    if (p > 1 - 0.02425) return -invNormal(1 - p);
+    const q = p - 0.5, r = q * q;
+    return (((((A_[0] * r + A_[1]) * r + A_[2]) * r + A_[3]) * r + A_[4]) * r + A_[5]) * q / (((((B_[0] * r + B_[1]) * r + B_[2]) * r + B_[3]) * r + B_[4]) * r + 1);
+  }
+  const quantiles = n => Array.from({ length: n }, (_, i) => invNormal((i + 0.5) / n));
+  /* erf: W. J. Cody's rational approximations (as OnchipEngine.erf) */
+  function erf(x) {
+    const ax = Math.abs(x);
+    if (ax < 0.5) {
+      const t = x * x;
+      const p = [3.16112374387056560e00, 1.13864154151050156e02, 3.77485237685302021e02, 3.20937758913846947e03, 1.85777706184603153e-1];
+      const q = [2.36012909523441209e01, 2.44024637934444173e02, 1.28261652607737228e03, 2.84423683343917062e03];
+      let xn = p[4] * t, xd = t;
+      for (let i = 0; i < 3; i++) { xn = (xn + p[i]) * t; xd = (xd + q[i]) * t; }
+      return x * (xn + p[3]) / (xd + q[3]);
+    }
+    let r;
+    if (ax < 4) {
+      const p = [5.64188496988670089e-1, 8.88314979438837594e00, 6.61191906371416295e01, 2.98635138197400131e02, 8.81952221241769090e02, 1.71204761263407058e03, 2.05107837782607147e03, 1.23033935479799725e03, 2.15311535474403846e-8];
+      const q = [1.57449261107098347e01, 1.17693950891312499e02, 5.37181101862009858e02, 1.62138957456669019e03, 3.29079923573345963e03, 4.36261909014324716e03, 3.43936767414372164e03, 1.23033935480374942e03];
+      let xn = p[8] * ax, xd = ax;
+      for (let i = 0; i < 7; i++) { xn = (xn + p[i]) * ax; xd = (xd + q[i]) * ax; }
+      r = (xn + p[7]) / (xd + q[7]);
+    } else {
+      const p = [3.05326634961232344e-1, 3.60344899949804439e-1, 1.25781726111229246e-1, 1.60837851487422766e-2, 6.58749161529837803e-4, 1.63153871373020978e-2];
+      const q = [2.56852019228982242e00, 1.87295284992346725e00, 5.27905102951428412e-1, 6.05183413124413191e-2, 2.33520497626869185e-3];
+      const z = 1 / (ax * ax);
+      let xn = p[5] * z, xd = z;
+      for (let i = 0; i < 4; i++) { xn = (xn + p[i]) * z; xd = (xd + q[i]) * z; }
+      r = (1 / Math.sqrt(Math.PI) - z * (xn + p[4]) / (xd + q[4])) / ax;
+    }
+    const xsq = Math.trunc(ax * 16) / 16, del = (ax - xsq) * (ax + xsq);
+    r *= Math.exp(-xsq * xsq) * Math.exp(-del);
+    return x < 0 ? r - 1 : 1 - r;
+  }
+  const gfrac = (lo, hi, s, w) => { const k = Math.SQRT2 / w; return 0.5 * (erf(k * (hi - s)) - erf(k * (lo - s))); };
+
+  /* ---------------------------------------------------------------- cells */
+  const designRadius = (L, N, M) => L / (1 - Math.cos(2 * Math.PI * M / N));
+  const mirrorRadiusW = (L, R, lamM) => { const g = 1 - L / R; return Math.sqrt(lamM * L / (Math.PI * Math.sqrt(1 - g * g))); };
+  function baselineCell({ L = 15e-3, W = 1.5e-3, N = 14, M = 3, distinct = true, portW = 0, eps4 = 0, eps3 = 0, conic = 0, deform = "both", walls = false, lamM = 1.6537e-6 / 2 } = {}) {
+    const R = designRadius(L, N, M), pw = portW > 0 ? portW : 2.5 * mirrorRadiusW(L, R, lamM), a = W / 2, A = a - pw;
+    if (A <= 0) throw new Error("the window does not fit: make the cell wider or the window narrower");
+    const c = Pl.deformedHerriottCell(R, N, M, A, { portW: pw, aperture: a, d: L, phase: distinct ? Math.PI / N : 0, conic, eps3, eps4, deform, walls });
+    Object.assign(c.meta, { kind: "herriott", L, W });
+    return c;
+  }
+  function circleReference(area, nFacets = 24, portW = 150e-6, outFrac = 0.37, smooth = false) {
+    let c, r;
+    if (smooth) { r = Math.sqrt(area / Math.PI); c = Pl.circleCell(r); }
+    else { r = Math.sqrt(2 * area / (nFacets * Math.sin(2 * Math.PI / nFacets))); c = Pl.polygonCell(r, nFacets); }
+    c.sOut = c.sIn + outFrac * c.perimeter;
+    Object.assign(c.meta, { kind: "circle", r, portW, nFacets: smooth ? 0 : nFacets });
+    return c;
+  }
+
+  /* ---------------------------------------------------------------- Gaussian-beam two-mirror model */
+  function centrePath(c, sIn, theta, sOut, portW, nMax = 2000) {
+    let [x, y, dx, dy] = Pl.launch(c, sIn, theta);
+    const xs = [x], ys = [y], S = [], SC = [], K = [];
+    for (let j = 0; j < nMax; j++) {
+      const h = Pl.hit(c, x, y, dx, dy);
+      if (!Number.isFinite(h.t)) break;
+      x += h.t * dx; y += h.t * dy;
+      S.push(h.s); SC.push(dx * h.ny - dy * h.nx); K.push(h.k); xs.push(x); ys.push(y);
+      if (Pl.inWindow(h.s, sOut, portW, c.perimeter)) break;
+      [dx, dy] = Pl.reflect(dx, dy, h.nx, h.ny);
+    }
+    const n = S.length, chords = Array.from({ length: n }, (_, j) => Math.hypot(xs[j + 1] - xs[j], ys[j + 1] - ys[j]));
+    return { xs, ys, s: S, sinchi: SC, element: K, chords, kappa: S.map(v => Pl.curvatureAt(c, v)), cos: SC.map(v => Math.sqrt(Math.min(Math.max(1 - v * v, 1e-12), 1))),
+      exits: n > 0 && Pl.inWindow(S[n - 1], sOut, portW, c.perimeter), nHits: n };
+  }
+  const cdivr = (a, b) => { const d = b.re * b.re + b.im * b.im; return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }; };
+  const inv = q => cdivr({ re: 1, im: 0 }, q);
+  function eigenQ(Mt) {
+    const [A, B, C, D] = Mt, m = 0.5 * (A + D);
+    if (Math.abs(m) >= 1 || B === 0) return null;
+    return inv({ re: (D - A) / (2 * B), im: -Math.sqrt(1 - m * m) / Math.abs(B) });
+  }
+  const mul = (P, Q) => [P[0] * Q[0] + P[1] * Q[2], P[0] * Q[1] + P[1] * Q[3], P[2] * Q[0] + P[3] * Q[2], P[2] * Q[1] + P[3] * Q[3]];
+  function inputQ(o) {
+    const c0 = baselineCell(Object.assign({}, o, { eps4: 0, eps3: 0, conic: 0 }));
+    const p = centrePath(c0, c0.sIn, c0.meta.thetaLaunch, c0.sOut, c0.meta.portW, 3);
+    let Mt = [1, 0, 0, 1];
+    for (let j = 0; j < 2; j++) { Mt = mul([1, p.chords[j], 0, 1], Mt); Mt = mul([1, 0, -2 * p.kappa[j] / p.cos[j], 1], Mt); }
+    const q = eigenQ(Mt);
+    if (!q) throw new Error("the undeformed baseline is not a stable two-mirror cell");
+    return { q, c0 };
+  }
+  function qWidth(q, lamM) { const iq = inv(q); return [Math.sqrt(-lamM / (Math.PI * iq.im)), iq.re !== 0 ? 1 / iq.re : Infinity]; }
+  function gaussianPath(c, path, q0, lamM, ports, Rm = 1) {
+    const n = path.nHits, wIn = qWidth(q0, lamM)[0];
+    let q = { re: q0.re, im: q0.im }, ell = 1;
+    if (n) { let s = 0; for (const v of path.chords) s += v; ell = s / n; }
+    let Mt = [1, 0, 0, 1], T = 1;
+    const W = new Float64Array(n), share = new Float64Array(n).fill(1), steps = [];
+    for (let j = 0; j < n; j++) {
+      q = { re: q.re + path.chords[j], im: q.im };
+      const F = [1, path.chords[j] / ell, 0, 1];
+      Mt = mul(F, Mt); steps.push(F);
+      W[j] = qWidth(q, lamM)[0];
+      const last = j === n - 1 && path.exits;
+      if (!last) {
+        const k = path.element[j], s = path.s[j], wf = W[j] / path.cos[j], lo = c.s0[k], hi = c.s0[k] + c.L[k], P = c.perimeter;
+        let sh = gfrac(lo, hi, s, wf);
+        for (const [s0, pw] of ports) {
+          const d = ((s0 - s + P / 2) % P + P) % P - P / 2;
+          if (s + d + pw / 2 > lo && s + d - pw / 2 < hi) sh -= gfrac(Math.max(s + d - pw / 2, lo), Math.min(s + d + pw / 2, hi), s, wf);
+        }
+        share[j] = Math.max(sh, 0); T *= share[j] * Rm;
+        const Cm = -2 * path.kappa[j] / path.cos[j];
+        q = cdivr(q, { re: Cm * q.re + 1, im: Cm * q.im });
+        const Mm = [1, 0, Cm * ell, 1];
+        Mt = mul(Mm, Mt); steps[steps.length - 1] = mul(Mm, steps[steps.length - 1]);
+      }
+    }
+    const tr = Mt[0] ** 2 + Mt[1] ** 2 + Mt[2] ** 2 + Mt[3] ** 2, det = Mt[0] * Mt[3] - Mt[1] * Mt[2];
+    const sv = n ? Math.sqrt((tr + Math.sqrt(Math.max(tr * tr - 4 * det * det, 0))) / 2) : 1;
+    let mMax = steps.length > 1 ? 0 : 1;
+    for (let j = 0; j + 1 < steps.length; j++) { const P2 = mul(steps[j + 1], steps[j]); mMax = Math.max(mMax, Math.abs(0.5 * (P2[0] + P2[3]))); }
+    let wmax = 0; for (const v of W) wmax = Math.max(wmax, v);
+    return { w: W, share, T_G: T, w_max_ratio: n ? wmax / wIn : 1, lam_G: n ? Math.log(sv) / n : 0, m_max: mMax, w_in: wIn, q_end: q };
+  }
+
+  /* ---------------------------------------------------------------- ray ensemble, chaos, figures */
+  function beamRays(c, sIn, thetaC, q0, lamM, nSide = 24) {
+    const [w, Rw] = qWidth(q0, lamM), thw = lamM / (Math.PI * w), z = quantiles(nSide), cosT = Math.max(Math.cos(thetaC), 1e-6), out = [];
+    for (let i = 0; i < nSide; i++) for (let j = 0; j < nSide; j++) {
+      const off = w / 2 * z[i], ang = thw / 2 * z[j] + (Number.isFinite(Rw) ? off / Rw : 0);
+      out.push(Pl.launch(c, sIn + off / cosT, thetaC + ang));
+    }
+    return out;
+  }
+  /* planar_cell.trace_rays(starts=...) + evaluate with a constant R */
+  function traceEnsemble(c, starts, portW, sIn, sOut, nBounce, Rm, gamma) {
+    const ports = { sIn, sOut, w: portW }, Ls = [], Ws = [];
+    let leaked = 0, back = 0, trapped = 0;
+    for (const st of starts) {
+      const tr = Pl.trace(c, st, nBounce, ports);
+      if (tr.exit === 1) { Ls.push(tr.L); Ws.push(Rm < 1 ? Math.exp((tr.s.length - 1) * Math.log(Math.max(Rm, 1e-300))) : 1); }
+      else if (tr.exit === -2) leaked++; else if (tr.exit === 0) back++; else trapped++;
+    }
+    let SW = 0, SWL = 0;
+    for (let i = 0; i < Ls.length; i++) { SW += Ws[i]; SWL += Ws[i] * Ls[i]; }
+    const n = starts.length, T = SW / n, Lm = SW > 0 ? SWL / SW : NaN;
+    let v = 0; for (let i = 0; i < Ls.length; i++) v += Ws[i] * (Ls[i] - Lm) ** 2;
+    return { T, L_mean: Lm, L_rms: SW > 0 ? Math.sqrt(v / SW) : NaN, S1: gamma * T * Lm, leaked: leaked / n, back: back / n, trapped: trapped / n, L: Ls, W: Ws };
+  }
+  function twinDivergence(c, sIn, theta, nHits = 300, dtheta = 1e-9) {
+    const a = Pl.trace(c, Pl.launch(c, sIn, theta), nHits, null), b = Pl.trace(c, Pl.launch(c, sIn, theta + dtheta), nHits, null);
+    const n = Math.min(a.xs.length, b.xs.length), sep = [];
+    for (let j = 1; j < n; j++) sep.push(Math.hypot(a.xs[j] - b.xs[j], a.ys[j] - b.ys[j]));
+    return { sep, fit: Pl.lyapunovFit(sep, Math.sqrt(Math.abs(c.area))) };
+  }
+  function cellFigures(c, thetaC, q0, lamM, { nEff = 2, gamma = 0.2, alphaPpm = SPECIES.CH4[0], Rm = 0.995, dither = 2e-3, waveform = "sine", fPar = 1e-6,
+    Pin = 1e-3, bandwidth = 1, nSide = 24, nBounce = 2000, nLyap = 300, nPassMax = 60, nDitherMax = 12801 } = {}) {
+    const sIn = c.sIn, sOut = c.sOut, pw = c.meta.portW, lam = lamM * nEff;
+    const ports = [[sIn, pw]].concat(Math.abs(sOut - sIn) < 1e-15 ? [] : [[sOut, pw]]);
+    const ev = traceEnsemble(c, beamRays(c, sIn, thetaC, q0, lamM, nSide), pw, sIn, sOut, nBounce, Rm, gamma);
+    const Appm = ev.T > 0 ? 100 * alphaPpm * gamma * ev.L_mean : 0;
+    const sigA = ev.T > 0 ? Math.sqrt(2 * Q_E * bandwidth / (Pin * ev.T)) : Infinity;
+    const cp = centrePath(c, sIn, thetaC, sOut, pw, nBounce);
+    const gb = gaussianPath(c, cp, q0, lamM, ports, Rm);
+    const tw = twinDivergence(c, sIn, thetaC, nLyap);
+    const nPass = cp.nHits ? Math.min(cp.nHits, nPassMax) : 1;
+    const da = Pl.ditherAnalysis(Pl.cellPaths(c, sIn), thetaC, dither, nPass, lam, nEff, waveform, 401, nDitherMax);
+    const V = da.V[nPass - 1];
+    const necShot = Appm > 0 ? sigA / Appm : Infinity, necFringe = Appm > 0 ? 2 * Math.sqrt(fPar) * V / Appm : Infinity;
+    return { T: ev.T, L_mean: ev.L_mean, L_rms: ev.L_rms, S1: ev.S1, leaked: ev.leaked, back: ev.back, trapped: ev.trapped, A_ppm: Appm,
+      nec_shot: necShot, nec_fringe: necFringe, nec: Math.hypot(necShot, necFringe), lam: tw.fit ? tw.fit.lam : 0, lam_fit: !!tw.fit, V,
+      V_pass: da.V, same_path: da.same[nPass - 1], n_pass: nPass, exit_pass: cp.exits ? cp.nHits : -1, L_centre: cp.chords.reduce((x, y) => x + y, 0),
+      T_G: gb.T_G, w_max_ratio: gb.w_max_ratio, lam_G: gb.lam_G, m_max: gb.m_max, theta: thetaC, w_hits: gb.w, share: gb.share, sep: tw.sep,
+      centre: cp, area: c.area, dither_n: da.nUsed, ens: ev };
+  }
+  function retune(c, theta0, q0, lamM, { span = null, nTheta = 41, Rm = 0.995, gamma = 0.2, nSide = 8, nBounce = 2000, onStep = null } = {}) {
+    const w = qWidth(q0, lamM)[0];
+    span = span === null ? 4 * lamM / (Math.PI * w) : span;
+    const pw = c.meta.portW, step = 2 / (nTheta - 1);
+    let best = [-1, theta0];
+    const scan = [];
+    for (let i = 0; i < nTheta; i++) {
+      const th = theta0 + span * (i === nTheta - 1 ? 1 : -1 + i * step);
+      const ev = traceEnsemble(c, beamRays(c, c.sIn, th, q0, lamM, nSide), pw, c.sIn, c.sOut, nBounce, Rm, gamma);
+      scan.push([th, ev.S1]);
+      if (ev.S1 > best[0] * (1 + 1e-12)) best = [ev.S1, th];
+    }
+    return { theta: best[1], S1: best[0], scan };
+  }
+  function common(o) {
+    const lamM = o.wavelength / o.n_eff;
+    const g = { L: o.L, W: o.W, N: o.N, M: o.M, distinct: !!o.distinct, portW: o.port_width, walls: !!o.walls, lamM };
+    const { q, c0 } = inputQ(g);
+    const pw = c0.meta.portW;
+    const base = baselineCell(Object.assign({}, g, { portW: pw, eps4: o.eps4, eps3: o.eps3, conic: o.conic, deform: o.deform }));
+    const circ = circleReference(base.area, o.n_facets, pw, o.out_frac, !!o.smooth_circle);
+    return { lamM, q0: q, base, circ, g, pw };
+  }
+  const DEFAULTS = { L: 15e-3, W: 1.5e-3, N: 14, M: 3, distinct: 1, port_width: 0, eps4: 0, eps3: 0, conic: 0, deform: "both", walls: 0, n_facets: 24,
+    circle_theta: 0.35, out_frac: 0.37, smooth_circle: 0, wavelength: 1.6537e-6, n_eff: 2.0, gamma: 0.2, species: "CH4", R_mirror: 0.995, dither: 2e-3,
+    waveform: "sine", f_parasitic: 1e-6, P_in: 1e-3, bandwidth: 1, n_side: 24, n_bounce: 2000, retune_launch: 1 };
+  const KEYS = ["T", "L_mean", "L_rms", "S1", "A_ppm", "nec_shot", "nec_fringe", "nec", "lam", "V", "same_path", "n_pass", "exit_pass", "T_G", "w_max_ratio",
+    "lam_G", "m_max", "leaked", "area", "theta"];
+  const figOpts = o => ({ nEff: o.n_eff, gamma: o.gamma, alphaPpm: SPECIES[o.species][0], Rm: o.R_mirror, dither: o.dither, waveform: o.waveform,
+    fPar: o.f_parasitic, Pin: o.P_in, bandwidth: o.bandwidth, nSide: o.n_side, nBounce: o.n_bounce });
+  /* gas_cell.compare: values as the Python Result, plus the two figure sets (h, c) and the cells */
+  function compare(opts = {}) {
+    const o = Object.assign({}, DEFAULTS, opts);
+    const { lamM, q0, base, circ } = common(o);
+    const rt = o.retune_launch ? retune(base, base.meta.thetaLaunch, q0, lamM, { Rm: o.R_mirror, gamma: o.gamma }) : null;
+    const th = rt ? rt.theta : base.meta.thetaLaunch;
+    const h = cellFigures(base, th, q0, lamM, figOpts(o)), c = cellFigures(circ, o.circle_theta, q0, lamM, figOpts(o));
+    const v = {};
+    for (const k of KEYS) { v[`h_${k}`] = h[k]; v[`c_${k}`] = c[k]; }
+    Object.assign(v, { path_gain: c.L_mean > 0 ? h.L_mean / c.L_mean : NaN, sensitivity_gain: c.S1 > 0 ? h.S1 / c.S1 : NaN, chaos_lost: c.lam - h.lam,
+      washout_lost: h.V - c.V, nec_ratio: c.nec > 0 ? h.nec / c.nec : NaN, R_design: base.meta.R, port_width: base.meta.portW, w_in: qWidth(q0, lamM)[0],
+      circle_radius: circ.meta.r });
+    return Object.assign(v, { h, c, base, circ, q0, lamM, retune: rt });
+  }
+  /* gas_cell.deformation_sweep (baseline rows against eps4; the CMPC as reference) */
+  function deformationSweep(eps4Values, opts = {}, onRow = null) {
+    const o = Object.assign({}, DEFAULTS, { n_side: 16 }, opts);
+    const { lamM, q0, circ, g, pw } = common(Object.assign({}, o, { eps4: 0 }));
+    const rows = [];
+    for (const e of eps4Values) {
+      const b = baselineCell(Object.assign({}, g, { portW: pw, eps4: e, eps3: o.eps3, conic: o.conic, deform: o.deform }));
+      const th = o.retune_launch ? retune(b, b.meta.thetaLaunch, q0, lamM, { Rm: o.R_mirror, gamma: o.gamma }).theta : b.meta.thetaLaunch;
+      const r = cellFigures(b, th, q0, lamM, figOpts(o));
+      rows.push(r); if (onRow) onRow(e, r);
+    }
+    return { eps4: eps4Values, rows, c: cellFigures(circ, o.circle_theta, q0, lamM, figOpts(o)) };
+  }
+  return { SPECIES, invNormal, quantiles, erf, gfrac, designRadius, mirrorRadiusW, baselineCell, circleReference, centrePath, eigenQ, inputQ, qWidth,
+    gaussianPath, beamRays, traceEnsemble, twinDivergence, cellFigures, retune, common, compare, deformationSweep, DEFAULTS, KEYS };
+})();
+/* engine:end */
+
+(() => {
+  const $ = id => document.getElementById(id);
+  const E = PlanarEngine, G = GasEngine;
+  const LAMS = { CH4: 1653.7262586923987e-9, NH3: 1531.6844239947554e-9, CO2: 1572.3344606971416e-9, H2O: 1528.9584734878601e-9 };
+
+  const P = () => {
+    const nf = +$("nf").value;
+    return {
+      L: +$("L").value * 1e-3, W: +$("W").value * 1e-3, N: +$("N").value, M: Math.min(+$("M").value, +$("N").value / 2 - 1), distinct: $("distinct").checked ? 1 : 0,
+      port_width: +$("pw").value * 1e-6, walls: $("walls").checked ? 1 : 0, eps4: +$("eps4").value, eps3: +$("eps3").value, conic: +$("conic").value,
+      deform: $("deform").value, retune_launch: $("retune").checked ? 1 : 0, n_facets: nf === 0 ? 24 : Math.max(nf, 3), smooth_circle: nf === 0 ? 1 : 0,
+      circle_theta: +$("cth").value * Math.PI / 180, out_frac: +$("of").value, species: $("sp").value, wavelength: LAMS[$("sp").value],
+      n_eff: +$("neff").value, gamma: +$("gam").value, R_mirror: +$("Rm").value, P_in: 1e-3 * 10 ** +$("Pin").value, dither: +$("dit").value * 1e-3,
+      waveform: $("wave").value, f_parasitic: 10 ** +$("fp").value, n_side: +$("ns").value, n_bounce: 2000, bandwidth: 1,
+    };
+  };
+
+  /* ---------------------------------------------------------------- worker: both cells, Poincaré sections, the sweep */
+  const appText = $("app").textContent;
+  const WORKER_SRC = appText.slice(appText.indexOf("/* engine:begin"), appText.indexOf("/* engine:end */")) + `
+${poincare.toString()}
+${slim.toString()}
+${mainRun.toString()}
+onmessage = e => {
+  const j = e.data;
+  if (j.kind === "main") postMessage({ id: j.id, kind: "main", res: mainRun(j.p) });
+  else {
+    const eps = j.eps, rows = [];
+    try {
+      const out = GasEngine.deformationSweep(eps, j.p, (x, r) => { rows.push(slim(r)); postMessage({ id: j.id, kind: "row", eps: x, row: slim(r) }); });
+      postMessage({ id: j.id, kind: "sweep", eps, rows, c: slim(out.c) });
+    } catch (err) { postMessage({ id: j.id, kind: "sweep", error: String(err.message || err) }); }
+  }
+};`;
+  function poincare(c, pmax = 0.96, nS = 36, nP = 12, nHits = 120) {
+    const Pl = PlanarEngine, S = [], C = [];
+    for (let i = 0; i < nS; i++) for (let j = 0; j < nP; j++) {
+      const s = (i + 0.5) / nS * c.perimeter, p = pmax * (-1 + 2 * (j + 0.5) / nP);
+      const tr = Pl.trace(c, Pl.launch(c, s, Math.asin(p)), nHits, null);
+      for (let k = 0; k < tr.s.length; k++) { S.push(tr.s[k] / c.perimeter); C.push(tr.sinchi[k]); }
+    }
+    return { S, C, pmax };
+  }
+  function slim(f) {
+    const o = {};
+    for (const k of ["T", "L_mean", "L_rms", "S1", "A_ppm", "nec_shot", "nec_fringe", "nec", "lam", "lam_fit", "V", "same_path", "n_pass", "exit_pass",
+      "L_centre", "T_G", "w_max_ratio", "lam_G", "m_max", "theta", "leaked", "back", "trapped", "dither_n"]) o[k] = f[k];
+    return o;
+  }
+  function mainRun(p) {
+    try {
+      const r = GasEngine.compare(p), out = {};
+      for (const k of Object.keys(r)) if (typeof r[k] === "number") out[k] = r[k];
+      for (const [key, f] of [["h", r.h], ["c", r.c]]) {
+        out[key] = Object.assign(slim(f), { w_hits: Array.from(f.w_hits), share: Array.from(f.share), sep: f.sep, V_pass: Array.from(f.V_pass),
+          xs: f.centre.xs, ys: f.centre.ys, Ls: f.ens.L, Ws: f.ens.W });
+      }
+      out.retune = r.retune ? { scan: r.retune.scan, theta: r.retune.theta } : null;
+      /* an open elongated cell keeps only rays within the angle the far mirror subtends: sample that range */
+      const m = r.base.meta;
+      out.hPoin = poincare(r.base, m.walls ? 0.96 : Math.min(0.96, 2.5 * 2 * m.aperture / m.d)); out.cPoin = poincare(r.circ);
+      return out;
+    } catch (err) { return { error: String(err.message || err) }; }
+  }
+  let worker = null, workerUrl = null, mainId = 0, sweepId = 0, busy = false, res = null, sweep = null;
+  function getWorker() {
+    if (!worker) {
+      workerUrl = workerUrl || URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+      worker = new Worker(workerUrl);
+      worker.onmessage = onMsg;
+    }
+    return worker;
+  }
+  function onMsg(e) {
+    const m = e.data;
+    if (m.kind === "main") { if (m.id !== mainId) return; busy = false; res = m.res; drawAll(); return; }
+    if (m.id !== sweepId || !sweep) return;
+    if (m.kind === "main") return;
+    else if (m.kind === "row") { sweep.rows.push(Object.assign({ eps: m.eps }, m.row)); $("sweepStatus").textContent = `ε₄ = ${m.eps.toFixed(2)} done (${sweep.rows.length} of ${sweep.eps.length})`; drawSweep(); }
+    else if (m.kind === "sweep") {
+      if (m.error) { $("sweepStatus").textContent = m.error; return; }
+      sweep.c = m.c; sweep.done = true; $("sweepStatus").textContent = `Sweep done for these settings.`; drawSweep();
+    }
+  }
+  function request() {
+    const p = P();
+    mainId++; sweepId++;
+    if (worker) { worker.terminate(); worker = null; }      /* cancels a running main job or sweep */
+    busy = true; sweep = null; drawSweep();
+    $("sweepStatus").textContent = "ε₄ from −0.10 to +0.30, re-aimed launch at each step; takes a few seconds.";
+    $("verdict").innerHTML = `<span class="status">Tracing both cells…</span>`;
+    getWorker().postMessage({ id: mainId, kind: "main", p });
+  }
+  function runSweep() {
+    const p = P(), eps = [-0.1, -0.05, 0, 0.02, 0.05, 0.1, 0.15, 0.2, 0.3];
+    sweepId++;
+    sweep = { eps, rows: [], c: null, done: false };
+    $("sweepStatus").textContent = busy ? "Queued after the comparison…" : "Running…";
+    drawSweep();
+    getWorker().postMessage({ id: sweepId, kind: "sweep", p: Object.assign({}, p, { n_side: Math.min(p.n_side, 12) }), eps });
+  }
+
+  /* ---------------------------------------------------------------- drawing helpers */
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function fit(canvas) {
+    const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    const g = canvas.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    return [g, w, h];
+  }
+  function axes(g, w, h, m, xl, yl, xt, yt, xr, yr, logY = false) {
+    g.font = `10.5px ${css("--font-data")}`; g.fillStyle = css("--muted"); g.strokeStyle = css("--line"); g.lineWidth = 1;
+    const ty = v => logY ? Math.log10(v) : v;
+    const X = v => m.l + (v - xr[0]) / (xr[1] - xr[0]) * (w - m.l - m.r), Y = v => h - m.b - (ty(v) - ty(yr[0])) / (ty(yr[1]) - ty(yr[0])) * (h - m.t - m.b);
+    g.textAlign = "center"; g.textBaseline = "top";
+    xt.forEach(([v, s]) => { g.beginPath(); g.moveTo(X(v), m.t); g.lineTo(X(v), h - m.b); g.stroke(); g.fillText(s, X(v), h - m.b + 4); });
+    g.textAlign = "right"; g.textBaseline = "middle";
+    yt.forEach(([v, s]) => { g.beginPath(); g.moveTo(m.l, Y(v)); g.lineTo(w - m.r, Y(v)); g.stroke(); g.fillText(s, m.l - 5, Y(v)); });
+    g.textAlign = "center"; g.textBaseline = "bottom"; g.fillText(xl, (m.l + w - m.r) / 2, h - 2);
+    g.save(); g.translate(11, (m.t + h - m.b) / 2); g.rotate(-Math.PI / 2); g.textBaseline = "middle"; g.fillText(yl, 0, 0); g.restore();
+    return [X, Y];
+  }
+  function rightAxis(g, w, h, m, ticks, Y2, lab, col) {
+    g.fillStyle = col; g.font = `10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "middle";
+    ticks.forEach(([v, s]) => g.fillText(s, w - m.r + 5, Y2(v)));
+    g.save(); g.translate(w - 8, (m.t + h - m.b) / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText(lab, 0, 0); g.restore();
+  }
+  const niceTicks = (a, b, n) => { if (!(b > a)) return [a]; const s = 10 ** Math.floor(Math.log10((b - a) / n)), f = (b - a) / n / s, st = (f > 5 ? 10 : f > 2 ? 5 : f > 1 ? 2 : 1) * s; const t = []; for (let v = Math.ceil(a / st) * st; v <= b + 1e-12 * Math.abs(b); v += st) t.push(+v.toPrecision(6)); return t; };
+  const logTicks = (lo, hi) => { const t = []; for (let e = Math.ceil(Math.log10(lo) - 1e-9); e <= Math.floor(Math.log10(hi) + 1e-9); e++) t.push([10 ** e, e === 0 ? "1" : `1e${e}`]); return t; };
+  const label = (g, txt, x, y, col, align = "left", base = "bottom") => { g.fillStyle = col; g.font = `500 10.5px ${css("--font-data")}`; g.textAlign = align; g.textBaseline = base; g.fillText(txt, x, y); };
+  const line = (g, pts, col, lw = 1.8, dash = null) => { g.strokeStyle = col; g.lineWidth = lw; if (dash) g.setLineDash(dash); g.beginPath(); let pen = false; pts.forEach(([x, y]) => { if (!Number.isFinite(y) || !Number.isFinite(x)) { pen = false; return; } pen ? g.lineTo(x, y) : g.moveTo(x, y); pen = true; }); g.stroke(); g.setLineDash([]); };
+  const ring = (g, x, y, col) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 6, 0, 7); g.stroke(); };
+  const dot = (g, x, y, col, r = 3) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); };
+  const fmt = (v, d = 2) => Number.isFinite(v) ? v.toFixed(d) : "–";
+  const sig = (v, n = 3) => Number.isFinite(v) ? (+v.toPrecision(n)).toString() : "–";
+  const ppm = v => !Number.isFinite(v) ? "–" : v >= 1e4 ? `${(v / 1e4).toPrecision(3)} %` : v >= 1 ? `${sig(v, 3)} ppm` : v >= 1e-3 ? `${sig(v * 1e3, 3)} ppb` : `${sig(v * 1e6, 3)} ppt`;
+
+  /* the cells, rebuilt here for drawing (same builders as the worker) */
+  function cells(p) {
+    const { base, circ } = G.common(Object.assign({}, G.DEFAULTS, p));
+    return { base, circ };
+  }
+  function wallPts(c, k, n = 40) { const pts = []; for (let i = 0; i <= n; i++) { const [x, y] = E.pointAt(c, c.s0[k] + c.L[k] * Math.min(i / n, 1 - 1e-12)); pts.push([x, y]); } return pts; }
+  function drawHerriott(c, r) {
+    const m = c.meta, xr = m.d / 2 * 1.04, yr = m.aperture * 1.25;
+    const box = $("hbox"), wpx = box.clientWidth;
+    const stretch = Math.max(1, Math.min(xr / yr / 3, 20));
+    box.style.setProperty("--asp", Math.max(2.2, Math.min(xr / (yr * stretch), 6)).toFixed(3));
+    const [g, w, h] = fit($("hcell"));
+    const sx = Math.min((w / 2 - 14) / xr, (h / 2 - 12) / (yr * stretch)), sy = sx * stretch;
+    const X = x => w / 2 + x * sx, Y = y => h / 2 - y * sy;
+    g.setLineDash([4, 6]); g.strokeStyle = css("--line"); g.lineWidth = 1; g.beginPath(); g.moveTo(X(-xr), Y(0)); g.lineTo(X(xr), Y(0)); g.stroke(); g.setLineDash([]);
+    if (r) {
+      const xs = r.xs, ys = r.ys, W = r.w_hits;
+      let I = 1;
+      g.fillStyle = css("--accent");
+      for (let j = 0; j + 1 < xs.length; j++) {
+        const x0 = xs[j], y0 = ys[j], x1 = xs[j + 1], y1 = ys[j + 1], L = Math.hypot(x1 - x0, y1 - y0), nx = -(y1 - y0) / L, ny = (x1 - x0) / L;
+        const wa = j ? W[j - 1] : r.w_hits[0], wb = W[j];
+        g.globalAlpha = Math.max(0.05, 0.25 * I);
+        g.beginPath(); g.moveTo(X(x0 + nx * wa), Y(y0 + ny * wa)); g.lineTo(X(x1 + nx * wb), Y(y1 + ny * wb)); g.lineTo(X(x1 - nx * wb), Y(y1 - ny * wb)); g.lineTo(X(x0 - nx * wa), Y(y0 - ny * wa)); g.closePath(); g.fill();
+        I *= r.share[j] || 1;
+      }
+      g.globalAlpha = 1; g.strokeStyle = css("--accent"); g.lineWidth = 0.9;
+      line(g, xs.map((x, j) => [X(x), Y(ys[j])]), css("--accent"), 0.9);
+    }
+    for (let k = 0; k < c.E; k++) {
+      const pts = wallPts(c, k);
+      g.strokeStyle = c.prof[k] ? css("--mirror") : css("--muted"); g.lineWidth = c.prof[k] ? 3 : 1.5;
+      g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y))); g.stroke();
+      if (c.prof[k]) label(g, c.labels[k], X(pts[20][0]) + (k ? 8 : -8), Y(pts[20][1]), css("--muted"), k ? "left" : "right", "middle");
+    }
+    g.strokeStyle = css("--port-in"); g.lineWidth = 6; g.beginPath();
+    for (let q = 0; q <= 8; q++) { const [x, y] = E.pointAt(c, c.sIn - m.portW / 2 + m.portW * q / 8); q ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)); }
+    g.stroke();
+    const bar = m.d >= 10e-3 ? 5e-3 : 2e-3, bx = X(-xr) + 4, by = h - 6;
+    g.strokeStyle = css("--ink"); g.lineWidth = 2; g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + bar * sx, by); g.stroke();
+    label(g, `${bar * 1e3} mm`, bx + bar * sx / 2, by - 3, css("--ink"), "center");
+    label(g, `transverse ×${stretch.toFixed(1)}`, w - 6, h - 4, css("--muted"), "right");
+    if (wpx < 1) return;
+  }
+  function drawCircle(c, r) {
+    const [g, w, h] = fit($("ccell"));
+    const R = c.meta.r * 1.08, s = Math.min(w, h) / 2 / R - 2, X = x => w / 2 + x * s, Y = y => h / 2 - y * s;
+    if (r) line(g, r.xs.slice(0, 301).map((x, j) => [X(x), Y(r.ys[j])]), css("--circ"), 0.8);
+    for (let k = 0; k < c.E; k++) { const pts = wallPts(c, k, c.kappa[k] ? 30 : 1); g.strokeStyle = css("--mirror"); g.lineWidth = 2.5; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y))); g.stroke(); }
+    const pw = c.meta.portW;
+    for (const [s0, col] of [[c.sIn, css("--port-in")], [c.sOut, css("--port-out")]]) {
+      g.strokeStyle = col; g.lineWidth = 6; g.beginPath();
+      for (let q = 0; q <= 6; q++) { const [x, y] = E.pointAt(c, s0 - pw / 2 + pw * q / 6); q ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)); }
+      g.stroke();
+    }
+    label(g, `r = ${(c.meta.r * 1e3).toFixed(2)} mm`, 6, h - 4, css("--muted"));
+  }
+
+  /* ---------------------------------------------------------------- summary */
+  function drawSummary(p) {
+    if (!res) return;
+    if (res.error) { $("verdict").innerHTML = `<div class="warn">${res.error}</div>`; $("kpis").innerHTML = ""; $("vs").innerHTML = ""; return; }
+    const h = res.h, c = res.c;
+    const gain = res.path_gain, sens = res.sensitivity_gain;
+    const fringeLim = x => x.nec_fringe > x.nec_shot;
+    const better = h.nec < c.nec ? "Herriott" : "circular";
+    const lines = [];
+    lines.push(`<div>The Herriott cell detects <b>${fmt(100 * h.T, 0)} %</b> of the light after <b>${fmt(100 * h.L_mean, 1)} cm</b>; the circular cell ${fmt(100 * c.T, 0)} % after ${fmt(100 * c.L_mean, 1)} cm. Path ×${fmt(gain, 2)}, sensitivity Γ T ⟨L⟩ ×${fmt(sens, 2)}.</div>`);
+    lines.push(`<div>Under a ${fmt(P().dither * 1e3, 1)} mrad launch dither the Herriott fringe keeps a visibility of <b>${fmt(h.V, 3)}</b>, the circular cell's ${fmt(c.V, 3)}. ${fringeLim(h) ? "The Herriott cell is fringe-limited" : "The Herriott cell is shot-noise limited"}; ${fringeLim(c) ? "the circular cell is fringe-limited" : "the circular cell is shot-noise limited"}. Lower detection limit: <b>${better} cell</b> (${ppm(h.nec)} against ${ppm(c.nec)}).</div>`);
+    if (h.exit_pass < 0) lines.push(`<div class="warn">The Herriott centre ray does not return to the window: the deformation or settings break re-entrance (try re-aiming the launch).</div>`);
+    if (h.m_max > 1) lines.push(`<div class="note">Some Herriott round trips are unstable (|m| up to ${fmt(h.m_max, 3)}): the deformation has started to make the two-mirror cell chaotic.</div>`);
+    $("verdict").innerHTML = lines.join("");
+    const kpi = (t, v, sub) => `<div class="kpi"><span>${t}</span><b>${v}</b><i>${sub}</i></div>`;
+    $("kpis").innerHTML = [
+      kpi("Path gained", `×${fmt(gain, 2)}`, `⟨L⟩ ${fmt(100 * h.L_mean, 1)} vs ${fmt(100 * c.L_mean, 1)} cm`),
+      kpi("Sensitivity gained", `×${fmt(sens, 2)}`, `Γ T ⟨L⟩, detected power included`),
+      kpi("Washout lost", fmt(res.washout_lost, 3), `fringe visibility V ${fmt(h.V, 3)} vs ${fmt(c.V, 3)}`),
+      kpi("Detection limit ratio", `×${sig(res.nec_ratio, 3)}`, `NEC Herriott / circular`),
+    ].join("");
+    const rows = [
+      ["Mean detected path ⟨L⟩", `${fmt(100 * h.L_mean, 2)} cm`, `${fmt(100 * c.L_mean, 2)} cm`, h.L_mean > c.L_mean],
+      ["Path spread (rms)", `${fmt(100 * h.L_rms, 2)} cm`, `${fmt(100 * c.L_rms, 2)} cm`, null],
+      ["Detected power T", fmt(h.T, 3), fmt(c.T, 3), h.T > c.T],
+      ["Light back out of the input / leaked", `${fmt(100 * h.back, 1)} / ${fmt(100 * h.leaked, 1)} %`, `${fmt(100 * c.back, 1)} / ${fmt(100 * c.leaked, 1)} %`, null],
+      ["Absorbance per ppm", sig(h.A_ppm, 3), sig(c.A_ppm, 3), h.A_ppm > c.A_ppm],
+      ["Shot-noise limit (1 Hz)", ppm(h.nec_shot), ppm(c.nec_shot), h.nec_shot < c.nec_shot],
+      ["Fringe-limited NEC", ppm(h.nec_fringe), ppm(c.nec_fringe), h.nec_fringe < c.nec_fringe],
+      ["Noise-equivalent concentration", ppm(h.nec), ppm(c.nec), h.nec < c.nec],
+      ["Dither visibility at the exit", fmt(h.V, 4), fmt(c.V, 4), h.V < c.V],
+      ["Dithered rays on the centre's path", `${fmt(100 * h.same_path, 1)} %`, `${fmt(100 * c.same_path, 1)} %`, null],
+      ["Lyapunov exponent (per hit)", h.lam_fit ? sig(h.lam, 3) : "none", c.lam_fit ? sig(c.lam, 3) : "none", null],
+      ["Exit pass of the centre ray", h.exit_pass > 0 ? h.exit_pass : "does not exit", c.exit_pass > 0 ? c.exit_pass : "does not exit", null],
+      ["Power kept in one Gaussian beam", sig(h.T_G, 3), sig(c.T_G, 3), h.T_G > c.T_G],
+      ["Largest beam radius / input", fmt(h.w_max_ratio, 2), fmt(c.w_max_ratio, 2), h.w_max_ratio < c.w_max_ratio],
+      ["Largest round-trip |m|", fmt(h.m_max, 3), fmt(c.m_max, 3), null],
+      ["Launch angle used", `${fmt(h.theta * 1e3, 2)} mrad`, `${fmt(c.theta * 180 / Math.PI, 1)}°`, null],
+    ];
+    $("vs").innerHTML = `<thead><tr><th></th><th class="h">Herriott</th><th class="c">Circular</th></tr></thead><tbody>` +
+      rows.map(([n, a, b, hb]) => `<tr><td>${n}</td><td class="${hb === true ? "win" : ""}">${a}</td><td class="${hb === false ? "win" : ""}">${b}</td></tr>`).join("") + `</tbody>`;
+  }
+
+  /* ---------------------------------------------------------------- charts */
+  const M_ = { l: 50, r: 12, t: 10, b: 34 };
+  function twoSeries(id, A, B, xl, yl, log, mark) {
+    const [g, w, h] = fit($(id));
+    const all = A.concat(B).filter(v => Number.isFinite(v) && (!log || v > 0));
+    if (!all.length) return;
+    let lo = Math.min(...all), hi = Math.max(...all);
+    if (log) { lo = 10 ** Math.floor(Math.log10(lo)); hi = 10 ** Math.ceil(Math.log10(hi)); if (hi <= lo) hi = lo * 10; }
+    else { if (hi - lo < 1e-9) { hi += 0.05; lo -= 0.05; } const pad = 0.05 * (hi - lo); lo -= pad; hi += pad; }
+    const n = Math.max(A.length, B.length, 2);
+    const [X, Y] = axes(g, w, h, M_, xl, yl, niceTicks(1, n, 6).map(v => [v, String(v)]), log ? logTicks(lo, hi) : niceTicks(lo, hi, 4).map(v => [v, String(v)]), [1, n], [lo, hi], log);
+    const pts = arr => arr.map((v, i) => [X(i + 1), log && !(v > 0) ? NaN : Y(v)]);
+    line(g, pts(B), css("--circ"), 1.6); line(g, pts(A), css("--accent"), 1.8);
+    if (mark) { if (mark.h) ring(g, X(mark.h[0]), Y(mark.h[1]), css("--accent")); if (mark.c) ring(g, X(mark.c[0]), Y(mark.c[1]), css("--circ")); }
+    label(g, "— Herriott", M_.l + 6, M_.t + 14, css("--accent")); label(g, "— circular", M_.l + 90, M_.t + 14, css("--circ"));
+  }
+  function drawPaths() {
+    const [g, w, h] = fit($("pathChart"));
+    const hs = res.h, cs = res.c, top = Math.max(...hs.Ls, ...cs.Ls, 1e-3) * 1.02 * 100, nb = 40;
+    const hist = (Ls, Ws) => { const H = new Float64Array(nb), sw = Ws.reduce((a, b) => a + b, 0) || 1; Ls.forEach((L, i) => { H[Math.min(Math.floor(L * 100 / top * nb), nb - 1)] += Ws[i] / sw; }); return H; };
+    const Hh = hist(hs.Ls, hs.Ws), Hc = hist(cs.Ls, cs.Ws), ymax = Math.max(...Hh, ...Hc, 1e-3) * 1.1;
+    const [X, Y] = axes(g, w, h, M_, "path (cm)", "share of detected power", niceTicks(0, top, 5).map(v => [v, String(v)]), niceTicks(0, ymax, 4).map(v => [v, String(v)]), [0, top], [0, ymax]);
+    const bw = (X(top) - X(0)) / nb;
+    for (const [H, col, off] of [[Hc, css("--circ"), 0.5], [Hh, css("--accent"), 0]]) {
+      g.fillStyle = col; g.globalAlpha = 0.75;
+      H.forEach((v, i) => { if (v > 0) g.fillRect(X(i * top / nb) + off * bw, Y(v), bw * 0.5, Y(0) - Y(v)); });
+      g.globalAlpha = 1;
+    }
+    label(g, "■ Herriott", M_.l + 6, M_.t + 14, css("--accent")); label(g, "■ circular", M_.l + 90, M_.t + 14, css("--circ"));
+  }
+  function drawRetune() {
+    const [g, w, h] = fit($("retuneChart"));
+    const rt = res.retune;
+    if (!rt) { label(g, "Re-aiming is off: the design launch angle is used.", w / 2, h / 2, css("--muted"), "center", "middle"); return; }
+    const xs = rt.scan.map(s => s[0] * 1e3), ys = rt.scan.map(s => s[1] * 100);
+    const lo = Math.min(...xs), hi = Math.max(...xs), ym = Math.max(...ys, 1e-6) * 1.1;
+    const [X, Y] = axes(g, w, h, M_, "launch angle (mrad)", "Γ T ⟨L⟩ (cm)", niceTicks(lo, hi, 5).map(v => [v, String(v)]), niceTicks(0, ym, 4).map(v => [v, String(v)]), [lo, hi], [0, ym]);
+    line(g, xs.map((x, i) => [X(x), Y(ys[i])]), css("--accent"));
+    const i = rt.scan.findIndex(s => s[0] === rt.theta);
+    if (i >= 0) ring(g, X(xs[i]), Y(ys[i]), css("--ink"));
+  }
+  function drawPoin(id, d, col) {
+    const [g, w, h] = fit($(id));
+    const pm = d.pmax <= 0.5 ? Math.max(...d.C.map(Math.abs), 0.02) * 1.05 : 1;
+    const [X, Y] = axes(g, w, h, M_, "position along the wall (fraction of perimeter)", "sin χ", niceTicks(0, 1, 5).map(v => [v, String(v)]), niceTicks(-pm, pm, 4).map(v => [v, String(v)]), [0, 1], [-pm, pm]);
+    if (!d.S.length) label(g, "every ray leaves the open cell at once", w / 2, h / 2, css("--muted"), "center", "middle");
+    g.fillStyle = col; g.globalAlpha = 0.5;
+    for (let i = 0; i < d.S.length; i++) g.fillRect(X(d.S[i]) - 0.6, Y(d.C[i]) - 0.6, 1.2, 1.2);
+    g.globalAlpha = 1;
+  }
+  function drawSweep() {
+    const A = $("sweepA"), B = $("sweepB");
+    if (!sweep || !sweep.rows.length) {
+      for (const cv of [A, B]) { const [g, w, h] = fit(cv); label(g, sweep ? "Running…" : "Press “Run the sweep”.", w / 2, h / 2, css("--muted"), "center", "middle"); }
+      return;
+    }
+    const rows = sweep.rows, ex = rows.map(r => r.eps), c = sweep.c;
+    {
+      const [g, w, h] = fit(A);
+      const m = { l: 50, r: 46, t: 10, b: 34 };
+      const Ls = rows.map(r => r.L_mean * 100).concat(c ? [c.L_mean * 100] : []), ym = Math.max(...Ls, 1) * 1.15;
+      const [X, Y] = axes(g, w, h, m, "quartic deformation ε₄", "⟨L⟩ (cm)", niceTicks(-0.1, 0.3, 4).map(v => [v, String(v)]), niceTicks(0, ym, 4).map(v => [v, String(v)]), [-0.1, 0.3], [0, ym]);
+      const Y2 = v => h - m.b - v * (h - m.t - m.b);
+      rightAxis(g, w, h, m, [0, 0.5, 1].map(v => [v, String(v)]), Y2, "visibility V", css("--port-out"));
+      if (c) { line(g, [[X(-0.1), Y(c.L_mean * 100)], [X(0.3), Y(c.L_mean * 100)]], css("--circ"), 1.2, [5, 4]); line(g, [[X(-0.1), Y2(c.V)], [X(0.3), Y2(c.V)]], css("--port-out"), 1, [2, 3]); }
+      line(g, rows.map(r => [X(r.eps), Y(r.L_mean * 100)]), css("--accent")); rows.forEach(r => dot(g, X(r.eps), Y(r.L_mean * 100), css("--accent")));
+      line(g, rows.map(r => [X(r.eps), Y2(r.V)]), css("--port-out"), 1.6, [6, 4]); rows.forEach(r => dot(g, X(r.eps), Y2(r.V), css("--port-out"), 2.5));
+      const cur = P().eps4; line(g, [[X(cur), m.t], [X(cur), h - m.b]], css("--muted"), 1, [2, 3]);
+      label(g, "— ⟨L⟩  -- V", m.l + 6, m.t + 14, css("--ink"));
+    }
+    {
+      const [g, w, h] = fit(B);
+      const vals = rows.flatMap(r => [r.nec, r.nec_shot]).concat(c ? [c.nec, c.nec_shot] : []).filter(v => v > 0 && Number.isFinite(v));
+      const lo = 10 ** Math.floor(Math.log10(Math.min(...vals))), hi = 10 ** Math.ceil(Math.log10(Math.max(...vals)));
+      const [X, Y] = axes(g, w, h, M_, "quartic deformation ε₄", "NEC (ppm)", niceTicks(-0.1, 0.3, 4).map(v => [v, String(v)]), logTicks(lo, hi), [-0.1, 0.3], [lo, hi === lo ? lo * 10 : hi], true);
+      if (c) { line(g, [[X(-0.1), Y(c.nec)], [X(0.3), Y(c.nec)]], css("--circ"), 1.2, [5, 4]); }
+      line(g, rows.map(r => [X(r.eps), Y(r.nec_shot)]), css("--muted"), 1.2, [2, 3]);
+      line(g, rows.map(r => [X(r.eps), Y(r.nec)]), css("--accent")); rows.forEach(r => dot(g, X(r.eps), Y(r.nec), css("--accent")));
+      label(g, "— Herriott NEC  ·· its shot-noise limit  -- circular NEC", M_.l + 6, M_.t + 14, css("--ink"));
+    }
+  }
+
+  function drawAll() {
+    const p = P();
+    let cs = null;
+    try { cs = cells(p); } catch (err) { $("verdict").innerHTML = `<div class="warn">${err.message || err}</div>`; return; }
+    drawHerriott(cs.base, res && !res.error ? res.h : null); drawCircle(cs.circ, res && !res.error ? res.c : null);
+    if (!res || res.error) { drawSummary(p); return; }
+    drawSummary(p);
+    twoSeries("beamChart", res.h.w_hits.map((v, i, a) => v / (res.w_in || a[0])), res.c.w_hits.map(v => v / res.w_in), "hit", "w / w_in", true);
+    twoSeries("twinChart", res.h.sep, res.c.sep, "hit", "twin separation (m)", true);
+    twoSeries("visChart", res.h.V_pass, res.c.V_pass, "pass", "visibility V", false, { h: [res.h.n_pass, res.h.V], c: [res.c.n_pass, res.c.V] });
+    drawPaths(); drawRetune();
+    drawPoin("hPoin", res.hPoin, css("--accent")); drawPoin("cPoin", res.cPoin, css("--circ"));
+    drawSweep();
+  }
+
+  /* ---------------------------------------------------------------- controls */
+  function sync() {
+    const p = P();
+    $("M").max = Math.max(1, p.N / 2 - 1); if (+$("M").value > +$("M").max) $("M").value = $("M").max;
+    $("LOut").value = `${(+$("L").value).toFixed(1)} mm`; $("WOut").value = `${(+$("W").value).toFixed(2)} mm`; $("NOut").value = p.N;
+    $("MOut").value = `${$("M").value} (θ = ${(360 * +$("M").value / p.N).toFixed(1)}°)`;
+    $("pwOut").value = +$("pw").value ? `${$("pw").value} µm` : "auto"; $("eps4Out").value = (+$("eps4").value).toFixed(3); $("eps3Out").value = (+$("eps3").value).toFixed(3);
+    $("conicOut").value = (+$("conic").value).toFixed(2); $("nfOut").value = +$("nf").value === 0 ? "smooth" : `${Math.max(+$("nf").value, 3)}`;
+    $("cthOut").value = `${(+$("cth").value).toFixed(1)}°`; $("ofOut").value = (+$("of").value).toFixed(2); $("neffOut").value = (+$("neff").value).toFixed(2);
+    $("gamOut").value = (+$("gam").value).toFixed(2); $("RmOut").value = (+$("Rm").value).toFixed(4); $("PinOut").value = `${sig(p.P_in * 1e3, 2)} mW`;
+    $("ditOut").value = `${(+$("dit").value).toFixed(1)} mrad`; $("fpOut").value = `1e${(+$("fp").value).toFixed(1)}`; $("nsOut").value = `${p.n_side}² = ${p.n_side ** 2}`;
+  }
+  let timer = null;
+  function update() { sync(); res = null; drawAll(); clearTimeout(timer); timer = setTimeout(request, 120); }
+  ["L", "W", "N", "M", "distinct", "pw", "walls", "eps4", "eps3", "conic", "deform", "retune", "nf", "cth", "of", "sp", "neff", "gam", "Rm", "Pin", "dit", "wave", "fp", "ns"]
+    .forEach(id => $(id).addEventListener("input", update));
+  $("sweepBtn").addEventListener("click", runSweep);
+  let rz = null;
+  new ResizeObserver(() => { clearTimeout(rz); rz = setTimeout(drawAll, 60); }).observe(document.querySelector(".views"));
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+  new MutationObserver(drawAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  sync(); drawAll(); request();
+})();
+</script>

@@ -207,3 +207,57 @@ def test_front_ends():
     assert abs(hb["exit_angle"] - h["exit_angle"]) > 0.02            # pattern: a period error tilts the exit ray first
     with pytest.raises(ValueError, match="even"):
         P.planar_herriott(N=21)
+
+
+# ---------------------------------------------------------------- smooth profile mirrors (deformed Herriott)
+def test_undeformed_profile_cell_traces_like_the_arc_cell():
+    R, N, M, A, pw = 36e-3, 20, 3, 0.6e-3, 60e-6
+    c0, c1 = P.herriott_planar_cell(R, N, M, A, pw), P.deformed_herriott_cell(R, N, M, A, pw)
+    assert c1.perimeter == pytest.approx(c0.perimeter, rel=1e-8) and c1.area == pytest.approx(c0.area, rel=1e-6)
+    assert c1.s_in_default == pytest.approx(c0.s_in_default, rel=1e-6)
+    t0, t1 = P.herriott_planar_trace(c0), P.herriott_planar_trace(c1)
+    assert t1["exit"] == "port" and t1["n_hits"] == t0["n_hits"] and t1["path"] == pytest.approx(t0["path"], rel=1e-12)
+    rng = np.random.default_rng(1)
+    n = 4000
+    px, py = rng.uniform(-6e-3, 6e-3, n), rng.uniform(-0.5e-3, 0.5e-3, n)
+    ang = rng.uniform(0, 2 * np.pi, n)
+    a, b = c0.hit_k(px, py, np.cos(ang), np.sin(ang)), c1.hit_k(px, py, np.cos(ang), np.sin(ang))
+    fin = np.isfinite(a[0])
+    assert np.array_equal(fin, np.isfinite(b[0])) and np.allclose(a[0][fin], b[0][fin], rtol=0, atol=1e-15)
+    assert np.allclose(a[1][fin], b[1][fin], atol=1e-12) and np.allclose(a[3][fin], b[3][fin], atol=1e-9)
+    assert c1.curvature_at(np.array([c1.s_in_default]))[0] == pytest.approx(1 / R, rel=1e-12)
+    tl = [0.0, 2e-4]
+    p0, p1 = P.herriott_planar_trace(P.perturb(c0, tilts=tl)), P.herriott_planar_trace(P.perturb(c1, tilts=tl))
+    assert p1["n_hits"] == p0["n_hits"] and p1["path"] == pytest.approx(p0["path"], rel=1e-10)
+
+
+def test_deformed_profile_hits_lie_on_the_surface():
+    c = P.deformed_herriott_cell(20e-3, 14, 3, 0.6e-3, 150e-6, aperture=0.75e-3, d=15e-3, eps4=0.1, eps3=0.05, conic=-0.5)
+    pr = c.prof[0]
+    rng = np.random.default_rng(2)
+    n = 2000
+    px, py = rng.uniform(-7e-3, 7e-3, n), rng.uniform(-0.6e-3, 0.6e-3, n)
+    ang = rng.uniform(0, 2 * np.pi, n)
+    dx, dy = np.cos(ang), np.sin(ang)
+    t, nx, ny, s, k = c.hit_k(px, py, dx, dy)
+    sel = np.isfinite(t) & (k == 0)
+    hx, hy = px[sel] + t[sel] * dx[sel], py[sel] + t[sel] * dy[sel]
+    V, u, e = pr.frame()
+    xi, eta = (hx - V[0]) * u[0] + (hy - V[1]) * u[1], (hx - V[0]) * e[0] + (hy - V[1]) * e[1]
+    assert sel.sum() > 50 and np.max(np.abs(xi - pr.S(eta))) < 1e-15
+    tx, ty = pr.point(eta + 1e-9)[0] - pr.point(eta - 1e-9)[0], pr.point(eta + 1e-9)[1] - pr.point(eta - 1e-9)[1]
+    assert np.max(np.abs(nx[sel] * tx + ny[sel] * ty) / np.hypot(tx, ty)) < 1e-6                  # normal ⟂ surface
+    x, y, _, _ = c.point_at(s[sel])
+    assert np.max(np.hypot(x - hx, y - hy)) < 1e-9                                                  # s maps back
+    k2 = c.curvature_at(np.array([c.s_in_default]))[0]
+    eta0 = c.meta["y0"]
+    assert k2 == pytest.approx(pr.d2S(eta0) / (1 + pr.dS(eta0) ** 2) ** 1.5, rel=1e-6)
+    with pytest.raises(ValueError):
+        P.deformed_herriott_cell(20e-3, 14, 3, 0.6e-3, 150e-6, aperture=0.75e-3, d=15e-3, eps4=-0.3)
+
+
+def test_closed_deformed_cell_has_side_walls():
+    c = P.deformed_herriott_cell(20e-3, 14, 3, 0.6e-3, 150e-6, aperture=0.75e-3, d=15e-3, eps4=0.05, walls=True)
+    assert c.closed and c.n_elements == 4
+    S, SC = P.poincare(c, 10, 50)
+    assert np.isfinite(S).all()                                                   # nothing leaks from a closed wall

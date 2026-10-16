@@ -76,7 +76,7 @@ Status: `[x]` done, `[~]` partly done (*Now:* says what is there), `[ ]` to do. 
 - [ ] **T8.4r Rotation.** For a centred dot, rotating the dot is rotating the ports: test whether p_m readouts become rotation-robust with symmetric layouts, and what symmetric layouts lose (mirror pairs b_m ↔ −b_m at zero launch).
 - [~] **T8.5 Robustness.** *Now:* detector noise and temperature drift (E11). Missing: fabrication errors (wall tilts), retraining cost.
 - [x] **T8.6 Other cells.** Any `gmpc.planar` wall (`geometry.WallCell`, `d_cell`, `polygon`, `stadium`, `ports_by_angle`) in the Python engine and, since this round, in the JS engine (Cell2D elements, ports at boundary coordinates; `WallCell.to_dict`; JS = Python to correlation 1 − 1e-6, `tests/test_jsengine.py`). The applet has a wall-shape selector (circle, segmented, stadium). Chaotic walls are limited to about the Ehrenfest time by the prefactor cut-off (E10, E15); the segmented circle is pseudo-integrable and keeps its long paths.
-- [~] **T8.8 Noise robustness of the working cell.** *Now (E19, 1600 dots):* noise-free all readouts reach R² ≥ 0.98 in every order (linear SVR included; p_m 0.98 / 0.94 / 0.87 / 0.78 / 0.64; 100 training dots already give 0.94). With detector noise σ·Ī₀ the readout falls fast: 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 %, 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 %. E20: Δn against noise. Next: averaging (more pixels or frames), wavelength views, larger training sets.
+- [~] **T8.8 Noise robustness of the working cell.** *Now (E19, 1600 dots):* noise-free all readouts reach R² ≥ 0.98 in every order (linear SVR included; p_m 0.98 / 0.94 / 0.87 / 0.78 / 0.64; 100 training dots already give 0.94). With detector noise σ·Ī₀ the readout falls fast: 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 %, 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 %. E20 (800 dots): a larger Δn wins under noise. At 1 % noise Δn = 3e-4 gives 0.92 / 0.78 / 0.81 / 0.59 / 0.47 and Δn = 1e-3 gives 0.97 / 0.91 / 0.87 / 0.76 / 0.68 (noise-free 0.99 … 0.93). That is where the phase screen starts to miss ray bending (E4), so T8.7 (curved rays at convergence) now matters for the working point. Next: curved-ray check at Δn = 3e-4 … 1e-3, averaging, wavelength views, larger training sets.
 
 ## 9. Integration and output
 
@@ -97,6 +97,6 @@ Kept in the code, not pursued now (D9).
 
 ## Suggested order of the next steps
 
-T8.8 noise robustness of the 24-facet cell (Δn, averaging, wavelength views, more dots) → T8.5 fabrication
-errors (facet tilts and offsets, `gmpc.planar.perturb`) → T8.4r rotation and port symmetry → T8.7 bending at
-convergence → T5.2 full-wave check in a small cell → section 10 (position, several dots).
+T8.7 curved rays in the 24-facet cell at Δn = 3e-4 … 1e-3 (the noise-robust working point, E20) → T8.8
+averaging and wavelength views against noise → T8.5 fabrication errors (facet tilts and offsets,
+`gmpc.planar.perturb`) → T8.4r rotation and port symmetry → T5.2 full-wave check in a small cell → section 10 (position, several dots).

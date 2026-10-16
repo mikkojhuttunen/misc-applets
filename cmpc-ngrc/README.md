@@ -113,7 +113,9 @@ directions per input. The bullets after the first are for the smooth circle. R²
   give a mean R² of 0.94. Any facet count from 12 to 192 works (E18). A stadium needs straights of ≥ 100 µm
   (a = 300 µm: 1.00 / 0.99 / 0.98 / 0.97 / 0.97, E17). A flat cut (D-cell) does not help, because the remaining
   arc normals still point at the centre (E16). **Open problem: detector noise.** At Δn = 3e-5 the readout drops
-  to 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 % noise and 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 % (E19; E20 scans Δn).
+  to 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 % noise and 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 % (E19). A larger Δn helps (E20): at 1 % noise, Δn = 3e-4 gives 0.92 / 0.78 / 0.81 / 0.59 / 0.47 and Δn = 1e-3
+  gives 0.97 / 0.91 / 0.87 / 0.76 / 0.68. From Δn ≈ 3e-4 ray bending matters (E4), so that working point still
+  needs the curved-ray check (T8.7).
 - **Launch angle (E1):** a centred dot is crossed only by rays with R_c |sin χ| below its radius, so the launch
   must be near 0; the sensitivity is gone by 17°. At 0° the odd orders are weakest; 3° with a ±5.7° fan is the
   working point.
@@ -158,7 +160,9 @@ Launch 20°, fan ±11.5°, Δn = 1e-3; otherwise as above. Kept as the reference
   give a mean R² of 0.94. Any facet count from 12 to 192 works (E18). A stadium needs straights of ≥ 100 µm
   (a = 300 µm: 1.00 / 0.99 / 0.98 / 0.97 / 0.97, E17). A flat cut (D-cell) does not help, because the remaining
   arc normals still point at the centre (E16). **Open problem: detector noise.** At Δn = 3e-5 the readout drops
-  to 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 % noise and 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 % (E19; E20 scans Δn).
+  to 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 % noise and 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 % (E19). A larger Δn helps (E20): at 1 % noise, Δn = 3e-4 gives 0.92 / 0.78 / 0.81 / 0.59 / 0.47 and Δn = 1e-3
+  gives 0.97 / 0.91 / 0.87 / 0.76 / 0.68. From Δn ≈ 3e-4 ray bending matters (E4), so that working point still
+  needs the curved-ray check (T8.7).
 - **Launch angle (E1):** sensitivity peaks near 23° and is zero at 57°: dots within 600 µm of the centre are
   then inside the caustic disk.
 - **Port layout (E2, 800 dots at one position, linear readout):** more inputs and more ports help. Four

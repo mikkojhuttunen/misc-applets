@@ -304,8 +304,6 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <div class="panel"><h2>E14 · Odd orders vs path length</h2><div id="e14chart"></div>
           <p class="note" id="e14note"></p></div>
       </div>
-      <div class="panel"><h2>E16 · Breaking the circle's symmetry: deformed cells</h2><div id="e16chart"></div>
-        <p class="note" id="e16note"></p></div>
       <div class="charts2">
         <div class="panel"><h2>E18 · Segmented circle: number of facets</h2><div id="e18chart"></div>
           <p class="note" id="e18note"></p></div>
@@ -317,6 +315,12 @@ td.heat { font-family: var(--f-mono); text-align: right; }
           <p class="note" id="e19note"></p></div>
         <div class="panel"><h2>E19 · The 24-facet cell: detector noise</h2><div id="e19noise"></div>
           <p class="note" id="e19nnote"></p></div>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>E16 · Breaking the circle's symmetry: deformed cells</h2><div id="e16chart"></div>
+          <p class="note" id="e16note"></p></div>
+        <div class="panel"><h2>E20 · The 24-facet cell: which Δn under noise?</h2><div id="e20chart"></div>
+          <p class="note" id="e20note"></p></div>
       </div>
       <div class="panel"><h2>E9 · Wave check: one pass through a dot, beamlet sums vs BPM <span class="arch">off-centre archive</span></h2><div class="scroll"><table id="e9table"></table></div>
         <p class="note">A beam crossing the cell (2 mm) through a 50 µm dot (edge 3 µm), observed beyond the far wall. ΔE is the scattered field E(dot) − E(no dot), the part that carries the dot's shape; correlation and relative error (after the best complex scale) of ΔE against split-step BPM. The FGA also matches exact Gaussian beams through clipping apertures and oblique mirror reflections (tests/test_fga.py).</p></div>
@@ -1113,7 +1117,7 @@ function drawProgress2() {
     series: ms.map((m, k) => ({ name: 'm = ' + m, y: E.clean.map(r => r[k]), color: mc[k] })).concat(ms.map((m, k) => ({ name: `m = ${m}, 1 % noise`, y: E.noisy.map(r => r[k]), color: mc[k], dash: true }))), label: xlabel });
   if (P.E18) {
     sweepChart('e18chart', P.E18, P.E18.n_facets, 'number of flat facets', 'facets', true);
-    $('e18note').innerHTML = `Centred dot, ${P.E18.N} dots, Δn = ${P.E18.dn.toExponential(0)}, ports at the asym4 angles, two inputs, launch ${fmt((P.meta.launch || 0.05) / deg, 1)}°, JS engine (6000 directions), linear readout. Dashed: 1 % detector noise, readout trained with the noise. Many facets approach the circle and its parity (odd orders lost); few facets break it.`;
+    $('e18note').innerHTML = `Centred dot, ${P.E18.N} dots, Δn = ${P.E18.dn.toExponential(0)}, ports at the asym4 angles, two inputs, launch ${fmt((P.meta.launch || 0.05) / deg, 1)}°, JS engine (6000 directions), linear readout. Dashed: 1 % detector noise, readout trained with the noise. Noise-free, every facet count from 12 to 192 (33 µm facets) reads all orders; the smooth circle (E3) reads the odd ones at 0.35 / 0.21. With 1 % noise at this Δn the odd orders are lost for every facet count (see E20).`;
   }
   if (P.E17) {
     sweepChart('e17chart', P.E17, P.E17.a_um.map(a => Math.max(a, 3)), 'straight length a (µm; 0 plotted at 3)', 'a µm', true);
@@ -1126,6 +1130,16 @@ function drawProgress2() {
     lineChart($('e19noise'), { x: E.noise.sigma.map(v => Math.max(v, 1e-3)), xlog: true, xticks: [1e-3, 1e-2, 1e-1], xfmt: v => v === 1e-3 ? '0' : String(v), xname: 'σ', yname: 'R²', ylim: [-0.2, 1], xlabel: 'noise σ / mean intensity',
       series: ms.map((m, k) => ({ name: 'm = ' + m, y: E.noise.r2.map(r => r[k]), color: mc[k] })), label: 'noise 24-facet cell' });
     $('e19nnote').innerHTML = `Additive noise σ·Ī₀ on every far-field pixel, linear readout trained and tested with the same noise (as E11). The leftmost point is σ = 0.`;
+  }
+  if (P.E20) {
+    const E = P.E20, cols = ['var(--s1)', 'var(--s3)', 'var(--s2)', 'var(--s4)'], ser = [];
+    const rows = Object.values(E.r2);   // same order as E.dn
+    E.sigma.forEach((sg, j) => {
+      ser.push({ name: `σ = ${sg * 100} %, mean m = 2…6`, y: rows.map(r => mean(r[j])), color: cols[j % 4] });
+      ser.push({ name: `σ = ${sg * 100} %, odd m = 3, 5`, y: rows.map(r => (r[j][1] + r[j][3]) / 2), color: cols[j % 4], dash: true });
+    });
+    lineChart($('e20chart'), { x: E.dn, xlog: true, xticks: E.dn, xfmt: v => v.toExponential(0), xname: 'Δn', yname: 'R²', ylim: [-0.1, 1], xlabel: 'Δn of the dot', series: ser, label: 'Δn under noise' });
+    $('e20note').innerHTML = `${E.N} centred dots in the 24-facet cell, linear readout trained and tested with additive noise σ·Ī₀. Solid: mean over m = 2…6; dashed: odd orders. Without noise any Δn up to 3e-4 reads every order (R² ≥ 0.98). With noise a larger Δn wins, up to 1e-3 (1 % noise: 0.97 / 0.91 / 0.87 / 0.76 / 0.68), where the phase screen starts to miss ray bending (E4): the curved-ray check is the next step.`;
   }
   if (P.E13) {
     const E = P.E13, ser = [];

@@ -32,7 +32,8 @@ Python reference engines in `math-engines/`, tested:
   Against `rcwa`: TM radiation mean 7 % (worst 33 %) for h ≤ 50 nm, up/down within 0.03; TM κ exact as h → 0, mean 9 % for h ≤ 20 nm; TM band-edge Q within 10 % with the right ordering; TE unchanged. Also fixed `rcwa.bragg_band` re-centring for deep etches.
   Left: wide teeth (f ≥ 0.7) in air and deep TM etches (corner fields), see A11.
 - [x] A8. `lateral_optics` engine: ridge reference (v_t, n_O, N_t, Γ), etched-slice ridge index, ridge-mode beam overlap and SHG width, Gaussian overlap, curved-DBR bounce and best waist; vectors and JS checks. Fixed the JS Γ for vertical TE (missing lateral-TM phase factor; Γ off by up to 0.2 %, κ 212.4 → 212.6 cm⁻¹ in the taper preset).
-- [ ] A9. Aperiodic rigorous check of a whole CRIGF (supercell RCWA with absorbing boundaries, or 2D FDTD/FEM): DBR + coupler + Gaussian beam, against `crigf.response`.
+- [~] A9. Aperiodic rigorous check of a whole CRIGF: `rcwa.crigf_supercell` (supercell with graded absorbers, Gaussian beam expanded into the orders, matrix-exponential layers for the ill-conditioned absorbing layers). Energy conserved to 1e-10 without absorbers; absorber and order independence ~1e-3.
+  First comparison (LN/air, 100 nm DBR etch, 50 nm coupler, 30 + 20 + 30 periods): shape and power budget within ~15 % (R/T on resonance 0.283/0.634 vs 0.277/0.635 TE), resonance 1.3 nm (TE) / 2.8 nm (TM) shorter than the coupled-mode model. Left: a rigorous-vs-model test, docs.
 - [ ] A10. EIM n_eff offset: the coupler resonance sits 0.1–0.9 nm short of the rigorous one (20–50 nm etch); a first-order correction from `rcwa` or a perturbative n_eff shift.
 - [ ] A11. TM corner-field correction for wide teeth and deep etches (or a low-order RCWA, M ≈ 3, as the fast TM model: worst κ error 0.07 κ_EIM in the A7 data set).
 

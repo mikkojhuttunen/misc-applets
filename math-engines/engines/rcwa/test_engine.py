@@ -298,3 +298,39 @@ def test_tm_coupler_against_rigorous_resonance(theta):
     assert Rc == pytest.approx(1, abs=2e-3) and Rr == pytest.approx(1, abs=2e-3)
     assert wc == pytest.approx(wr, rel=0.1) and abs(lc - lr) < 0.35e-9
     assert c.infinite_grating(lc)["sum"] == pytest.approx(1, abs=1e-5)
+
+
+# ---------------------------------------------------------------- finite CRIGF in a supercell (task A9)
+def small_crigf(pol="TE", hD=0.1e-6, hG=0.05e-6, ND=12, NG=10, theta=0.0):
+    d = SurfaceGrating(*STACK, hD, 0.4e-6, polarization=pol)
+    d = SurfaceGrating(*STACK, hD, LAM / (2 * np.mean(d.neff_profile(LAM))) if hD > 0 else 0.36e-6, polarization=pol)
+    N0G = np.mean(SurfaceGrating(*STACK, hG, 0.8e-6, polarization=pol).neff_profile(LAM))
+    return CRIGF(d, ND, LAM / (N0G - np.sin(theta)), NG, hG, 0.5, 0.099e-6, 0.0, theta, 5e-6)
+
+
+@pytest.mark.parametrize("pol", ["TE", "TM"])
+def test_expm_layers_equal_eigenvector_layers(pol):
+    st = rc.Stack(1.2e-6, 1.45, 1.0, [(0.3e-6, 2.0), (0.2e-6, [(0.4, 1.0), (0.6, 2.0)])], pol)
+    a = rc.RCWA(st, LAM, 15).diffraction(np.radians(10))
+    b = rc.RCWA(st, LAM, 15, layer_method="expm").diffraction(np.radians(10))
+    assert np.allclose(a["R"], b["R"], atol=1e-10) and np.allclose(a["T"], b["T"], atol=1e-10)
+
+
+def test_supercell_conserves_energy_without_absorbers():
+    r = rc.crigf_supercell(small_crigf(), 1.5501e-6, absorber=15e-6, margin=2e-6, kappa_max=0.0)
+    assert r["R_total"] + r["T_total"] == pytest.approx(1, abs=1e-8)
+
+
+def test_supercell_bare_slab():
+    c = small_crigf(hD=0.0, hG=0.0)
+    r = rc.crigf_supercell(c, 1.5501e-6, absorber=15e-6, margin=2e-6)
+    assert r["absorbed"] == pytest.approx(0, abs=1e-6)
+    assert r["R_total"] == pytest.approx(c.response(1.5501e-6)["Rd"], abs=2e-3)      # wide beam ≈ plane wave
+
+
+def test_supercell_independent_of_the_absorbers():
+    c = small_crigf()
+    a = rc.crigf_supercell(c, 1.5501e-6, absorber=15e-6, margin=2e-6)
+    b = rc.crigf_supercell(c, 1.5501e-6, absorber=25e-6, margin=2e-6, kappa_max=0.6)
+    for k in ("R", "T", "absorbed"):
+        assert a[k] == pytest.approx(b[k], abs=2e-3)

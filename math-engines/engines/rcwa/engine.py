@@ -121,10 +121,15 @@ def _up(Y, W, lam, V, d):
 class RCWA:
     """Solver for one Stack at one wavelength with 2M + 1 Floquet orders."""
 
-    def __init__(self, stack: Stack, wavelength, orders=20):
-        """wavelength may be complex (complex-frequency modes, see resonance_mode); indices stay as given."""
+    def __init__(self, stack: Stack, wavelength, orders=20, layer_method="eig"):
+        """wavelength may be complex (complex-frequency modes, see resonance_mode); indices stay as given.
+        layer_method 'expm': lamellar layers are crossed with the matrix exponential of the first-order system
+        d/dz [u; v] = [[0, P⁻¹], [P Ω², 0]] [u; v] instead of eigenvectors, robust when the eigenvector matrix is
+        ill-conditioned (absorbing layers, near exceptional points); for thin layers (k0 d |Im λ| ≲ 20) only.
+        Used by plane-wave and supercell scattering; mode searches always use eigenvectors."""
         require_positive(wavelength=np.real(wavelength))
-        self.s, self.lam0, self.M = stack, wavelength, int(orders)
+        require_choice("layer_method", layer_method, ("eig", "expm"))
+        self.s, self.lam0, self.M, self.method = stack, wavelength, int(orders), layer_method
         self.k0 = _TAU / wavelength
         self.K = stack.period * 0 + wavelength / stack.period          # K / k0
         self.m = np.arange(-self.M, self.M + 1)
@@ -139,10 +144,42 @@ class RCWA:
     def _layer_modes(self, kx, leaky=False):
         return [(self.k0 * d, _modes(seg, kx, self.s.polarization, self.M, leaky)) for d, seg in self.s.layers]
 
+    def _transfer(self, seg, kx, d):
+        """Transfer matrices T(±d) of a lamellar layer for [u; v] (u at the far side from v at the near side)."""
+        from scipy.linalg import expm
+
+        n = kx.size
+        E = _fourier(seg, 2, self.M)
+        Kx = np.diag(kx)
+        if self.s.polarization == "TE":
+            P, Pinv, Om2 = np.eye(n), np.eye(n), Kx @ Kx - E
+        else:
+            P = _fourier(seg, -2, self.M)
+            Pinv = np.linalg.inv(P)
+            Om2 = Pinv @ (Kx @ np.linalg.solve(E, Kx) - np.eye(n))
+        B = np.block([[np.zeros((n, n)), Pinv], [P @ Om2, np.zeros((n, n))]])
+        return expm(B * d), expm(-B * d)
+
     def _lower(self, kx, upto, leaky):
         """Y at the top of layer upto-1 (bottom-up), with the stored maps."""
         (Ws, ls, Vs, _), _ = self._media(kx, leaky)
         Y, maps = -Vs, []
+        if self.method == "expm" and not leaky:
+            n = kx.size
+            for d, seg in self.s.layers[:upto]:
+                if np.isscalar(seg):
+                    W, lam, V, _ = _modes(seg, kx, self.s.polarization, self.M)
+                    Y, mp = _up(Y, W, lam, V, self.k0 * d)
+                    maps.append(mp)
+                else:
+                    # identical thin sublayers, each with k0 d |kx|max ≤ 8, so no exponential exceeds ~e^8
+                    kd = self.k0 * d
+                    nsub = max(1, int(np.ceil(np.real(kd) * (np.max(np.abs(kx)) + 1) / 8)))
+                    Tp, Tm = self._transfer(seg, kx, kd / nsub)
+                    for _ in range(nsub):
+                        Y = (Tp[n:, :n] + Tp[n:, n:] @ Y) @ np.linalg.inv(Tp[:n, :n] + Tp[:n, n:] @ Y)
+                        maps.append(("T", Tm, Y))
+            return Y, maps
         for d, (W, lam, V, _) in self._layer_modes(kx, leaky)[:upto]:
             Y, mp = _up(Y, W, lam, V, d)
             maps.append(mp)
@@ -158,21 +195,33 @@ class RCWA:
         return Y, maps
 
     # ---------------------------------------------------------------- plane-wave diffraction
+    def scatter(self, inc, kx0=0.0):
+        """Reflected and transmitted order amplitudes for an arbitrary incident field from the cover: inc[m] is the
+        amplitude of the down-going order m (u = E_y or H_y at the top interface), Bloch wavevector kx0 (normalised
+        by k0). Returns r, t and the order constants λ_m, p of cover and substrate (flux of order m ∝ |a|² Re(λ_m p))."""
+        kx = self._kx(kx0)
+        (Ws, ls, Vs, ps), (Wc, lc, Vc, pc) = self._media(kx, False)
+        Yd, maps = self._lower(kx, len(self.s.layers), False)
+        inc = np.asarray(inc, dtype=complex)
+        r = np.linalg.solve(Vc - Yd, (Vc + Yd) @ inc)
+        u = inc + r
+        I = np.eye(self.m.size)
+        n = self.m.size
+        for mp in reversed(maps):
+            if isinstance(mp[0], str):                             # ("T", T(-d), Y_top): u at the bottom from u at the top
+                _, Tm, Ytop = mp
+                u = (Tm[:n, :n] + Tm[:n, n:] @ Ytop) @ u
+                continue
+            W, X, sig = mp
+            b = np.linalg.solve(W @ (X @ sig @ X + I), u)
+            u = W @ (sig + I) @ X @ b
+        return {"r": r, "t": u, "lam_cover": lc, "p_cover": pc, "lam_sub": ls, "p_sub": ps, "kx": kx}
+
     def diffraction(self, theta=0.0):
         """Plane wave of unit amplitude from the cover at angle theta (rad, in the cover, towards +x); efficiencies of
         the reflected (cover) and transmitted (substrate) orders, m = -M..M."""
-        nc = self.s.n_cover
-        kx = self._kx(np.real(nc) * np.sin(theta))
-        (Ws, ls, Vs, ps), (Wc, lc, Vc, pc) = self._media(kx, False)
-        Yd, maps = self._lower(kx, len(self.s.layers), False)
-        inc = (self.m == 0).astype(complex)
-        r = np.linalg.solve(Vc - Yd, (Vc + Yd) @ inc)
-        u = inc + r
-        for W, X, sig in reversed(maps):
-            I = np.eye(self.m.size)
-            b = np.linalg.solve(W @ (X @ sig @ X + I), u)
-            u = W @ (sig + I) @ X @ b
-        t = u
+        sc = self.scatter((self.m == 0).astype(complex), np.real(self.s.n_cover) * np.sin(theta))
+        r, t, lc, pc, ls, ps = sc["r"], sc["t"], sc["lam_cover"], sc["p_cover"], sc["lam_sub"], sc["p_sub"]
         flux0 = np.real(lc[self.M] * pc)
         Rm = np.abs(r) ** 2 * np.real(lc * pc) / flux0
         Tm = np.abs(t) ** 2 * np.real(ls * ps) / flux0
@@ -447,3 +496,126 @@ def band_edge(wavelength, n_sub, n_core, n_clad, thickness, etch_depth, period, 
                      "Q values above 1e15 are reported as 1e15 (bound state)",
                      "Coupled-mode values: Kazarinov-Henry with effective-index coefficients (crigf)"],
     )
+
+
+# ---------------------------------------------------------------- finite structures in a supercell (CRIGF benchmark)
+def _profile_layers(regions, t):
+    """Vertical layering of a core of thickness t with grooves regions = [(x0, x1, depth)] (depth from the core top):
+    [(thickness, grooves)] bottom to top, grooves the (x0, x1) intervals that are cladding in that layer."""
+    depths = sorted({d for _, _, d in regions if d > 0}, reverse=True)
+    bounds = [t - d for d in depths] + [t]
+    out, z0 = [], 0.0
+    for zt in bounds:
+        if zt - z0 > 1e-15:
+            mid = 0.5 * (z0 + zt)
+            out.append((zt - z0, [(x0, x1) for x0, x1, d in regions if d > 0 and mid > t - d]))
+        z0 = zt
+    return out
+
+
+def crigf_supercell(c, wavelength, absorber=30e-6, margin=3e-6, kappa_max=0.3, ramp=96, orders=None, grid=2 ** 16):
+    """Rigorous (TE/TM, Fourier modal method) response of a finite CRIGF: one supercell holding
+    absorber | guide | DBR | spacer | coupler | spacer | DBR | guide | absorber, fed by the Gaussian beam of the crigf
+    model (waist w0, angle theta, centred on the coupler) expanded into the supercell orders. The absorbers are the
+    core with a quadratically graded imaginary index up to kappa_max, so guided light escaping through the DBRs is
+    absorbed. c: crigf.CRIGF (rectangular DBR and coupler teeth). Returns the reflectance into the incident beam mode,
+    the transmittance into the substrate beam mode, total reflected and transmitted power, the absorbed power (≈ guided
+    escape through the DBRs) and the rest ('other', = radiation into other modes), comparable to crigf.response."""
+    d, gc = c.dbr, c.gc
+    if not (d.rect and gc.rect):
+        raise ValueError("crigf_supercell handles rectangular teeth")
+    ns, nf, nc = d.indices(wavelength)
+    t = d.thickness
+    LD, LG = c.dbr_periods * d.period, c.gc_periods * c.gc_period
+    Lsp = c.spacer + c.straight
+    x = absorber + margin
+    regions = []                                                  # grooves (x0, x1, depth)
+
+    def grating(x0, n, period, fill, depth):
+        for p in range(n):
+            a = x0 + p * period
+            regions.append((a, a + period * (1 - fill) / 2, depth))
+            regions.append((a + period * (1 + fill) / 2, a + period, depth))
+        return x0 + n * period
+
+    x = grating(x, c.dbr_periods, d.period, d.fill, d.etch_depth)
+    x += Lsp
+    x_gc0 = x
+    x = grating(x, c.gc_periods, c.gc_period, gc.fill, c.gc_etch_depth)
+    x_gc1 = x
+    x += Lsp
+    x = grating(x, c.dbr_periods, d.period, d.fill, d.etch_depth)
+    P = x + margin + absorber
+    k0 = _TAU / wavelength
+    ab_edges = np.linspace(0, absorber, ramp + 1)
+    ab_k = [kappa_max * ((ramp - i - 0.5) / ramp) ** 2 for i in range(ramp)]     # strongest at the cell edge
+
+    def core_pieces():
+        pieces = [(ab_edges[i], ab_edges[i + 1], nf + 1j * ab_k[i]) for i in range(ramp)]
+        pieces.append((absorber, P - absorber, nf))
+        pieces += [(P - ab_edges[i + 1], P - ab_edges[i], nf + 1j * ab_k[i]) for i in range(ramp)]
+        return sorted(pieces, key=lambda q: q[0])
+
+    def segs_for(grooves):
+        cuts = sorted({0.0, P, *[g for gr in grooves for g in gr], *[q[0] for q in core_pieces()], *[q[1] for q in core_pieces()]})
+        out = []
+        for a, b in zip(cuts[:-1], cuts[1:]):
+            if b - a <= 0:
+                continue
+            m = 0.5 * (a + b)
+            if any(g0 <= m < g1 for g0, g1 in grooves):
+                n = nc
+            else:
+                n = next(q[2] for q in core_pieces() if q[0] <= m < q[1])
+            if out and out[-1][1] == n:
+                out[-1] = (out[-1][0] + (b - a) / P, n)
+            else:
+                out.append(((b - a) / P, n))
+        return out
+
+    layers = []
+    if d.n_handle is not None:
+        layers.append((d.box_thickness, ns))
+        sub = complex(d.n_handle)
+    else:
+        sub = ns
+    for th, grooves in _profile_layers(regions, t):
+        layers.append((th, segs_for(grooves)))
+    st = Stack(P, sub, nc, layers, d.polarization)
+    if orders is None:
+        orders = int(np.ceil(2 * P / min(d.period, c.gc_period)))   # ~2 harmonics per finest period (converged to ~1e-3)
+    rc = RCWA(st, wavelength, orders, layer_method="expm")
+    # Gaussian beam at the top interface, centred on the coupler, expanded into the supercell orders
+    xc = 0.5 * (x_gc0 + x_gc1)
+    xs = (np.arange(grid) + 0.5) * P / grid
+    kxin = k0 * nc * np.sin(c.theta)
+    nb = np.real(sub) if d.n_handle is not None else ns
+    sin_s = nc * np.sin(c.theta) / nb
+    cos_s = np.sqrt(1 - sin_s**2)
+
+    def coeffs(cos_t):
+        f = np.exp(-(((xs - xc) * cos_t) / c.w0) ** 2) * np.exp(1j * kxin * xs)
+        F = np.fft.fft(f) / grid
+        m = rc.m
+        return F[m % grid] * np.exp(-1j * _TAU * m * 0.5 / grid)   # midpoint sampling phase
+
+    a = coeffs(np.cos(c.theta))
+    # orders are k_x,m = 2π m / P; the incident tilt e^{i kxin x} is part of the coefficients (Bloch k_x0 = 0)
+    sc = rc.scatter(a, 0.0)
+    r, tt = sc["r"], sc["t"]
+    wc = np.real(sc["lam_cover"] * sc["p_cover"])
+    wsub = np.real(sc["lam_sub"] * sc["p_sub"])
+    prop_c = np.real(np.complex128(nc) ** 2 - sc["kx"] ** 2) > 0
+    prop_s = np.real(np.complex128(sub) ** 2 - sc["kx"] ** 2) > 0
+    wc, wsub = np.where(prop_c, wc, 0.0), np.where(prop_s, wsub, 0.0)
+    Pin = float(np.sum(np.abs(a) ** 2 * wc))
+    R_tot = float(np.sum(np.abs(r) ** 2 * wc)) / Pin
+    T_tot = float(np.sum(np.abs(tt) ** 2 * wsub)) / Pin if np.isreal(sub) or abs(np.imag(sub)) < 0.05 else 0.0
+    R_beam = abs(np.sum(r * np.conj(a) * wc)) ** 2 / (Pin * Pin)
+    b = coeffs(cos_s)
+    Pb = float(np.sum(np.abs(b) ** 2 * wsub))
+    T_beam = abs(np.sum(tt * np.conj(b) * wsub)) ** 2 / (Pin * Pb) if Pb > 0 and T_tot > 0 else 0.0
+    absorbed = 1 - R_tot - T_tot
+    return {"R": R_beam, "T": T_beam, "R_total": R_tot, "T_total": T_tot, "absorbed": absorbed,
+            "other": R_tot - R_beam + T_tot - T_beam, "period": P, "orders": orders, "layers": len(layers),
+            "beam_power_check": Pin}

@@ -285,12 +285,22 @@ const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Nu
     }
     r.curv.forEach((v, j) => close(`dh[${i}] curv${j}`, P.curvatureAt(c, c.perimeter * j / 12), v, 1e-9, 1e-12));
   }
-  /* compare(): the twin-ray Lyapunov fit is a slope through separations near 1e-10 m, so it gets 1e-4 */
-  const inputs = ["eps4", "eps3", "walls", "retune_launch", "smooth_circle", "n_side", "n_bounce"];
+  /* compare(): the twin-ray Lyapunov fit is a slope through separations near 1e-10 m, so it gets 1e-4. A strongly chaotic
+     cell (reference λ > 0.03 per hit: index inclusions, flat facets in a closed cell) amplifies last-bit differences of
+     sin/cos into different trajectories within tens of hits, so there only the ensemble statistics are compared (25 %). */
+  const inputs = ["eps4", "eps3", "walls", "retune_launch", "smooth_circle", "n_side", "n_bounce", "n_seg", "seg_curv", "seg_tilt", "seg_seed", "n_inc",
+    "inc_dn", "inc_radius", "inc_seed", "inc_sign", "inc_circle"];
+  const robust = ["T", "L_mean", "S1", "A_ppm", "nec_shot", "M2", "area", "n_inc"];
   for (const [i, r] of V.gas_cell.entries()) {
-    const a = G.compare(Object.fromEntries(inputs.map(k => [k, r[k]])));
+    const a = G.compare(Object.fromEntries(inputs.filter(k => k in r).map(k => [k, r[k]])));
+    const wild = { h: r.h_lam > 0.03, c: r.c_lam > 0.03 };
     for (const k of Object.keys(r)) {
       if (inputs.includes(k)) continue;
+      const side = k.slice(0, 2) === "h_" ? "h" : k.slice(0, 2) === "c_" ? "c" : null;
+      if ((side && wild[side]) || (!side && (wild.h || wild.c))) {
+        if (side && robust.includes(k.slice(2))) close(`gas[${i}] ${k} (chaotic: ensemble)`, a[k], r[k], 0.25, 1e-12);
+        continue;
+      }
       if (r[k] === null) { checks++; if (Number.isFinite(a[k])) { fails++; console.error(`FAIL gas[${i}] ${k}: got ${a[k]}, want non-finite`); } continue; }
       close(`gas[${i}] ${k}`, a[k], r[k], /lam|chaos/.test(k) ? 1e-4 : 1e-6, /lam|chaos/.test(k) ? 1e-7 : 1e-12);
     }

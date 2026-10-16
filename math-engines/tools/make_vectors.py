@@ -220,8 +220,12 @@ def build() -> dict:
                                            hit_nx=[float(x) if f else None for x, f in zip(nx, fin)], hit_k=[int(x) for x in hk],
                                            curv=[float(x) for x in cell.curvature_at(np.linspace(0, cell.perimeter, 13)[:-1])]))
     v["gas_cell"] = []
-    for (e4, e3, walls, rt, smooth) in ((0.0, 0.0, 0, 0, 0), (0.05, 0.0, 0, 1, 0), (0.08, 0.03, 1, 1, 1)):
-        kw = dict(eps4=e4, eps3=e3, walls=walls, retune_launch=rt, smooth_circle=smooth, n_side=8, n_bounce=1500)
+    for (e4, e3, walls, rt, smooth, pert) in ((0.0, 0.0, 0, 0, 0, {}), (0.05, 0.0, 0, 1, 0, {}), (0.08, 0.03, 1, 1, 1, {}),
+                                             (0.0, 0.0, 0, 1, 0, dict(n_seg=8, seg_curv=1.5, seg_tilt=5e-4, seg_seed=3)),
+                                             (0.0, 0.0, 0, 0, 0, dict(n_inc=10, inc_dn=0.01, inc_radius=60e-6, inc_seed=2)),
+                                             (0.0, 0.0, 0, 0, 0, dict(n_inc=4, inc_dn=0.004, inc_sign="plus", inc_circle=1, n_seg=6, seg_curv=1.2)),
+                                             (0.02, 0.0, 1, 0, 0, dict(n_seg=6, seg_curv=1.1))):
+        kw = dict(eps4=e4, eps3=e3, walls=walls, retune_launch=rt, smooth_circle=smooth, n_side=8, n_bounce=1500, **pert)
         r = gcell.compare(**kw).values
         v["gas_cell"].append({**kw, **{k: (float(r[k]) if np.isfinite(r[k]) else None) for k in r}})
     v["onchip_amp2d"] = []

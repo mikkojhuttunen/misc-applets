@@ -467,14 +467,52 @@ def herriott_planar_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=None
     return Cell2D(m1 + m2, f"integrated Herriott R={R:g} d={d:g}", s_in=s_in, s_out=s_in, meta=meta)
 
 
+def mulberry32(seed):
+    """Uniform [0, 1) generator identical to the JS ports' mulberry32 (bit for bit)."""
+    st = [int(seed) & 0xFFFFFFFF]
+
+    def nxt():
+        st[0] = (st[0] + 0x6D2B79F5) & 0xFFFFFFFF
+        a = st[0]
+        t = ((a ^ (a >> 15)) * (a | 1)) & 0xFFFFFFFF
+        t = ((t + (((t ^ (t >> 7)) * (t | 61)) & 0xFFFFFFFF)) & 0xFFFFFFFF) ^ t
+        return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296.0
+    return nxt
+
+
+def mulberry_normals(seed, n):
+    """n standard normals from mulberry32 by Box-Muller (one pair of draws per value)."""
+    u = mulberry32(seed)
+    out = []
+    for _ in range(int(n)):
+        u1, u2 = u(), u()
+        out.append(float(np.sqrt(-2 * np.log(1 - u1)) * np.cos(2 * np.pi * u2)))
+    return np.array(out)
+
+
+def _segment_mirror(pr, n_seg, seg_curv, label):
+    """A profile mirror replaced by n_seg circular arcs with their ends on the profile; each arc has seg_curv × the
+    profile's local curvature at its middle (1: follows the mirror, small kinks only where the profile is not a
+    circle; 0: flat facets; > 1: more strongly curved segments, slope jumps at every joint)."""
+    eta = np.linspace(pr.eta0, pr.eta1, int(n_seg) + 1)
+    els = []
+    for i in range(int(n_seg)):
+        A_, B_ = pr.point(eta[i]), pr.point(eta[i + 1])
+        kap = -seg_curv * float(pr.curvature(0.5 * (eta[i] + eta[i + 1])))
+        els.append(Element((float(A_[0]), float(A_[1])), (float(B_[0]), float(B_[1])), kap, 0.0, f"{label} seg{i}"))
+    return els
+
+
 def deformed_herriott_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=None, phase=0.0, conic=0.0, eps3=0.0,
-                           eps4=0.0, deform="both", walls=False):
+                           eps4=0.0, deform="both", walls=False, n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1):
     """Integrated Herriott cell with smooth deformed mirrors (profile elements), same geometry, window and launch as
     herriott_planar_cell. The deformation is given relative to the paraxial edge sag a²/(2R) (a = aperture):
     a4 = eps4 c / (2 a²) adds eps4 × that sag at the edges (quartic), a3 = eps3 c / (2 a) a cubic (asymmetric) term;
     conic is the conic constant (0 sphere, −1 parabola). deform = 'both', 'M1' or 'M2' picks the deformed mirror(s).
     walls=True closes the cell with flat side mirrors between the mirror ends (an elongated closed cell); otherwise
-    rays that pass the mirror ends leave. With conic = eps3 = eps4 = 0 it traces like herriott_planar_cell."""
+    rays that pass the mirror ends leave. With conic = eps3 = eps4 = 0 it traces like herriott_planar_cell.
+    n_seg > 0 segments both mirrors into n_seg curved arcs each (_segment_mirror, curvature seg_curv × the mirror's),
+    every segment tilted about its chord midpoint by seg_tilt × a normal draw (mulberry32, seg_seed)."""
     require_positive(R=R, A=A)
     require_choice("deform", deform, ("both", "M1", "M2"))
     N, M = int(N), int(M)
@@ -504,18 +542,40 @@ def deformed_herriott_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=No
         profs.append(pr)
     pts = [tuple(float(v) for v in pr.point(pr.eta0)) for pr in profs], [tuple(float(v) for v in pr.point(pr.eta1)) for pr in profs]
     (A1, A2), (B1, B2) = pts
-    els = [Element(A1, B1, 0.0, 0.0, "M1", profs[0])]
+    if n_seg:
+        if seg_curv < 0:
+            raise ValueError("seg_curv must be >= 0 (0: flat facets)")
+        m1, m2 = _segment_mirror(profs[0], n_seg, seg_curv, "M1"), _segment_mirror(profs[1], n_seg, seg_curv, "M2")
+        if seg_tilt:
+            tl = seg_tilt * mulberry_normals(seg_seed, 2 * int(n_seg))
+            for j, e in enumerate(m1 + m2):
+                Mx, My = 0.5 * (e.A[0] + e.B[0]), 0.5 * (e.A[1] + e.B[1])
+                c_, s_ = np.cos(tl[j]), np.sin(tl[j])
+                rot = lambda P_: (float(Mx + c_ * (P_[0] - Mx) - s_ * (P_[1] - My)), float(My + s_ * (P_[0] - Mx) + c_ * (P_[1] - My)))
+                e.A, e.B, e.ext = rot(e.A), rot(e.B), 0.02
+        A1, B1, A2, B2 = m1[0].A, m1[-1].B, m2[0].A, m2[-1].B
+    else:
+        m1, m2 = [Element(A1, B1, 0.0, 0.0, "M1", profs[0])], [Element(A2, B2, 0.0, 0.0, "M2", profs[1])]
+    els = list(m1)
     if walls:
         els.append(Element(B1, A2, 0.0, 0.0, "side_bottom"))
-    els.append(Element(A2, B2, 0.0, 0.0, "M2", profs[1]))
+    els += m2
     if walls:
         els.append(Element(B2, A1, 0.0, 0.0, "side_top"))
     th = theta_of(R, d)
     th_launch = float(np.arctan(-A * np.sin(phase) * np.sqrt((2 * R - d) / d) / R)) if phase else 0.0
     meta = dict(R=R, R2=R2, d=d, N=N, M=M, A=A, aperture=a, port_w=w, theta=th, phase=float(phase), y0=float(y0),
-                theta_launch=th_launch, conic=float(conic), eps3=float(eps3), eps4=float(eps4), deform=deform, walls=bool(walls))
+                theta_launch=th_launch, conic=float(conic), eps3=float(eps3), eps4=float(eps4), deform=deform, walls=bool(walls),
+                n_seg=int(n_seg), seg_curv=float(seg_curv), seg_tilt=float(seg_tilt), seg_seed=int(seg_seed))
     cell = Cell2D(els, f"deformed Herriott R={R:g} d={d:g} eps4={eps4:g} eps3={eps3:g}", meta=meta)
-    s_in = float(cell._sloc_of(0, y0))
+    if n_seg:                                   # window centre: bisection for y = y0 along the M1 segments (y falls with s)
+        lo, hi = 0.0, float(cell.s0[int(n_seg) - 1] + cell.L[int(n_seg) - 1])
+        for _ in range(80):
+            mid = 0.5 * (lo + hi)
+            lo, hi = (mid, hi) if cell.point_at(np.array([mid]))[1][0] > y0 else (lo, mid)
+        s_in = 0.5 * (lo + hi)
+    else:
+        s_in = float(cell._sloc_of(0, y0))
     cell.s_in_default, cell.s_out_default = s_in, s_in
     return cell
 

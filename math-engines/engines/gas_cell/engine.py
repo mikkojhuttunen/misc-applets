@@ -22,7 +22,8 @@ R_mirror. Detected power T, its power-weighted mean path ⟨L⟩, spread, leaked
 CHAOS (what you lose).
   * Lyapunov exponent λ per reflection: twin rays 1e-9 rad apart from the window at θc (planar_cell.twin_divergence,
     least-squares slope of ln separation over its exponential stretch; 0 when there is none: regular motion).
-  * Dither visibility V at the exit pass (ray_phase.dither_analysis): the fringe left when the launch angle is
+  * Dither visibility V at the exit pass (ray_phase.dither_analysis; V_floor = √π/(2√n), the level n random phases
+    leave: a V near it is unresolved and the fringe-limited NEC an upper bound): the fringe left when the launch angle is
     dithered with amplitude A. Chaotic cells scramble the path within the dither (V → 0, fringes wash out); a
     regular, re-entrant Herriott cell keeps it (V → 1). With a parasitic copy of power fraction f_par the fringe
     floor is 2 sqrt(f_par) V in absorbance (f_par = 1e-6: a 2e-3 fringe before washout):  NEC_fringe = 2 sqrt(f_par) V / A_ppm;  NEC = sqrt(NEC_shot² + NEC_fringe²).
@@ -97,8 +98,9 @@ def mirror_radius_w(L, R, lam_m):
 
 
 def baseline_cell(L=15e-3, W=1.5e-3, N=14, M=3, distinct=True, port_w=0.0, eps4=0.0, eps3=0.0, conic=0.0, deform="both",
-                  walls=False, lam_m=1.6537e-6 / 2.0):
-    """Elongated (deformed) Herriott cell L × W; port_w = 0: 2.5 × the mode radius on the mirrors."""
+                  walls=False, lam_m=1.6537e-6 / 2.0, n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1):
+    """Elongated (deformed, optionally segmented) Herriott cell L × W; port_w = 0: 2.5 × the mode radius on the
+    mirrors. n_seg, seg_curv, seg_tilt, seg_seed: curved segmented mirrors (planar_cell.deformed_herriott_cell)."""
     require_positive(L=L, W=W)
     R = design_radius(L, N, M)
     pw = port_w if port_w > 0 else 2.5 * mirror_radius_w(L, R, lam_m)
@@ -106,7 +108,8 @@ def baseline_cell(L=15e-3, W=1.5e-3, N=14, M=3, distinct=True, port_w=0.0, eps4=
     A = a - pw
     if A <= 0:
         raise ValueError("the window does not fit: make the cell wider or the window narrower")
-    c = P.deformed_herriott_cell(R, N, M, A, pw, a, None, L, math.pi / N if distinct else 0.0, conic, eps3, eps4, deform, walls)
+    c = P.deformed_herriott_cell(R, N, M, A, pw, a, None, L, math.pi / N if distinct else 0.0, conic, eps3, eps4, deform, walls,
+                                 n_seg, seg_curv, seg_tilt, seg_seed)
     c.meta.update(kind="herriott", L=L, W=W)
     return c
 
@@ -127,15 +130,204 @@ def circle_reference(area, n_facets=24, port_w=150e-6, out_frac=0.37, smooth=Fal
     return c
 
 
+# ---------------------------------------------------------------- index perturbations inside the cell
+_HASH_M = 2147483647
+
+
+def place_inclusions(cell, n_inc, radius=50e-6, dn=0.01, sign="both", seed=1, gap=None):
+    """n_inc circular regions of radius `radius` and index change ±dn (sign 'both' random, 'plus', 'minus') at random,
+    non-overlapping positions inside the cell, kept `gap` (default radius/2) clear of each other and of the mirrors
+    (mulberry32, seed: the JS port places the same ones). Herriott cells: between the mirror edge chords, |y| < a;
+    circular cells: inside the inscribed circle. Returns dict(cx, cy, r, dn) (may hold fewer than n_inc if full)."""
+    require_choice("sign", sign, ("both", "plus", "minus"))
+    gap = 0.5 * radius if gap is None else gap
+    m = cell.meta
+    u = P.mulberry32(seed)
+    if m.get("kind") == "circle":
+        rmax = m["r"] * (math.cos(math.pi / m["n_facets"]) if m.get("n_facets") else 1.0) - radius - gap
+        box = (-rmax, rmax, -rmax, rmax)
+        inside = lambda x, y: x * x + y * y <= rmax * rmax
+    else:
+        xe = max(abs(float(cell.A[k][0])) for k in range(cell.n_elements) if cell.labels[k].startswith("M"))
+        xe = min(xe, min(abs(float(cell.B[k][0])) for k in range(cell.n_elements) if cell.labels[k].startswith("M")))
+        xm, ym = xe - radius - gap, m["aperture"] - radius - gap
+        box = (-xm, xm, -ym, ym)
+        inside = lambda x, y: True
+    cx, cy, dd = [], [], []
+    if box[1] <= box[0] or box[3] <= box[2]:
+        return dict(cx=cx, cy=cy, r=[], dn=[])
+    tries = 0
+    while len(cx) < int(n_inc) and tries < 400 * max(int(n_inc), 1):
+        tries += 1
+        x = box[0] + (box[1] - box[0]) * u()
+        y = box[2] + (box[3] - box[2]) * u()
+        if not inside(x, y):
+            continue
+        if any((x - a) ** 2 + (y - b) ** 2 < (2 * radius + gap) ** 2 for a, b in zip(cx, cy)):
+            continue
+        sg = (-1.0 if u() < 0.5 else 1.0) if sign == "both" else (1.0 if sign == "plus" else -1.0)
+        cx.append(x); cy.append(y); dd.append(sg * dn)
+    return dict(cx=cx, cy=cy, r=[radius] * len(cx), dn=dd)
+
+
+class MediumCell:
+    """A planar_cell wall with circular index inclusions (Δn_eff on n0) inside: 2D ray optics with refraction
+    (Snell, total internal reflection), geometric and optical path. Everything else is delegated to the wall."""
+
+    def __init__(self, cell, inc=None, n0=1.0):
+        self.cell = cell
+        inc = inc or dict(cx=[], cy=[], r=[], dn=[])
+        self.cx, self.cy, self.r, self.dn = (np.asarray(inc[k], float) for k in ("cx", "cy", "r", "dn"))
+        self.n0 = float(n0)
+        self.n_inc = int(self.cx.size)
+
+    def __getattr__(self, name):
+        return getattr(self.__dict__["cell"], name)
+
+    def path_lengths(self, theta, n_pass, s_in=None, return_ids=False):
+        """ray_phase interface: optical path / n0 to each of the first n_pass wall hits (NaN once leaked) and path ids
+        (hash of the wall elements and the inclusions entered)."""
+        s_in = self.cell.s_in_default if s_in is None else s_in
+        th = np.atleast_1d(np.asarray(theta, float))
+        x, y, dx, dy = P.launch(self.cell, np.full(th.shape, s_in), th)
+        r = march(self, x, y, dx, dy, int(n_pass))
+        return (r["WL"], r["ID"]) if return_ids else r["WL"]
+
+
+def as_medium(cell, n0=1.0):
+    return cell if isinstance(cell, MediumCell) else MediumCell(cell, None, n0)
+
+
+def march(mc, x, y, dx, dy, max_walls, s_in=None, s_out=None, port_w=0.0, ports="none", record=False, max_events=None):
+    """Trace rays through the medium cell until max_walls wall hits, a port (ports 'both': output checked first, then
+    input; 'out': output only) or a leak. Per ray and wall hit: optical path / n0 (WL), geometric path (WG), s, signed
+    sin χ, element, point, path id; exit code (1 output, 0 input, -1 still inside, -2 leaked) and the number of hits.
+    record=True keeps every event point (wall hits and inclusion crossings) per ray."""
+    x, y, dx, dy = (np.array(np.atleast_1d(v), float) for v in (x, y, dx, dy))
+    n = x.size
+    cell = mc.cell
+    Pm = cell.perimeter
+    eps = 1e-12 * Pm
+    nw_max = int(max_walls)
+    shp = (n, nw_max)
+    WL, WG, WS, WC, WX, WY = (np.full(shp, np.nan) for _ in range(6))
+    WK, ID = np.full(shp, -1), np.full(shp, -1.0)
+    inside = np.full(n, -1)
+    nw = np.zeros(n, int)
+    exit_ = np.full(n, -1)
+    Lo, Lg, pid = np.zeros(n), np.zeros(n), np.zeros(n)
+    alive = np.ones(n, bool)
+    pts = [[(float(x[i]), float(y[i]))] for i in range(n)] if record else None
+    max_events = max_events or nw_max * 40 + 200
+    for _ in range(max_events):
+        ia = np.nonzero(alive)[0]
+        if not ia.size:
+            break
+        xa, ya, dxa, dya, ins = x[ia], y[ia], dx[ia], dy[ia], inside[ia]
+        m = ia.size
+        out = ins < 0
+        tw = np.full(m, np.inf)
+        nxw, nyw, sw, kw = np.zeros(m), np.zeros(m), np.zeros(m), np.full(m, -1)
+        if out.any():
+            t_, nx_, ny_, s_, k_ = cell.hit_k(xa[out], ya[out], dxa[out], dya[out])
+            tw[out], nxw[out], nyw[out], sw[out], kw[out] = t_, nx_, ny_, s_, k_
+        ti = np.full(m, np.inf)
+        ji = np.full(m, -1)
+        if mc.n_inc:
+            bx, by = xa[:, None] - mc.cx[None, :], ya[:, None] - mc.cy[None, :]
+            b = bx * dxa[:, None] + by * dya[:, None]
+            c = bx * bx + by * by - (mc.r * mc.r)[None, :]
+            disc = b * b - c
+            sq = np.sqrt(np.maximum(disc, 0.0))
+            t_in = np.where((disc > 0) & out[:, None], -b - sq, np.inf)
+            t_in = np.where(t_in > eps, t_in, np.inf)
+            jmin = np.argmin(t_in, axis=1)
+            tmin = t_in[np.arange(m), jmin]
+            ti = np.where(out, tmin, ti)
+            ji = np.where(out & np.isfinite(tmin), jmin, ji)
+            jj = np.maximum(ins, 0)
+            t_ex = -b[np.arange(m), jj] + sq[np.arange(m), jj]
+            ti = np.where(~out, t_ex, ti)
+            ji = np.where(~out, ins, ji)
+        inc_ev = ti < tw
+        leak = ~inc_ev & ~np.isfinite(tw)
+        t = np.where(inc_ev, ti, np.where(leak, 0.0, tw))
+        nmed = mc.n0 + np.where(ins >= 0, mc.dn[np.maximum(ins, 0)] if mc.n_inc else 0.0, 0.0)
+        x[ia], y[ia] = xa + t * dxa, ya + t * dya
+        Lg[ia] += t
+        Lo[ia] += t * nmed / mc.n0
+        if record:
+            for q, i in enumerate(ia):
+                if not leak[q]:
+                    pts[i].append((float(x[i]), float(y[i])))
+        if leak.any():
+            exit_[ia[leak]] = -2
+            alive[ia[leak]] = False
+            pid[ia[leak]] = -1.0
+        sel = np.nonzero(inc_ev)[0]
+        if sel.size:                                           # refraction at an inclusion edge (or TIR)
+            i = ia[sel]
+            j = ji[sel]
+            nxn, nyn = (x[i] - mc.cx[j]) / mc.r[j], (y[i] - mc.cy[j]) / mc.r[j]
+            ent = inside[i] < 0
+            n1 = np.where(ent, mc.n0, mc.n0 + mc.dn[j])
+            n2 = np.where(ent, mc.n0 + mc.dn[j], mc.n0)
+            Nx, Ny = np.where(ent, nxn, -nxn), np.where(ent, nyn, -nyn)
+            cosi = -(dx[i] * Nx + dy[i] * Ny)
+            eta = n1 / n2
+            kk = 1 - eta * eta * (1 - cosi * cosi)
+            tir = kk < 0
+            sk = np.sqrt(np.maximum(kk, 0.0))
+            rx = np.where(tir, dx[i] + 2 * cosi * Nx, eta * dx[i] + (eta * cosi - sk) * Nx)
+            ry = np.where(tir, dy[i] + 2 * cosi * Ny, eta * dy[i] + (eta * cosi - sk) * Ny)
+            nn = np.hypot(rx, ry)
+            dx[i], dy[i] = rx / nn, ry / nn
+            newin = np.where(tir, inside[i], np.where(ent, j, -1))
+            entered = ent & ~tir
+            pid[i] = np.where(entered & (pid[i] >= 0), np.mod(pid[i] * 1000003 + 100000 + j, _HASH_M), pid[i])
+            inside[i] = newin
+        wsel = np.nonzero(~inc_ev & ~leak)[0]
+        if wsel.size:                                          # mirror (wall) hit
+            i = ia[wsel]
+            jw = nw[i]
+            nxi, nyi = nxw[wsel], nyw[wsel]
+            WL[i, jw], WG[i, jw], WS[i, jw] = Lo[i], Lg[i], sw[wsel]
+            WC[i, jw] = dx[i] * nyi - dy[i] * nxi
+            WK[i, jw], WX[i, jw], WY[i, jw] = kw[wsel], x[i], y[i]
+            pid[i] = np.where(pid[i] >= 0, np.mod(pid[i] * 1000003 + kw[wsel] + 1, _HASH_M), pid[i])
+            ID[i, jw] = pid[i]
+            nw[i] += 1
+            done = np.zeros(i.size, bool)
+            if ports in ("both", "out"):
+                pout = P.in_window(sw[wsel], s_out, port_w, Pm)
+                pin = P.in_window(sw[wsel], s_in, port_w, Pm) if ports == "both" else np.zeros(i.size, bool)
+                done = pout | pin
+                exit_[i[done]] = np.where(pout[done], 1, 0)
+                alive[i[done]] = False
+            go = ~done
+            dx[i[go]], dy[i[go]] = P.reflect(dx[i[go]], dy[i[go]], nxi[go], nyi[go])
+            full = go & (nw[i] >= nw_max)
+            alive[i[full]] = False
+    return dict(WL=WL, WG=WG, WS=WS, WC=WC, WK=WK, WX=WX, WY=WY, ID=ID, n_walls=nw, exit=exit_, L_opt=Lo, L_geo=Lg, pts=pts)
+
+
 # ---------------------------------------------------------------- Gaussian-beam two-mirror model
 def centre_path(cell, s_in, theta, s_out, port_w, n_max=2000):
-    """Centre ray from s_in at θ until it hits the output window (kept) or leaves: chords, curvature and cos χ per hit."""
-    xs, ys, S, SC, K = P.trace_path(cell, s_in, theta, n_max, port=(s_out, port_w))
-    chords = np.hypot(np.diff(xs), np.diff(ys))
-    exits = bool(len(S)) and bool(P.in_window(S[-1], s_out, port_w, cell.perimeter))
-    kap = cell.curvature_at(S) if len(S) else np.zeros(0)
-    return dict(xs=xs, ys=ys, s=S, sinchi=SC, element=K, chords=chords, kappa=kap, cos=np.sqrt(np.clip(1 - SC**2, 1e-12, 1.0)),
-                exits=exits, n_hits=len(S))
+    """Centre ray from s_in at θ until it hits the output window (kept) or leaves: chords (geometric, between wall
+    hits), curvature and cos χ per hit, every event point (pts: inclusion crossings too) and its optical path."""
+    mc = as_medium(cell)
+    x, y, dx, dy = P.launch(mc.cell, np.array([s_in]), np.array([theta]))
+    r = march(mc, x, y, dx, dy, n_max, s_in, s_out, port_w, "out", record=True)
+    nh = int(r["n_walls"][0])
+    S, SC, K = r["WS"][0, :nh], r["WC"][0, :nh], r["WK"][0, :nh]
+    G = r["WG"][0, :nh]
+    chords = np.diff(np.r_[0.0, G])
+    exits = bool(r["exit"][0] == 1)
+    kap = mc.cell.curvature_at(S) if nh else np.zeros(0)
+    pts = np.array(r["pts"][0])
+    return dict(xs=pts[:, 0], ys=pts[:, 1], hx=np.r_[x[0], r["WX"][0, :nh]], hy=np.r_[y[0], r["WY"][0, :nh]], s=S, sinchi=SC,
+                element=K, chords=chords, kappa=kap, cos=np.sqrt(np.clip(1 - SC**2, 1e-12, 1.0)), exits=exits, n_hits=nh,
+                L_opt=float(r["WL"][0, nh - 1]) if nh else 0.0)
 
 
 def eigen_q(Mrt):
@@ -204,6 +396,7 @@ def gaussian_path(cell, path, q0, lam_m, ports, R_mirror=1.0):
                 lam_G=float(math.log(sv) / n) if n else 0.0, m_max=float(np.max(np.abs(m_rt))), w_in=w_in, q_end=q)
 
 
+
 # ---------------------------------------------------------------- ray ensemble, chaos, figures
 def beam_rays(cell, s_in, theta_c, q0, lam_m, n_side=24):
     """Launch rays sampling the Gaussian beam q0 (Wigner function) at the window: (x, y, dx, dy)."""
@@ -217,88 +410,133 @@ def beam_rays(cell, s_in, theta_c, q0, lam_m, n_side=24):
     return P.launch(cell, s_in + off / cos_t, theta_c + ang)
 
 
+
+def ensemble(mc, starts, port_w, s_in, s_out, n_bounce, R_mirror, gamma, lam_m):
+    """Port-to-port statistics of a ray ensemble (equal launch weights, R per reflection before the exit): T, mean
+    geometric path ⟨L⟩, rms, Γ T ⟨L⟩, shares that leak / return / stay, and the M² of the detected light from the
+    second moments of its exit offsets (along the wall × cos χ) and angles: M² = (4π/λm) √(⟨y²⟩⟨u²⟩ − ⟨yu⟩²)."""
+    x, y, dx, dy = starts
+    r = march(mc, x, y, dx, dy, n_bounce, s_in, s_out, port_w, "both")
+    n = x.size
+    det = np.nonzero(r["exit"] == 1)[0]
+    nh = r["n_walls"][det]
+    L = r["WG"][det, nh - 1] if det.size else np.zeros(0)
+    W = R_mirror ** (nh - 1.0) if R_mirror < 1 else np.ones(det.size)
+    out = dict(leaked=float(np.mean(r["exit"] == -2)), back=float(np.mean(r["exit"] == 0)), trapped=float(np.mean(r["exit"] == -1)),
+               L=L, W=W)
+    sw = W.sum()
+    if sw <= 0:
+        out.update(T=0.0, L_mean=math.nan, L_rms=math.nan, S1=0.0, M2=math.nan)
+        return out
+    Lm = float((W * L).sum() / sw)
+    sc = r["WC"][det, nh - 1]
+    ds = (r["WS"][det, nh - 1] - s_out + mc.perimeter / 2) % mc.perimeter - mc.perimeter / 2
+    yv, uv = ds * np.sqrt(np.clip(1 - sc**2, 0, 1)), np.arcsin(np.clip(sc, -1, 1))
+    my, mu = (W * yv).sum() / sw, (W * uv).sum() / sw
+    cyy, cuu, cyu = (W * (yv - my) ** 2).sum() / sw, (W * (uv - mu) ** 2).sum() / sw, (W * (yv - my) * (uv - mu)).sum() / sw
+    out.update(T=float(sw / n), L_mean=Lm, L_rms=float(np.sqrt((W * (L - Lm) ** 2).sum() / sw)), S1=float(gamma * sw / n * Lm),
+               M2=float(4 * math.pi / lam_m * math.sqrt(max(cyy * cuu - cyu * cyu, 0.0))))
+    return out
+
+
+def twin_divergence(mc, s_in, theta, n_hits=300, dtheta=1e-9):
+    """Hit-point separation of two rays dtheta apart (no ports) and its Lyapunov fit (planar_cell.lyapunov_fit)."""
+    x, y, dx, dy = P.launch(mc.cell, np.array([s_in, s_in]), np.array([theta, theta + dtheta]))
+    r = march(mc, x, y, dx, dy, n_hits)
+    n = int(min(r["n_walls"]))
+    sep = np.hypot(r["WX"][0, :n] - r["WX"][1, :n], r["WY"][0, :n] - r["WY"][1, :n])
+    return sep, P.lyapunov_fit(sep, scale=math.sqrt(abs(mc.area)))
+
+
 def cell_figures(cell, theta_c, q0, lam_m, n_eff=2.0, gamma=0.2, alpha_ppm=SPECIES["CH4"][0], R_mirror=0.995, dither=2e-3,
                  waveform="sine", f_par=1e-6, P_in=1e-3, bandwidth=1.0, n_side=24, n_bounce=2000, n_lyap=300, n_pass_max=60,
                  n_dither_max=12801):
-    """All figures of one cell (module docstring) as a dict."""
-    s_in, s_out = cell.s_in_default, cell.s_out_default
-    pw = cell.meta["port_w"]
+    """All figures of one cell (module docstring) as a dict; cell may be a MediumCell (index inclusions)."""
+    mc = as_medium(cell, n_eff)
+    s_in, s_out = mc.s_in_default, mc.s_out_default
+    pw = mc.meta["port_w"]
     lam = lam_m * n_eff
     ports = [(s_in, pw)] + ([] if abs(s_out - s_in) < 1e-15 else [(s_out, pw)])
-    # path: ray ensemble port to port
-    tab = P.trace_rays(cell, pw, n_bounce=n_bounce, s_in=s_in, s_out=s_out, starts=beam_rays(cell, s_in, theta_c, q0, lam_m, n_side))
-    ev = P.evaluate(tab, (lambda x: np.full(np.shape(x), R_mirror)) if R_mirror < 1 else None, 0.0, gamma)
-    L_rms = float(np.sqrt((ev.W * (ev.L - ev.L_mean) ** 2).sum() / ev.W.sum())) if ev.W.size and ev.W.sum() > 0 else math.nan
-    A_ppm = 100 * alpha_ppm * gamma * ev.L_mean if ev.T_det > 0 else 0.0
-    sig_A = math.sqrt(2 * Q_E * bandwidth / (P_in * ev.T_det)) if ev.T_det > 0 else math.inf
-    # Gaussian-beam model along the centre ray
-    cp = centre_path(cell, s_in, theta_c, s_out, pw, n_bounce)
-    gb = gaussian_path(cell, cp, q0, lam_m, ports, R_mirror)
-    # chaos: twin rays and dither visibility at the exit pass
-    sep, fit = P.twin_divergence(cell, s_in, theta_c, n_lyap)
+    ev = ensemble(mc, beam_rays(mc, s_in, theta_c, q0, lam_m, n_side), pw, s_in, s_out, n_bounce, R_mirror, gamma, lam_m)
+    A_ppm = 100 * alpha_ppm * gamma * ev["L_mean"] if ev["T"] > 0 else 0.0
+    sig_A = math.sqrt(2 * Q_E * bandwidth / (P_in * ev["T"])) if ev["T"] > 0 else math.inf
+    cp = centre_path(mc, s_in, theta_c, s_out, pw, n_bounce)
+    gb = gaussian_path(mc, cp, q0, lam_m, ports, R_mirror)
+    sep, fit = twin_divergence(mc, s_in, theta_c, n_lyap)
     n_pass = int(min(cp["n_hits"], n_pass_max)) if cp["n_hits"] else 1
-    da = RP.dither_analysis(cell, theta_c, dither, n_pass, lam, n_eff, waveform, n_max=n_dither_max, s_in=s_in)
+    da = RP.dither_analysis(mc, theta_c, dither, n_pass, lam, n_eff, waveform, n_max=n_dither_max, s_in=s_in)
     V = float(da["V"][n_pass - 1])
     nec_shot = sig_A / A_ppm if A_ppm > 0 else math.inf
     nec_fringe = 2 * math.sqrt(f_par) * V / A_ppm if A_ppm > 0 else math.inf
-    return dict(T=float(ev.T_det), L_mean=float(ev.L_mean), L_rms=L_rms, S1=float(ev.S1), leaked=tab.leaked_fraction,
-                back=float(np.mean(tab.exit_port == 0)), trapped=tab.trapped_fraction, A_ppm=A_ppm, nec_shot=nec_shot,
-                nec_fringe=nec_fringe, nec=math.hypot(nec_shot, nec_fringe), lam=float(fit["lam"]) if fit else 0.0,
-                lam_fit=fit is not None, V=V, V_pass=da["V"], same_path=float(da["same_path"][n_pass - 1]), n_pass=n_pass,
-                exit_pass=cp["n_hits"] if cp["exits"] else -1, L_centre=float(cp["chords"].sum()), T_G=gb["T_G"],
-                w_max_ratio=gb["w_max_ratio"], lam_G=gb["lam_G"], m_max=gb["m_max"], theta=float(theta_c), w_hits=gb["w"], share=gb["share"], sep=sep, centre=cp,
-                area=float(cell.area), dither_n=int(da["n_used"]))
+    return dict(V_floor=float(da["noise_floor"]), T=ev["T"], L_mean=ev["L_mean"], L_rms=ev["L_rms"], S1=ev["S1"], M2=ev["M2"], leaked=ev["leaked"], back=ev["back"],
+                trapped=ev["trapped"], A_ppm=A_ppm, nec_shot=nec_shot, nec_fringe=nec_fringe, nec=math.hypot(nec_shot, nec_fringe),
+                lam=float(fit["lam"]) if fit else 0.0, lam_fit=fit is not None, V=V, V_pass=da["V"],
+                same_path=float(da["same_path"][n_pass - 1]), n_pass=n_pass, exit_pass=cp["n_hits"] if cp["exits"] else -1,
+                L_centre=float(cp["chords"].sum()), T_G=gb["T_G"], w_max_ratio=gb["w_max_ratio"], lam_G=gb["lam_G"],
+                m_max=gb["m_max"], theta=float(theta_c), w_hits=gb["w"], share=gb["share"], sep=sep, centre=cp,
+                area=float(mc.area), dither_n=int(da["n_used"]), n_inc=mc.n_inc, ens=ev)
 
 
-def retune(cell, theta0, q0, lam_m, span=None, n_theta=41, R_mirror=0.995, gamma=0.2, n_side=8, n_bounce=2000):
+def retune(cell, theta0, q0, lam_m, span=None, n_theta=41, R_mirror=0.995, gamma=0.2, n_side=8, n_bounce=2000, n_eff=2.0):
     """Launch angle within theta0 ± span (default ± 4 beam divergences) that maximises the sensitivity Γ T ⟨L⟩ of a
-    small ray ensemble (n_side²), and that maximum. A deformed mirror shifts the spot pattern off re-entrance; this
+    small ray ensemble (n_side²), and that maximum. A perturbed cell moves the spot pattern off re-entrance; this
     re-aims the input before the cells are compared."""
+    mc = as_medium(cell, n_eff)
     w = q_width(q0, lam_m)[0]
     span = 4 * lam_m / (math.pi * w) if span is None else span
-    pw = cell.meta["port_w"]
+    pw = mc.meta["port_w"]
     best = (-1.0, theta0)
     for th in theta0 + span * np.linspace(-1, 1, int(n_theta)):
-        tab = P.trace_rays(cell, pw, n_bounce=n_bounce, s_in=cell.s_in_default, s_out=cell.s_out_default,
-                           starts=beam_rays(cell, cell.s_in_default, th, q0, lam_m, n_side))
-        ev = P.evaluate(tab, (lambda x: np.full(np.shape(x), R_mirror)) if R_mirror < 1 else None, 0.0, gamma)
-        if ev.S1 > best[0] * (1 + 1e-12):
-            best = (float(ev.S1), float(th))
+        ev = ensemble(mc, beam_rays(mc, mc.s_in_default, th, q0, lam_m, n_side), pw, mc.s_in_default, mc.s_out_default, n_bounce,
+                      R_mirror, gamma, lam_m)
+        if ev["S1"] > best[0] * (1 + 1e-12):
+            best = (float(ev["S1"]), float(th))
     return best[1], best[0]
 
 
-def _common(L, W, N, M, distinct, port_width, eps4, eps3, conic, deform, walls, n_facets, out_frac, smooth_circle,
-            wavelength, n_eff, species):
+_PERT = dict(eps4=0.0, eps3=0.0, conic=0.0, deform="both", n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1, n_inc=0, inc_radius=50e-6,
+             inc_dn=0.01, inc_sign="both", inc_seed=1, inc_circle=0)
+
+
+def _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_circle, wavelength, n_eff, species, pert):
     require_positive(wavelength=wavelength, n_eff=n_eff)
     require_choice("species", species, tuple(SPECIES))
     lam_m = wavelength / n_eff
     q0, c0 = input_q(L, W, N, M, bool(distinct), port_width, lam_m, bool(walls))
     pw = c0.meta["port_w"]
-    base = baseline_cell(L, W, N, M, bool(distinct), pw, eps4, eps3, conic, deform, bool(walls), lam_m)
+    p = dict(_PERT, **pert)
+    base = baseline_cell(L, W, N, M, bool(distinct), pw, p["eps4"], p["eps3"], p["conic"], p["deform"], bool(walls), lam_m,
+                         int(p["n_seg"]), p["seg_curv"], p["seg_tilt"], int(p["seg_seed"]))
     circ = circle_reference(base.area, n_facets, pw, out_frac, bool(smooth_circle))
-    return lam_m, q0, base, circ
+    inc = place_inclusions(base, int(p["n_inc"]), p["inc_radius"], p["inc_dn"], p["inc_sign"], int(p["inc_seed"])) if p["n_inc"] else None
+    incc = place_inclusions(circ, int(p["n_inc"]), p["inc_radius"], p["inc_dn"], p["inc_sign"], int(p["inc_seed"])) if p["n_inc"] and p["inc_circle"] else None
+    return lam_m, q0, MediumCell(base, inc, n_eff), MediumCell(circ, incc, n_eff)
 
 
-_KEYS = ("T", "L_mean", "L_rms", "S1", "A_ppm", "nec_shot", "nec_fringe", "nec", "lam", "V", "same_path", "n_pass",
-         "exit_pass", "T_G", "w_max_ratio", "lam_G", "m_max", "leaked", "area", "theta")
+_KEYS = ("T", "L_mean", "L_rms", "S1", "M2", "A_ppm", "nec_shot", "nec_fringe", "nec", "lam", "V", "V_floor", "same_path", "n_pass",
+         "exit_pass", "T_G", "w_max_ratio", "lam_G", "m_max", "leaked", "area", "theta", "n_inc")
 _UNITS = dict(theta="rad", L_mean="m", L_rms="m", S1="m", A_ppm="1/ppm", nec_shot="ppm", nec_fringe="ppm", nec="ppm", lam="1/hit",
               lam_G="1/hit", area="m^2")
 
 
 def compare(L=15e-3, W=1.5e-3, N=14, M=3, distinct=1, port_width=0.0, eps4=0.0, eps3=0.0, conic=0.0, deform="both", walls=0,
-            n_facets=24, circle_theta=0.35, out_frac=0.37, smooth_circle=0, wavelength=1.6537e-6, n_eff=2.0, gamma=0.2,
-            species="CH4", R_mirror=0.995, dither=2e-3, waveform="sine", f_parasitic=1e-6, P_in=1e-3, bandwidth=1.0,
+            n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1, n_inc=0, inc_radius=50e-6, inc_dn=0.01, inc_sign="both", inc_seed=1,
+            inc_circle=0, n_facets=24, circle_theta=0.35, out_frac=0.37, smooth_circle=0, wavelength=1.6537e-6, n_eff=2.0,
+            gamma=0.2, species="CH4", R_mirror=0.995, dither=2e-3, waveform="sine", f_parasitic=1e-6, P_in=1e-3, bandwidth=1.0,
             n_side=24, n_bounce=2000, retune_launch=1) -> Result:
-    """Elongated deformed Herriott cell (h_) against the CMPC of the same area (c_): path, sensitivity and detection
-    limits against chaos (Lyapunov exponent, dither visibility) and the Gaussian-beam model, with the ratios.
-    retune_launch: re-aim the baseline's launch angle for the largest Γ T ⟨L⟩ (retune) before comparing."""
+    """Elongated Herriott cell (h_; deformed, segmented and/or with index inclusions) against the CMPC of the same area
+    (c_): path, sensitivity and detection limits against chaos (Lyapunov exponent, dither visibility), beam quality
+    (M² of the detected light) and the Gaussian-beam model, with the ratios. retune_launch: re-aim the baseline's
+    launch for the largest Γ T ⟨L⟩ before comparing."""
     require_range("R_mirror", R_mirror, 0.0, 1.0)
-    require_nonnegative(dither=dither, f_parasitic=f_parasitic)
-    lam_m, q0, base, circ = _common(L, W, N, M, distinct, port_width, eps4, eps3, conic, deform, walls, n_facets, out_frac,
-                                    smooth_circle, wavelength, n_eff, species)
+    require_nonnegative(dither=dither, f_parasitic=f_parasitic, n_inc=n_inc, inc_radius=inc_radius)
+    pert = dict(eps4=eps4, eps3=eps3, conic=conic, deform=deform, n_seg=n_seg, seg_curv=seg_curv, seg_tilt=seg_tilt, seg_seed=seg_seed,
+                n_inc=n_inc, inc_radius=inc_radius, inc_dn=inc_dn, inc_sign=inc_sign, inc_seed=inc_seed, inc_circle=inc_circle)
+    lam_m, q0, base, circ = _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_circle, wavelength, n_eff,
+                                    species, pert)
     kw = dict(n_eff=n_eff, gamma=gamma, alpha_ppm=SPECIES[species][0], R_mirror=R_mirror, dither=dither, waveform=waveform,
               f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce)
-    th = retune(base, base.meta["theta_launch"], q0, lam_m, R_mirror=R_mirror, gamma=gamma)[0] if retune_launch else base.meta["theta_launch"]
+    th = retune(base, base.meta["theta_launch"], q0, lam_m, R_mirror=R_mirror, gamma=gamma, n_eff=n_eff)[0] if retune_launch else base.meta["theta_launch"]
     h = cell_figures(base, th, q0, lam_m, **kw)
     c = cell_figures(circ, circle_theta, q0, lam_m, **kw)
     v = {f"h_{k}": h[k] for k in _KEYS}
@@ -313,37 +551,46 @@ def compare(L=15e-3, W=1.5e-3, N=14, M=3, distinct=1, port_width=0.0, eps4=0.0, 
         u.update({p_ + k: un for k, un in _UNITS.items()})
     u.update(R_design="m", port_width="m", w_in="m", circle_radius="m")
     return Result(values=v, units=u, assumptions=[
-        "2D ray optics in the slab (n_eff); mirrors: constant reflectance R_mirror at every hit, smooth profile mirrors "
-        "for the baseline, flat facets for the CMPC",
+        "2D ray optics in the slab (n_eff); mirrors: constant reflectance R_mirror at every hit; smooth profile, curved "
+        "segmented or faceted walls; circular index inclusions refract (Snell, TIR), Fresnel reflection at them neglected",
         "Same input beam for both cells: eigenmode of the undeformed baseline at its window, sampled on a quantile grid",
-        "Absorbance per ppm from the strongest illustrative line (trace_gas, not HITRAN), linear regime, gas overlap Γ",
-        "Fringe floor 2 sqrt(f_parasitic) V from one parasitic copy whose phase follows the launch dither; shot noise "
-        "with responsivity 1 A/W",
-        "Lyapunov exponent from twin rays at the launch angle (0 when no exponential stretch); λ_G from the linearised "
-        "(ABCD) map along the centre ray"])
+        "Absorbance per ppm from the strongest illustrative line (trace_gas, not HITRAN), geometric path, gas overlap Γ",
+        "Fringe floor 2 sqrt(f_parasitic) V from one parasitic copy whose phase follows the launch dither (optical path); "
+        "shot noise with responsivity 1 A/W",
+        "Lyapunov exponent from twin rays at the launch angle (0 when no exponential stretch); Gaussian (ABCD) model "
+        "along the centre ray with the walls only (inclusions not included), M² from the detected rays"])
 
 
-def deformation_sweep(eps4_values=(0.0, 0.02, 0.05, 0.1, 0.15), L=15e-3, W=1.5e-3, N=14, M=3, distinct=1, port_width=0.0,
-                      eps3=0.0, conic=0.0, deform="both", walls=0, n_facets=24, circle_theta=0.35, out_frac=0.37,
-                      smooth_circle=0, wavelength=1.6537e-6, n_eff=2.0, gamma=0.2, species="CH4", R_mirror=0.995,
-                      dither=2e-3, waveform="sine", f_parasitic=1e-6, P_in=1e-3, bandwidth=1.0, n_side=16,
-                      n_bounce=2000, retune_launch=1) -> Result:
-    """Path, sensitivity and NEC of the baseline against its chaos (λ, V, λ_G) as the quartic deformation grows, with
-    the CMPC of the same area as the reference (c_*)."""
-    lam_m, q0, _, circ = _common(L, W, N, M, distinct, port_width, 0.0, eps3, conic, deform, walls, n_facets, out_frac,
-                                 smooth_circle, wavelength, n_eff, species)
+SWEEPABLE = ("eps4", "eps3", "conic", "n_seg", "seg_curv", "seg_tilt", "n_inc", "inc_dn", "inc_radius")
+
+
+def perturbation_sweep(param="eps4", values=(0.0, 0.02, 0.05, 0.1, 0.15), L=15e-3, W=1.5e-3, N=14, M=3, distinct=1,
+                       port_width=0.0, walls=0, n_facets=24, circle_theta=0.35, out_frac=0.37, smooth_circle=0,
+                       wavelength=1.6537e-6, n_eff=2.0, gamma=0.2, species="CH4", R_mirror=0.995, dither=2e-3,
+                       waveform="sine", f_parasitic=1e-6, P_in=1e-3, bandwidth=1.0, n_side=16, n_bounce=2000, retune_launch=1,
+                       **pert) -> Result:
+    """The baseline's path, sensitivity, NEC, chaos (λ, V) and beam quality (M²) against one perturbation parameter
+    (SWEEPABLE; the others as given in pert), with the CMPC of the same area as the reference (c_*)."""
+    require_choice("param", param, SWEEPABLE)
+    lam_m, q0, _, circ = _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_circle, wavelength, n_eff,
+                                 species, dict(pert, n_inc=0))
     kw = dict(n_eff=n_eff, gamma=gamma, alpha_ppm=SPECIES[species][0], R_mirror=R_mirror, dither=dither, waveform=waveform,
               f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce)
-    pw = circ.meta["port_w"]
     rows = []
-    for e in eps4_values:
-        b = baseline_cell(L, W, N, M, bool(distinct), pw, float(e), eps3, conic, deform, bool(walls), lam_m)
-        th = retune(b, b.meta["theta_launch"], q0, lam_m, R_mirror=R_mirror, gamma=gamma)[0] if retune_launch else b.meta["theta_launch"]
+    for val in values:
+        p = dict(pert, **{param: val})
+        _, _, b, _ = _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_circle, wavelength, n_eff, species, p)
+        th = retune(b, b.meta["theta_launch"], q0, lam_m, R_mirror=R_mirror, gamma=gamma, n_eff=n_eff)[0] if retune_launch else b.meta["theta_launch"]
         rows.append(cell_figures(b, th, q0, lam_m, **kw))
     c = cell_figures(circ, circle_theta, q0, lam_m, **kw)
-    v = {"eps4": np.asarray(eps4_values, float)}
+    v = {param: np.asarray(values, float)}
     v.update({k: np.array([r[k] for r in rows], float) for k in _KEYS})
     v.update({f"c_{k}": c[k] for k in _KEYS})
     u = {k: _UNITS.get(k, "") for k in v}
     u.update({f"c_{k}": _UNITS.get(k, "") for k in _KEYS})
-    return Result(values=v, units=u, assumptions=["As compare(); one row per eps4 (quartic deformation, fraction of the edge sag)"])
+    return Result(values=v, units=u, assumptions=[f"As compare(); one row per value of {param}"])
+
+
+def deformation_sweep(eps4_values=(0.0, 0.02, 0.05, 0.1, 0.15), **kw) -> Result:
+    """perturbation_sweep over the quartic deformation eps4."""
+    return perturbation_sweep("eps4", eps4_values, **kw)

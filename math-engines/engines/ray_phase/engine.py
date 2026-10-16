@@ -136,14 +136,22 @@ def dither_scan(cell, theta_c, amplitude, n_pass, wavelength, n_index=1.0, wavef
     return dict(offsets=d, L=L, L0=L0, dphi=dphi, V=visibility(dphi.T), max_step=max_step)
 
 
+def _j0_large(x):
+    """J0 for x > 1e4: two-term Hankel asymptote (error < 1e-12 there)."""
+    return np.sqrt(2 / (np.pi * x)) * ((1 - 9 / (128 * x * x)) * np.cos(x - np.pi / 4) + 1 / (8 * x) * np.sin(x - np.pi / 4))
+
+
 def model_visibility(x, waveform="sine", n_min=64):
     """|J0(x)| (sine) or |sinc(x)| (triangle): V of a linear phase a δ with x = a A. J0 by the same midpoint-in-time
-    average the dither uses (exact to rounding for n > |x| + 30), so Python and the JS port agree bit for bit."""
+    average the dither uses (exact to rounding for n > |x| + 30), so Python and the JS port agree bit for bit; above
+    |x| = 1e4 (a chaotic cell after many passes) the Hankel asymptote replaces the |x|-sample average."""
     x = np.atleast_1d(np.asarray(x, float))
     out = np.empty_like(x)
     for i, v in enumerate(x):
         if not np.isfinite(v):
             out[i] = np.nan
+        elif waveform == "sine" and abs(v) > 1e4:
+            out[i] = abs(_j0_large(abs(v)))
         elif waveform == "sine":
             n = max(n_min, int(np.ceil(abs(v))) + 64)
             t = (np.arange(n) + 0.5) / n

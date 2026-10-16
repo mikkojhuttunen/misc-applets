@@ -28,6 +28,11 @@ CHAOS (what you lose).
     regular, re-entrant Herriott cell keeps it (V → 1). With a parasitic copy of power fraction f_par the fringe
     floor is 2 sqrt(f_par) V in absorbance (f_par = 1e-6: a 2e-3 fringe before washout):  NEC_fringe = 2 sqrt(f_par) V / A_ppm;  NEC = sqrt(NEC_shot² + NEC_fringe²).
 
+RIPPLED END MIRRORS AND THE CHAOS MAP. ripple_a sin(2πη/Λ + φ) on the mirror profile is a standard map of stochasticity
+K = 8π² a L / Λ² (K ≈ 1 for 0.3 µm at Λ = 0.5 mm, L = 10 mm). chaos_map runs the exact tangent map of the walls along the
+launch beam's rays and a grid of departures from M1 (FTLE, MEGNO ⟨Y⟩ > 4: chaotic) and says whether the beam launches into
+the chaotic sea or onto a regular island (tangent_chaos, chaos_map).
+
 GAUSSIAN-BEAM TWO-MIRROR MODEL. The input q is propagated along the centre ray's traced chords with the local wall
 curvature κ and angle of incidence χ at every hit (tangential ABCD: free space [[1, ℓ], [0, 1]], mirror
 [[1, 0], [−2κ/cos χ, 1]]; flat facets κ = 0). Per hit: beam radius w_j and the share of its footprint (radius
@@ -98,9 +103,11 @@ def mirror_radius_w(L, R, lam_m):
 
 
 def baseline_cell(L=15e-3, W=1.5e-3, N=14, M=3, distinct=True, port_w=0.0, eps4=0.0, eps3=0.0, conic=0.0, deform="both",
-                  walls=False, lam_m=1.6537e-6 / 2.0, n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1):
-    """Elongated (deformed, optionally segmented) Herriott cell L × W; port_w = 0: 2.5 × the mode radius on the
-    mirrors. n_seg, seg_curv, seg_tilt, seg_seed: curved segmented mirrors (planar_cell.deformed_herriott_cell)."""
+                  walls=False, lam_m=1.6537e-6 / 2.0, n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1, ripple_a=0.0,
+                  ripple_period=0.5e-3, ripple_phase=0.0, ripple_on="both"):
+    """Elongated (deformed, optionally segmented or rippled) Herriott cell L × W; port_w = 0: 2.5 × the mode radius on
+    the mirrors. n_seg, seg_curv, seg_tilt, seg_seed: curved segmented mirrors; ripple_a, ripple_period, ripple_phase,
+    ripple_on: sinusoidal ripple on the end mirrors, stochasticity K = 8π² a L / Λ² (planar_cell.deformed_herriott_cell)."""
     require_positive(L=L, W=W)
     R = design_radius(L, N, M)
     pw = port_w if port_w > 0 else 2.5 * mirror_radius_w(L, R, lam_m)
@@ -109,7 +116,7 @@ def baseline_cell(L=15e-3, W=1.5e-3, N=14, M=3, distinct=True, port_w=0.0, eps4=
     if A <= 0:
         raise ValueError("the window does not fit: make the cell wider or the window narrower")
     c = P.deformed_herriott_cell(R, N, M, A, pw, a, None, L, math.pi / N if distinct else 0.0, conic, eps3, eps4, deform, walls,
-                                 n_seg, seg_curv, seg_tilt, seg_seed)
+                                 n_seg, seg_curv, seg_tilt, seg_seed, ripple_a, ripple_period, ripple_phase, ripple_on)
     c.meta.update(kind="herriott", L=L, W=W)
     return c
 
@@ -448,9 +455,93 @@ def twin_divergence(mc, s_in, theta, n_hits=300, dtheta=1e-9):
     return sep, P.lyapunov_fit(sep, scale=math.sqrt(abs(mc.area)))
 
 
+def tangent_chaos(cell, x, y, dx, dy, n_hits=300):
+    """Finite-time chaos indicators of rays (walls only, no ports, inclusions ignored) from the exact tangent map of the
+    billiard, unfolded: flight [[1, ℓ], [0, 1]], reflection [[1, 0], [−2κ/cos χ, 1]] with the local wall curvature κ (ripple
+    included) and angle χ, ℓ in units of sqrt(area); the tangent vector is renormalised every hit. Per ray: FTLE λ =
+    Σ ln g_k / n per hit, MEGNO ⟨Y⟩ = mean over n of (2/n) Σ k ln g_k (→ 0 periodic, → 2 quasi-periodic (island, KAM
+    torus), ≈ λ n / 2 chaotic), and the number of hits before the ray left (n_hits: stayed)."""
+    mc = as_medium(cell.cell if isinstance(cell, MediumCell) else cell)
+    n = int(n_hits)
+    r = march(mc, x, y, dx, dy, n)
+    nh = r["n_walls"]
+    m = nh.size
+    ch = np.diff(np.c_[np.zeros(m), np.nan_to_num(r["WG"])], axis=1)
+    S = r["WS"]
+    fin = np.isfinite(S)
+    kap = np.zeros(S.shape)
+    if fin.any():
+        kap[fin] = mc.cell.curvature_at(S[fin])
+    cs = np.sqrt(np.clip(1 - np.nan_to_num(r["WC"]) ** 2, 1e-12, 1.0))
+    ell = math.sqrt(abs(mc.area))
+    u, v = np.full(m, math.sqrt(0.5)), np.full(m, math.sqrt(0.5))
+    acc, Sk, Yb = np.zeros(m), np.zeros(m), np.zeros(m)
+    for j in range(n):
+        ok = j < nh
+        u = u + np.where(ok, ch[:, j], 0.0) / ell * v
+        v = v - np.where(ok, 2 * kap[:, j] * ell / cs[:, j], 0.0) * u
+        nn = np.hypot(u, v)
+        g = np.where(ok, np.log(nn), 0.0)
+        acc += g
+        Sk += (j + 1) * g
+        Yb += np.where(ok, 2 * Sk / (j + 1), 0.0)
+        u, v = u / nn, v / nn
+    k = np.maximum(nh, 1)
+    return dict(lam=acc / k, Y=Yb / k, n_hits=nh)
+
+
+VERDICTS = {2: "launches into the chaotic sea", 1: "launches into a regular island", 0: "regular phase space (no chaotic sea)",
+            -1: "launch escapes the cell"}
+
+
+def chaos_map(cell, theta_c, q0, lam_m, n_hits=300, n_grid=0, n_side=8, Y_chaos=4.0, min_hits=30):
+    """Does the beam launch into a chaotic sea or onto an island? tangent_chaos of the n_side² beam rays at θc (their
+    chaotic share: ⟨Y⟩ > Y_chaos with ≥ min_hits hits; escaped: < min_hits hits) and, n_grid > 0, of an n_grid × n_grid grid
+    of departures from the input mirror (Herriott: M1 (all its segments) over its length, sin χ within ±2a/d; circle: the whole boundary,
+    |sin χ| < 0.95): sea, island, esc_sea = chaotic, regular and escaped shares of that section. Verdict: -1 escapes (≥ ½
+    of the beam escaped), 2 sea (≥ ½ of the rest chaotic), 1 island (the launch is regular while ≥ 5 % of the section that
+    stays is chaotic), 0 no sea."""
+    c = cell.cell if isinstance(cell, MediumCell) else cell
+    s_in = c.s_in_default
+    tb = tangent_chaos(c, *beam_rays(c, s_in, theta_c, q0, lam_m, n_side), n_hits=n_hits)
+    stay = tb["n_hits"] >= min_hits
+    chaotic = stay & (tb["Y"] > Y_chaos)
+    out = dict(f_launch=float(chaotic.mean()), esc_launch=float((~stay).mean()),
+               Y_launch=float(np.median(tb["Y"])), lam_ftle=float(np.median(tb["lam"][stay])) if stay.any() else math.nan,
+               sea=math.nan, island=math.nan, esc_sea=math.nan, grid=None)
+    if n_grid:
+        m = c.meta
+        if m.get("kind") == "herriott" or "aperture" in m:
+            ks = [k for k, lab in enumerate(c.labels) if lab == "M1" or lab.startswith("M1 ")]
+            s_lo, s_hi = c.s0[ks[0]], c.s0[ks[-1]] + c.L[ks[-1]]
+            sg = s_lo + (s_hi - s_lo) * (np.arange(n_grid) + 0.5) / n_grid
+            pm = 2 * m["aperture"] / m["d"]
+        else:
+            sg = c.perimeter * (np.arange(n_grid) + 0.5) / n_grid
+            pm = 0.95
+        pg = pm * (2 * (np.arange(n_grid) + 0.5) / n_grid - 1)
+        SS, PP = np.meshgrid(sg, pg)
+        tg = tangent_chaos(c, *P.launch(c, SS.ravel(), np.arcsin(PP.ravel())), n_hits=n_hits)
+        st = tg["n_hits"] >= min_hits
+        ch_ = st & (tg["Y"] > Y_chaos)
+        out.update(sea=float(ch_.mean()), island=float((st & ~ch_).mean()), esc_sea=float((~st).mean()),
+                   grid=dict(s=sg, p=pg, Y=tg["Y"].reshape(n_grid, n_grid), lam=tg["lam"].reshape(n_grid, n_grid),
+                             n_hits=tg["n_hits"].reshape(n_grid, n_grid)))
+    if out["esc_launch"] >= 0.5:
+        v = -1
+    elif chaotic.sum() >= 0.5 * stay.sum():
+        v = 2
+    elif n_grid and out["sea"] >= 0.05 * (out["sea"] + out["island"]) and out["sea"] > 0:
+        v = 1
+    else:
+        v = 0
+    out["verdict"] = v
+    return out
+
+
 def cell_figures(cell, theta_c, q0, lam_m, n_eff=2.0, gamma=0.2, alpha_ppm=SPECIES["CH4"][0], R_mirror=0.995, dither=2e-3,
                  waveform="sine", f_par=1e-6, P_in=1e-3, bandwidth=1.0, n_side=24, n_bounce=2000, n_lyap=300, n_pass_max=60,
-                 n_dither_max=12801):
+                 n_dither_max=12801, chaos_grid=12, n_ftle=300):
     """All figures of one cell (module docstring) as a dict; cell may be a MediumCell (index inclusions)."""
     mc = as_medium(cell, n_eff)
     s_in, s_out = mc.s_in_default, mc.s_out_default
@@ -466,6 +557,7 @@ def cell_figures(cell, theta_c, q0, lam_m, n_eff=2.0, gamma=0.2, alpha_ppm=SPECI
     n_pass = int(min(cp["n_hits"], n_pass_max)) if cp["n_hits"] else 1
     da = RP.dither_analysis(mc, theta_c, dither, n_pass, lam, n_eff, waveform, n_max=n_dither_max, s_in=s_in)
     V = float(da["V"][n_pass - 1])
+    cm = chaos_map(mc, theta_c, q0, lam_m, n_ftle, chaos_grid)
     nec_shot = sig_A / A_ppm if A_ppm > 0 else math.inf
     nec_fringe = 2 * math.sqrt(f_par) * V / A_ppm if A_ppm > 0 else math.inf
     return dict(V_floor=float(da["noise_floor"]), T=ev["T"], L_mean=ev["L_mean"], L_rms=ev["L_rms"], S1=ev["S1"], M2=ev["M2"], leaked=ev["leaked"], back=ev["back"],
@@ -474,7 +566,10 @@ def cell_figures(cell, theta_c, q0, lam_m, n_eff=2.0, gamma=0.2, alpha_ppm=SPECI
                 same_path=float(da["same_path"][n_pass - 1]), n_pass=n_pass, exit_pass=cp["n_hits"] if cp["exits"] else -1,
                 L_centre=float(cp["chords"].sum()), T_G=gb["T_G"], w_max_ratio=gb["w_max_ratio"], lam_G=gb["lam_G"],
                 m_max=gb["m_max"], theta=float(theta_c), w_hits=gb["w"], share=gb["share"], sep=sep, centre=cp,
-                area=float(mc.area), dither_n=int(da["n_used"]), n_inc=mc.n_inc, ens=ev)
+                area=float(mc.area), dither_n=int(da["n_used"]), n_inc=mc.n_inc, ens=ev,
+                K_ripple=float(mc.meta.get("K_ripple", 0.0)), f_launch=cm["f_launch"], esc_launch=cm["esc_launch"],
+                Y_launch=cm["Y_launch"], lam_ftle=cm["lam_ftle"], sea=cm["sea"], island=cm["island"], verdict=cm["verdict"],
+                chaos=cm)
 
 
 def retune(cell, theta0, q0, lam_m, span=None, n_theta=41, R_mirror=0.995, gamma=0.2, n_side=8, n_bounce=2000, n_eff=2.0):
@@ -495,7 +590,8 @@ def retune(cell, theta0, q0, lam_m, span=None, n_theta=41, R_mirror=0.995, gamma
 
 
 _PERT = dict(eps4=0.0, eps3=0.0, conic=0.0, deform="both", n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1, n_inc=0, inc_radius=50e-6,
-             inc_dn=0.01, inc_sign="both", inc_seed=1, inc_circle=0)
+             inc_dn=0.01, inc_sign="both", inc_seed=1, inc_circle=0, ripple_a=0.0, ripple_period=0.5e-3, ripple_phase=0.0,
+             ripple_on="both")
 
 
 def _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_circle, wavelength, n_eff, species, pert):
@@ -506,7 +602,8 @@ def _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_
     pw = c0.meta["port_w"]
     p = dict(_PERT, **pert)
     base = baseline_cell(L, W, N, M, bool(distinct), pw, p["eps4"], p["eps3"], p["conic"], p["deform"], bool(walls), lam_m,
-                         int(p["n_seg"]), p["seg_curv"], p["seg_tilt"], int(p["seg_seed"]))
+                         int(p["n_seg"]), p["seg_curv"], p["seg_tilt"], int(p["seg_seed"]), p["ripple_a"], p["ripple_period"],
+                         p["ripple_phase"], p["ripple_on"])
     circ = circle_reference(base.area, n_facets, pw, out_frac, bool(smooth_circle))
     inc = place_inclusions(base, int(p["n_inc"]), p["inc_radius"], p["inc_dn"], p["inc_sign"], int(p["inc_seed"])) if p["n_inc"] else None
     incc = place_inclusions(circ, int(p["n_inc"]), p["inc_radius"], p["inc_dn"], p["inc_sign"], int(p["inc_seed"])) if p["n_inc"] and p["inc_circle"] else None
@@ -514,28 +611,32 @@ def _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_
 
 
 _KEYS = ("T", "L_mean", "L_rms", "S1", "M2", "A_ppm", "nec_shot", "nec_fringe", "nec", "lam", "V", "V_floor", "same_path", "n_pass",
-         "exit_pass", "T_G", "w_max_ratio", "lam_G", "m_max", "leaked", "area", "theta", "n_inc")
+         "exit_pass", "T_G", "w_max_ratio", "lam_G", "m_max", "leaked", "area", "theta", "n_inc", "K_ripple", "f_launch",
+         "esc_launch", "Y_launch", "lam_ftle", "sea", "island", "verdict")
 _UNITS = dict(theta="rad", L_mean="m", L_rms="m", S1="m", A_ppm="1/ppm", nec_shot="ppm", nec_fringe="ppm", nec="ppm", lam="1/hit",
-              lam_G="1/hit", area="m^2")
+              lam_G="1/hit", area="m^2", lam_ftle="1/hit")
 
 
 def compare(L=15e-3, W=1.5e-3, N=14, M=3, distinct=1, port_width=0.0, eps4=0.0, eps3=0.0, conic=0.0, deform="both", walls=0,
             n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1, n_inc=0, inc_radius=50e-6, inc_dn=0.01, inc_sign="both", inc_seed=1,
-            inc_circle=0, n_facets=24, circle_theta=0.35, out_frac=0.37, smooth_circle=0, wavelength=1.6537e-6, n_eff=2.0,
+            inc_circle=0, ripple_a=0.0, ripple_period=0.5e-3, ripple_phase=0.0, ripple_on="both", n_facets=24, circle_theta=0.35, out_frac=0.37, smooth_circle=0, wavelength=1.6537e-6, n_eff=2.0,
             gamma=0.2, species="CH4", R_mirror=0.995, dither=2e-3, waveform="sine", f_parasitic=1e-6, P_in=1e-3, bandwidth=1.0,
-            n_side=24, n_bounce=2000, retune_launch=1) -> Result:
+            n_side=24, n_bounce=2000, retune_launch=1, chaos_grid=20, n_ftle=300) -> Result:
     """Elongated Herriott cell (h_; deformed, segmented and/or with index inclusions) against the CMPC of the same area
     (c_): path, sensitivity and detection limits against chaos (Lyapunov exponent, dither visibility), beam quality
     (M² of the detected light) and the Gaussian-beam model, with the ratios. retune_launch: re-aim the baseline's
-    launch for the largest Γ T ⟨L⟩ before comparing."""
+    launch for the largest Γ T ⟨L⟩ before comparing. ripple_*: rippled end mirrors (K_ripple = 8π² a L / Λ²); the chaos
+    map (chaos_map: tangent-map FTLE and MEGNO of the launch beam and of a chaos_grid² section) says whether the beam
+    launches into the chaotic sea (verdict 2) or onto a regular island (1)."""
     require_range("R_mirror", R_mirror, 0.0, 1.0)
     require_nonnegative(dither=dither, f_parasitic=f_parasitic, n_inc=n_inc, inc_radius=inc_radius)
     pert = dict(eps4=eps4, eps3=eps3, conic=conic, deform=deform, n_seg=n_seg, seg_curv=seg_curv, seg_tilt=seg_tilt, seg_seed=seg_seed,
-                n_inc=n_inc, inc_radius=inc_radius, inc_dn=inc_dn, inc_sign=inc_sign, inc_seed=inc_seed, inc_circle=inc_circle)
+                n_inc=n_inc, inc_radius=inc_radius, inc_dn=inc_dn, inc_sign=inc_sign, inc_seed=inc_seed, inc_circle=inc_circle,
+                ripple_a=ripple_a, ripple_period=ripple_period, ripple_phase=ripple_phase, ripple_on=ripple_on)
     lam_m, q0, base, circ = _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_circle, wavelength, n_eff,
                                     species, pert)
     kw = dict(n_eff=n_eff, gamma=gamma, alpha_ppm=SPECIES[species][0], R_mirror=R_mirror, dither=dither, waveform=waveform,
-              f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce)
+              f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce, chaos_grid=chaos_grid, n_ftle=n_ftle)
     th = retune(base, base.meta["theta_launch"], q0, lam_m, R_mirror=R_mirror, gamma=gamma, n_eff=n_eff)[0] if retune_launch else base.meta["theta_launch"]
     h = cell_figures(base, th, q0, lam_m, **kw)
     c = cell_figures(circ, circle_theta, q0, lam_m, **kw)
@@ -545,7 +646,8 @@ def compare(L=15e-3, W=1.5e-3, N=14, M=3, distinct=1, port_width=0.0, eps4=0.0, 
              sensitivity_gain=h["S1"] / c["S1"] if c["S1"] > 0 else math.nan,
              chaos_lost=c["lam"] - h["lam"], washout_lost=h["V"] - c["V"],
              nec_ratio=h["nec"] / c["nec"] if c["nec"] > 0 else math.nan,
-             R_design=base.meta["R"], port_width=base.meta["port_w"], w_in=q_width(q0, lam_m)[0], circle_radius=circ.meta["r"])
+             R_design=base.meta["R"], port_width=base.meta["port_w"], w_in=q_width(q0, lam_m)[0], circle_radius=circ.meta["r"],
+             verdict_text=VERDICTS[h["verdict"]])
     u = {k: "" for k in v}
     for p_ in ("h_", "c_"):
         u.update({p_ + k: un for k, un in _UNITS.items()})
@@ -558,16 +660,20 @@ def compare(L=15e-3, W=1.5e-3, N=14, M=3, distinct=1, port_width=0.0, eps4=0.0, 
         "Fringe floor 2 sqrt(f_parasitic) V from one parasitic copy whose phase follows the launch dither (optical path); "
         "shot noise with responsivity 1 A/W",
         "Lyapunov exponent from twin rays at the launch angle (0 when no exponential stretch); Gaussian (ABCD) model "
-        "along the centre ray with the walls only (inclusions not included), M² from the detected rays"])
+        "along the centre ray with the walls only (inclusions not included), M² from the detected rays",
+        "Chaos map from the exact tangent map of the walls (inclusions and ports ignored): MEGNO ⟨Y⟩ > 4 over n_ftle hits "
+        "counts as chaotic; flat facets have κ = 0, so polygon cells read regular there (their mixing is ray splitting at "
+        "corners, which the twin-ray λ sees)"])
 
 
-SWEEPABLE = ("eps4", "eps3", "conic", "n_seg", "seg_curv", "seg_tilt", "n_inc", "inc_dn", "inc_radius")
+SWEEPABLE = ("eps4", "eps3", "conic", "n_seg", "seg_curv", "seg_tilt", "n_inc", "inc_dn", "inc_radius", "ripple_a", "ripple_period",
+             "ripple_phase")
 
 
 def perturbation_sweep(param="eps4", values=(0.0, 0.02, 0.05, 0.1, 0.15), L=15e-3, W=1.5e-3, N=14, M=3, distinct=1,
                        port_width=0.0, walls=0, n_facets=24, circle_theta=0.35, out_frac=0.37, smooth_circle=0,
                        wavelength=1.6537e-6, n_eff=2.0, gamma=0.2, species="CH4", R_mirror=0.995, dither=2e-3,
-                       waveform="sine", f_parasitic=1e-6, P_in=1e-3, bandwidth=1.0, n_side=16, n_bounce=2000, retune_launch=1,
+                       waveform="sine", f_parasitic=1e-6, P_in=1e-3, bandwidth=1.0, n_side=16, n_bounce=2000, retune_launch=1, chaos_grid=10,
                        **pert) -> Result:
     """The baseline's path, sensitivity, NEC, chaos (λ, V) and beam quality (M²) against one perturbation parameter
     (SWEEPABLE; the others as given in pert), with the CMPC of the same area as the reference (c_*)."""
@@ -575,7 +681,7 @@ def perturbation_sweep(param="eps4", values=(0.0, 0.02, 0.05, 0.1, 0.15), L=15e-
     lam_m, q0, _, circ = _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_circle, wavelength, n_eff,
                                  species, dict(pert, n_inc=0))
     kw = dict(n_eff=n_eff, gamma=gamma, alpha_ppm=SPECIES[species][0], R_mirror=R_mirror, dither=dither, waveform=waveform,
-              f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce)
+              f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce, chaos_grid=chaos_grid)
     rows = []
     for val in values:
         p = dict(pert, **{param: val})

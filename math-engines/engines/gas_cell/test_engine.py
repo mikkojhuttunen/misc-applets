@@ -112,7 +112,7 @@ def test_placed_inclusions_do_not_overlap_and_stay_inside():
 
 
 def test_chaos_makers_wash_out_the_fringe_and_closed_walls_keep_the_light():
-    base = dict(n_side=8, retune_launch=0)
+    base = dict(n_side=8, retune_launch=0, chaos_grid=0)
     ideal = G.compare(**base).values
     seg = G.compare(n_seg=8, seg_curv=2.0, **base).values
     inc_open = G.compare(n_inc=20, inc_dn=0.02, **base).values
@@ -122,3 +122,39 @@ def test_chaos_makers_wash_out_the_fringe_and_closed_walls_keep_the_light():
     assert inc_open["h_V"] < 0.1 and inc_open["h_T"] < 0.5            # inclusions in an open cell: light lost sideways
     assert inc_closed["h_V"] < 0.05 and inc_closed["h_T"] > 0.7 and inc_closed["h_nec"] < inc_closed["c_nec"]
     assert inc_closed["h_M2"] > 5 * ideal["h_M2"]                     # the price: the beam is scrambled
+
+
+def _rippled(L=10e-3, **kw):
+    lam_m = 1.6537e-6 / 2.0
+    q0, c0 = G.input_q(L=L, lam_m=lam_m)
+    return G.baseline_cell(L=L, port_w=c0.meta["port_w"], lam_m=lam_m, **kw), q0, lam_m
+
+
+def test_tangent_map_is_stable_for_the_ideal_cell_and_tracks_twin_rays_in_a_rippled_one():
+    c, q0, lam_m = _rippled()
+    th = c.meta["theta_launch"]
+    t = G.tangent_chaos(c, *P.launch(c, np.array([c.s_in_default]), np.array([th])), n_hits=300)
+    assert t["n_hits"][0] == 300 and t["Y"][0] < 0.1 and t["lam"][0] < 0.01      # elliptic: bounded, MEGNO -> 0
+    c, q0, lam_m = _rippled(walls=True, ripple_a=0.6e-6)
+    assert c.meta["K_ripple"] == pytest.approx(8 * math.pi**2 * 0.6e-6 * 10e-3 / 0.5e-3**2)
+    th = c.meta["theta_launch"] + np.array([-2e-3, 0.0, 2e-3])
+    t = G.tangent_chaos(c, *P.launch(c, np.full(3, c.s_in_default), th), n_hits=300)
+    tw = [G.twin_divergence(G.as_medium(c), c.s_in_default, x, 300)[1]["lam"] for x in th]
+    assert np.all(t["Y"] > 4) and np.median(t["lam"]) == pytest.approx(np.median(tw), rel=0.5)
+
+
+def test_rippled_mirrors_launch_into_the_sea_or_onto_an_island():
+    """K = 8π² a L / Λ² ≈ 0.95 for a = 0.3 µm, Λ = 0.5 mm, L = 10 mm: a mixed phase space. The same ripple shifted by a
+    quarter period moves the beam from a regular island into the chaotic sea."""
+    c, q0, lam_m = _rippled()
+    ideal = G.chaos_map(c, c.meta["theta_launch"], q0, lam_m, 300, 8)
+    assert ideal["verdict"] == 0 and ideal["sea"] == 0 and ideal["f_launch"] == 0
+    c, q0, lam_m = _rippled(ripple_a=0.3e-6, ripple_phase=0.0)
+    assert c.meta["K_ripple"] == pytest.approx(0.947, abs=1e-3)
+    island = G.chaos_map(c, c.meta["theta_launch"], q0, lam_m, 300, 12)
+    c, q0, lam_m = _rippled(ripple_a=0.3e-6, ripple_phase=1.57)
+    sea = G.chaos_map(c, c.meta["theta_launch"], q0, lam_m, 300, 12)
+    assert island["verdict"] == 1 and island["f_launch"] < 0.3 and island["sea"] > 0.02
+    assert sea["verdict"] == 2 and sea["f_launch"] > 0.6 and sea["Y_launch"] > 4
+    assert G.VERDICTS[sea["verdict"]] == "launches into the chaotic sea"
+    assert sea["grid"]["Y"].shape == (12, 12)

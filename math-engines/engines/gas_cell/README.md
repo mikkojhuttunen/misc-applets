@@ -25,11 +25,21 @@ washout, beam scrambling) it gives up.
   neglected) with geometric and optical path; ray_phase uses its `path_lengths` (optical path), the absorption the
   geometric one. `ensemble` adds the **M²** of the detected light from its exit offsets and angles (1 for the input).
   The dither visibility is reported with its sampling floor `V_floor` = √π/(2√n); a V at the floor is unresolved.
+  **Rippled end mirrors** (`ripple_a`, `ripple_period`, `ripple_phase`, `ripple_on`): a ripple a sin(2πη/Λ + φ) on the
+  mirror profile kicks the reflected angle by 2aq cos(qη); over the spacing L this is a standard map with
+  K = 8π² a L / Λ² (`K_ripple`; K ≈ 1 for a ≈ 0.3 µm at Λ = 0.5 mm, L = 10 mm).
+- **Chaos map** (`tangent_chaos`, `chaos_map`): the exact tangent map of the walls, unfolded (flight [[1, ℓ], [0, 1]],
+  reflection [[1, 0], [−2κ/cos χ, 1]] with the local curvature κ, ripple included), renormalised every hit, gives per ray
+  the finite-time Lyapunov exponent and MEGNO ⟨Y⟩ (→ 0 periodic, → 2 regular torus or island, ≈ λn/2 chaotic; > 4 after
+  `n_ftle` = 300 hits counts as chaotic). Applied to the launch beam's rays (`f_launch`, `esc_launch`, `Y_launch`,
+  `lam_ftle`) and to a `chaos_grid`² grid of departures from M1 (`sea`, `island`), it gives the verdict: the beam escapes
+  (−1), launches into the chaotic sea (2), onto a regular island while a sea exists (1), or there is no sea (0).
+  Inclusions and windows are left out of the map; flat facets have κ = 0, so a polygon reads regular there.
 - **Retuning** (`retune`): a deformed mirror moves the spot pattern off re-entrance; the launch angle is re-aimed
   for the largest Γ T ⟨L⟩ before the comparison.
 
 Front ends: `compare` (both cells and their ratios), `perturbation_sweep` (baseline against one of eps4, eps3, conic,
-n_seg, seg_curv, seg_tilt, n_inc, inc_dn, inc_radius; CMPC as reference), `deformation_sweep` (eps4).
+n_seg, seg_curv, seg_tilt, n_inc, inc_dn, inc_radius, ripple_a, ripple_period, ripple_phase; CMPC as reference), `deformation_sweep` (eps4).
 
 Checks (tests): Φ⁻¹ against `statistics.NormalDist`; the line table against `trace_gas`; the input beam is the
 resonator mode (mirror radius √(λm L/(π√(1−g²)))), stable and non-breathing in the undeformed cell; the ideal
@@ -39,7 +49,10 @@ mulberry32 matches the JS stream; segments with the mirror's curvature trace lik
 inclusion's centre goes straight with optical path + 2rΔn/n, off centre it deviates by the ball-lens 2(θ1 − θ2), a grazing
 ray on a lower-index disk is totally reflected; inclusions do not overlap; curved segments wash out part of the fringe
 while keeping the light, inclusions wash it out completely but lose the light from an open cell, and closed side walls
-keep it (NEC below the CMPC's) at the price of a scrambled beam (M² ≫ 1).
+keep it (NEC below the CMPC's) at the price of a scrambled beam (M² ≫ 1); the tangent map keeps the ideal cell's launch
+bounded (MEGNO < 0.1) and its FTLE follows the twin-ray exponent in a rippled cell; K = 8π² a L / Λ²; at K ≈ 0.95
+(a = 0.3 µm, Λ = 0.5 mm, L = 10 mm) the open cell's beam sits on a regular island for ripple phase 0 and in the chaotic
+sea for phase π/2, while the ideal cell has no sea.
 
 Strong chaos (λ ≳ 0.03 per hit) amplifies round-off: single trajectories are not reproducible beyond tens of hits
 (Python and JS agree there in the ensemble numbers, not ray by ray). Limits: 2D ray optics in the slab (no diffraction

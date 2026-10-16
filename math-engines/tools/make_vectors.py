@@ -202,10 +202,15 @@ def build() -> dict:
                                                                   "R_dbr_signal", "R_dbr_pump", "ase_fwd", "ase_bwd", "nf_db")}})
     # smooth profile mirrors (deformed integrated Herriott cell) and the gas-sensing comparison
     v["deformed_herriott"] = []
-    for (R, N, M, A, pw, ap, d, ph, kc, e3, e4, dfm, walls) in ((20e-3, 14, 3, 0.6e-3, 150e-6, 0.75e-3, 15e-3, np.pi / 14, 0.0, 0.0, 0.0, "both", False),
-                                                               (20e-3, 14, 3, 0.6e-3, 150e-6, 0.75e-3, 15e-3, np.pi / 14, -0.5, 0.05, 0.1, "both", False),
-                                                               (36e-3, 20, 3, 0.6e-3, 60e-6, None, None, 0.0, 0.3, 0.0, 0.08, "M2", True)):
-        cell = pc.deformed_herriott_cell(R, N, M, A, pw, ap, None, d, ph, kc, e3, e4, dfm, walls)
+    for (R, N, M, A, pw, ap, d, ph, kc, e3, e4, dfm, walls, rip) in (
+            (20e-3, 14, 3, 0.6e-3, 150e-6, 0.75e-3, 15e-3, np.pi / 14, 0.0, 0.0, 0.0, "both", False, {}),
+            (20e-3, 14, 3, 0.6e-3, 150e-6, 0.75e-3, 15e-3, np.pi / 14, -0.5, 0.05, 0.1, "both", False, {}),
+            (36e-3, 20, 3, 0.6e-3, 60e-6, None, None, 0.0, 0.3, 0.0, 0.08, "M2", True, {}),
+            (20e-3, 14, 3, 0.6e-3, 150e-6, 0.75e-3, 15e-3, np.pi / 14, 0.0, 0.0, 0.0, "both", False,
+             dict(ripple_a=0.05e-6, ripple_period=0.5e-3, ripple_phase=1.0, ripple_on="both")),
+            (20e-3, 14, 3, 0.6e-3, 150e-6, 0.75e-3, 15e-3, np.pi / 14, 0.0, 0.0, 0.05, "both", True,
+             dict(ripple_a=0.4e-6, ripple_period=0.3e-3, ripple_phase=-0.7, ripple_on="M1"))):
+        cell = pc.deformed_herriott_cell(R, N, M, A, pw, ap, None, d, ph, kc, e3, e4, dfm, walls, **rip)
         tr = pc.herriott_planar_trace(cell, 0.0, n_max=400)
         j = np.arange(60)
         px, py = -cell.meta["d"] * 0.45 + cell.meta["d"] * 0.9 * ((j * 0.618034) % 1), cell.meta["aperture"] * (2 * ((j * 0.414214) % 1) - 1) * 0.9
@@ -213,21 +218,23 @@ def build() -> dict:
         t, nx, ny, hs, hk = cell.hit_k(px, py, np.cos(ang), np.sin(ang))
         fin = np.isfinite(t)
         v["deformed_herriott"].append(dict(R=R, N=N, M=M, A=A, port_w=pw, aperture=ap, d=d, phase=float(ph), conic=kc, eps3=e3, eps4=e4,
-                                           deform=dfm, walls=walls, perimeter=cell.perimeter, area=cell.area, s_in=cell.s_in_default,
+                                           deform=dfm, walls=walls, **rip, K_ripple=cell.meta["K_ripple"], perimeter=cell.perimeter, area=cell.area, s_in=cell.s_in_default,
                                            exit=tr["exit"], n_hits=int(tr["n_hits"]), path=float(tr["path"]),
                                            xs=[float(x) for x in tr["xs"][:30]], ys=[float(x) for x in tr["ys"][:30]],
                                            hit_t=[float(x) if f else None for x, f in zip(t, fin)], hit_s=[float(x) if f else None for x, f in zip(hs, fin)],
                                            hit_nx=[float(x) if f else None for x, f in zip(nx, fin)], hit_k=[int(x) for x in hk],
-                                           curv=[float(x) for x in cell.curvature_at(np.linspace(0, cell.perimeter, 13)[:-1])]))
+                                           curv=[float(x) for x in cell.curvature_at(cell.perimeter * (np.arange(12) + 0.25) / 12)]))
     v["gas_cell"] = []
     for (e4, e3, walls, rt, smooth, pert) in ((0.0, 0.0, 0, 0, 0, {}), (0.05, 0.0, 0, 1, 0, {}), (0.08, 0.03, 1, 1, 1, {}),
                                              (0.0, 0.0, 0, 1, 0, dict(n_seg=8, seg_curv=1.5, seg_tilt=5e-4, seg_seed=3)),
                                              (0.0, 0.0, 0, 0, 0, dict(n_inc=10, inc_dn=0.01, inc_radius=60e-6, inc_seed=2)),
                                              (0.0, 0.0, 0, 0, 0, dict(n_inc=4, inc_dn=0.004, inc_sign="plus", inc_circle=1, n_seg=6, seg_curv=1.2)),
-                                             (0.02, 0.0, 1, 0, 0, dict(n_seg=6, seg_curv=1.1))):
-        kw = dict(eps4=e4, eps3=e3, walls=walls, retune_launch=rt, smooth_circle=smooth, n_side=8, n_bounce=1500, **pert)
+                                             (0.02, 0.0, 1, 0, 0, dict(n_seg=6, seg_curv=1.1)),
+                                             (0.0, 0.0, 0, 0, 0, dict(ripple_a=0.05e-6, ripple_phase=0.5)),
+                                             (0.0, 0.0, 1, 1, 0, dict(L=10e-3, ripple_a=0.3e-6, ripple_phase=1.57))):
+        kw = dict(eps4=e4, eps3=e3, walls=walls, retune_launch=rt, smooth_circle=smooth, n_side=8, n_bounce=1500, chaos_grid=8, **pert)
         r = gcell.compare(**kw).values
-        v["gas_cell"].append({**kw, **{k: (float(r[k]) if np.isfinite(r[k]) else None) for k in r}})
+        v["gas_cell"].append({**kw, **{k: (r[k] if isinstance(r[k], str) else float(r[k]) if np.isfinite(r[k]) else None) for k in r}})
     v["onchip_amp2d"] = []
     for (pp, nper, ner, sc) in ((0.1, 6, 1.5e26, 0.25), (0.4, 10, 2.5e26, 0.5)):
         kw = dict(P_pump=pp, periods=nper, N_er=ner, scatter_frac=sc, n_bins=8, ase2d=1, n_bins2d=4, n_p=32, h2d=2.2e-3 / 24)

@@ -256,6 +256,39 @@ def test_deformed_profile_hits_lie_on_the_surface():
         P.deformed_herriott_cell(20e-3, 14, 3, 0.6e-3, 150e-6, aperture=0.75e-3, d=15e-3, eps4=-0.3)
 
 
+def test_rippled_mirror_hits_lie_on_the_surface_and_none_is_skipped():
+    kw = dict(aperture=7.5e-4, d=10e-3, phase=np.pi / 14, walls=True)
+    c0 = P.deformed_herriott_cell(12.9e-3, 14, 3, 5e-4, 150e-6, **kw)
+    c1 = P.deformed_herriott_cell(12.9e-3, 14, 3, 5e-4, 150e-6, ripple_a=1e-15, **kw)          # vanishing ripple: same rays
+    a, b = P.trace_path(c0, c0.s_in_default, 1e-3, 40), P.trace_path(c1, c1.s_in_default, 1e-3, 40)
+    assert np.max(np.abs(a[0] - b[0])) < 1e-10 and np.max(np.abs(a[1] - b[1])) < 1e-10
+    c = P.deformed_herriott_cell(12.9e-3, 14, 3, 5e-4, 150e-6, ripple_a=0.6e-6, ripple_period=0.5e-3, ripple_phase=0.3, **kw)
+    assert c.meta["K_ripple"] == pytest.approx(8 * np.pi**2 * 0.6e-6 * 10e-3 / 0.5e-3**2)
+    pr = c.prof[0]
+    assert np.min(pr.d2S(np.linspace(-7.5e-4, 7.5e-4, 2001))) < 0                               # locally convex
+    rng = np.random.default_rng(3)
+    n = 400
+    x, y, dx, dy = P.launch(c, c.perimeter * rng.random(n), rng.uniform(-1.3, 1.3, n))
+    t, nx, ny, s, k = c.hit_k(x, y, dx, dy)
+    assert np.isfinite(t).all()
+    for kk in (0, 2):
+        pr = c.prof[kk]
+        V, u, e = pr.frame()
+        sel = k == kk
+        hx, hy = x[sel] + t[sel] * dx[sel], y[sel] + t[sel] * dy[sel]
+        xi, eta = (hx - V[0]) * u[0] + (hy - V[1]) * u[1], (hx - V[0]) * e[0] + (hy - V[1]) * e[1]
+        assert sel.sum() > 20 and np.max(np.abs(xi - pr.S(eta))) < 1e-14
+        ts = np.linspace(1e-9, 1 - 1e-9, 4000)[None, :] * t[:, None]                             # no earlier crossing
+        px, py = x[:, None] + ts * dx[:, None], y[:, None] + ts * dy[:, None]
+        xi, eta = (px - V[0]) * u[0] + (py - V[1]) * u[1], (px - V[0]) * e[0] + (py - V[1]) * e[1]
+        on = np.abs(eta) <= 7.5e-4
+        assert not np.any(on & (xi - pr.S(eta) < -1e-12))
+    cp = P.perturb(c, curvatures=np.zeros(c.n_elements))
+    assert cp.prof[0].ra == pr.ra and cp.prof[0].rl == pr.rl
+    with pytest.raises(ValueError):
+        P.deformed_herriott_cell(12.9e-3, 14, 3, 5e-4, 150e-6, ripple_a=0.3e-6, n_seg=4, **kw)
+
+
 def test_closed_deformed_cell_has_side_walls():
     c = P.deformed_herriott_cell(20e-3, 14, 3, 0.6e-3, 150e-6, aperture=0.75e-3, d=15e-3, eps4=0.05, walls=True)
     assert c.closed and c.n_elements == 4

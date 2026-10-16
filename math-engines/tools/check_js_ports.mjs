@@ -268,7 +268,9 @@ const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Nu
   const { P, G } = new Function(html.slice(a, b) + '\n;return { P: PlanarEngine, G: GasEngine };')();
   for (const [i, r] of V.deformed_herriott.entries()) {
     const c = P.deformedHerriottCell(r.R, r.N, r.M, r.A, { portW: r.port_w, aperture: r.aperture, d: r.d, phase: r.phase, conic: r.conic, eps3: r.eps3,
-      eps4: r.eps4, deform: r.deform, walls: r.walls });
+      eps4: r.eps4, deform: r.deform, walls: r.walls, rippleA: r.ripple_a || 0, ripplePeriod: r.ripple_period || 0.5e-3, ripplePhase: r.ripple_phase || 0,
+      rippleOn: r.ripple_on || "both" });
+    if ("K_ripple" in r) close(`dh[${i}] K_ripple`, c.meta.kRipple, r.K_ripple, 1e-12);
     close(`dh[${i}] perimeter`, c.perimeter, r.perimeter, 1e-12); close(`dh[${i}] area`, c.area, r.area, 1e-10); close(`dh[${i}] s_in`, c.sIn, r.s_in, 1e-12);
     const tr = P.herriottTrace(c, 0, 400);
     checks++; if (tr.exit !== r.exit) { fails++; console.error(`FAIL dh[${i}] exit: got ${tr.exit}, want ${r.exit}`); }
@@ -283,20 +285,25 @@ const sameOrNaN = (label, got, want, rel, abs) => (want === null ? (checks++, Nu
       close(`dh[${i}] t${j}`, h.t, r.hit_t[j], 1e-11, 1e-16); close(`dh[${i}] s${j}`, h.s, r.hit_s[j], 1e-10, 1e-15);
       close(`dh[${i}] nx${j}`, h.nx, r.hit_nx[j], 0, 1e-12); close(`dh[${i}] k${j}`, h.k, r.hit_k[j], 0, 0.5);
     }
-    r.curv.forEach((v, j) => close(`dh[${i}] curv${j}`, P.curvatureAt(c, c.perimeter * j / 12), v, 1e-9, 1e-12));
+    r.curv.forEach((v, j) => close(`dh[${i}] curv${j}`, P.curvatureAt(c, c.perimeter * (j + 0.25) / 12), v, 1e-9, 1e-12));
   }
   /* compare(): the twin-ray Lyapunov fit is a slope through separations near 1e-10 m, so it gets 1e-4. A strongly chaotic
      cell (reference λ > 0.03 per hit: index inclusions, flat facets in a closed cell) amplifies last-bit differences of
-     sin/cos into different trajectories within tens of hits, so there only the ensemble statistics are compared (25 %). */
+     sin/cos into different trajectories within tens of hits, so there only the ensemble statistics are compared (25 %).
+     The chaos map's shares (launch beam and section grid) count rays on either side of a MEGNO threshold: chaotic rays near
+     it may fall either way, so they get an absolute tolerance (0.03, chaotic cells 0.15); its verdict is skipped there. */
   const inputs = ["eps4", "eps3", "walls", "retune_launch", "smooth_circle", "n_side", "n_bounce", "n_seg", "seg_curv", "seg_tilt", "seg_seed", "n_inc",
-    "inc_dn", "inc_radius", "inc_seed", "inc_sign", "inc_circle"];
-  const robust = ["T", "L_mean", "S1", "A_ppm", "nec_shot", "M2", "area", "n_inc"];
+    "inc_dn", "inc_radius", "inc_seed", "inc_sign", "inc_circle", "L", "ripple_a", "ripple_phase", "chaos_grid"];
+  const robust = ["T", "L_mean", "S1", "A_ppm", "nec_shot", "M2", "area", "n_inc", "K_ripple"], shares = ["f_launch", "esc_launch", "sea", "island"];
   for (const [i, r] of V.gas_cell.entries()) {
     const a = G.compare(Object.fromEntries(inputs.filter(k => k in r).map(k => [k, r[k]])));
     const wild = { h: r.h_lam > 0.03, c: r.c_lam > 0.03 };
     for (const k of Object.keys(r)) {
       if (inputs.includes(k)) continue;
       const side = k.slice(0, 2) === "h_" ? "h" : k.slice(0, 2) === "c_" ? "c" : null;
+      if (k === "verdict_text") { checks++; if (!(wild.h || wild.c) && a[k] !== r[k]) { fails++; console.error(`FAIL gas[${i}] ${k}: got ${a[k]}, want ${r[k]}`); } continue; }
+      if (side && shares.includes(k.slice(2))) { if (r[k] !== null) close(`gas[${i}] ${k}`, a[k], r[k], 0, wild[side] ? 0.15 : 0.03); continue; }
+      if (side && ["verdict", "Y_launch", "lam_ftle"].includes(k.slice(2)) && wild[side]) continue;
       if ((side && wild[side]) || (!side && (wild.h || wild.c))) {
         if (side && robust.includes(k.slice(2))) close(`gas[${i}] ${k} (chaotic: ensemble)`, a[k], r[k], 0.25, 1e-12);
         continue;

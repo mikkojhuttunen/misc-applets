@@ -60,21 +60,44 @@ class Profile:
     a4: float = 0.0
     eta0: float = 0.0
     eta1: float = 0.0
+    ra: float = 0.0          # ripple amplitude
+    rl: float = 0.0          # ripple period
+    rp: float = 0.0          # ripple phase
+
+    def _rq(self):
+        return 2 * np.pi / self.rl if self.ra and self.rl else 0.0
 
     def S(self, eta):
         eta = np.asarray(eta, float)
         c, k = self.c, self.k
-        return c * eta**2 / (1 + np.sqrt(np.maximum(1 - (1 + k) * c * c * eta**2, 0.0))) + self.a3 * eta**3 + self.a4 * eta**4
+        out = c * eta**2 / (1 + np.sqrt(np.maximum(1 - (1 + k) * c * c * eta**2, 0.0))) + self.a3 * eta**3 + self.a4 * eta**4
+        q = self._rq()
+        return out + self.ra * np.sin(q * eta + self.rp) if q else out
 
     def dS(self, eta):
         eta = np.asarray(eta, float)
         c, k = self.c, self.k
-        return c * eta / np.sqrt(np.maximum(1 - (1 + k) * c * c * eta**2, 1e-300)) + 3 * self.a3 * eta**2 + 4 * self.a4 * eta**3
+        out = c * eta / np.sqrt(np.maximum(1 - (1 + k) * c * c * eta**2, 1e-300)) + 3 * self.a3 * eta**2 + 4 * self.a4 * eta**3
+        q = self._rq()
+        return out + self.ra * q * np.cos(q * eta + self.rp) if q else out
 
     def d2S(self, eta):
         eta = np.asarray(eta, float)
         c, k = self.c, self.k
-        return c / np.maximum(1 - (1 + k) * c * c * eta**2, 1e-300) ** 1.5 + 6 * self.a3 * eta + 12 * self.a4 * eta**2
+        out = c / np.maximum(1 - (1 + k) * c * c * eta**2, 1e-300) ** 1.5 + 6 * self.a3 * eta + 12 * self.a4 * eta**2
+        q = self._rq()
+        return out - self.ra * q * q * np.sin(q * eta + self.rp) if q else out
+
+    def sag_band(self, lo, hi):
+        """(S_min, S_max) bounding the profile over η ∈ [lo, hi]: extremes of 257 samples widened by 2 |ripple| + 1e-3 of
+        their range (between samples the profile cannot leave it)."""
+        key = (float(lo), float(hi), self.ra, self.rl, self.rp)
+        if getattr(self, "_band", (None,))[0] != key:
+            v = self.S(lo + (hi - lo) * np.arange(257) / 256)
+            a, b = float(v.min()), float(v.max())
+            m = 2 * abs(self.ra) + 1e-3 * (b - a)
+            self._band = (key, (a - m, b + m))
+        return self._band[1]
 
     def frame(self):
         ux, uy = self.axis
@@ -258,6 +281,8 @@ class Cell2D:
             tlin = np.where(dxi < 0, (pr.S(et0) - xi0) / dxi, np.inf)          # the case det = 0 (S constant along the ray)
         t = np.where(np.isfinite(tmax), tmax, tlin)
         g = lambda tt: xi0 + tt * dxi - pr.S(et0 + tt * det)
+        if pr._rq():
+            return self._rippled_hit(pr, g, t, tmax, xi0, dxi, et0, det, eps, lo, hi)
         ok = np.isfinite(t) & (t > eps) & (g(np.where(np.isfinite(t), t, 0.0)) <= 0)
         t = np.where(ok, t, 0.0)
         scale = 2 * self.h[k] + 1e-300
@@ -271,6 +296,57 @@ class Cell2D:
                 break
         ok &= t > eps
         return np.where(ok, t, np.inf), et0 + np.where(ok, t, 0.0) * det
+
+    @staticmethod
+    def _rippled_hit(pr, g, t, tmax, xi0, dxi, et0, det, eps, e_lo, e_hi):
+        """Rippled (not concave) profile. The sag band [S_min, S_max] of the mirror over [e_lo, e_hi] (Profile.sag_band)
+        limits the search to ta < t ≤ tb where the ray's depth ξ lies in it (none: no hit); there g is sampled every Λ/8 of
+        η (ns = ⌈|Δη|/(Λ/8)⌉ + 2 per ray), the first sample where it drops to ≤ 0 bracketed (from ta), then safeguarded Newton
+        inside the bracket (bisection when a step leaves it; a ray stops once its step is ≤ 1e-13 t or the bracket that
+        small). Rays with det = 0 cross S at a constant η."""
+        n = t.size
+        fin = np.isfinite(t) & (t > eps)
+        lin = fin & ~np.isfinite(tmax)
+        smin, smax = pr.sag_band(e_lo, e_hi)
+        tf = np.where(fin, t, 0.0)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ta = np.where(dxi < 0, np.maximum((smax - xi0) / dxi, 0.0), 0.0)
+            tb = np.where(dxi < 0, np.minimum((smin - xi0) / dxi, tf), np.where(dxi > 0, np.minimum((smax - xi0) / dxi, tf), tf))
+        ta = np.minimum(ta, tf)
+        band = tb > ta
+        tb = np.maximum(tb, ta)
+        span = np.abs((tb - ta) * det)
+        ns = np.where(fin & ~lin & band, np.ceil(span / (pr.rl / 8)).astype(int) + 2, 1)
+        J = int(ns.max()) if n else 1
+        j = np.arange(1, J + 1)[None, :]
+        tt = np.where(j <= ns[:, None], ta[:, None] + (tb - ta)[:, None] * j / ns[:, None], np.nan)
+        gv = np.where(np.isfinite(tt), g_rows(g, tt), np.inf)
+        below = gv <= 0
+        has = below.any(1) & fin & ~lin & band
+        first = np.argmax(below, axis=1)
+        hi = np.where(has, tt[np.arange(n), first], 0.0)
+        lo = np.where(has & (first > 0), tt[np.arange(n), np.maximum(first - 1, 0)], ta)
+        x = 0.5 * (lo + hi)
+        ia = np.nonzero(has)[0]
+        for _ in range(100):
+            if not ia.size:
+                break
+            xa, la, ha = x[ia], lo[ia], hi[ia]
+            et = et0[ia] + xa * det[ia]
+            gx = xi0[ia] + xa * dxi[ia] - pr.S(et)
+            gd = dxi[ia] - pr.dS(et) * det[ia]
+            pos = gx > 0
+            la, ha = np.where(pos, xa, la), np.where(pos, ha, xa)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                xn = xa - gx / gd
+            xn = np.where((xn > la) & (xn < ha), xn, 0.5 * (la + ha))
+            tol = 1e-13 * ha
+            stop = (np.abs(xn - xa) <= tol) | (ha - la <= tol) | (gx == 0)
+            x[ia], lo[ia], hi[ia] = np.where(gx == 0, xa, xn), la, ha
+            ia = ia[~stop]
+        tr = np.where(lin, np.where(fin, t, 0.0), x)
+        ok = (has | lin) & (tr > eps)
+        return np.where(ok, tr, np.inf), et0 + np.where(ok, tr, 0.0) * det
 
     def curvature_at(self, s):
         """Local wall curvature at boundary coordinate s (> 0 concave as seen from inside, 0 for flat facets)."""
@@ -467,6 +543,11 @@ def herriott_planar_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=None
     return Cell2D(m1 + m2, f"integrated Herriott R={R:g} d={d:g}", s_in=s_in, s_out=s_in, meta=meta)
 
 
+def g_rows(g, tt):
+    """g(t) for a matrix of t (one row per ray): the ray coefficients broadcast along the rows."""
+    return g(tt.T).T
+
+
 def mulberry32(seed):
     """Uniform [0, 1) generator identical to the JS ports' mulberry32 (bit for bit)."""
     st = [int(seed) & 0xFFFFFFFF]
@@ -504,7 +585,8 @@ def _segment_mirror(pr, n_seg, seg_curv, label):
 
 
 def deformed_herriott_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=None, phase=0.0, conic=0.0, eps3=0.0,
-                           eps4=0.0, deform="both", walls=False, n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1):
+                           eps4=0.0, deform="both", walls=False, n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1,
+                           ripple_a=0.0, ripple_period=0.5e-3, ripple_phase=0.0, ripple_on="both"):
     """Integrated Herriott cell with smooth deformed mirrors (profile elements), same geometry, window and launch as
     herriott_planar_cell. The deformation is given relative to the paraxial edge sag a²/(2R) (a = aperture):
     a4 = eps4 c / (2 a²) adds eps4 × that sag at the edges (quartic), a3 = eps3 c / (2 a) a cubic (asymmetric) term;
@@ -512,7 +594,12 @@ def deformed_herriott_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=No
     walls=True closes the cell with flat side mirrors between the mirror ends (an elongated closed cell); otherwise
     rays that pass the mirror ends leave. With conic = eps3 = eps4 = 0 it traces like herriott_planar_cell.
     n_seg > 0 segments both mirrors into n_seg curved arcs each (_segment_mirror, curvature seg_curv × the mirror's),
-    every segment tilted about its chord midpoint by seg_tilt × a normal draw (mulberry32, seg_seed)."""
+    every segment tilted about its chord midpoint by seg_tilt × a normal draw (mulberry32, seg_seed).
+    ripple_a > 0 adds a sinusoidal ripple ripple_a sin(2π η / ripple_period + ripple_phase) to the profile of the mirror(s)
+    in ripple_on ('both', 'M1', 'M2'; smooth mirrors only). In the two-mirror map each rippled reflection kicks the
+    angle by 2 a q cos(q y), q = 2π/Λ, and the drift over the spacing d turns that into a standard map with
+    stochasticity K = 8π² a d / Λ² (meta['K_ripple']); K ≳ 1 makes most of the phase space chaotic. The mirror may then be
+    locally convex: rays meet it by bracketing (Cell2D._rippled_hit)."""
     require_positive(R=R, A=A)
     require_choice("deform", deform, ("both", "M1", "M2"))
     N, M = int(N), int(M)
@@ -539,6 +626,11 @@ def deformed_herriott_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=No
             raise ValueError("the conic mirror is not defined out to the aperture")
         if np.min(pr.d2S(np.linspace(-a, a, 257))) <= 0:
             raise ValueError("the deformation makes a mirror convex somewhere: reduce eps3 / eps4")
+        if ripple_a and (ripple_on == "both" or ripple_on == f"M{i + 1}"):
+            if n_seg:
+                raise ValueError("ripple applies to smooth mirrors (n_seg = 0)")
+            require_positive(ripple_period=ripple_period)
+            pr.ra, pr.rl, pr.rp = float(ripple_a), float(ripple_period), float(ripple_phase)
         profs.append(pr)
     pts = [tuple(float(v) for v in pr.point(pr.eta0)) for pr in profs], [tuple(float(v) for v in pr.point(pr.eta1)) for pr in profs]
     (A1, A2), (B1, B2) = pts
@@ -566,7 +658,9 @@ def deformed_herriott_cell(R, N, M, A, port_w=None, aperture=None, R2=None, d=No
     th_launch = float(np.arctan(-A * np.sin(phase) * np.sqrt((2 * R - d) / d) / R)) if phase else 0.0
     meta = dict(R=R, R2=R2, d=d, N=N, M=M, A=A, aperture=a, port_w=w, theta=th, phase=float(phase), y0=float(y0),
                 theta_launch=th_launch, conic=float(conic), eps3=float(eps3), eps4=float(eps4), deform=deform, walls=bool(walls),
-                n_seg=int(n_seg), seg_curv=float(seg_curv), seg_tilt=float(seg_tilt), seg_seed=int(seg_seed))
+                n_seg=int(n_seg), seg_curv=float(seg_curv), seg_tilt=float(seg_tilt), seg_seed=int(seg_seed),
+                ripple_a=float(ripple_a), ripple_period=float(ripple_period), ripple_phase=float(ripple_phase), ripple_on=ripple_on,
+                K_ripple=float(8 * np.pi**2 * ripple_a * d / ripple_period**2) if ripple_a else 0.0)
     cell = Cell2D(els, f"deformed Herriott R={R:g} d={d:g} eps4={eps4:g} eps3={eps3:g}", meta=meta)
     if n_seg:                                   # window centre: bisection for y = y0 along the M1 segments (y falls with s)
         lo, hi = 0.0, float(cell.s0[int(n_seg) - 1] + cell.L[int(n_seg) - 1])
@@ -620,7 +714,7 @@ def perturb(cell, tilt_rms=0.0, offset_rms=0.0, curvature_rms=0.0, seed=0, selec
             pr = e.profile
             Vn = rot(pr.V)
             ax = (c * pr.axis[0] - s * pr.axis[1], s * pr.axis[0] + c * pr.axis[1])
-            pn = Profile(Vn, ax, pr.c + cu[k], pr.k, pr.a3, pr.a4, pr.eta0, pr.eta1)
+            pn = Profile(Vn, ax, pr.c + cu[k], pr.k, pr.a3, pr.a4, pr.eta0, pr.eta1, pr.ra, pr.rl, pr.rp)
             A_, B_ = pn.point(pr.eta0), pn.point(pr.eta1)
             els.append(Element((float(A_[0]), float(A_[1])), (float(B_[0]), float(B_[1])), 0.0, e.ext, e.label, pn))
             continue

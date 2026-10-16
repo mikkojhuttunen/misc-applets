@@ -71,6 +71,11 @@ canvas { display: block; width: 100%; height: 100%; }
 @media (max-width: 640px) { .duo { grid-template-columns: minmax(0, 1fr); } }
 .chart { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; }
 .chart.wide { aspect-ratio: 3 / 1; }
+.chart.tall { aspect-ratio: 2 / 1; }
+@media (max-width: 640px) { .chart.tall { aspect-ratio: 4 / 3; } }
+.kbox { display: flex; justify-content: space-between; align-items: baseline; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; background: var(--bg); }
+.kbox span { color: var(--muted); font-size: 12px; }
+.kbox b { font: 600 16px var(--font-data); font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .chart.wide { aspect-ratio: 3 / 2; } }
 .phasectl { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 18px; }
 .phasectl select { max-width: 100%; }
@@ -170,6 +175,20 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
       </fieldset>
 
       <fieldset>
+        <legend>Chaos makers: rippled end mirrors</legend>
+        <div class="ctl"><div class="row"><label for="ra">Ripple amplitude a</label><output id="raOut"></output></div>
+          <input id="ra" type="range" min="0" max="1.5" step="0.01" value="0"></div>
+        <div class="ctl"><div class="row"><label for="rl">Ripple period Λ</label><output id="rlOut"></output></div>
+          <input id="rl" type="range" min="0.1" max="2" step="0.05" value="0.5"></div>
+        <div class="ctl"><div class="row"><label for="rph">Ripple phase at the mirror centre</label><output id="rphOut"></output></div>
+          <input id="rph" type="range" min="-180" max="180" step="5" value="0"></div>
+        <div class="ctl"><div class="row"><label for="ron">Rippled mirrors</label></div>
+          <select id="ron"><option value="both" selected>both</option><option value="M1">M1 (window side)</option><option value="M2">M2</option></select></div>
+        <div class="kbox"><span>Stochasticity K = 8π² a L / Λ²</span><b id="Kval">0</b></div>
+        <p class="hint">A ripple a sin(2πη/Λ) on the mirror kicks each reflected ray by 2aq cos(qη), q = 2π/Λ; the flight over L turns the kicks into a standard map with K = 8π²aL/Λ². Near K ≈ 1 the last regular barriers break: about 0.3 µm at Λ = 0.5 mm and L = 10 mm. Whether the beam then lands in the chaotic sea or on a surviving island depends on where it starts (window position, launch angle, ripple phase): see the chaos map. Smooth mirrors only (segments 0).</p>
+      </fieldset>
+
+      <fieldset>
         <legend>Chaos makers: index inclusions</legend>
         <div class="ctl"><div class="row"><label for="ninc">Inclusions in the cell</label><output id="nincOut"></output></div>
           <input id="ninc" type="range" min="0" max="60" step="1" value="0"></div>
@@ -266,6 +285,10 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
 
       <section class="panel">
         <h2>Phase space</h2>
+        <div class="sub"><h3>Herriott launch: chaotic sea or island?</h3>
+          <div class="explain" id="seaVerdict"></div>
+          <canvas class="chart tall" id="seaMap" aria-label="Chaos map of the input mirror section with the launch beam"></canvas>
+          <p class="hint">Rays started from every cell of a grid on M1 (position along the mirror against sin χ), 300 hits each, walls only: colour = MEGNO ⟨Y⟩ from the tangent map (blues up to 4: regular, an island or torus, ⟨Y⟩ → 0–2; orange to red above 4: chaotic sea; blank: leaves the open cell within 30 hits). Dots: the launch beam's rays at the window, coloured the same way (hollow: left early); frame: the window.</p></div>
         <div class="duo">
           <div class="sub"><h3>Herriott cell: Poincaré section</h3>
             <canvas class="chart" id="hPoin" aria-label="Poincaré section of the Herriott cell"></canvas></div>
@@ -278,7 +301,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
       <section class="panel">
         <h2>Perturbation sweep</h2>
         <div class="btns"><label for="swp">Sweep</label>
-          <select id="swp"><option value="eps4" selected>quartic deformation ε₄</option><option value="n_seg">segments per mirror</option><option value="seg_curv">segment curvature</option><option value="seg_tilt">segment tilt jitter</option><option value="n_inc">number of inclusions</option><option value="inc_dn">inclusion |Δn_eff|</option><option value="inc_radius">inclusion radius</option></select>
+          <select id="swp"><option value="eps4" selected>quartic deformation ε₄</option><option value="n_seg">segments per mirror</option><option value="seg_curv">segment curvature</option><option value="seg_tilt">segment tilt jitter</option><option value="n_inc">number of inclusions</option><option value="inc_dn">inclusion |Δn_eff|</option><option value="inc_radius">inclusion radius</option><option value="ripple_a">ripple amplitude</option><option value="ripple_phase">ripple phase</option><option value="ripple_period">ripple period</option></select>
           <button id="sweepBtn" type="button">Run the sweep</button><span class="status" id="sweepStatus">All other settings as in the rail, re-aimed launch at each step; takes a few seconds to a minute.</span></div>
         <div class="duo">
           <div class="sub"><h3 id="sweepAt">Path and washout</h3>
@@ -286,7 +309,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
           <div class="sub"><h3 id="sweepBt">Detection limit</h3>
             <canvas class="chart" id="sweepB" aria-label="Noise-equivalent concentration against the swept parameter"></canvas></div>
         </div>
-        <p class="hint">Left: mean detected path (cm) and the fringe visibility left after the dither. Right: noise-equivalent concentration (ppm, log): total and shot-noise part. Dashed: the circular cell. Segment curvature and tilt are swept with 8 segments if the rail has none; |Δn| and radius with 20 inclusions if it has none.</p>
+        <p class="hint">Left: mean detected path (cm) and the fringe visibility left after the dither. Right: noise-equivalent concentration (ppm, log): total and shot-noise part. Dashed: the circular cell. Dotted: the share of the launch beam in the chaotic sea (right axis). Segment curvature and tilt are swept with 8 segments if the rail has none; |Δn| and radius with 20 inclusions if it has none; ripple phase and period with a = 0.3 µm if the rail has no ripple.</p>
       </section>
 
       <details class="how">
@@ -301,6 +324,8 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
           <li><b>Gaussian-beam two-mirror model</b>: q propagated along the traced centre ray, mirror term −2κ/cos χ with the local curvature κ; per hit the beam radius and the share of its footprint left on the reflecting element (not past the mirror end, not in a window). "Power kept in one Gaussian beam" is the product of those shares and R; |m| = |A + D|/2 of each round trip (two chords), above 1 the orbit is locally unstable.</li>
           <li><b>Segmented mirrors</b>: each mirror is cut into K circular arcs whose ends lie on the mirror profile; each arc has the mirror's local curvature times a factor (1: no kinks, 0: flat facets), and optionally a random tilt about its centre. The Gaussian model loses the share of the beam that falls past a segment edge.</li>
           <li><b>Index inclusions</b>: disks of radius r and effective index n_eff ± Δn placed at random (fixed seed) without overlap, clear of the mirrors. Rays refract at their edges (Snell; total internal reflection when it applies; Fresnel reflection neglected) and accumulate optical path n ℓ inside, which the phase and dither analysis use; the absorption uses the geometric path. The Gaussian (ABCD) model sees the mirrors only; the M² of the detected light, from the second moments of the exit offsets and angles of the ray bundle (1 for the input beam), shows how much a cell scrambles the beam.</li>
+          <li><b>Rippled end mirrors</b>: the profile gains a sin(2πη/Λ + φ); rays meet it by sampling every Λ/8 along the chord, bracketing the first crossing and refining it with safeguarded Newton (the rippled mirror may be locally convex). K = 8π²aL/Λ² is the stochasticity of the equivalent standard map.</li>
+          <li><b>Chaos map</b>: the exact tangent map of the walls, unfolded (flight [[1, ℓ], [0, 1]], reflection [[1, 0], [−2κ/cos χ, 1]] with the local curvature κ including the ripple), renormalised every hit: finite-time Lyapunov exponent and MEGNO ⟨Y⟩ (→ 0 periodic, → 2 regular torus, growing ≈ λn/2 in chaos; > 4 after 300 hits counts as chaotic). Verdict: the beam escapes (half or more of its rays leave within 30 hits), launches into the sea (half or more of the rest chaotic), launches onto an island (regular, while at least 5 % of the bounded section is chaotic), or there is no sea. Flat facets have κ = 0, so a polygon reads regular here: its mixing comes from ray splitting at corners, which the twin rays show. Inclusions and windows are left out of the map.</li>
           <li><b>Strong chaos</b>: with a Lyapunov exponent above a few per cent per hit, single trajectories are not reproducible beyond tens of hits (round-off grows exponentially); the ensemble numbers are.</li>
           <li><b>Not included</b>: diffraction beyond the paraxial Gaussian model, interference between different rays, angle-dependent mirror reflectance, scattering, strong-line saturation.</li>
         </ul>
@@ -317,12 +342,14 @@ const PlanarEngine = (() => {
   /* planar_cell.Cell2D: elements [{A: [x, y], B: [x, y], kappa, ext, label}] in counter-clockwise order */
   /* planar_cell.Profile: smooth profile mirror ξ = S(η) in its own frame (vertex V, axis u into the cell, e = (−u_y, u_x)) */
   const PROFILE_TABLE = 129;
-  const prS = (p, eta) => p.c * eta * eta / (1 + Math.sqrt(Math.max(1 - (1 + p.k) * p.c * p.c * eta * eta, 0))) + p.a3 * eta ** 3 + p.a4 * eta ** 4;
-  const prdS = (p, eta) => p.c * eta / Math.sqrt(Math.max(1 - (1 + p.k) * p.c * p.c * eta * eta, 1e-300)) + 3 * p.a3 * eta ** 2 + 4 * p.a4 * eta ** 3;
-  const prd2S = (p, eta) => p.c / Math.max(1 - (1 + p.k) * p.c * p.c * eta * eta, 1e-300) ** 1.5 + 6 * p.a3 * eta + 12 * p.a4 * eta ** 2;
+  /* ripple ra sin(q η + rp), q = 2π / rl (planar_cell.Profile ra, rl, rp) */
+  const prQ = p => p.ra && p.rl ? 2 * Math.PI / p.rl : 0;
+  const prS = (p, eta) => { const o = p.c * eta * eta / (1 + Math.sqrt(Math.max(1 - (1 + p.k) * p.c * p.c * eta * eta, 0))) + p.a3 * eta ** 3 + p.a4 * eta ** 4, q = prQ(p); return q ? o + p.ra * Math.sin(q * eta + p.rp) : o; };
+  const prdS = (p, eta) => { const o = p.c * eta / Math.sqrt(Math.max(1 - (1 + p.k) * p.c * p.c * eta * eta, 1e-300)) + 3 * p.a3 * eta ** 2 + 4 * p.a4 * eta ** 3, q = prQ(p); return q ? o + p.ra * q * Math.cos(q * eta + p.rp) : o; };
+  const prd2S = (p, eta) => { const o = p.c / Math.max(1 - (1 + p.k) * p.c * p.c * eta * eta, 1e-300) ** 1.5 + 6 * p.a3 * eta + 12 * p.a4 * eta ** 2, q = prQ(p); return q ? o - p.ra * q * q * Math.sin(q * eta + p.rp) : o; };
   const prPoint = (p, eta) => { const S = prS(p, eta), ux = p.axis[0], uy = p.axis[1]; return [p.V[0] + S * ux - eta * uy, p.V[1] + S * uy + eta * ux]; };
   const prCurv = (p, eta) => prd2S(p, eta) / (1 + prdS(p, eta) ** 2) ** 1.5;
-  function makeProfile({ V, axis, c, k = 0, a3 = 0, a4 = 0, eta0 = 0, eta1 = 0 }) { return { V, axis, c, k, a3, a4, eta0, eta1 }; }
+  function makeProfile({ V, axis, c, k = 0, a3 = 0, a4 = 0, eta0 = 0, eta1 = 0, ra = 0, rl = 0, rp = 0 }) { return { V, axis, c, k, a3, a4, eta0, eta1, ra, rl, rp }; }
   function interpInc(x, xs, ys) {                     /* numpy.interp for increasing xs */
     const n = xs.length;
     if (x <= xs[0]) return ys[0];
@@ -477,7 +504,7 @@ const PlanarEngine = (() => {
   /* planar_cell.deformed_herriott_cell: smooth profile mirrors (conic + cubic/quartic deformation), optional side walls,
      optional curved segmentation with tilt jitter */
   function deformedHerriottCell(R, N, M, A, { portW = null, aperture = null, R2 = null, d = null, phase = 0, conic = 0, eps3 = 0, eps4 = 0, deform = "both", walls = false,
-    nSeg = 0, segCurv = 1, segTilt = 0, segSeed = 1 } = {}) {
+    nSeg = 0, segCurv = 1, segTilt = 0, segSeed = 1, rippleA = 0, ripplePeriod = 0.5e-3, ripplePhase = 0, rippleOn = "both" } = {}) {
     if (N < 4 || N % 2) throw new Error("N must be even and >= 4");
     if (!(M > 0 && M < N / 2)) throw new Error("need 0 < M < N/2");
     d = d === null ? reentrantSpacing(R, N, M) : d;
@@ -490,6 +517,11 @@ const PlanarEngine = (() => {
       const p = makeProfile({ V, axis: ax, c, k: conic, a3: on ? eps3 * c / (2 * a) : 0, a4: on ? eps4 * c / (2 * a * a) : 0, eta0: a, eta1: -a });
       if (1 - (1 + conic) * c * c * a * a <= 0) throw new Error("the conic mirror is not defined out to the aperture");
       for (let i = 0; i < 257; i++) if (prd2S(p, -a + 2 * a * i / 256) <= 0) throw new Error("the deformation makes a mirror convex somewhere: reduce eps3 / eps4");
+      if (rippleA && (rippleOn === "both" || rippleOn === `M${i + 1}`)) {
+        if (nSeg) throw new Error("ripple applies to smooth mirrors (n_seg = 0)");
+        if (!(ripplePeriod > 0)) throw new Error("ripple_period must be positive");
+        p.ra = rippleA; p.rl = ripplePeriod; p.rp = ripplePhase;
+      }
       return p;
     });
     let A1 = prPoint(profs[0], a), B1 = prPoint(profs[0], -a), A2 = prPoint(profs[1], a), B2 = prPoint(profs[1], -a), m1, m2;
@@ -514,7 +546,7 @@ const PlanarEngine = (() => {
     if (walls) els.push({ A: B2, B: A1, kappa: 0, ext: 0, label: "side_top" });
     const thLaunch = phase ? Math.atan(-A * Math.sin(phase) * Math.sqrt((2 * R - d) / d) / R) : 0;
     const meta = { R, R2, d, N, M, A, aperture: a, portW: w, theta: thetaOf(R, d), phase, y0, thetaLaunch: thLaunch, conic, eps3, eps4, deform, walls: !!walls,
-      nSeg, segCurv, segTilt, segSeed };
+      nSeg, segCurv, segTilt, segSeed, rippleA, ripplePeriod, ripplePhase, rippleOn, kRipple: rippleA ? 8 * Math.PI ** 2 * rippleA * d / ripplePeriod ** 2 : 0 };
     const c = makeCell(els, { name: "deformed Herriott", meta });
     if (nSeg) {
       let lo = 0, hi = c.s0[nSeg - 1] + c.L[nSeg - 1];
@@ -543,7 +575,7 @@ const PlanarEngine = (() => {
       const rot = P => [Mx + co * (P[0] - M0x) - si * (P[1] - M0y), My + si * (P[0] - M0x) + co * (P[1] - M0y)];
       if (e.profile) {
         const p = e.profile, ax = [co * p.axis[0] - si * p.axis[1], si * p.axis[0] + co * p.axis[1]];
-        const pn = makeProfile({ V: rot(p.V), axis: ax, c: p.c + cu, k: p.k, a3: p.a3, a4: p.a4, eta0: p.eta0, eta1: p.eta1 });
+        const pn = makeProfile({ V: rot(p.V), axis: ax, c: p.c + cu, k: p.k, a3: p.a3, a4: p.a4, eta0: p.eta0, eta1: p.eta1, ra: p.ra, rl: p.rl, rp: p.rp });
         return { A: prPoint(pn, p.eta0), B: prPoint(pn, p.eta1), kappa: 0, ext: e.ext || 0, label: e.label, profile: pn };
       }
       return { A: rot(e.A), B: rot(e.B), kappa: (e.kappa || 0) + cu, ext: e.ext || 0, label: e.label };
@@ -572,6 +604,7 @@ const PlanarEngine = (() => {
     const tlin = dxi < 0 ? (prS(p, et0) - xi0) / dxi : Infinity;
     let t = Number.isFinite(tmax) ? tmax : tlin;
     const g = tt => xi0 + tt * dxi - prS(p, et0 + tt * det);
+    if (prQ(p)) return rippledHit(p, g, t, tmax, xi0, dxi, et0, det, eps, lo, hi);
     if (!(Number.isFinite(t) && t > eps && g(t) <= 0)) return { t: Infinity, eta: et0 };
     const scale = 2 * c.h[k] + 1e-300;
     for (let it = 0; it < 80; it++) {
@@ -580,6 +613,45 @@ const PlanarEngine = (() => {
       if (Math.abs(step) <= 1e-15 * scale) break;
     }
     return t > eps ? { t, eta: et0 + t * det } : { t: Infinity, eta: et0 };
+  }
+  /* planar_cell.Profile.sag_band: (S_min, S_max) over [lo, hi] from 257 samples, widened by 2 |ripple| + 1e-3 of the range */
+  function sagBand(p, lo, hi) {
+    const B = p._band;
+    if (!B || B.lo !== lo || B.hi !== hi || B.ra !== p.ra || B.rl !== p.rl || B.rp !== p.rp) {
+      let a = Infinity, b = -Infinity;
+      for (let i = 0; i < 257; i++) { const v = prS(p, lo + (hi - lo) * i / 256); if (v < a) a = v; if (v > b) b = v; }
+      const m = 2 * Math.abs(p.ra) + 1e-3 * (b - a);
+      p._band = { lo, hi, ra: p.ra, rl: p.rl, rp: p.rp, v: [a - m, b + m] };
+    }
+    return p._band.v;
+  }
+  /* planar_cell.Cell2D._rippled_hit: within the sag band, sample g every Λ/8 of η, bracket the first drop to ≤ 0, safeguarded Newton */
+  function rippledHit(p, g, t, tmax, xi0, dxi, et0, det, eps, eLo, eHi) {
+    if (!(Number.isFinite(t) && t > eps)) return { t: Infinity, eta: et0 };
+    if (!Number.isFinite(tmax)) return { t, eta: et0 + t * det };
+    const [smin, smax] = sagBand(p, eLo, eHi);
+    let ta = dxi < 0 ? Math.max((smax - xi0) / dxi, 0) : 0;
+    let tb = dxi < 0 ? Math.min((smin - xi0) / dxi, t) : dxi > 0 ? Math.min((smax - xi0) / dxi, t) : t;
+    ta = Math.min(ta, t);
+    if (!(tb > ta)) return { t: Infinity, eta: et0 };
+    const ns = Math.ceil(Math.abs((tb - ta) * det) / (p.rl / 8)) + 2;
+    let lo = 0, hi = 0, found = false;
+    for (let j = 1; j <= ns; j++) {
+      const tt = ta + (tb - ta) * j / ns;
+      if (g(tt) <= 0) { hi = tt; lo = j > 1 ? ta + (tb - ta) * (j - 1) / ns : ta; found = true; break; }
+    }
+    if (!found) return { t: Infinity, eta: et0 };
+    let x = 0.5 * (lo + hi);
+    for (let it = 0; it < 100; it++) {
+      const et = et0 + x * det, gx = xi0 + x * dxi - prS(p, et), gd = dxi - prdS(p, et) * det;
+      if (gx > 0) lo = x; else hi = x;
+      let xn = x - gx / gd;
+      if (!(xn > lo && xn < hi)) xn = 0.5 * (lo + hi);
+      const tol = 1e-13 * hi, stop = Math.abs(xn - x) <= tol || hi - lo <= tol || gx === 0;
+      if (gx !== 0) x = xn;
+      if (stop) break;
+    }
+    return x > eps ? { t: x, eta: et0 + x * det } : { t: Infinity, eta: et0 };
   }
   function curvatureAt(c, s) {
     s = modP(s, c.perimeter);
@@ -1003,10 +1075,11 @@ const GasEngine = (() => {
   const designRadius = (L, N, M) => L / (1 - Math.cos(2 * Math.PI * M / N));
   const mirrorRadiusW = (L, R, lamM) => { const g = 1 - L / R; return Math.sqrt(lamM * L / (Math.PI * Math.sqrt(1 - g * g))); };
   function baselineCell({ L = 15e-3, W = 1.5e-3, N = 14, M = 3, distinct = true, portW = 0, eps4 = 0, eps3 = 0, conic = 0, deform = "both", walls = false, lamM = 1.6537e-6 / 2,
-    nSeg = 0, segCurv = 1, segTilt = 0, segSeed = 1 } = {}) {
+    nSeg = 0, segCurv = 1, segTilt = 0, segSeed = 1, rippleA = 0, ripplePeriod = 0.5e-3, ripplePhase = 0, rippleOn = "both" } = {}) {
     const R = designRadius(L, N, M), pw = portW > 0 ? portW : 2.5 * mirrorRadiusW(L, R, lamM), a = W / 2, A = a - pw;
     if (A <= 0) throw new Error("the window does not fit: make the cell wider or the window narrower");
-    const c = Pl.deformedHerriottCell(R, N, M, A, { portW: pw, aperture: a, d: L, phase: distinct ? Math.PI / N : 0, conic, eps3, eps4, deform, walls, nSeg, segCurv, segTilt, segSeed });
+    const c = Pl.deformedHerriottCell(R, N, M, A, { portW: pw, aperture: a, d: L, phase: distinct ? Math.PI / N : 0, conic, eps3, eps4, deform, walls, nSeg, segCurv, segTilt, segSeed,
+      rippleA, ripplePeriod, ripplePhase, rippleOn });
     Object.assign(c.meta, { kind: "herriott", L, W });
     return c;
   }
@@ -1210,8 +1283,69 @@ const GasEngine = (() => {
     for (let j = 0; j < n; j++) sep.push(Math.hypot(a.WX[j] - b.WX[j], a.WY[j] - b.WY[j]));
     return { sep, fit: Pl.lyapunovFit(sep, Math.sqrt(Math.abs(c.area))) };
   }
+  /* gas_cell.tangent_chaos: FTLE and MEGNO of one ray from the exact tangent map of the walls (no ports, no inclusions) */
+  function tangentChaos(c, start, nHits = 300) {
+    const mc = asMedium(c && c.cell ? c.cell : c), r = marchRay(mc, start, nHits), nh = r.nWalls, ell = Math.sqrt(Math.abs(mc.cell.area));
+    let u = Math.sqrt(0.5), v = Math.sqrt(0.5), acc = 0, Sk = 0, Yb = 0;
+    for (let j = 0; j < nh; j++) {
+      const ch = r.WG[j] - (j ? r.WG[j - 1] : 0), kap = Pl.curvatureAt(mc.cell, r.WS[j]), cs = Math.sqrt(Math.min(Math.max(1 - r.WC[j] ** 2, 1e-12), 1));
+      u = u + ch / ell * v;
+      v = v - 2 * kap * ell / cs * u;
+      const nn = Math.hypot(u, v), g = Math.log(nn);
+      acc += g; Sk += (j + 1) * g; Yb += 2 * Sk / (j + 1);
+      u /= nn; v /= nn;
+    }
+    const k = Math.max(nh, 1);
+    return { lam: acc / k, Y: Yb / k, nHits: nh };
+  }
+  const median = a => { if (!a.length) return NaN; const b = Float64Array.from(a).sort(), m = b.length >> 1; return b.length % 2 ? b[m] : 0.5 * (b[m - 1] + b[m]); };
+  const VERDICTS = { 2: "launches into the chaotic sea", 1: "launches into a regular island", 0: "regular phase space (no chaotic sea)", [-1]: "launch escapes the cell" };
+  /* gas_cell.chaos_map: chaotic share of the launch beam and of a section grid on the input mirror, verdict */
+  function chaosMap(cell, thetaC, q0, lamM, { nHits = 300, nGrid = 0, nSide = 8, Ychaos = 4, minHits = 30, onRow = null } = {}) {
+    const c = cell && cell.cell ? cell.cell : cell, sIn = c.sIn;
+    const [w, Rw] = qWidth(q0, lamM), thw = lamM / (Math.PI * w), z = quantiles(nSide), cosT = Math.max(Math.cos(thetaC), 1e-6);
+    const tb = beamRays(c, sIn, thetaC, q0, lamM, nSide).map((st, i) => {
+      const off = w / 2 * z[Math.floor(i / nSide)], ang = thw / 2 * z[i % nSide] + (Number.isFinite(Rw) ? off / Rw : 0);
+      return Object.assign(tangentChaos(c, st, nHits), { s: sIn + off / cosT, p: Math.sin(thetaC + ang) });
+    });
+    let nst = 0, nch = 0; const Ys = [], lams = [];
+    for (const t of tb) { Ys.push(t.Y); if (t.nHits >= minHits) { nst++; lams.push(t.lam); if (t.Y > Ychaos) nch++; } }
+    const out = { f_launch: nch / tb.length, esc_launch: (tb.length - nst) / tb.length, Y_launch: median(Ys), lam_ftle: nst ? median(lams) : NaN,
+      sea: NaN, island: NaN, esc_sea: NaN, grid: null, launch: tb };
+    if (nGrid) {
+      const m = c.meta, sg = [], pg = [];
+      let pm;
+      if (m.kind === "herriott" || "aperture" in m) {
+        const ks = c.labels.map((l, k) => (l === "M1" || l.startsWith("M1 ") ? k : -1)).filter(k => k >= 0), sLo = c.s0[ks[0]], sHi = c.s0[ks[ks.length - 1]] + c.L[ks[ks.length - 1]];
+        for (let i = 0; i < nGrid; i++) sg.push(sLo + (sHi - sLo) * (i + 0.5) / nGrid);
+        pm = 2 * m.aperture / m.d;
+      } else { for (let i = 0; i < nGrid; i++) sg.push(c.perimeter * (i + 0.5) / nGrid); pm = 0.95; }
+      for (let i = 0; i < nGrid; i++) pg.push(pm * (2 * (i + 0.5) / nGrid - 1));
+      const Y = [], lam = [], nH = [];
+      let gs = 0, gc = 0;
+      for (let ip = 0; ip < nGrid; ip++) {
+        const yr = [], lr = [], hr = [];
+        for (let is = 0; is < nGrid; is++) {
+          const t = tangentChaos(c, Pl.launch(c, sg[is], Math.asin(pg[ip])), nHits);
+          yr.push(t.Y); lr.push(t.lam); hr.push(t.nHits);
+          if (t.nHits >= minHits) { gs++; if (t.Y > Ychaos) gc++; }
+        }
+        Y.push(yr); lam.push(lr); nH.push(hr);
+        if (onRow) onRow(ip + 1, nGrid);
+      }
+      const N2 = nGrid * nGrid;
+      Object.assign(out, { sea: gc / N2, island: (gs - gc) / N2, esc_sea: (N2 - gs) / N2, grid: { s: sg, p: pg, Y, lam, n_hits: nH, pmax: pm } });
+    }
+    let v;
+    if (out.esc_launch >= 0.5) v = -1;
+    else if (nch >= 0.5 * nst) v = 2;
+    else if (nGrid && out.sea >= 0.05 * (out.sea + out.island) && out.sea > 0) v = 1;
+    else v = 0;
+    out.verdict = v;
+    return out;
+  }
   function cellFigures(cell, thetaC, q0, lamM, { nEff = 2, gamma = 0.2, alphaPpm = SPECIES.CH4[0], Rm = 0.995, dither = 2e-3, waveform = "sine", fPar = 1e-6,
-    Pin = 1e-3, bandwidth = 1, nSide = 24, nBounce = 2000, nLyap = 300, nPassMax = 60, nDitherMax = 12801 } = {}) {
+    Pin = 1e-3, bandwidth = 1, nSide = 24, nBounce = 2000, nLyap = 300, nPassMax = 60, nDitherMax = 12801, chaosGrid = 12, nFtle = 300 } = {}) {
     const mc = asMedium(cell, nEff), c = mc.cell, sIn = c.sIn, sOut = c.sOut, pw = c.meta.portW, lam = lamM * nEff;
     const ports = [[sIn, pw]].concat(Math.abs(sOut - sIn) < 1e-15 ? [] : [[sOut, pw]]);
     const ev = ensemble(mc, beamRays(c, sIn, thetaC, q0, lamM, nSide), pw, sIn, sOut, nBounce, Rm, gamma, lamM);
@@ -1223,12 +1357,14 @@ const GasEngine = (() => {
     const nPass = cp.nHits ? Math.min(cp.nHits, nPassMax) : 1;
     const da = Pl.ditherAnalysis(mediumPaths(mc, sIn), thetaC, dither, nPass, lam, nEff, waveform, 401, nDitherMax);
     const V = da.V[nPass - 1];
+    const cm = chaosMap(mc, thetaC, q0, lamM, { nHits: nFtle, nGrid: chaosGrid });
     const necShot = Appm > 0 ? sigA / Appm : Infinity, necFringe = Appm > 0 ? 2 * Math.sqrt(fPar) * V / Appm : Infinity;
     return { V_floor: da.noiseFloor, T: ev.T, L_mean: ev.L_mean, L_rms: ev.L_rms, S1: ev.S1, M2: ev.M2, leaked: ev.leaked, back: ev.back, trapped: ev.trapped, A_ppm: Appm,
       nec_shot: necShot, nec_fringe: necFringe, nec: Math.hypot(necShot, necFringe), lam: tw.fit ? tw.fit.lam : 0, lam_fit: !!tw.fit, V,
       V_pass: da.V, same_path: da.same[nPass - 1], n_pass: nPass, exit_pass: cp.exits ? cp.nHits : -1, L_centre: cp.chords.reduce((x, y) => x + y, 0),
       T_G: gb.T_G, w_max_ratio: gb.w_max_ratio, lam_G: gb.lam_G, m_max: gb.m_max, theta: thetaC, w_hits: gb.w, share: gb.share, sep: tw.sep,
-      centre: cp, area: c.area, dither_n: da.nUsed, n_inc: mc.nInc, ens: ev };
+      centre: cp, area: c.area, dither_n: da.nUsed, n_inc: mc.nInc, ens: ev, K_ripple: c.meta.kRipple || 0, f_launch: cm.f_launch, esc_launch: cm.esc_launch,
+      Y_launch: cm.Y_launch, lam_ftle: cm.lam_ftle, sea: cm.sea, island: cm.island, verdict: cm.verdict, chaos: cm };
   }
   function retune(cell, theta0, q0, lamM, { span = null, nTheta = 41, Rm = 0.995, gamma = 0.2, nSide = 8, nBounce = 2000, nEff = 2 } = {}) {
     const mc = asMedium(cell, nEff), c = mc.cell, w = qWidth(q0, lamM)[0];
@@ -1244,7 +1380,7 @@ const GasEngine = (() => {
     return { theta: best[1], S1: best[0], scan };
   }
   const PERT = { eps4: 0, eps3: 0, conic: 0, deform: "both", n_seg: 0, seg_curv: 1, seg_tilt: 0, seg_seed: 1, n_inc: 0, inc_radius: 50e-6, inc_dn: 0.01,
-    inc_sign: "both", inc_seed: 1, inc_circle: 0 };
+    inc_sign: "both", inc_seed: 1, inc_circle: 0, ripple_a: 0, ripple_period: 0.5e-3, ripple_phase: 0, ripple_on: "both" };
   /* gas_cell._common: input beam, baseline (deformed / segmented, with inclusions) and the CMPC as medium cells */
   function common(o) {
     const lamM = o.wavelength / o.n_eff;
@@ -1252,7 +1388,7 @@ const GasEngine = (() => {
     const { q, c0 } = inputQ(g);
     const pw = c0.meta.portW, p = Object.assign({}, PERT, o);
     const base = baselineCell(Object.assign({}, g, { portW: pw, eps4: p.eps4, eps3: p.eps3, conic: p.conic, deform: p.deform, nSeg: p.n_seg, segCurv: p.seg_curv,
-      segTilt: p.seg_tilt, segSeed: p.seg_seed }));
+      segTilt: p.seg_tilt, segSeed: p.seg_seed, rippleA: p.ripple_a, ripplePeriod: p.ripple_period, ripplePhase: p.ripple_phase, rippleOn: p.ripple_on }));
     const circ = circleReference(base.area, o.n_facets, pw, o.out_frac, !!o.smooth_circle);
     const inc = p.n_inc ? placeInclusions(base, p.n_inc, p.inc_radius, p.inc_dn, p.inc_sign, p.inc_seed) : null;
     const incc = p.n_inc && p.inc_circle ? placeInclusions(circ, p.n_inc, p.inc_radius, p.inc_dn, p.inc_sign, p.inc_seed) : null;
@@ -1260,11 +1396,11 @@ const GasEngine = (() => {
   }
   const DEFAULTS = Object.assign({ L: 15e-3, W: 1.5e-3, N: 14, M: 3, distinct: 1, port_width: 0, walls: 0, n_facets: 24, circle_theta: 0.35, out_frac: 0.37,
     smooth_circle: 0, wavelength: 1.6537e-6, n_eff: 2.0, gamma: 0.2, species: "CH4", R_mirror: 0.995, dither: 2e-3, waveform: "sine", f_parasitic: 1e-6, P_in: 1e-3,
-    bandwidth: 1, n_side: 24, n_bounce: 2000, retune_launch: 1 }, PERT);
+    bandwidth: 1, n_side: 24, n_bounce: 2000, retune_launch: 1, chaos_grid: 20, n_ftle: 300 }, PERT);
   const KEYS = ["T", "L_mean", "L_rms", "S1", "M2", "A_ppm", "nec_shot", "nec_fringe", "nec", "lam", "V", "V_floor", "same_path", "n_pass", "exit_pass", "T_G", "w_max_ratio",
-    "lam_G", "m_max", "leaked", "area", "theta", "n_inc"];
+    "lam_G", "m_max", "leaked", "area", "theta", "n_inc", "K_ripple", "f_launch", "esc_launch", "Y_launch", "lam_ftle", "sea", "island", "verdict"];
   const figOpts = o => ({ nEff: o.n_eff, gamma: o.gamma, alphaPpm: SPECIES[o.species][0], Rm: o.R_mirror, dither: o.dither, waveform: o.waveform,
-    fPar: o.f_parasitic, Pin: o.P_in, bandwidth: o.bandwidth, nSide: o.n_side, nBounce: o.n_bounce });
+    fPar: o.f_parasitic, Pin: o.P_in, bandwidth: o.bandwidth, nSide: o.n_side, nBounce: o.n_bounce, chaosGrid: o.chaos_grid, nFtle: o.n_ftle });
   /* gas_cell.compare: values as the Python Result, plus the two figure sets (h, c), the medium cells and the retune scan */
   function compare(opts = {}) {
     const o = Object.assign({}, DEFAULTS, opts);
@@ -1276,14 +1412,14 @@ const GasEngine = (() => {
     for (const k of KEYS) { v[`h_${k}`] = h[k]; v[`c_${k}`] = c[k]; }
     Object.assign(v, { path_gain: c.L_mean > 0 ? h.L_mean / c.L_mean : NaN, sensitivity_gain: c.S1 > 0 ? h.S1 / c.S1 : NaN, chaos_lost: c.lam - h.lam,
       washout_lost: h.V - c.V, nec_ratio: c.nec > 0 ? h.nec / c.nec : NaN, R_design: base.cell.meta.R, port_width: base.cell.meta.portW, w_in: qWidth(q0, lamM)[0],
-      circle_radius: circ.cell.meta.r });
+      circle_radius: circ.cell.meta.r, verdict_text: VERDICTS[h.verdict] });
     return Object.assign(v, { h, c, base, circ, q0, lamM, retune: rt });
   }
-  const SWEEPABLE = ["eps4", "eps3", "conic", "n_seg", "seg_curv", "seg_tilt", "n_inc", "inc_dn", "inc_radius"];
+  const SWEEPABLE = ["eps4", "eps3", "conic", "n_seg", "seg_curv", "seg_tilt", "n_inc", "inc_dn", "inc_radius", "ripple_a", "ripple_period", "ripple_phase"];
   /* gas_cell.perturbation_sweep: baseline rows against one perturbation parameter; the CMPC (no inclusions) as reference */
   function perturbationSweep(param, values, opts = {}, onRow = null) {
     if (!SWEEPABLE.includes(param)) throw new Error(`cannot sweep ${param}`);
-    const o = Object.assign({}, DEFAULTS, { n_side: 16 }, opts);
+    const o = Object.assign({}, DEFAULTS, { n_side: 16, chaos_grid: 10 }, opts);
     const ref = common(Object.assign({}, o, { n_inc: 0 }));
     const rows = [];
     for (const val of values) {
@@ -1296,7 +1432,7 @@ const GasEngine = (() => {
   }
   const deformationSweep = (eps4Values, opts = {}, onRow = null) => perturbationSweep("eps4", eps4Values, opts, onRow);
   return { SPECIES, invNormal, quantiles, erf, gfrac, designRadius, mirrorRadiusW, baselineCell, circleReference, placeInclusions, medium, asMedium, marchRay,
-    mediumPaths, centrePath, eigenQ, inputQ, qWidth, gaussianPath, beamRays, ensemble, twinDivergence, cellFigures, retune, common, compare, perturbationSweep,
+    mediumPaths, tangentChaos, chaosMap, VERDICTS, centrePath, eigenQ, inputQ, qWidth, gaussianPath, beamRays, ensemble, twinDivergence, cellFigures, retune, common, compare, perturbationSweep,
     deformationSweep, DEFAULTS, KEYS, SWEEPABLE, PERT };
 })();
 /* engine:end */
@@ -1317,7 +1453,8 @@ const GasEngine = (() => {
       waveform: $("wave").value, f_parasitic: 10 ** +$("fp").value, n_side: +$("ns").value, n_bounce: 2000, bandwidth: 1,
       n_seg: +$("nseg").value, seg_curv: +$("scurv").value, seg_tilt: +$("stilt").value * 1e-3, seg_seed: 1, n_inc: +$("ninc").value,
       inc_radius: +$("irad").value * 1e-6, inc_dn: +(10 ** +$("idn").value).toPrecision(3), inc_sign: $("isign").value, inc_seed: +$("iseed").value,
-      inc_circle: $("icirc").checked ? 1 : 0,
+      inc_circle: $("icirc").checked ? 1 : 0, ripple_a: +$("nseg").value ? 0 : +$("ra").value * 1e-6, ripple_period: +$("rl").value * 1e-3,
+      ripple_phase: +$("rph").value * Math.PI / 180, ripple_on: $("ron").value,
     };
   };
 
@@ -1350,7 +1487,8 @@ onmessage = e => {
   function slim(f) {
     const o = {};
     for (const k of ["V_floor", "T", "L_mean", "L_rms", "S1", "M2", "n_inc", "A_ppm", "nec_shot", "nec_fringe", "nec", "lam", "lam_fit", "V", "same_path", "n_pass", "exit_pass",
-      "L_centre", "T_G", "w_max_ratio", "lam_G", "m_max", "theta", "leaked", "back", "trapped", "dither_n"]) o[k] = f[k];
+      "L_centre", "T_G", "w_max_ratio", "lam_G", "m_max", "theta", "leaked", "back", "trapped", "dither_n", "K_ripple", "f_launch", "esc_launch", "Y_launch",
+      "lam_ftle", "sea", "island", "verdict"]) o[k] = f[k];
     return o;
   }
   function mainRun(p) {
@@ -1361,6 +1499,9 @@ onmessage = e => {
         out[key] = Object.assign(slim(f), { w_hits: Array.from(f.w_hits), share: Array.from(f.share), sep: f.sep, V_pass: Array.from(f.V_pass),
           xs: f.centre.xs, ys: f.centre.ys, Ls: f.ens.L, Ws: f.ens.W });
       }
+      const ch = r.h.chaos;
+      out.h.chaos = { grid: ch.grid, launch: ch.launch.map(t => ({ s: t.s, p: t.p, Y: t.Y, n: t.nHits })) };
+      out.verdict_text = r.verdict_text;
       out.retune = r.retune ? { scan: r.retune.scan, theta: r.retune.theta } : null;
       /* an open elongated cell keeps only rays within the angle the far mirror subtends: sample that range */
       const m = r.base.cell.meta;
@@ -1394,7 +1535,7 @@ onmessage = e => {
     if (worker) { worker.terminate(); worker = null; }      /* cancels a running main job or sweep */
     busy = true; sweep = null; drawSweep();
     $("sweepStatus").textContent = "All other settings as in the rail, re-aimed launch at each step; takes a few seconds to a minute.";
-    $("verdict").innerHTML = `<span class="status">Tracing both cells…</span>`;
+    $("verdict").innerHTML = `<span class="status">Tracing both cells…</span>`; $("seaVerdict").innerHTML = `<span class="status">Mapping the chaos…</span>`;
     getWorker().postMessage({ id: mainId, kind: "main", p });
   }
   const SWEEPS = {
@@ -1405,11 +1546,16 @@ onmessage = e => {
     n_inc: { values: [0, 2, 5, 10, 20, 30, 40, 60], label: "number of inclusions", scale: 1 },
     inc_dn: { values: [0, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05], label: "inclusion |Δn_eff|", scale: 1, need: { n_inc: 20 } },
     inc_radius: { values: [10e-6, 20e-6, 30e-6, 50e-6, 80e-6, 120e-6, 200e-6], label: "inclusion radius (µm)", scale: 1e6, need: { n_inc: 20 } },
+    ripple_a: { values: [0, 0.05e-6, 0.1e-6, 0.2e-6, 0.3e-6, 0.4e-6, 0.6e-6, 0.8e-6, 1e-6], label: "ripple amplitude a (µm)", scale: 1e6, smooth: true },
+    ripple_phase: { values: [-Math.PI, -0.75 * Math.PI, -0.5 * Math.PI, -0.25 * Math.PI, 0, 0.25 * Math.PI, 0.5 * Math.PI, 0.75 * Math.PI, Math.PI], label: "ripple phase (°)",
+      scale: 180 / Math.PI, need: { ripple_a: 0.3e-6 }, smooth: true },
+    ripple_period: { values: [0.2e-3, 0.3e-3, 0.4e-3, 0.5e-3, 0.7e-3, 1e-3, 1.5e-3, 2e-3], label: "ripple period Λ (mm)", scale: 1e3, need: { ripple_a: 0.3e-6 }, smooth: true },
   };
   function runSweep() {
     const p = P(), key = $("swp").value, sp = SWEEPS[key];
     const q = Object.assign({}, p, { n_side: Math.min(p.n_side, 12) });
     if (sp.need) for (const [k, v] of Object.entries(sp.need)) if (!q[k]) q[k] = v;
+    if (sp.smooth) q.n_seg = 0;
     sweepId++;
     sweep = { key, eps: sp.values, rows: [], c: null, done: false, cur: p[key] };
     $("sweepStatus").textContent = busy ? "Queued after the comparison…" : "Running…";
@@ -1535,6 +1681,12 @@ onmessage = e => {
     const lines = [];
     lines.push(`<div>The Herriott cell detects <b>${fmt(100 * h.T, 0)} %</b> of the light after <b>${fmt(100 * h.L_mean, 1)} cm</b>; the circular cell ${fmt(100 * c.T, 0)} % after ${fmt(100 * c.L_mean, 1)} cm. Path ×${fmt(gain, 2)}, sensitivity Γ T ⟨L⟩ ×${fmt(sens, 2)}.</div>`);
     lines.push(`<div>Under a ${fmt(P().dither * 1e3, 1)} mrad launch dither the Herriott fringe keeps a visibility of <b>${fmt(h.V, 3)}</b>, the circular cell's ${fmt(c.V, 3)}. ${fringeLim(h) ? "The Herriott cell is fringe-limited" : "The Herriott cell is shot-noise limited"}; ${fringeLim(c) ? "the circular cell is fringe-limited" : "the circular cell is shot-noise limited"}. Lower detection limit: <b>${better} cell</b> (${ppm(h.nec)} against ${ppm(c.nec)}).</div>`);
+    const VT = { 2: "launches into the chaotic sea", 1: "launches onto a regular island", 0: "sees no chaotic sea (regular phase space)", [-1]: "mostly escapes the cell" };
+    const chaosLine = `The Herriott beam <b>${VT[h.verdict]}</b>: ${fmt(100 * h.f_launch, 0)} % of its rays chaotic${h.esc_launch > 0 ? `, ${fmt(100 * h.esc_launch, 0)} % gone within 30 hits` : ""}; chaotic share of the M1 section ${fmt(100 * h.sea, 0)} %${h.K_ripple > 0 ? `, ripple K = ${fmt(h.K_ripple, 2)}` : ""}.`;
+    lines.push(`<div>${chaosLine}</div>`);
+    $("seaVerdict").innerHTML = `<div>${chaosLine}</div><div class="note">Launch: median MEGNO ⟨Y⟩ ${fmt(h.Y_launch, 2)}, finite-time Lyapunov exponent ${sig(h.lam_ftle, 3)} per hit. Section: ${fmt(100 * h.sea, 0)} % chaotic, ${fmt(100 * h.island, 0)} % regular, the rest leaves.</div>`;
+    if (h.verdict === 1) lines.push(`<div class="note">A sea exists but the launch sits in a regular island: change the ripple phase, the launch angle or the window position (spot phase) to move it into the sea, or raise K.</div>`);
+    if (h.verdict === -1 && !P().walls) lines.push(`<div class="note">The chaotic sea of the open cell drains through the sides: close the side walls to keep the scattered light.</div>`);
     if (h.exit_pass < 0) lines.push(`<div class="warn">The Herriott centre ray does not return to the window: the mirror shape or the inclusions break re-entrance (re-aiming the launch may restore it).</div>`);
     if (h.m_max > 1) lines.push(`<div class="note">Some Herriott round trips are unstable (|m| up to ${fmt(h.m_max, 3)}): the mirror shape has started to make the two-mirror cell chaotic.</div>`);
     const unres = [h, c].filter(x => x.V < 1.5 * x.V_floor).map(x => x === h ? "Herriott" : "circular");
@@ -1547,6 +1699,7 @@ onmessage = e => {
       kpi("Washout lost", fmt(res.washout_lost, 3), `fringe visibility V ${fmt(h.V, 3)} vs ${fmt(c.V, 3)}`),
       kpi("Detection limit ratio", `×${sig(res.nec_ratio, 3)}`, `NEC Herriott / circular`),
     ].join("");
+    const tm = v => (p.smooth_circle ? v : "– (flat facets)");
     const rows = [
       ["Mean detected path ⟨L⟩", `${fmt(100 * h.L_mean, 2)} cm`, `${fmt(100 * c.L_mean, 2)} cm`, h.L_mean > c.L_mean],
       ["Path spread (rms)", `${fmt(100 * h.L_rms, 2)} cm`, `${fmt(100 * c.L_rms, 2)} cm`, null],
@@ -1563,6 +1716,12 @@ onmessage = e => {
       ["M² of the detected light (input: 1)", fmt(h.M2, 2), fmt(c.M2, 1), h.M2 < c.M2],
       ["Power kept in one Gaussian beam (mirrors only)", sig(h.T_G, 3), sig(c.T_G, 3), h.T_G > c.T_G],
       ["Index inclusions placed", h.n_inc, c.n_inc, null],
+      ["Ripple stochasticity K", fmt(h.K_ripple, 3), "–", null],
+      ["Launch rays in the chaotic sea (MEGNO > 4)", `${fmt(100 * h.f_launch, 0)} %`, tm(`${fmt(100 * c.f_launch, 0)} %`), null],
+      ["Launch rays gone within 30 hits", `${fmt(100 * h.esc_launch, 0)} %`, tm(`${fmt(100 * c.esc_launch, 0)} %`), null],
+      ["Median MEGNO ⟨Y⟩ of the launch (2: regular)", fmt(h.Y_launch, 3), tm(fmt(c.Y_launch, 3)), null],
+      ["Median finite-time Lyapunov exponent (per hit)", sig(h.lam_ftle, 3), tm(sig(c.lam_ftle, 3)), null],
+      ["Chaotic / regular share of the section", `${fmt(100 * h.sea, 0)} / ${fmt(100 * h.island, 0)} %`, tm(`${fmt(100 * c.sea, 0)} / ${fmt(100 * c.island, 0)} %`), null],
       ["Largest beam radius / input", fmt(h.w_max_ratio, 2), fmt(c.w_max_ratio, 2), h.w_max_ratio < c.w_max_ratio],
       ["Largest round-trip |m|", fmt(h.m_max, 3), fmt(c.m_max, 3), null],
       ["Launch angle used", `${fmt(h.theta * 1e3, 2)} mrad`, `${fmt(c.theta * 180 / Math.PI, 1)}°`, null],
@@ -1612,6 +1771,51 @@ onmessage = e => {
     const i = rt.scan.findIndex(s => s[0] === rt.theta);
     if (i >= 0) ring(g, X(xs[i]), Y(ys[i]), css("--ink"));
   }
+  /* MEGNO colour: regular (≤ 2) blue, rising through ≈ 4 to red; escaped grey */
+  /* MEGNO colour, switching at the threshold 4: blues below (regular), orange to red above (chaotic); null: left the cell */
+  function megnoCol(Y, n) {
+    if (n < 30) return null;
+    const mix = (a, b, u) => a.map((v, j) => Math.round(v + Math.max(0, Math.min(1, u)) * (b[j] - v)));
+    const c = Y <= 4 ? mix([50, 100, 195], [150, 185, 225], Y / 4) : mix([245, 165, 70], [185, 35, 35], (Y - 4) / 8);
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+  function drawSea(c) {
+    const [g, w, h] = fit($("seaMap"));
+    const ch = res.h.chaos, gr = ch && ch.grid;
+    if (!gr) { label(g, "no chaos map", w / 2, h / 2, css("--muted"), "center", "middle"); return; }
+    const n = gr.s.length, ds = gr.s[1] - gr.s[0], s0 = gr.s[0] - ds / 2, s1 = gr.s[n - 1] + ds / 2, sm = 0.5 * (s0 + s1), pm = gr.pmax;
+    const xmm = s => (s - sm) * 1e3;
+    const m = { l: 50, r: 12, t: 10, b: 34 };
+    const [X, Y] = axes(g, w, h, m, "position along M1 from its centre (mm)", "sin χ", niceTicks(xmm(s0), xmm(s1), 6).map(v => [v, String(v)]),
+      niceTicks(-pm, pm, 4).map(v => [v, String(+v.toPrecision(3))]), [xmm(s0), xmm(s1)], [-pm, pm]);
+    const dp = gr.p[1] - gr.p[0];
+    for (let ip = 0; ip < n; ip++) for (let is = 0; is < n; is++) {
+      const col = megnoCol(gr.Y[ip][is], gr.n_hits[ip][is]);
+      if (!col) continue;
+      g.fillStyle = col;
+      const xa = X(xmm(gr.s[is] - ds / 2)), xb = X(xmm(gr.s[is] + ds / 2)), ya = Y(gr.p[ip] + dp / 2), yb = Y(gr.p[ip] - dp / 2);
+      g.fillRect(Math.min(xa, xb), ya, Math.abs(xb - xa) + 0.6, yb - ya + 0.6);
+    }
+    const pw = c.meta.portW;
+    g.strokeStyle = css("--port-in"); g.lineWidth = 2;
+    const wx0 = X(xmm(c.sIn - pw / 2)), wx1 = X(xmm(c.sIn + pw / 2));
+    const lp = ch.launch.map(t => t.p), plo = Math.min(...lp), phi = Math.max(...lp), pad = 0.08 * pm;
+    g.strokeRect(Math.min(wx0, wx1), Y(phi + pad), Math.abs(wx1 - wx0), Y(plo - pad) - Y(phi + pad));
+    for (const t of ch.launch) {
+      const col = megnoCol(t.Y, t.n);
+      g.fillStyle = col || css("--bg"); g.strokeStyle = css("--ink"); g.lineWidth = 0.8;
+      g.beginPath(); g.arc(X(xmm(t.s)), Y(t.p), 2.6, 0, 7); g.fill(); g.stroke();
+    }
+    const items = [["regular ⟨Y⟩ ≤ 4", 1.5, 300], ["chaotic ⟨Y⟩ > 4", 9, 300], ["blank: leaves", 0, 0]];
+    let lx = m.l + 8;
+    const ly = m.t + 8;
+    for (const [t, Yv, nn] of items) {
+      const col = megnoCol(Yv, nn);
+      if (col) { g.fillStyle = col; g.fillRect(lx, ly, 10, 10); } else { g.strokeStyle = css("--muted"); g.lineWidth = 1; g.strokeRect(lx + 0.5, ly + 0.5, 9, 9); }
+      label(g, t, lx + 14, ly + 9, css("--ink"));
+      lx += 14 + g.measureText(t).width + 16;
+    }
+  }
   function drawPoin(id, d, col) {
     const [g, w, h] = fit($(id));
     const pm = d.pmax <= 0.5 ? Math.max(...d.C.map(Math.abs), 0.02) * 1.05 : 1;
@@ -1639,8 +1843,9 @@ onmessage = e => {
       if (c) { line(g, [[X(x0), Y(c.L_mean * 100)], [X(x1), Y(c.L_mean * 100)]], css("--circ"), 1.2, [5, 4]); line(g, [[X(x0), Y2(c.V)], [X(x1), Y2(c.V)]], css("--port-out"), 1, [2, 3]); }
       line(g, rows.map(r => [X(xv(r.eps)), Y(r.L_mean * 100)]), css("--accent")); rows.forEach(r => dot(g, X(xv(r.eps)), Y(r.L_mean * 100), css("--accent")));
       line(g, rows.map(r => [X(xv(r.eps)), Y2(r.V)]), css("--port-out"), 1.6, [6, 4]); rows.forEach(r => dot(g, X(xv(r.eps)), Y2(r.V), css("--port-out"), 2.5));
+      line(g, rows.map(r => [X(xv(r.eps)), Y2(r.f_launch)]), css("--sel"), 1.6, [1.5, 3]); rows.forEach(r => dot(g, X(xv(r.eps)), Y2(r.f_launch), css("--sel"), 2));
       const cur = xv(sweep.cur); if (cur >= x0 && cur <= x1) line(g, [[X(cur), m.t], [X(cur), h - m.b]], css("--muted"), 1, [2, 3]);
-      label(g, "— ⟨L⟩  -- V", m.l + 6, m.t + 14, css("--ink"));
+      label(g, "— ⟨L⟩  -- V  ·· launch in the sea", m.l + 6, m.t + 14, css("--ink"));
     }
     {
       const [g, w, h] = fit(B);
@@ -1666,7 +1871,7 @@ onmessage = e => {
     twoSeries("twinChart", res.h.sep, res.c.sep, "hit", "twin separation (m)", true);
     twoSeries("visChart", res.h.V_pass, res.c.V_pass, "pass", "visibility V", false, { h: [res.h.n_pass, res.h.V], c: [res.c.n_pass, res.c.V] });
     drawPaths(); drawRetune();
-    drawPoin("hPoin", res.hPoin, css("--accent")); drawPoin("cPoin", res.cPoin, css("--circ"));
+    drawSea(cs.base.cell); drawPoin("hPoin", res.hPoin, css("--accent")); drawPoin("cPoin", res.cPoin, css("--circ"));
     drawSweep();
   }
 
@@ -1683,13 +1888,17 @@ onmessage = e => {
     $("nsegOut").value = +$("nseg").value ? $("nseg").value : "smooth"; $("scurvOut").value = (+$("scurv").value).toFixed(2);
     $("stiltOut").value = `${(+$("stilt").value).toFixed(2)} mrad`; $("nincOut").value = $("ninc").value; $("iradOut").value = `${$("irad").value} µm`;
     $("idnOut").value = sig(p.inc_dn, 2); $("iseedOut").value = $("iseed").value;
+    $("raOut").value = `${(+$("ra").value).toFixed(2)} µm`; $("rlOut").value = `${(+$("rl").value).toFixed(2)} mm`; $("rphOut").value = `${$("rph").value}°`;
+    const segd = !!+$("nseg").value;
+    ["ra", "rl", "rph", "ron"].forEach(id => { $(id).disabled = segd; });
+    $("Kval").textContent = segd ? "– (segmented)" : (8 * Math.PI ** 2 * (+$("ra").value * 1e-6) * p.L / (+$("rl").value * 1e-3) ** 2).toFixed(2);
     $("scurv").disabled = $("stilt").disabled = !+$("nseg").value;
     ["irad", "idn", "isign", "iseed", "icirc"].forEach(id => { $(id).disabled = !+$("ninc").value; });
     $("ditOut").value = `${(+$("dit").value).toFixed(1)} mrad`; $("fpOut").value = `1e${(+$("fp").value).toFixed(1)}`; $("nsOut").value = `${p.n_side}² = ${p.n_side ** 2}`;
   }
   let timer = null;
   function update() { sync(); res = null; drawAll(); clearTimeout(timer); timer = setTimeout(request, 120); }
-  ["L", "W", "N", "M", "distinct", "pw", "walls", "eps4", "eps3", "conic", "deform", "retune", "nf", "cth", "of", "sp", "neff", "gam", "Rm", "Pin", "dit", "wave", "fp", "ns", "nseg", "scurv", "stilt", "ninc", "irad", "idn", "isign", "iseed", "icirc"]
+  ["L", "W", "N", "M", "distinct", "pw", "walls", "eps4", "eps3", "conic", "deform", "retune", "nf", "cth", "of", "sp", "neff", "gam", "Rm", "Pin", "dit", "wave", "fp", "ns", "nseg", "scurv", "stilt", "ninc", "irad", "idn", "isign", "iseed", "icirc", "ra", "rl", "rph", "ron"]
     .forEach(id => $(id).addEventListener("input", update));
   $("sweepBtn").addEventListener("click", runSweep);
   let rz = null;

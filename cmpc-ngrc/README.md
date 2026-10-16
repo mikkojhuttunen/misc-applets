@@ -55,7 +55,7 @@ tests/                     pytest suite
 
 ```
 cd cmpc-ngrc
-pip install numpy scipy scikit-learn pillow pytest
+pip install numpy scipy scikit-learn pillow pytest pypardiso      # pypardiso (MKL): full-wave reference only
 python -m pytest -q
 python examples/run_centre.py --only E3     # node needed for the datasets; --quick for small runs
 python tools/make_vectors.py && node tools/check_js.mjs
@@ -125,6 +125,14 @@ directions per input. The bullets after the first are for the smooth circle. R²
   affordable ray count (E21). Pairing the same rays (E23) shows a small second-order bending error in the smooth
   circle (10–45 % of the shape signal for Δn = 1e-4 … 1e-3), but in the faceted cell µm shifts move rays across
   facet corners after 20–50 bounces. Whether the wave field follows is tested with a full-wave model (E24).
+- **Full-wave check (E24, E26; 2D Helmholtz FDFD in a 25 µm cell, Δn scaled by 40 to match the 1 mm cell):**
+  the 24-facet cell reads every order in waves too (0.95 / 0.85 / 0.86 / 0.64 / 0.79 at the low-Δn point; RBF
+  readout 0.96 / 0.91 / 0.90 / 0.72 / 0.83). At the noise-robust point the wave response is more nonlinear than
+  the phase screen (linear 0.94 / 0.81 / 0.79 / 0.30 / 0.49, RBF 0.94 / 0.84 / 0.86 / 0.50 / 0.72), but under 1 %
+  noise waves and rays agree. With smooth (sub-pixel) walls the faceted cell beats the circle on the odd orders
+  in waves too (0.97 / 0.92 / 0.89 / 0.81 / 0.79 vs 0.94 / 0.66 / 0.90 / 0.62 / 0.81), but much less than the ray
+  model of the same small cell predicts (circle odd 0.20 / 0.05): at a dot of ~3 wavelengths diffraction washes
+  out most of the parity cancellation, which should be stronger in the 1 mm cell.
 - **Launch angle (E1):** a centred dot is crossed only by rays with R_c |sin χ| below its radius, so the launch
   must be near 0; the sensitivity is gone by 17°. At 0° the odd orders are weakest; 3° with a ±5.7° fan is the
   working point.
@@ -180,6 +188,14 @@ Launch 20°, fan ±11.5°, Δn = 1e-3; otherwise as above. Kept as the reference
   affordable ray count (E21). Pairing the same rays (E23) shows a small second-order bending error in the smooth
   circle (10–45 % of the shape signal for Δn = 1e-4 … 1e-3), but in the faceted cell µm shifts move rays across
   facet corners after 20–50 bounces. Whether the wave field follows is tested with a full-wave model (E24).
+- **Full-wave check (E24, E26; 2D Helmholtz FDFD in a 25 µm cell, Δn scaled by 40 to match the 1 mm cell):**
+  the 24-facet cell reads every order in waves too (0.95 / 0.85 / 0.86 / 0.64 / 0.79 at the low-Δn point; RBF
+  readout 0.96 / 0.91 / 0.90 / 0.72 / 0.83). At the noise-robust point the wave response is more nonlinear than
+  the phase screen (linear 0.94 / 0.81 / 0.79 / 0.30 / 0.49, RBF 0.94 / 0.84 / 0.86 / 0.50 / 0.72), but under 1 %
+  noise waves and rays agree. With smooth (sub-pixel) walls the faceted cell beats the circle on the odd orders
+  in waves too (0.97 / 0.92 / 0.89 / 0.81 / 0.79 vs 0.94 / 0.66 / 0.90 / 0.62 / 0.81), but much less than the ray
+  model of the same small cell predicts (circle odd 0.20 / 0.05): at a dot of ~3 wavelengths diffraction washes
+  out most of the parity cancellation, which should be stronger in the 1 mm cell.
 - **Launch angle (E1):** sensitivity peaks near 23° and is zero at 57°: dots within 600 µm of the centre are
   then inside the caustic disk.
 - **Port layout (E2, 800 dots at one position, linear readout):** more inputs and more ports help. Four

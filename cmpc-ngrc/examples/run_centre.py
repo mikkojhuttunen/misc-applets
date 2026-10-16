@@ -652,17 +652,19 @@ def e24(q):
     N = 120 if q else 400
     rng = np.random.default_rng(24)
     out = dict(N=N, radius_um=25, dot_R_um=[r * 1e6 for r in WAVE_R], cases=[])
-    for name, fac, dn in (("24-facet", 24, 1.2e-3), ("circle", 0, 1.2e-3), ("24-facet", 24, 1.2e-2)):
-        cell = WaveCell(radius=25e-6, facets=fac)
-        D = wave_dataset(f"{name}", cell, N, dn)
+    for name, fac, dn, spx in (("24-facet", 24, 1.2e-3, 1), ("circle", 0, 1.2e-3, 1), ("24-facet", 24, 1.2e-2, 1),
+                               ("circle, smooth wall", 0, 1.2e-3, 4), ("24-facet, smooth wall", 24, 1.2e-3, 4)):
+        cell = WaveCell(radius=25e-6, facets=fac, subpixel=spx)
+        D = wave_dataset(name.replace(", smooth wall", "-smooth"), cell, N, dn)
         X, Yab = D["X"], D["Yab"]
         tr, te = split(N, N // 4)
         c = per_m(RO.evaluate_krr(X, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
         Xn = X + rng.normal(0, 1, X.shape) * 0.01 * D["I0"].mean() / np.maximum(D["I0"], 1e-30)
         n_ = per_m(RO.evaluate_krr(Xn, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
         rp = RO.evaluate_krr(X, D["Yp"], "poly2", train_idx=tr, test_idx=te)["r2"].tolist()
+        nl = {k: per_m(RO.evaluate_krr(X, Yab, k, train_idx=tr, test_idx=te)["r2"]) for k in ("poly2", "rbf")}
         out["cases"].append(dict(name=f"{name}, Δn_w = {dn:g}", facets=fac, dn=dn, clean=c, noisy=n_, r2_p=rp,
-                                 gmres_max=int(D["its"].max())))
+                                 ngrc=nl["poly2"], rbf=nl["rbf"], gmres_max=int(D["its"].max())))
         print(f"E24 {name} Δn_w={dn:g}: clean {np.round(c, 2)}, noisy {np.round(n_, 2)}, p {np.round(rp, 2)}", flush=True)
     return out
 
@@ -692,7 +694,35 @@ def e25(q):
     return out
 
 
-EXPS = {"E1": e1, "E3": e3, "E6": e6, "E12": e12, "E2": e2, "E8": e8, "E11": e11, "E13": e13, "E14": e14, "E15": e15, "E16": e16, "E17": e17, "E18": e18, "E19": e19, "E20": e20, "E21": e21, "E22": e22, "E23": e23, "E24": e24, "E25": e25}
+def e26(q):
+    """The ray engine (FGA phase screen) on the 25 µm geometry of E24: same ports (1.5 µm), same beam divergence
+    (the line source of waist 0.525 µm, fan 2 atan(λ/π n w)), frozen width 1.5 µm, same dots and Δn. Compares
+    ray and wave readouts of the same cell."""
+    import dataclasses
+    from ngrc.geometry import WallCell, polygon, ports_by_angle, stadium
+    N = 120 if q else 400
+    w_src = 0.35 * 1.5e-6
+    fan = 2 * np.arctan(1.55e-6 / (np.pi * 1.8 * w_src))
+    cfg = dict(FGA, frozen=1.5e-6)
+    rng = np.random.default_rng(26)
+    out = dict(N=N, fan=fan, cases=[])
+    for name, w, dn in (("24-facet", polygon(25e-6, 24), 1.2e-3), ("circle", stadium(25e-6, 0.0), 1.2e-3),
+                        ("24-facet", polygon(25e-6, 24), 1.2e-2)):
+        cell = WallCell(wall=w, n_eff=1.8, wavelength=1.55e-6, reflectance=R_WALL,
+                        ports=ports_by_angle(w, ASYM, inputs=(0, 1), width=1.5e-6, launch=0.0, fan=fan))
+        e = dataclasses.replace(ensc(N, 11, dn=dn), R_range=WAVE_R, edge=0.25e-6)
+        D = dataset(cell, e, cfg=cfg)
+        X, Yab = D["X"], D["Yab"]
+        tr, te = split(N, N // 4)
+        c = per_m(RO.evaluate_krr(X, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
+        Xn = X + rng.normal(0, 1, X.shape) * 0.01 * D["I0"].mean() / np.maximum(D["I0"], 1e-30)
+        n_ = per_m(RO.evaluate_krr(Xn, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
+        out["cases"].append(dict(name=f"{name}, Δn = {dn:g}", dn=dn, clean=c, noisy=n_))
+        print(f"E26 rays {name} Δn={dn:g}: clean {np.round(c, 2)}, noisy {np.round(n_, 2)}", flush=True)
+    return out
+
+
+EXPS = {"E1": e1, "E3": e3, "E6": e6, "E12": e12, "E2": e2, "E8": e8, "E11": e11, "E13": e13, "E14": e14, "E15": e15, "E16": e16, "E17": e17, "E18": e18, "E19": e19, "E20": e20, "E21": e21, "E22": e22, "E23": e23, "E24": e24, "E25": e25, "E26": e26}
 
 
 def main(only, quick):

@@ -325,9 +325,11 @@ td.heat { font-family: var(--f-mono); text-align: right; }
       <div class="charts2">
         <div class="panel"><h2>E24 · Full-wave reservoir (FDFD, 25 µm cell)</h2><div id="e24chart"></div>
           <p class="note" id="e24note"></p></div>
-        <div class="panel"><h2>E25 · Wavelength views against detector noise</h2><div id="e25chart"></div>
-          <p class="note" id="e25note"></p></div>
+        <div class="panel"><h2>E26 · Rays vs waves in the same 25 µm cell</h2><div id="e26chart"></div>
+          <p class="note" id="e26note"></p></div>
       </div>
+      <div class="panel"><h2>E25 · Wavelength views against detector noise</h2><div id="e25chart"></div>
+        <p class="note" id="e25note"></p></div>
       <div class="charts2">
         <div class="panel"><h2>E21 · Curved rays vs phase screen, 24-facet cell</h2><div id="e21chart"></div>
           <p class="note" id="e21note"></p></div>
@@ -1157,12 +1159,23 @@ function drawProgress2() {
       ser.push({ name: `σ = ${sg * 100} %, odd m = 3, 5`, y: rows.map(r => (r[j][1] + r[j][3]) / 2), color: cols[j % 4], dash: true });
     });
     lineChart($('e20chart'), { x: E.dn, xlog: true, xticks: E.dn, xfmt: v => v.toExponential(0), xname: 'Δn', yname: 'R²', ylim: [-0.1, 1], xlabel: 'Δn of the dot', series: ser, label: 'Δn under noise' });
-    $('e20note').innerHTML = `${E.N} centred dots in the 24-facet cell, linear readout trained and tested with additive noise σ·Ī₀. Solid: mean over m = 2…6; dashed: odd orders. Without noise any Δn up to 3e-4 reads every order (R² ≥ 0.98). With noise a larger Δn wins, up to 1e-3 (1 % noise: 0.97 / 0.91 / 0.87 / 0.76 / 0.68), where the phase screen starts to miss ray bending (E4): the curved-ray check is the next step.`;
+    $('e20note').innerHTML = `${E.N} centred dots in the 24-facet cell, linear readout trained and tested with additive noise σ·Ī₀. Solid: mean over m = 2…6; dashed: odd orders. Without noise any Δn up to 3e-4 reads every order (R² ≥ 0.98). With noise a larger Δn wins, up to 1e-3 (1 % noise: 0.97 / 0.91 / 0.87 / 0.76 / 0.68), where the phase screen starts to miss ray bending (E4, E23). The full-wave check (E24) at the equivalent Δn confirms the noise behaviour and shows a more nonlinear response than the phase screen.`;
   }
   if (P.E24) {
-    const cols = ['var(--s1)', 'var(--faint)', 'var(--s2)'];
-    barChart($('e24chart'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: P.E24.cases.map((c, i) => ({ name: c.name, y: c.clean, color: cols[i % 3] })), label: 'full-wave reservoir' });
-    $('e24note').innerHTML = `2D scalar Helmholtz equation solved by finite differences (12 points per wavelength, PML, lossy metal wall with R = 0.97 and 1.5 µm port gaps): diffraction at facet corners and port edges, ray bending and multiple scattering in the dot are all included. Cell radius ${P.E24.radius_um} µm, ${P.E24.N} centred dots of radius ${P.E24.dot_R_um.map(v => fmt(v, 1)).join('–')} µm, linear readout. Δn × cell size sets both the dot phase and the bending, so Δn<sub>w</sub> = 1.2e-3 / 1.2e-2 corresponds to Δn = 3e-5 / 3e-4 in the 1 mm cell. With 1 % noise: ${P.E24.cases.map(c => `${esc(c.name)} ${c.noisy.map(v => fmt(v, 2)).join(' / ')}`).join('; ')}.`;
+    const cols = ['var(--s1)', 'var(--faint)', 'var(--s2)', 'var(--s4)', 'var(--s3)'];
+    barChart($('e24chart'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: P.E24.cases.map((c, i) => ({ name: c.name, y: c.clean, color: cols[i % 5] })), label: 'full-wave reservoir' });
+    $('e24note').innerHTML = `2D scalar Helmholtz equation solved by finite differences (12 points per wavelength, PML, lossy metal wall with R = 0.97 and 1.5 µm port gaps): diffraction at facet corners and port edges, ray bending and multiple scattering in the dot are all included. Cell radius ${P.E24.radius_um} µm, ${P.E24.N} centred dots of radius ${P.E24.dot_R_um.map(v => fmt(v, 1)).join('–')} µm, linear readout. Δn × cell size sets both the dot phase and the bending, so Δn<sub>w</sub> = 1.2e-3 / 1.2e-2 corresponds to Δn = 3e-5 / 3e-4 in the 1 mm cell. With 1 % noise: ${P.E24.cases.map(c => `${esc(c.name)} ${c.noisy.map(v => fmt(v, 2)).join(' / ')}`).join('; ')}.${P.E24.cases[0].rbf ? ` RBF kernel readout (noise-free): ${P.E24.cases.map(c => `${esc(c.name)} ${c.rbf.map(v => fmt(v, 2)).join(' / ')}`).join('; ')}.` : ''}`;
+  }
+  if (P.E26 && P.E24) {
+    const W = P.E24.cases, R = P.E26.cases, ser = [];
+    const pick = (arr, key) => arr.find(c => c.name.startsWith(key));
+    [['24-facet, Δn', '24-facet, Δn = 0.0012', 'var(--s1)'], ['circle, Δn', 'circle, Δn = 0.0012', 'var(--s2)'], ['circle, smooth', null, 'var(--s4)']].forEach(([wk, rk, col]) => {
+      const w = pick(W, wk), r = rk ? pick(R, rk) : null;
+      if (w) ser.push({ name: 'waves · ' + w.name, y: w.clean, color: col });
+      if (r) ser.push({ name: 'rays · ' + r.name, y: r.clean, color: col, dash: true });
+    });
+    barChart($('e26chart'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: ser.map(s_ => ({ name: s_.name, y: s_.y, color: s_.dash ? `color-mix(in srgb, ${s_.color} 45%, transparent)` : s_.color })), label: 'rays vs waves' });
+    $('e26note').innerHTML = `Same 25 µm geometry, ports, beam divergence (fan ${fmt(P.E26.fan / deg, 0)}°), dots and Δn<sub>w</sub> = 1.2e-3, ${P.E26.N} dots each, linear readout. Solid: full wave (E24); pale: frozen-Gaussian rays (E26). The faceted cell reads all orders in both. Rays predict the circle's odd-order suppression. In waves it is much weaker: the staircased grid circle reads the odd orders (the staircase acts like fine facets); with smooth sub-pixel walls the circle drops to 0.66 / 0.62 on m = 3, 5 while the smooth 24-facet cell keeps 0.92 / 0.81. At a dot of ~3 wavelengths diffraction washes out most of the ray-limit cancellation.`;
   }
   if (P.E25) {
     const E = P.E25, cols = ['var(--faint)', 'var(--s1)', 'var(--s2)'];

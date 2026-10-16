@@ -178,7 +178,7 @@
     const eps = 1e-12 * g.perimeter;
     let bt = Infinity;
     for (let k = 0; k < g.E; k++) {
-      const hh = g.h[k] * (1 + g.ext[k]), M = g.M[k], t = g.t[k], n = g.n[k];
+      const hh = g.h[k] * (1 + g.ext[k]) + 1e-9 * g.perimeter, M = g.M[k], t = g.t[k], n = g.n[k];
       let tt, u, nx, ny, sl;
       if (g.kappa[k] === 0) {
         const dn = dx * n[0] + dy * n[1];
@@ -208,8 +208,7 @@
       const nn = Math.hypot(nx, ny) || 1;
       bt = tt; _hit[0] = tt; _hit[1] = nx / nn; _hit[2] = ny / nn; _hit[3] = g.s0[k] + sl; _hit[4] = k; _hit[5] = -g.kappa[k];
     }
-    if (bt === Infinity) throw new Error('ray left the wall');
-    return _hit;
+    return bt === Infinity ? null : _hit;   // null: no wall ahead (a launch point outside a small faceted cell)
   }
   function wallDistance(g, x, y) { let d = Infinity; for (const q of g.outline) d = Math.min(d, Math.hypot(q[0] - x, q[1] - y)); return d; }
 
@@ -368,7 +367,7 @@
       for (let guard = 0; guard < 1e6; guard++) {
         if (!inside) {
           let sWall, hw = null;
-          if (wg) { hw = wallHit(wg, x, y, tx, ty); sWall = hw[0]; }
+          if (wg) { hw = wallHit(wg, x, y, tx, ty); if (!hw) { lost.escaped = (lost.escaped || 0) + 1; break; } sWall = hw[0]; }
           else { const b = x * tx + y * ty; sWall = -b + Math.sqrt(Math.max(b * b - (x * x + y * y) + Rc * Rc, 0)); }
           let sReg = Infinity;
           for (const sh of shapes) {

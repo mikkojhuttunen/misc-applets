@@ -63,6 +63,8 @@ class WaveCell:
     wall: float = 0.4e-6
     gap: float = 1.0e-6                 # slab between the wall and the PML
     pml: float = 2.0e-6
+    subpixel: int = 1                   # >1: wall permittivity averaged over subpixel × subpixel samples per cell
+                                        #     (a smooth wall instead of a staircase)
     n_pix: int = 64
     max_sin: float = 0.9
     _ready: bool = field(default=False, repr=False)
@@ -106,17 +108,30 @@ class WaveCell:
         x = -self.L + (np.arange(N) + 0.5) * h
         self.x = x
         X, Y = np.meshgrid(x, x, indexing="xy")          # Y rows, X columns; index = iy * N + ix
-        d = self.boundary_distance(X, Y)
-        eps = np.full(X.shape, n0 ** 2, complex)
-        wall = (d >= 0) & (d < self.wall)
-        for i in range(len(self.port_angles)):
-            c, nrm, t = self.port_frame(i)
-            u = (X - c[0]) * t[0] + (Y - c[1]) * t[1]
-            v = (X - c[0]) * nrm[0] + (Y - c[1]) * nrm[1]
-            wall &= ~((np.abs(u) < self.port_width / 2) & (v > -h) & (v < self.wall + h))
+
+        def wall_at(Xs, Ys):
+            d = self.boundary_distance(Xs, Ys)
+            w = (d >= 0) & (d < self.wall)
+            for i in range(len(self.port_angles)):
+                c, nrm, t = self.port_frame(i)
+                u = (Xs - c[0]) * t[0] + (Ys - c[1]) * t[1]
+                v = (Xs - c[0]) * nrm[0] + (Ys - c[1]) * nrm[1]
+                w &= ~((np.abs(u) < self.port_width / 2) & (v > -h) & (v < self.wall + h))
+            return w
+        wall = wall_at(X, Y)
+        frac = wall.astype(float)
+        if self.subpixel > 1:
+            d0 = self.boundary_distance(X, Y)
+            near = np.nonzero((d0 > -1.5 * h) & (d0 < self.wall + 1.5 * h))
+            sub = (np.arange(self.subpixel) + 0.5) / self.subpixel - 0.5
+            acc = np.zeros(len(near[0]))
+            for sy in sub:
+                for sx in sub:
+                    acc += wall_at(X[near] + sx * h, Y[near] + sy * h)
+            frac[near] = acc / self.subpixel ** 2
         self.eps_m = metal_eps(n0, self.reflectance)
-        eps[wall] = self.eps_m
-        self.eps, self.wall_mask = eps, wall
+        eps = n0 ** 2 + frac * (self.eps_m - n0 ** 2)
+        self.eps, self.wall_mask = eps, frac > 0.5
         # stretched-coordinate PML
         def stretch(xx):
             dpml = np.clip(np.abs(xx) - (self.L - self.pml), 0, None) / self.pml

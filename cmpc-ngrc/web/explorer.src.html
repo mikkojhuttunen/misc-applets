@@ -322,6 +322,24 @@ td.heat { font-family: var(--f-mono); text-align: right; }
         <div class="panel"><h2>E20 · The 24-facet cell: which Δn under noise?</h2><div id="e20chart"></div>
           <p class="note" id="e20note"></p></div>
       </div>
+      <div class="charts2">
+        <div class="panel"><h2>E24 · Full-wave reservoir (FDFD, 25 µm cell)</h2><div id="e24chart"></div>
+          <p class="note" id="e24note"></p></div>
+        <div class="panel"><h2>E25 · Wavelength views against detector noise</h2><div id="e25chart"></div>
+          <p class="note" id="e25note"></p></div>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>E21 · Curved rays vs phase screen, 24-facet cell</h2><div id="e21chart"></div>
+          <p class="note" id="e21note"></p></div>
+        <div class="panel"><h2>E23 · Ray bending without sampling noise</h2><div class="scroll"><table id="e23table"></table></div>
+          <p class="note" id="e23note"></p></div>
+      </div>
+      <div class="charts2">
+        <div class="panel"><h2>E22 · Fabrication errors: readout trained on each chip</h2><div id="e22own"></div>
+          <p class="note" id="e22onote"></p></div>
+        <div class="panel"><h2>E22 · Fabrication errors: readout trained on the design</h2><div id="e22twin"></div>
+          <p class="note" id="e22tnote"></p></div>
+      </div>
       <div class="panel"><h2>E9 · Wave check: one pass through a dot, beamlet sums vs BPM <span class="arch">off-centre archive</span></h2><div class="scroll"><table id="e9table"></table></div>
         <p class="note">A beam crossing the cell (2 mm) through a 50 µm dot (edge 3 µm), observed beyond the far wall. ΔE is the scattered field E(dot) − E(no dot), the part that carries the dot's shape; correlation and relative error (after the best complex scale) of ΔE against split-step BPM. The FGA also matches exact Gaussian beams through clipping apertures and oblique mirror reflections (tests/test_fga.py).</p></div>
     </div>
@@ -1140,6 +1158,37 @@ function drawProgress2() {
     });
     lineChart($('e20chart'), { x: E.dn, xlog: true, xticks: E.dn, xfmt: v => v.toExponential(0), xname: 'Δn', yname: 'R²', ylim: [-0.1, 1], xlabel: 'Δn of the dot', series: ser, label: 'Δn under noise' });
     $('e20note').innerHTML = `${E.N} centred dots in the 24-facet cell, linear readout trained and tested with additive noise σ·Ī₀. Solid: mean over m = 2…6; dashed: odd orders. Without noise any Δn up to 3e-4 reads every order (R² ≥ 0.98). With noise a larger Δn wins, up to 1e-3 (1 % noise: 0.97 / 0.91 / 0.87 / 0.76 / 0.68), where the phase screen starts to miss ray bending (E4): the curved-ray check is the next step.`;
+  }
+  if (P.E24) {
+    const cols = ['var(--s1)', 'var(--faint)', 'var(--s2)'];
+    barChart($('e24chart'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: P.E24.cases.map((c, i) => ({ name: c.name, y: c.clean, color: cols[i % 3] })), label: 'full-wave reservoir' });
+    $('e24note').innerHTML = `2D scalar Helmholtz equation solved by finite differences (12 points per wavelength, PML, lossy metal wall with R = 0.97 and 1.5 µm port gaps): diffraction at facet corners and port edges, ray bending and multiple scattering in the dot are all included. Cell radius ${P.E24.radius_um} µm, ${P.E24.N} centred dots of radius ${P.E24.dot_R_um.map(v => fmt(v, 1)).join('–')} µm, linear readout. Δn × cell size sets both the dot phase and the bending, so Δn<sub>w</sub> = 1.2e-3 / 1.2e-2 corresponds to Δn = 3e-5 / 3e-4 in the 1 mm cell. With 1 % noise: ${P.E24.cases.map(c => `${esc(c.name)} ${c.noisy.map(v => fmt(v, 2)).join(' / ')}`).join('; ')}.`;
+  }
+  if (P.E25) {
+    const E = P.E25, cols = ['var(--faint)', 'var(--s1)', 'var(--s2)'];
+    lineChart($('e25chart'), { x: E.sigma, xlog: true, xticks: E.sigma, xname: 'σ', yname: 'mean R²', ylim: [-0.1, 1], xlabel: 'noise σ / mean intensity',
+      series: E.cases.map((c, i) => ({ name: c.name, y: c.r2.map(mean), color: cols[(c.views === 1 ? 0 : c.views === 3 ? 1 : 2)], dash: c.dn > 5e-4 })), label: 'wavelength views' });
+    $('e25note').innerHTML = `24-facet cell, ${E.N} centred dots, two inputs, linear readout trained with the noise; each wavelength (0.2 nm apart) is an independent speckle with its own detector noise. Solid: Δn = 3e-4, dashed: Δn = 1e-3. Mean R² over m = 2…6.`;
+  }
+  if (P.E21) {
+    const cols = ['var(--s1)', 'var(--s3)', 'var(--s2)', 'var(--s4)'], xs = P.E21.cases[0].n_ang;
+    lineChart($('e21chart'), { x: xs, xlog: true, xticks: xs, xname: 'directions', yname: 'correlation', ylim: [-0.5, 1], xlabel: 'launch directions per input',
+      series: P.E21.cases.flatMap((c, i) => [{ name: `speckle E, Δn = ${c.dn.toExponential(0)}, a${c.m}`, y: c.corr_E, color: cols[i % 4] }, { name: `change ΔE, Δn = ${c.dn.toExponential(0)}, a${c.m}`, y: c.corr_dE, color: cols[i % 4], dash: true }]), label: 'curved vs phase screen' });
+    $('e21note').innerHTML = `Correlation between curved-ray and phase-screen fields for one dot (solid) and for the change of the field when a<sub>m</sub> changes by 0.02 (dashed), against the number of frozen-Gaussian launch directions. The speckle correlation keeps rising with more directions (sampling noise); the shape-change correlation stays near 0.1: the small curved-ray signal is buried in sampling noise at any affordable ray count, as in the circle (E7b).`;
+  }
+  if (P.E23) {
+    let h = '<thead><tr><th>cell</th><th class="num">Δn</th><th class="num">paired weight</th><th class="num">diverges at bounce</th><th class="num">bending median (rad)</th><th class="num">tail &gt; 0.3 rad</th><th class="num">shape signal (rad)</th><th class="num">shift (µm)</th></tr></thead><tbody>';
+    P.E23.cells.forEach(c => c.dn.forEach((d, i) => { h += `<tr><td>${esc(c.name)}</td><td class="num">${d.toExponential(0)}</td><td class="num">${fmt(c.paired[i], 2)}</td><td class="num">${fmt(c.diverge_bounce[i], 0)}</td><td class="num">${c.bend_median[i].toExponential(1)}</td><td class="num">${fmt(c.tail[i], 3)}</td><td class="num">${c.signal_rms[i].toExponential(1)}</td><td class="num">${fmt(c.shift_um[i], 1)}</td></tr>`; }));
+    $('e23table').innerHTML = h + '</tbody>';
+    $('e23note').innerHTML = `The same ${P.E23.n_ang} launch directions traced with curved rays and with the phase screen, records paired ray by ray up to the first change of the port/bounce sequence. For a paired record the phase difference at its Gaussian centre, k<sub>0</sub>[L<sub>c</sub> − L<sub>s</sub> + n<sub>0</sub>t·δ + ½Kq²], is the second-order bending error (the first-order endpoint shift cancels). In the smooth circle it stays below the shape signal (10–45 %) and most of the field stays paired. In the faceted cell most records have tiny errors, but µm endpoint shifts move rays across facet corners: after 20–50 bounces the ray sequence changes for half or more of the field. Whether the wave field follows needs diffraction at the corners: see the full-wave check (E24).`;
+  }
+  if (P.E22) {
+    const E = P.E22;
+    barChart($('e22own'), { cats: ms.map(m => 'm=' + m), yname: 'R²', ylim: [-0.2, 1], series: E.own.map((o, i) => ({ name: `tilt ${fmt(o.tilt_urad, 0)} µrad, offset ${fmt(o.offset_nm, 0)} nm, chip ${o.seed}`, y: o.r2, color: ['var(--s1)', 'var(--s3)', 'var(--s2)', 'var(--s4)', 'var(--s7)', 'var(--faint)'][i % 6] })), label: 'fabricated chips' });
+    $('e22onote').innerHTML = `Each facet of the 24-facet cell tilted and shifted at random (rms values as listed, two random chips each), ${E.N} centred dots, Δn = ${E.dn.toExponential(0)}, readout trained on that chip. Facet errors break no symmetry that matters: every chip reads every order.`;
+    lineChart($('e22twin'), { x: E.twin.map(t => Math.max(t.offset_nm, 0.3)), xlog: true, xticks: [0.3, 1, 3, 10, 30, 100], xfmt: v => v === 0.3 ? '0' : String(v), xname: 'offset nm', yname: 'R²', ylim: [-0.5, 1], xlabel: 'facet offset rms (nm)',
+      series: ms.map((m, k) => ({ name: 'm = ' + m, y: E.twin.map(t => t[`r2`][k]), color: mc[k] })), label: 'digital twin' });
+    $('e22tnote').innerHTML = `Readout trained on the nominal design (1600 simulated dots) and applied to fabricated chips with random facet offsets, using the chip's own empty-cell speckle as reference. The leftmost point is the design itself; values below −0.5 are clipped. This shows how precisely a chip must match its digital twin if it is not trained on its own measurements.`;
   }
   if (P.E13) {
     const E = P.E13, ser = [];

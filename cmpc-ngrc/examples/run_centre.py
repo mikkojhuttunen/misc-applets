@@ -26,7 +26,7 @@ from run_fga import (ASYM, FGA, M_MAX, PORT_W, R_WALL, RO, dataset, ens, field_c
                      fit_ridge, occupancy, per_m, sample_shapes, sensitivity, split, stack_intensities)
 from run_progress import image_features                         # noqa: E402
 from ngrc.geometry import ports_at, symmetric_ports                  # noqa: E402
-from ngrc.shapes import Perturbation, random_shape                   # noqa: E402
+from ngrc.shapes import Perturbation, Shape, random_shape                   # noqa: E402
 
 CENTRE = (0.0, 0.0)
 LAUNCH, FAN = 0.05, 0.2
@@ -470,7 +470,229 @@ def e20(q):
     return out
 
 
-EXPS = {"E1": e1, "E3": e3, "E6": e6, "E12": e12, "E2": e2, "E8": e8, "E11": e11, "E13": e13, "E14": e14, "E15": e15, "E16": e16, "E17": e17, "E18": e18, "E19": e19, "E20": e20}
+def e21(q):
+    """Curved rays vs phase screen in the 24-facet cell at the noise-robust Δn. For a dot and the same dot with
+    a_2 + 0.02 (or a_3 + 0.02), correlate the change of the field ΔE and of the intensity ΔI between the two engines
+    as the number of launch directions grows: sampling noise falls with more directions, a physical difference
+    (ray bending) does not. Also the field correlation of the perturbed speckle itself."""
+    from ngrc.geometry import polygon
+    cell = wall_cell(polygon(1e-3, 24))
+    out = dict(cases=[])
+    nas = (750, 1500) if q else (1500, 3000, 6000, 12000)
+    for dn in (3e-4, 1e-3):
+        for m in (2, 3):
+            s1 = Shape(0.0, 0.0, 80e-6, dn, 3e-6, a=[0, 0.06, 0.03, 0, 0, 0], b=[0, 0, 0, 0.02, 0, 0])
+            s2 = copy.deepcopy(s1)
+            s2.a = s2.a.copy()
+            s2.a[m - 1] += 0.02
+            batch = [None, Perturbation([s1]), Perturbation([s2])]
+            row = dict(dn=dn, m=m, n_ang=[], corr_dE=[], corr_dI=[], corr_E=[])
+            for na in nas:
+                cfg = dict(FGA, n_ang=na)
+                Fp, Fc = fields(cell, batch, "phase", cfg), fields(cell, batch, "curved", cfg)
+                keys = sorted(Fp[0])
+                cat = lambda F, f: np.concatenate([f(F, k) for k in keys])
+                dEp, dEc = cat(Fp, lambda F, k: F[2][k] - F[1][k]), cat(Fc, lambda F, k: F[2][k] - F[1][k])
+                dIp = cat(Fp, lambda F, k: np.abs(F[2][k]) ** 2 - np.abs(F[1][k]) ** 2)
+                dIc = cat(Fc, lambda F, k: np.abs(F[2][k]) ** 2 - np.abs(F[1][k]) ** 2)
+                row["n_ang"].append(na)
+                row["corr_dE"].append(field_correlation(dEp, dEc))
+                row["corr_dI"].append(float(np.corrcoef(dIp, dIc)[0, 1]))
+                row["corr_E"].append(float(np.mean([field_correlation(Fp[1][k], Fc[1][k]) for k in keys])))
+                print(f"E21 Δn={dn:g} a{m}: {na} directions: corr ΔE {row['corr_dE'][-1]:.3f}, ΔI {row['corr_dI'][-1]:.3f}, "
+                      f"E {row['corr_E'][-1]:.4f}", flush=True)
+            out["cases"].append(row)
+    return out
+
+
+def e22(q):
+    """Fabrication errors of the 24-facet cell (random facet tilts and offsets).
+    (a) Trained on the chip: a readout trained on each fabricated cell (as one would on a real chip).
+    (b) Trained on the design (a digital twin): the nominal cell's readout (E19 data) applied to fabricated cells,
+        with features relative to the fabricated empty cell's own speckle."""
+    from ngrc.geometry import polygon
+    N = 200 if q else 800
+    nominal = wall_cell(polygon(1e-3, 24))
+    out = dict(N=N, dn=DN, own=[], twin=[])
+    for tilt, off in ((1e-3, 0.0), (0.0, 1e-6), (1e-3, 1e-6)):
+        for seed in (1, 2):
+            cell = wall_cell(polygon(1e-3, 24, tilt_rms=tilt, offset_rms=off, seed=seed))
+            D = dataset(cell, ensc(N, 11))
+            tr, te = split(N, N // 4)
+            r = per_m(RO.evaluate_krr(D["X"], D["Yab"], "linear", train_idx=tr, test_idx=te)["r2"])
+            out["own"].append(dict(tilt_urad=tilt * 1e6, offset_nm=off * 1e9, seed=seed, r2=r))
+            print(f"E22 own: tilt {tilt * 1e6:.0f} µrad, offset {off * 1e9:.0f} nm, seed {seed}: {np.round(r, 2)}", flush=True)
+    Nn = 400 if q else 1600
+    e = ensc(Nn, 41)
+    Dn = dataset(nominal, e)
+    tr, te = split(Nn, Nn // 4)
+    pred = fit_ridge(Dn["X"], Dn["Yab"], tr)
+    perts = sample_shapes(nominal, e)
+    te_s = te[:200]
+    for off in (0.0, 1e-9, 3e-9, 10e-9, 30e-9, 100e-9):
+        cell = wall_cell(polygon(1e-3, 24, offset_rms=off, seed=3)) if off > 0 else nominal
+        F = fields(cell, [None] + [perts[i] for i in te_s])
+        Xt = np.array([stack_intensities(f, reference=F[0]) for f in F[1:]])
+        r = per_m(RO.r2(Dn["Yab"][te_s], pred(Xt)))
+        out["twin"].append(dict(offset_nm=off * 1e9, r2=r))
+        print(f"E22 twin: offset {off * 1e9:.0f} nm: {np.round(r, 2)}", flush=True)
+    return out
+
+
+def e23(q):
+    """Ray bending without sampling noise: the same frozen-Gaussian rays traced with curved rays and with the phase
+    screen (straight chords + ∫Δn ds), records paired ray by ray in order up to the first change of the port/bounce
+    sequence. For a paired record the phase it contributes at its own Gaussian centre differs by
+    k0 [L_c − L_s + n0 t_c·δ + ½ K_c q²] (δ = r_s − r_c, q its transverse part, K_c = Im P / Im Q the point-source
+    wavefront curvature): the first-order part of the endpoint shift cancels (eikonal), so this is the second-order
+    bending error. It is compared with the phase change from the shape signal (a_2 + 0.02) on the same records."""
+    from ngrc.geometry import polygon
+    from ngrc.rays import Source, trace
+    n_ang = 51 if q else 101
+    out = dict(n_ang=n_ang, cells=[])
+    for cname, cell in (("smooth circle", cell_with(layouts()["asym4 · 2 in"])), ("24-facet cell", wall_cell(polygon(1e-3, 24)))):
+        k0, n0 = cell.k0, cell.n_eff
+        src = Source(0, n_pos=None, n_ang=n_ang, frozen=20e-6)
+        row = dict(name=cname, dn=[], paired=[], diverge_bounce=[], bend_rms=[], bend_median=[], tail=[], core_rms=[], signal_rms=[], shift_um=[])
+        for dn in (1e-4, 3e-4, 1e-3):
+            s1 = Shape(0, 0, 80e-6, dn, 3e-6, a=[0, .06, .03, 0, 0, 0], b=[0, 0, 0, .02, 0, 0])
+            s2 = copy.deepcopy(s1)
+            s2.a = s2.a.copy()
+            s2.a[1] += 0.02
+            es = trace(cell, src, Perturbation([s1]), "straight", max_bounces=300, amp_min=0.02)
+            es2 = trace(cell, src, Perturbation([s2]), "straight", max_bounces=300, amp_min=0.02)
+            ec = trace(cell, src, Perturbation([s1]), "curved", max_bounces=300, amp_min=0.02)
+            def recs(ex):
+                d = {}
+                for j in np.argsort(ex.ray, kind="stable"):
+                    d.setdefault(int(ex.ray[j]), []).append(j)
+                return d
+            rs, rc, r2_ = recs(es), recs(ec), recs(es2)
+            wtot = wsame = 0.0
+            ph, sig, w, dx, div = [], [], [], [], []
+            for ray, js in rs.items():
+                jc, j2 = rc.get(ray, []), r2_.get(ray, [])
+                for i, a in enumerate(js):
+                    wa = es.amp[a] * abs(es.W[a])
+                    wtot += wa
+                    if i >= len(jc) or es.port[a] != ec.port[jc[i]] or es.nb[a] != ec.nb[jc[i]]:
+                        div.append(es.nb[a])
+                        wtot += sum(es.amp[b] * abs(es.W[b]) for b in js[i + 1:])
+                        break
+                    b = jc[i]
+                    wsame += wa
+                    d = np.array([es.x[a] - ec.x[b], es.y[a] - ec.y[b]])
+                    qp = -ec.ty[b] * d[0] + ec.tx[b] * d[1]
+                    K = ec.P[b].imag / ec.Q[b].imag if ec.Q[b].imag != 0 else 0.0
+                    ph.append(k0 * (ec.L[b] - es.L[a] + n0 * (ec.tx[b] * d[0] + ec.ty[b] * d[1]) + 0.5 * K * qp * qp))
+                    sig.append(k0 * (es2.L[j2[i]] - es.L[a]) if i < len(j2) and es2.nb[j2[i]] == es.nb[a] else np.nan)
+                    w.append(wa)
+                    dx.append(np.hypot(*d))
+            ph = np.angle(np.exp(1j * np.array(ph)))
+            sig, w, dx = np.array(sig), np.array(w), np.array(dx)
+            core = np.abs(ph) <= 0.3
+            rms = lambda v, m=None: float(np.sqrt(np.nansum((w * v ** 2)[m] if m is not None else w * v ** 2) /
+                                                  np.sum(w[m] if m is not None else w[np.isfinite(v)])))
+            for k, v in (("dn", dn), ("paired", wsame / wtot), ("diverge_bounce", float(np.median(div)) if div else -1.0),
+                         ("bend_rms", rms(ph)), ("bend_median", float(np.median(np.abs(ph)))),
+                         ("tail", float(np.sum(w[~core]) / np.sum(w))), ("core_rms", rms(ph, core)),
+                         ("signal_rms", rms(sig)), ("shift_um", rms(dx) * 1e6)):
+                row[k].append(v)
+            print(f"E23 {cname} Δn={dn:g}: paired {row['paired'][-1]:.2f} (diverge at bounce {row['diverge_bounce'][-1]:.0f}), "
+                  f"bend rms {row['bend_rms'][-1]:.1e} median {row['bend_median'][-1]:.1e} tail {row['tail'][-1]:.3f} "
+                  f"core {row['core_rms'][-1]:.1e}; signal {row['signal_rms'][-1]:.1e}; shift {row['shift_um'][-1]:.1f} µm", flush=True)
+        out["cells"].append(row)
+    return out
+
+
+WAVE_R = (2.0e-6, 3.5e-6)        # dot radii in the 25 µm wave cell (8–14 % of the cell, as 60–110 µm in 1 mm)
+
+
+def wave_dataset(name, cell, N, dn, seed=11):
+    """Full-wave (FDFD) dataset of centred dots, cached and resumable every 25 samples."""
+    import dataclasses
+    from ngrc.dataset import labels
+    f = F.CACHE / f"wave_{name}_{N}_{dn:g}_{seed}.npz"
+    part = F.CACHE / f"wave_{name}_{N}_{dn:g}_{seed}.part.npz"
+    if f.exists():
+        z = np.load(f)
+        return {k: z[k] for k in z.files}
+    e = dataclasses.replace(ensc(N, seed, dn=dn), R_range=WAVE_R, edge=0.25e-6)
+    perts = sample_shapes(cell, e)
+    t0 = time.time()
+    cell.setup()
+    ref = cell.fields(None)
+    rows, its = [], []
+    if part.exists():
+        z = np.load(part)
+        rows, its = list(z["X"]), list(z["its"])
+    for j in range(len(rows), N):
+        Fj = cell.fields(perts[j])
+        rows.append(stack_intensities(Fj, reference=ref))
+        its.append(max(v[0] for v in cell.last_info.values()))
+        if (j + 1) % 25 == 0 or j + 1 == N:
+            F.CACHE.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(part, X=np.array(rows), its=np.array(its))
+            print(f"  {name} Δn={dn:g}: {j + 1}/{N}, {time.time() - t0:.0f} s, GMRES ≤ {max(its)} iterations", flush=True)
+    Y, names = labels(perts, M_MAX)
+    out = dict(X=np.array(rows), Yab=Y[:, [i for i, s_ in enumerate(names) if s_[0] in "ab"]],
+               Yp=Y[:, [i for i, s_ in enumerate(names) if s_[0] == "p"]], its=np.array(its),
+               I0=np.concatenate([np.abs(ref[k]) ** 2 for k in sorted(ref)]))
+    np.savez_compressed(f, **out)
+    part.unlink(missing_ok=True)
+    return out
+
+
+def e24(q):
+    """Full-wave reservoir: 2D scalar Helmholtz (FDFD) in a 25 µm cell, centred dot, ports at the asym4 angles
+    (1.5 µm openings), two inputs. Δn × cell size sets both the accumulated dot phase and the bending
+    displacement, so Δn_w = 1.2e-3 / 1.2e-2 here emulates Δn = 3e-5 / 3e-4 in the 1 mm cell. Includes diffraction
+    at corners and port edges, ray bending and multiple scattering. Linear readout, clean and with 1 % noise."""
+    from ngrc.fdfd import WaveCell
+    N = 120 if q else 400
+    rng = np.random.default_rng(24)
+    out = dict(N=N, radius_um=25, dot_R_um=[r * 1e6 for r in WAVE_R], cases=[])
+    for name, fac, dn in (("24-facet", 24, 1.2e-3), ("circle", 0, 1.2e-3), ("24-facet", 24, 1.2e-2)):
+        cell = WaveCell(radius=25e-6, facets=fac)
+        D = wave_dataset(f"{name}", cell, N, dn)
+        X, Yab = D["X"], D["Yab"]
+        tr, te = split(N, N // 4)
+        c = per_m(RO.evaluate_krr(X, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
+        Xn = X + rng.normal(0, 1, X.shape) * 0.01 * D["I0"].mean() / np.maximum(D["I0"], 1e-30)
+        n_ = per_m(RO.evaluate_krr(Xn, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
+        rp = RO.evaluate_krr(X, D["Yp"], "poly2", train_idx=tr, test_idx=te)["r2"].tolist()
+        out["cases"].append(dict(name=f"{name}, Δn_w = {dn:g}", facets=fac, dn=dn, clean=c, noisy=n_, r2_p=rp,
+                                 gmres_max=int(D["its"].max())))
+        print(f"E24 {name} Δn_w={dn:g}: clean {np.round(c, 2)}, noisy {np.round(n_, 2)}, p {np.round(rp, 2)}", flush=True)
+    return out
+
+
+def e25(q):
+    """Noise robustness of the 24-facet cell through extra views: 1, 3 or 5 wavelengths 0.2 nm apart (independent
+    speckles, each with its own detector noise), at Δn = 3e-4 and 1e-3. Linear readout trained with the noise."""
+    from ngrc.geometry import polygon
+    N = 200 if q else 800
+    cell = wall_cell(polygon(1e-3, 24))
+    lam = cell.wavelength
+    rng = np.random.default_rng(25)
+    sets = {"1 wavelength": [0.0], "3 wavelengths": [-0.2e-9, 0.0, 0.2e-9], "5 wavelengths": [-0.4e-9, -0.2e-9, 0.0, 0.2e-9, 0.4e-9]}
+    out = dict(N=N, sigma=[0.003, 0.01, 0.03], cases=[])
+    for dn in (3e-4, 1e-3):
+        e = ensc(N, 11, dn=dn)
+        Ds = {d: dataset(cell.variant(wavelength=lam + d), e) for d in sets["5 wavelengths"]}
+        Y = Ds[0.0]["Yab"]
+        tr, te = split(N, N // 4)
+        for name, ds in sets.items():
+            rows = []
+            for sg in out["sigma"]:
+                X = np.hstack([Ds[d]["X"] * Ds[d]["I0"] / Ds[d]["I0"].mean() + rng.normal(0, 1, Ds[d]["X"].shape) * sg for d in ds])
+                rows.append(per_m(RO.evaluate_krr(X, Y, "linear", train_idx=tr, test_idx=te)["r2"]))
+            out["cases"].append(dict(name=f"Δn = {dn:g}, {name}", dn=dn, views=len(ds), r2=rows))
+            print(f"E25 Δn={dn:g} {name}: " + "; ".join(f"σ={sg}: {np.round(r, 2)}" for sg, r in zip(out["sigma"], rows)), flush=True)
+    return out
+
+
+EXPS = {"E1": e1, "E3": e3, "E6": e6, "E12": e12, "E2": e2, "E8": e8, "E11": e11, "E13": e13, "E14": e14, "E15": e15, "E16": e16, "E17": e17, "E18": e18, "E19": e19, "E20": e20, "E21": e21, "E22": e22, "E23": e23, "E24": e24, "E25": e25}
 
 
 def main(only, quick):

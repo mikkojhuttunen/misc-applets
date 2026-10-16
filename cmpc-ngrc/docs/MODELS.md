@@ -97,11 +97,22 @@ rays. Ray bending matters from Δn ≈ 3e-4 (field correlation with curved rays:
 Cost (JS, circle, R = 0.97, 6000 directions, two inputs): about 1 s per sample after a one-off 30–60 s trace
 per worker. Datasets run through node on all cores (`ngrc.jsengine.node_fields`).
 
-## 4b. Wave reference (`wave_ref`)
+## 4b. Wave references (`wave_ref`, `fdfd`)
 
 Split-step Fourier BPM of the paraxial scalar equation ∂E/∂z = (i/2k) ∂²E/∂y² + i k₀ Δn E with absorbing edges,
-for one pass through a dot. A full-wave model of the whole 1 mm cell (≈ 2300 wavelengths across) is not
-attempted; the multi-bounce physics is checked against exact Gaussian beams through the mirrors (above).
+for one pass through a dot (E9).
+
+Full-wave multi-bounce reference (`fdfd.WaveCell`): ∇²E + k₀² n² E = −J on a square grid (second-order stencil,
+about 12 points per wavelength in the slab, stretched-coordinate PML). The wall is a 0.4 µm layer of lossy
+metal, ε_m = −40 + i b with b set for the wall reflectance at normal incidence, with gaps at the ports; the slab
+continues outside into the PML. Each input is a Gaussian line current across its opening with a linear phase for
+the launch angle; the detector is the far field of the field across each opening, with the same kernel as the
+ray engine. The empty cell is factorised once with MKL PARDISO (real 2N form). A dot changes the operator only on
+its own cells d, so z = x₀|d − [A₀⁻¹ ΔA z]|d is solved by GMRES (one sparse solve per iteration, 3–8 iterations)
+and x = x₀ − A₀⁻¹ ΔA z. A 25 µm cell has about 0.6 M unknowns: 15 s to factorise, about 10–20 s per dot for two
+inputs. Numerical dispersion changes the speckle from the continuum one but leaves a consistent wave system with
+diffraction at corners and port edges, ray bending and multiple scattering. Δn × cell size sets both the dot
+phase and the bending displacement, so a 25 µm cell at Δn_w ≈ 40 Δn emulates the 1 mm cell at Δn.
 
 ## 5. Features and readouts (`features`, `readout`)
 

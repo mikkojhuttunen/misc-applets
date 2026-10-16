@@ -299,9 +299,14 @@ def d_cell(radius=1e-3, cut=0.95, angle=np.deg2rad(110), n_arcs=4):
     return pl.Cell2D(els, f"D-cell cut={cut:g}")
 
 
-def polygon(radius=1e-3, n=24):
-    """Regular n-gon of flat facets (gmpc.planar.polygon_cell), a segmented circle."""
-    return _gmpc_planar().polygon_cell(radius, n, ext=0.0)
+def polygon(radius=1e-3, n=24, tilt_rms=0.0, offset_rms=0.0, seed=0):
+    """Regular n-gon of flat facets (gmpc.planar.polygon_cell), a segmented circle. With tilt_rms (rad) or
+    offset_rms (m), a fabricated version: every facet tilted about its midpoint and shifted along its normal by a
+    normal random draw (seed); facets are then extended by 15 % so that neighbours still close the wall."""
+    pl = _gmpc_planar()
+    if tilt_rms == 0 and offset_rms == 0:
+        return pl.polygon_cell(radius, n, ext=0.0)
+    return pl.perturb(pl.polygon_cell(radius, n, ext=0.15), tilt_rms=tilt_rms, offset_rms=offset_rms, seed=seed)
 
 
 def ports_by_angle(wall, angles_deg, inputs=(0,), **kw):

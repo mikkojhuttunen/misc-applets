@@ -37,6 +37,7 @@ ngrc/
   perturbative.py  PhaseScreenModel: trace once, E = K (B · exp(i k0 ΔL)) with ΔL from the dots' Radon tables
   jsengine.py      node_fields: the JS engine through node on all cores (datasets)
   wave_ref.py      split-step BPM reference for one pass through a dot
+  fdfd.py          full-wave reference: 2D Helmholtz FDFD in a small cell (PARDISO + GMRES on the dot cells)
   features.py      stacked intensities (raw / relative / log / delta), NGRC monomials, detector noise
   dataset.py       Ensemble of random dots (fixed / random position, jitter) → labels and features
   readout.py       ridge with CV, kernel ridge (linear / poly2 / RBF, × position kernel), SVR / SVC, R²
@@ -115,7 +116,15 @@ directions per input. The bullets after the first are for the smooth circle. R²
   arc normals still point at the centre (E16). **Open problem: detector noise.** At Δn = 3e-5 the readout drops
   to 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 % noise and 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 % (E19). A larger Δn helps (E20): at 1 % noise, Δn = 3e-4 gives 0.92 / 0.78 / 0.81 / 0.59 / 0.47 and Δn = 1e-3
   gives 0.97 / 0.91 / 0.87 / 0.76 / 0.68. From Δn ≈ 3e-4 ray bending matters (E4), so that working point still
-  needs the curved-ray check (T8.7).
+  needs the curved-ray check (T8.7). Five wavelength views 0.2 nm apart raise the 1 %-noise readout at
+  Δn = 1e-3 to 0.98 / 0.94 / 0.92 / 0.82 / 0.78 (E25).
+- **Fabrication errors (E22):** random facet tilts (1 mrad rms) and offsets (1 µm rms) change nothing when the
+  readout is trained on the chip (R² ≥ 0.97 in every order). A readout trained on the design fails at 1 nm rms
+  facet offset: the speckle is a fingerprint of the chip, so train on the chip.
+- **Ray bending (E21, E23):** curved-ray datasets are dominated by frozen-Gaussian sampling noise at any
+  affordable ray count (E21). Pairing the same rays (E23) shows a small second-order bending error in the smooth
+  circle (10–45 % of the shape signal for Δn = 1e-4 … 1e-3), but in the faceted cell µm shifts move rays across
+  facet corners after 20–50 bounces. Whether the wave field follows is tested with a full-wave model (E24).
 - **Launch angle (E1):** a centred dot is crossed only by rays with R_c |sin χ| below its radius, so the launch
   must be near 0; the sensitivity is gone by 17°. At 0° the odd orders are weakest; 3° with a ±5.7° fan is the
   working point.
@@ -162,7 +171,15 @@ Launch 20°, fan ±11.5°, Δn = 1e-3; otherwise as above. Kept as the reference
   arc normals still point at the centre (E16). **Open problem: detector noise.** At Δn = 3e-5 the readout drops
   to 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 % noise and 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 % (E19). A larger Δn helps (E20): at 1 % noise, Δn = 3e-4 gives 0.92 / 0.78 / 0.81 / 0.59 / 0.47 and Δn = 1e-3
   gives 0.97 / 0.91 / 0.87 / 0.76 / 0.68. From Δn ≈ 3e-4 ray bending matters (E4), so that working point still
-  needs the curved-ray check (T8.7).
+  needs the curved-ray check (T8.7). Five wavelength views 0.2 nm apart raise the 1 %-noise readout at
+  Δn = 1e-3 to 0.98 / 0.94 / 0.92 / 0.82 / 0.78 (E25).
+- **Fabrication errors (E22):** random facet tilts (1 mrad rms) and offsets (1 µm rms) change nothing when the
+  readout is trained on the chip (R² ≥ 0.97 in every order). A readout trained on the design fails at 1 nm rms
+  facet offset: the speckle is a fingerprint of the chip, so train on the chip.
+- **Ray bending (E21, E23):** curved-ray datasets are dominated by frozen-Gaussian sampling noise at any
+  affordable ray count (E21). Pairing the same rays (E23) shows a small second-order bending error in the smooth
+  circle (10–45 % of the shape signal for Δn = 1e-4 … 1e-3), but in the faceted cell µm shifts move rays across
+  facet corners after 20–50 bounces. Whether the wave field follows is tested with a full-wave model (E24).
 - **Launch angle (E1):** sensitivity peaks near 23° and is zero at 57°: dots within 600 µm of the centre are
   then inside the caustic disk.
 - **Port layout (E2, 800 dots at one position, linear readout):** more inputs and more ports help. Four

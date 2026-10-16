@@ -18,6 +18,7 @@ Status: `[x]` done, `[~]` partly done (*Now:* says what is there), `[ ]` to do. 
 | D7 | Ports | Any number of ports anywhere on the wall, each "in", "out" or "inout", with its own launch angle and fan; symmetric and asymmetric presets. Input ports are holes too. |
 | D8 | Detectors | Far field of every output port, 64 directions (sin θ uniform in ±0.9); intensity only. Features = all (input, output) pairs. |
 | D9 | Scope of the study | **One dot, at the cell centre (0, 0).** Moving the dot and adding dots stay available in the code (`Shape.x0/y0`, `Perturbation`, `Ensemble.centre/jitter/n_shapes`) but are later work (section 10). A centred dot is reached only by rays with R_c \|sin χ\| < dot radius, so launch angles near 0. The earlier off-centre results (dot at (250, 100) µm) are archived in `results/progress_offcentre.json`. |
+| D10 | Working cell | **24-facet segmented circle** (circumradius 1 mm, flat facets; `geometry.polygon`), ports at the asym4 angles, two inputs, launch 3°, fan ±5.7°, Δn = 3e-5. Flat facets break the smooth circle's parity, so all orders of a centred dot are read (E16, E18, E19). The smooth circle stays as the reference. |
 
 ## 1. Foundations
 
@@ -71,10 +72,11 @@ Status: `[x]` done, `[~]` partly done (*Now:* says what is there), `[ ]` to do. 
 - [x] **T8.2 Learning curves.** E6: R² vs number of training dots.
 - [x] **T8.3 Nonlinearity regime.** E4 (speckle correlation phase screen vs curved rays, decorrelation vs Δn) and E7/E12 (readout quality vs Δn, curved rays vs phase screen, with detector noise).
 - [~] **T8.4c Centred dot (D9).** `examples/run_centre.py`: E1 launch × fan, E2 layouts, E3 readouts, E6 learning curve, E8 multiplexing, E11 noise/drift, E12 Δn, E13–E15 odd orders. *Now:* launch 3°, fan ±5.7°, Δn = 3e-5 (every low-angle chord crosses the dot; at 1e-3 the phase adds up to tens of radians). Even orders are read almost perfectly (a₂, a₄, a₆: R² 0.99 / 0.96 / 0.96, p₂ 0.96); odd orders only weakly (0.35 / 0.21) at any launch angle (E13). The reason is a symmetry of the circle (see T8.4p). 1 % detector noise keeps a₂ (0.85) but removes m ≥ 3 at this Δn.
-- [~] **T8.4p Parity of the circle.** Each ray keeps its offset p = R_c sin χ from the centre, and the chord after a bounce is almost the point reflection of the one before. A point reflection flips the sign of odd harmonics, so odd-order phases cancel chord by chord and even ones add up. *Now:* the centred dot in the stadium is read in all orders (0.99 / 0.99 / 0.95 / 0.96 / 0.94, E15); shorter paths in the circle (R = 0.5) raise the odd orders to 0.55 / 0.47 (E14). Ports where the near-diametral chords land catch the odd orders after one pass: asym4 · 2 in plus two exits opposite the inputs 0.55 / 0.55, asym8 · 2 in 0.80 / 0.53 with the even orders ≥ 0.99 (E2); multiplexing launch or λ does not help (E8). Next: break the point symmetry with a weakly deformed circle (D-shape, ellipse, a flat facet) that keeps most rays near the centre; port the general walls to the JS engine (T8.6).
+- [x] **T8.4p Parity of the circle.** Each ray keeps its offset p = R_c sin χ from the centre, and the chord after a bounce is almost the point reflection of the one before. A point reflection flips the sign of odd harmonics, so odd-order phases cancel chord by chord and even ones add up (E13–E15). Remedies: ports where the near-diametral chords land (asym8 · 2 in: odd 0.80 / 0.53, E2); shorter paths (E14). The real fix is the wall: any wall whose normals stop pointing at the centre. A flat cut (D-cell) does not help (all arc normals still point at the centre); a stadium with straights ≥ 100 µm, or a segmented circle with 12–192 facets, reads all orders (24 facets: 1.00 / 1.00 / 0.99 / 0.99 / 0.98; E16–E18). Working cell: 24 facets (D10).
 - [ ] **T8.4r Rotation.** For a centred dot, rotating the dot is rotating the ports: test whether p_m readouts become rotation-robust with symmetric layouts, and what symmetric layouts lose (mirror pairs b_m ↔ −b_m at zero launch).
 - [~] **T8.5 Robustness.** *Now:* detector noise and temperature drift (E11). Missing: fabrication errors (wall tilts), retraining cost.
-- [~] **T8.6 Other cells.** *Now:* any `gmpc.planar` wall (`geometry.WallCell`), stadium vs circle readout (E10, Python FGA with the prefactor cut-off: the chaotic cell's semiclassical field is only reliable to about the Ehrenfest time; with a short-path circle control, shorter paths read out better and chaotic mixing adds to that). Missing: segmented circle; walls in the JS engine.
+- [x] **T8.6 Other cells.** Any `gmpc.planar` wall (`geometry.WallCell`, `d_cell`, `polygon`, `stadium`, `ports_by_angle`) in the Python engine and, since this round, in the JS engine (Cell2D elements, ports at boundary coordinates; `WallCell.to_dict`; JS = Python to correlation 1 − 1e-6, `tests/test_jsengine.py`). The applet has a wall-shape selector (circle, segmented, stadium). Chaotic walls are limited to about the Ehrenfest time by the prefactor cut-off (E10, E15); the segmented circle is pseudo-integrable and keeps its long paths.
+- [~] **T8.8 Noise robustness of the working cell.** *Now (E19, 1600 dots):* noise-free all readouts reach R² ≥ 0.98 in every order (linear SVR included; p_m 0.98 / 0.94 / 0.87 / 0.78 / 0.64; 100 training dots already give 0.94). With detector noise σ·Ī₀ the readout falls fast: 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 %, 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 %. E20: Δn against noise. Next: averaging (more pixels or frames), wavelength views, larger training sets.
 
 ## 9. Integration and output
 
@@ -95,7 +97,6 @@ Kept in the code, not pursued now (D9).
 
 ## Suggested order of the next steps
 
-T8.4p (break the circle's point symmetry: weakly deformed cells, walls in the JS engine, T8.6) → noise
-robustness of the centred dot (Δn vs noise with 1600+ dots, multiplexing as extra views) → T8.4r rotation and
-port symmetry → T8.7 bending at convergence → T8.5 fabrication errors → T5.2 full-wave check in a small cell
-→ section 10 (position, several dots).
+T8.8 noise robustness of the 24-facet cell (Δn, averaging, wavelength views, more dots) → T8.5 fabrication
+errors (facet tilts and offsets, `gmpc.planar.perturb`) → T8.4r rotation and port symmetry → T8.7 bending at
+convergence → T5.2 full-wave check in a small cell → section 10 (position, several dots).

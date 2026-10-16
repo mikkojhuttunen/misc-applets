@@ -129,26 +129,115 @@
     }
     return idx;
   }
+  // ---------- general walls: gmpc.planar.Cell2D elements {A, B, kappa, ext} (kappa < 0 concave), ports at s ----------
+  const _wallCache = new WeakMap();
+  function wallGeom(cell) {
+    const w = cell.wall;
+    if (!w) return null;
+    let g = _wallCache.get(w);
+    if (g) return g;
+    const E = w.A.length;
+    g = { E, A: w.A, B: w.B, kappa: w.kappa, ext: w.ext || new Array(E).fill(0), h: [], t: [], n: [], M: [], R: [], C: [], L: [], sense: [], s0: [] };
+    let acc = 0;
+    for (let k = 0; k < E; k++) {
+      const cx = w.B[k][0] - w.A[k][0], cy = w.B[k][1] - w.A[k][1], h = 0.5 * Math.hypot(cx, cy);
+      const t = [cx / (2 * h), cy / (2 * h)], n = [t[1], -t[0]], M = [0.5 * (w.A[k][0] + w.B[k][0]), 0.5 * (w.A[k][1] + w.B[k][1])];
+      let R = Infinity, C = [NaN, NaN], L = 2 * h, sense = 1;
+      if (w.kappa[k] !== 0) {
+        R = 1 / Math.abs(w.kappa[k]);
+        const d0 = Math.sqrt(Math.max(R * R - h * h, 0)), sg = w.kappa[k] < 0 ? -1 : 1;
+        C = [M[0] + sg * d0 * n[0], M[1] + sg * d0 * n[1]];
+        L = 2 * R * Math.asin(Math.min(h / R, 1));
+        const vA = [w.A[k][0] - C[0], w.A[k][1] - C[1]], vB = [w.B[k][0] - C[0], w.B[k][1] - C[1]];
+        sense = Math.sign(vA[0] * vB[1] - vA[1] * vB[0]) || 1;
+      }
+      g.h.push(h); g.t.push(t); g.n.push(n); g.M.push(M); g.R.push(R); g.C.push(C); g.L.push(L); g.sense.push(sense); g.s0.push(acc);
+      acc += L;
+    }
+    g.perimeter = acc;
+    const ol = [];
+    for (let k = 0; k < E; k++) for (let i = 0; i < 24; i++) { const q = pointAt(g, g.s0[k] + g.L[k] * i / 24); ol.push([q[0], q[1]]); }
+    g.outline = ol;
+    _wallCache.set(w, g);
+    return g;
+  }
+  function pointAt(g, s) {   // boundary point and outward normal at boundary coordinate s
+    const P = g.perimeter; s = ((s % P) + P) % P;
+    let k = 0; while (k + 1 < g.E && g.s0[k + 1] <= s) k++;
+    const loc = s - g.s0[k];
+    if (g.kappa[k] === 0) {
+      const f = loc / g.L[k];
+      return [g.A[k][0] + f * (g.B[k][0] - g.A[k][0]), g.A[k][1] + f * (g.B[k][1] - g.A[k][1]), g.n[k][0], g.n[k][1]];
+    }
+    const ang = loc / g.R[k] * g.sense[k], vx = g.A[k][0] - g.C[k][0], vy = g.A[k][1] - g.C[k][1];
+    const c = Math.cos(ang), sn = Math.sin(ang), px = vx * c - vy * sn, py = vx * sn + vy * c, sg = g.kappa[k] < 0 ? 1 : -1;
+    return [g.C[k][0] + px, g.C[k][1] + py, sg * px / g.R[k], sg * py / g.R[k]];
+  }
+  const _hit = new Float64Array(6);
+  function wallHit(g, px, py, dx, dy) {   // → _hit = [t, nx, ny, s, element, mirror power (1/m, > 0 focusing)]
+    const eps = 1e-12 * g.perimeter;
+    let bt = Infinity;
+    for (let k = 0; k < g.E; k++) {
+      const hh = g.h[k] * (1 + g.ext[k]), M = g.M[k], t = g.t[k], n = g.n[k];
+      let tt, u, nx, ny, sl;
+      if (g.kappa[k] === 0) {
+        const dn = dx * n[0] + dy * n[1];
+        if (!(dn > 1e-12)) continue;
+        tt = ((M[0] - px) * n[0] + (M[1] - py) * n[1]) / dn;
+        if (!(tt > eps) || !(tt < bt)) continue;
+        u = (px + tt * dx - M[0]) * t[0] + (py + tt * dy - M[1]) * t[1];
+        if (Math.abs(u) > hh) continue;
+        nx = n[0]; ny = n[1]; sl = Math.min(Math.max(u, -g.h[k]), g.h[k]) + g.h[k];
+      } else {
+        const R = g.R[k], C = g.C[k], ox = px - C[0], oy = py - C[1], b = ox * dx + oy * dy;
+        const disc = b * b - (ox * ox + oy * oy - R * R);
+        if (disc < 0) continue;
+        const sq = Math.sqrt(disc);
+        tt = g.kappa[k] < 0 ? -b + sq : -b - sq;
+        if (!(tt > eps) || !(tt < bt)) continue;
+        const hx = px + tt * dx, hy = py + tt * dy;
+        if (!(((hx - C[0]) * n[0] + (hy - C[1]) * n[1]) * (-Math.sign(g.kappa[k])) > 0)) continue;
+        u = (hx - M[0]) * t[0] + (hy - M[1]) * t[1];
+        if (Math.abs(u) > hh) continue;
+        const sg = g.kappa[k] < 0 ? 1 : -1;
+        nx = sg * (hx - C[0]) / R; ny = sg * (hy - C[1]) / R;
+        const vAx = g.A[k][0] - C[0], vAy = g.A[k][1] - C[1], vHx = hx - C[0], vHy = hy - C[1];
+        const ang = Math.atan2(vAx * vHy - vAy * vHx, vAx * vHx + vAy * vHy) * g.sense[k];
+        sl = Math.min(Math.max(R * ang, 0), g.L[k]);
+      }
+      const nn = Math.hypot(nx, ny) || 1;
+      bt = tt; _hit[0] = tt; _hit[1] = nx / nn; _hit[2] = ny / nn; _hit[3] = g.s0[k] + sl; _hit[4] = k; _hit[5] = -g.kappa[k];
+    }
+    if (bt === Infinity) throw new Error('ray left the wall');
+    return _hit;
+  }
+  function wallDistance(g, x, y) { let d = Infinity; for (const q of g.outline) d = Math.min(d, Math.hypot(q[0] - x, q[1] - y)); return d; }
+
   function portOffset(cell, i, sWall) {   // signed boundary distance from the centre of port i
-    const per = TAU * cell.radius;
-    let u = sWall - cell.ports[i].angle * cell.radius + per / 2;
+    const g = wallGeom(cell), per = g ? g.perimeter : TAU * cell.radius;
+    let u = sWall - (g ? cell.ports[i].s : cell.ports[i].angle * cell.radius) + per / 2;
     return ((u % per) + per) % per - per / 2;
   }
   function portFrame(cell, i) {
+    const g = wallGeom(cell);
+    if (g) { const q = pointAt(g, cell.ports[i].s); return { cx: q[0], cy: q[1], nx: q[2], ny: q[3], tx: -q[3], ty: q[2] }; }
     const a = cell.ports[i].angle, nx = Math.cos(a), ny = Math.sin(a);
     return { cx: cell.radius * nx, cy: cell.radius * ny, nx, ny, tx: -ny, ty: nx };
   }
   function aperturePoints(cell, i) {
-    const p = cell.ports[i], n = Math.ceil(p.width / (cell.wavelength / cell.n_eff / 3)) + 1, pts = [];
-    for (let k = 0; k < n; k++) { const a = p.angle + ((k + 0.5) / n * p.width - p.width / 2) / cell.radius; pts.push([cell.radius * Math.cos(a), cell.radius * Math.sin(a)]); }
+    const p = cell.ports[i], n = Math.ceil(p.width / (cell.wavelength / cell.n_eff / 3)) + 1, pts = [], g = wallGeom(cell);
+    for (let k = 0; k < n; k++) {
+      const u = (k + 0.5) / n * p.width - p.width / 2;
+      if (g) { const q = pointAt(g, p.s + u); pts.push([q[0], q[1]]); continue; }
+      const a = p.angle + u / cell.radius; pts.push([cell.radius * Math.cos(a), cell.radius * Math.sin(a)]);
+    }
     return { pts, du: p.width / n };
   }
   function linspace(n) { if (n <= 1) return [0]; const o = []; for (let i = 0; i < n; i++) o.push(-0.5 + i / (n - 1)); return o; }
 
   function launch(cell, port, src) {   // gbs launch grid
-    const p = cell.ports[port], a = p.angle;
-    const nx = Math.cos(a), ny = Math.sin(a), tnx = -ny, tny = nx;
-    const cx = cell.radius * nx, cy = cell.radius * ny;
+    const p = cell.ports[port], fr = portFrame(cell, port);
+    const nx = fr.nx, ny = fr.ny, tnx = fr.tx, tny = fr.ty, cx = fr.cx, cy = fr.cy;
     const U = linspace(src.nPos).map(v => v * 0.9 * p.width), V = linspace(src.nAng).map(v => v * p.fan);
     const mw = src.modeWidth ?? p.width / 2;
     const base = Math.atan2(-ny, -nx) + p.launch;
@@ -249,7 +338,8 @@
     const R = cell.reflectance ?? 0.99, phR = cell.reflection_phase ?? Math.PI;
     const ds = opt.ds ?? defaultDs(shapes), adaptive = opt.adaptive ?? true;
     const maxB = opt.maxBounces ?? 400, ampMin = opt.ampMin ?? 1e-3, recTol = opt.recTol ?? 1e-3, zMax = opt.zMax ?? 1e4;
-    for (const s of shapes) if (Math.hypot(s.x0, s.y0) + s.bound > Rc) throw new Error('a perturbation reaches the wall');
+    const wg = wallGeom(cell);
+    for (const s of shapes) if (wg ? wallDistance(wg, s.x0, s.y0) < s.bound : Math.hypot(s.x0, s.y0) + s.bound > Rc) throw new Error('a perturbation reaches the wall');
     let rays, beta = 0, gamma = 0;
     if (fga) {
       ({ beta, gamma } = fgaParams(cell, src));
@@ -277,8 +367,9 @@
       const ch = chords ? [] : null;
       for (let guard = 0; guard < 1e6; guard++) {
         if (!inside) {
-          const b = x * tx + y * ty;
-          const sWall = -b + Math.sqrt(Math.max(b * b - (x * x + y * y) + Rc * Rc, 0));
+          let sWall, hw = null;
+          if (wg) { hw = wallHit(wg, x, y, tx, ty); sWall = hw[0]; }
+          else { const b = x * tx + y * ty; sWall = -b + Math.sqrt(Math.max(b * b - (x * x + y * y) + Rc * Rc, 0)); }
           let sReg = Infinity;
           for (const sh of shapes) {
             const dx = x - sh.x0, dy = y - sh.y0, bb = dx * tx + dy * ty;
@@ -295,8 +386,9 @@
           Qr = nQr; Qi = nQi;
           if (toReg) { inside = true; px = n0 * tx; py = n0 * ty; if (path) path.push(x, y); continue; }
           if (path) path.push(x, y);
-          const rr = Math.hypot(x, y), nx = x / rr, ny = y / rr;
-          const sW = ((Math.atan2(y, x) % TAU) + TAU) % TAU * Rc;
+          let nx, ny, sW, power;
+          if (hw) { nx = hw[1]; ny = hw[2]; sW = hw[3]; power = hw[5]; }
+          else { const rr = Math.hypot(x, y); nx = x / rr; ny = y / rr; sW = ((Math.atan2(y, x) % TAU) + TAU) % TAU * Rc; power = 1 / Rc; }
           let Ttot = 0;
           for (let pi = 0; pi < np; pi++) {
             D[pi] = portOffset(cell, pi, sW);
@@ -321,7 +413,7 @@
           const cosc = tx * nx + ty * ny;
           tx -= 2 * cosc * nx; ty -= 2 * cosc * ny;
           const tn = Math.hypot(tx, ty); tx /= tn; ty /= tn;
-          const f = 2 * n0 / (Rc * Math.max(cosc, 1e-9));
+          const f = 2 * n0 * power / Math.max(cosc, 1e-9);
           const nPr = Pr - f * Qr, nPi = Pi - f * Qi;
           zstep(Qr, Qi, nPr, nPi);
           Pr = nPr; Pi = nPi;
@@ -338,7 +430,7 @@
           zstep(s[5], s[6], s[7], s[8]);
           argQ += Math.atan2(s[6] * Qr - s[5] * Qi, s[5] * Qr + s[6] * Qi);
           x = s[0]; y = s[1]; px = s[2]; py = s[3]; L = s[4]; Qr = s[5]; Qi = s[6]; Pr = s[7]; Pi = s[8];
-          if (x * x + y * y >= Rc * Rc) throw new Error('ray reached the wall inside a perturbation');
+          if (!wg && x * x + y * y >= Rc * Rc) throw new Error('ray reached the wall inside a perturbation');
           let any = false;
           for (const sh of shapes) if ((x - sh.x0) ** 2 + (y - sh.y0) ** 2 < sh.bound * sh.bound) { any = true; break; }
           if (path) path.push(x, y);
@@ -361,13 +453,13 @@
     return [...Array(n).keys()].map(i => (n > 1 ? -1 + 2 * i / (n - 1) : 0) * ms);
   }
   function detectorPoints(cell, port) {
-    const a = cell.ports[port].angle, nx = Math.cos(a), ny = Math.sin(a);
+    const fr = portFrame(cell, port), nx = fr.nx, ny = fr.ny;
     const d = cell.detector || { distance: 100e-6, width: 400e-6, n_pix: 64 };
     if (d.farfield ?? true) {
-      const R = d.ff_radius ?? 20e-3, cx = cell.radius * nx, cy = cell.radius * ny;
+      const R = d.ff_radius ?? 20e-3, cx = fr.cx, cy = fr.cy;
       return detectorSines(cell).map(sn => { const cs = Math.sqrt(1 - sn * sn); return [cx + R * (cs * nx - sn * ny), cy + R * (cs * ny + sn * nx)]; });
     }
-    const cx = cell.radius * nx + d.distance * nx, cy = cell.radius * ny + d.distance * ny;
+    const cx = fr.cx + d.distance * nx, cy = fr.cy + d.distance * ny;
     const pts = [];
     for (let i = 0; i < d.n_pix; i++) {
       const u = (d.n_pix > 1 ? -0.5 + i / (d.n_pix - 1) : 0) * d.width;
@@ -799,7 +891,7 @@
     return best;
   }
 
-  const NGRC = { radonTable, radonLookup, erf, zfun, launchFga, recordWeight, portOperator, chordIntegral, aperturePoints, makeShape, shapeEval, shapeValue, pertEval, safeStep, portIndex, launch, trace, detectorPoints,
+  const NGRC = { wallGeom, pointAt, wallHit, radonTable, radonLookup, erf, zfun, launchFga, recordWeight, portOperator, chordIntegral, aperturePoints, makeShape, shapeEval, shapeValue, pertEval, safeStep, portIndex, launch, trace, detectorPoints,
     beamletMatrix, detectorFields, PhaseScreen, curvedFields, chdShape, chdContour, rng, randomShape,
     stackRelative, ridgeFitPredict, ridgeCV, r2, isIn, isOut };
   root.NGRC = NGRC;

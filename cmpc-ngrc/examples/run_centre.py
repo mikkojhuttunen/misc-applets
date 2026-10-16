@@ -320,7 +320,157 @@ def e15(q):
     return dict(N=N, dn=DN, readout=rows)
 
 
-EXPS = {"E1": e1, "E3": e3, "E6": e6, "E12": e12, "E2": e2, "E8": e8, "E11": e11, "E13": e13, "E14": e14, "E15": e15}
+def wall_dataset(name, cell, N, q):
+    """Python FGA phase-screen dataset for any cell (cached by name)."""
+    from ngrc.dataset import build
+    from ngrc.perturbative import PhaseScreenModel
+    from ngrc.rays import Source
+    f = F.CACHE / f"wall_{name}_{N}_{DN:g}_{LAUNCH:g}_{FAN:g}.npz"
+    if f.exists():
+        z = np.load(f)
+        return {k: z[k] for k in z.files}
+    t0 = time.time()
+    m = PhaseScreenModel(cell, [Source(i, n_pos=None, n_ang=1000 if q else 2000, frozen=20e-6) for i in cell.inputs],
+                         max_bounces=300, amp_min=0.02)
+    D = build(cell, ensc(N, 81), model=m, progress=100)
+    names = D["names"]
+    out = dict(X=D["X"], Yab=D["Y"][:, [i for i, s in enumerate(names) if s[0] in "ab"]],
+               Yp=D["Y"][:, [i for i, s in enumerate(names) if s[0] == "p"]],
+               I0=np.concatenate([np.abs(D["reference"][k]) ** 2 for k in sorted(D["reference"])]))
+    F.CACHE.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(f, **out)
+    print(f"  {name}: {time.time() - t0:.0f} s", flush=True)
+    return out
+
+
+def e16(q):
+    """Break the circle's point symmetry with weak deformations that keep rays near the centre: a flat cut (D-cell,
+    chaotic), a short stadium (weakly chaotic, still point-symmetric), a 24-facet polygon (segmented circle). Centred
+    dot, ports at the asym4 angles with two inputs, launch 3°, Python FGA phase screen."""
+    from ngrc.geometry import WallCell, d_cell, polygon, ports_by_angle, stadium
+    N = 150 if q else 300
+    walls = {"circle": None,
+             "D-cell, cut at 0.95 R": d_cell(1e-3, 0.95),
+             "D-cell, cut at 0.80 R": d_cell(1e-3, 0.80),
+             "short stadium (0.1 mm straights)": stadium(0.95e-3, 0.1e-3),
+             "24-facet polygon": polygon(1e-3, 24)}
+    rows = []
+    for name, w in walls.items():
+        if w is None:
+            cell = cell_with(layouts()["asym4 · 2 in"])
+        else:
+            cell = WallCell(wall=w, n_eff=1.8, wavelength=1.55e-6, reflectance=R_WALL,
+                            ports=ports_by_angle(w, ASYM, inputs=(0, 1), width=PORT_W, launch=LAUNCH, fan=FAN))
+        D = wall_dataset("".join(c if c.isalnum() else "_" for c in name), cell, N, q)
+        X, Yab, Yp = D["X"], D["Yab"], D["Yp"]
+        tr, te = split(N, N // 4)
+        r = per_m(RO.evaluate_krr(X, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
+        rp = RO.evaluate_krr(X, Yp, "poly2", train_idx=tr, test_idx=te)["r2"].tolist()
+        rows.append(dict(name=name, r2=r, r2_p=rp))
+        print(f"E16 {name}: R² {np.round(r, 2)}, p {np.round(rp, 2)}", flush=True)
+    return dict(N=N, dn=DN, launch=LAUNCH, fan=FAN, readout=rows)
+
+
+def wall_cell(w, angles=ASYM, inputs=(0, 1)):
+    from ngrc.geometry import WallCell, ports_by_angle
+    return WallCell(wall=w, n_eff=1.8, wavelength=1.55e-6, reflectance=R_WALL,
+                    ports=ports_by_angle(w, angles, inputs=inputs, width=PORT_W, launch=LAUNCH, fan=FAN))
+
+
+def sweep(cells, N, seed, rng):
+    """Linear readout of a_m, b_m per cell (JS engine, phase screen, 6000 directions): clean, with 1 % detector noise
+    (trained with the noise), and p_m with the NGRC readout."""
+    out = dict(clean=[], noisy=[], r2_p=[])
+    for name, cell in cells:
+        D = dataset(cell, ensc(N, seed))
+        X, Yab = D["X"], D["Yab"]
+        tr, te = split(N, N // 4)
+        c = per_m(RO.evaluate_krr(X, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
+        Xn = X + rng.normal(0, 1, X.shape) * 0.01 * D["I0"].mean() / np.maximum(D["I0"], 1e-30)
+        n_ = per_m(RO.evaluate_krr(Xn, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
+        rp = RO.evaluate_krr(X, D["Yp"], "poly2", train_idx=tr, test_idx=te)["r2"].tolist()
+        out["clean"].append(c)
+        out["noisy"].append(n_)
+        out["r2_p"].append(rp)
+        print(f"  {name}: clean {np.round(c, 2)}, noisy {np.round(n_, 2)}, p {np.round(rp, 2)}", flush=True)
+    return out
+
+
+def e17(q):
+    """Stadium straight length a (cap radius 0.95 mm; a = 0 is a circle): small a moves the cap centres off the cell
+    centre, so the wall normals stop pointing at it and each bounce changes a ray's offset from the centre."""
+    from ngrc.geometry import stadium
+    N = 200 if q else 800
+    a_um = [0, 10, 20, 50, 100, 300]
+    out = dict(N=N, dn=DN, a_um=a_um)
+    out.update(sweep([(f"stadium a = {a} µm", wall_cell(stadium(0.95e-3, a * 1e-6))) for a in a_um], N, 11,
+                     np.random.default_rng(17)))
+    return out
+
+
+def e18(q):
+    """Segmented circle: n flat facets (circumradius 1 mm); facet normals point at the centre only at the facet
+    midpoints, so a ray's offset from the centre changes at every bounce."""
+    from ngrc.geometry import polygon
+    N = 200 if q else 800
+    nf = [12, 24, 48, 96, 192]
+    out = dict(N=N, dn=DN, n_facets=nf)
+    out.update(sweep([(f"{n} facets", wall_cell(polygon(1e-3, n))) for n in nf], N, 11, np.random.default_rng(18)))
+    return out
+
+
+def e19(q):
+    """The 24-facet polygon as the working cell: readouts (as E3), learning curve and detector noise (as E11)."""
+    from ngrc.geometry import polygon
+    N = 400 if q else 1600
+    cell = wall_cell(polygon(1e-3, 24))
+    D = dataset(cell, ensc(N, 41))
+    X, Yab, Yp, I0 = D["X"], D["Yab"], D["Yp"], D["I0"]
+    tr, te = split(N, N // 4)
+    kw = dict(train_idx=tr, test_idx=te)
+    res = {"ridge (linear)": per_m(RO.evaluate_krr(X, Yab, "linear", **kw)["r2"]),
+           "NGRC ridge (lin + quad)": per_m(RO.evaluate_krr(X, Yab, "poly2", **kw)["r2"]),
+           "linear SVR": per_m(RO.evaluate_svr(X, Yab, "linear", seed=0)["r2"]),
+           "RBF SVR": per_m(RO.evaluate_svr(X, Yab, "rbf", seed=0)["r2"])}
+    pw = {"NGRC ridge (lin + quad)": RO.evaluate_krr(X, Yp, "poly2", **kw)["r2"].tolist(),
+          "RBF SVR": RO.evaluate_svr(X, Yp, "rbf", seed=0)["r2"].tolist()}
+    print("E19 readouts:", {k: np.round(v, 2).tolist() for k, v in res.items()}, "p:", {k: np.round(v, 2).tolist() for k, v in pw.items()}, flush=True)
+    ns = [n for n in (100, 200, 400, 800, 1200) if n <= len(tr)]
+    lc = [per_m(RO.evaluate_krr(X, Yab, "linear", train_idx=tr[:n], test_idx=te)["r2"]) for n in ns]
+    print("E19 learning:", [round(float(np.mean(c)), 2) for c in lc], flush=True)
+    Xr = X * I0 / I0.mean()
+    rng = np.random.default_rng(19)
+    noise = dict(sigma=[], r2=[])
+    for sg in (0.0, 0.003, 0.01, 0.03, 0.1):
+        r = per_m(RO.evaluate_krr(Xr + rng.normal(0, 1, X.shape) * sg, Yab, "linear", **kw)["r2"])
+        noise["sigma"].append(sg)
+        noise["r2"].append(r)
+        print(f"E19 noise {sg}: {np.round(r, 2)}", flush=True)
+    return dict(N=N, dn=DN, n_features=int(X.shape[1]), r2_ab=res, r2_p=pw, learning=dict(n_train=ns, r2=lc), noise=noise)
+
+
+def e20(q):
+    """24-facet cell: Δn against detector noise. A larger Δn gives a larger intensity change per unit shape change
+    until the dot phase wraps; with noise the best Δn moves up."""
+    from ngrc.geometry import polygon
+    N = 200 if q else 800
+    cell = wall_cell(polygon(1e-3, 24))
+    dns = [1e-5, 3e-5, 1e-4, 3e-4, 1e-3]
+    rng = np.random.default_rng(20)
+    out = dict(N=N, dn=dns, sigma=[0.0, 0.003, 0.01, 0.03], r2={})
+    for dn in dns:
+        D = dataset(cell, ensc(N, 11, dn=dn))
+        X, Yab, I0 = D["X"], D["Yab"], D["I0"]
+        Xr = X * I0 / I0.mean()
+        tr, te = split(N, N // 4)
+        rows = [per_m(RO.evaluate_krr(Xr + rng.normal(0, 1, X.shape) * sg, Yab, "linear", train_idx=tr, test_idx=te)["r2"])
+                for sg in out["sigma"]]
+        out["r2"][f"{dn:g}"] = rows
+        print(f"E20 Δn={dn:g}: " + "; ".join(f"σ={sg}: {np.round(r, 2)}" for sg, r in zip(out["sigma"], rows)), flush=True)
+    return out
+
+
+EXPS = {"E1": e1, "E3": e3, "E6": e6, "E12": e12, "E2": e2, "E8": e8, "E11": e11, "E13": e13, "E14": e14, "E15": e15, "E16": e16, "E17": e17, "E18": e18, "E19": e19, "E20": e20}
 
 
 def main(only, quick):

@@ -131,6 +131,10 @@ Targets are a_m, b_m (R² averaged over the pair), p_m and the dominant m.
   sampling of the transmitted field); wall curvature across an opening is ignored in the far-field kernel.
 - The circle is integrable: a launch angle χ leaves a caustic disk of radius R_c sin χ that no ray
   enters. The stadium is chaotic and has no such disk.
+- Walls: the smooth circle (analytic) or any `gmpc.planar.Cell2D` wall of flat and circular elements, in both
+  engines (JS = Python to correlation 1 − 1e-6). Mirror power −κ of the element hit, ports at boundary coordinates.
+  The 24-facet segmented circle is the working cell (TASKS D10); facet corners are treated as sharp mirror
+  edges (no diffraction).
 - Centred dot (the study's default, D9): only rays with R_c |sin χ| below the dot radius cross it, so the launch
   must be near 0. A chord through the centre in direction α integrates r(α) + r(α + π) at first order, so odd
   orders vanish for chords through the centre. Worse, a ray keeps its offset p = R_c sin χ, and the chord after

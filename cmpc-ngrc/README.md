@@ -24,7 +24,7 @@ Plan and status: [TASKS.md](TASKS.md). Interactive explorer: [web/cmpc-ngrc-expl
 
 ```
 ngrc/
-  geometry.py      CircularCell (model "fga" | "gbs"), WallCell (any gmpc.planar wall, e.g. stadium), Port (position,
+  geometry.py      CircularCell (model "fga" | "gbs"), WallCell (any gmpc.planar wall: stadium, polygon, d_cell), Port (position,
                    width, role in/out/inout, launch, fan), symmetric_ports, ports_at, wall_ports, far-field / line
                    detectors, cell variants (launch, λ), membrane n_eff and ∂n_eff/∂t (math-engines membrane_mode)
   shapes.py        Shape: deformed tanh-edged dot, analytic Δn / ∇Δn / Hessian, Radon table, chord integrals;
@@ -44,7 +44,7 @@ ngrc/
 examples/run_centre.py     experiments for one dot at the cell centre (E1–E3, E6, E8, E11–E15) → results/progress.json
 examples/run_fga.py        the off-centre experiments E1–E12 → results/progress_offcentre.json (archived copy)
 examples/run_progress.py, run_next.py   the same experiments with the legacy model (results/progress_gbs.json)
-web/ngrc-engine.js         JS port of the engine (same algorithms, checked against Python)
+web/ngrc-engine.js         JS port of the engine (same algorithms, circle and general Cell2D walls, checked against Python)
 web/explorer.src.html      applet source; tools/build_applet.py → web/cmpc-ngrc-explorer.html
 tools/node_fields.mjs      worker-pool batch runner for jsengine.py
 tools/make_vectors.py, tools/check_js.mjs   Python → JS test vectors and the node check
@@ -103,8 +103,17 @@ F_many = node_fields(cell, [None, Perturbation([dots.components[0]])], mode="pha
 The study now uses a single dot at (0, 0) (TASKS D9); moving and adding dots is later work. Cell R_c = 1 mm,
 n_eff = 1.8, λ = 1.55 µm, wall R = 0.97, 20 µm ports (asym4 · 2 in unless noted), launch 3°, fan ±5.7°. Dots:
 R = 60–110 µm, Δn = 3e-5, a_m and b_m (m = 2…6) random with spread 0.08/√(m−1). Phase-screen engine, 6000
-directions per input. R² is for a_m, b_m (averaged over the pair) on held-out dots, listed for m = 2 / 3 / 4 / 5 / 6.
+directions per input. The bullets after the first are for the smooth circle. R² is for a_m, b_m (averaged over the pair) on held-out dots, listed for m = 2 / 3 / 4 / 5 / 6.
 
+- **Working cell: 24-facet segmented circle (E16–E19, TASKS D10).** The smooth circle cannot read the odd
+  orders of a centred dot (parity, below). Flat facets fix it: their normals point at the centre only at the
+  facet midpoints, so every bounce changes a ray's offset. With 1600 dots, linear ridge gives
+  1.00 / 1.00 / 1.00 / 0.99 / 0.99, NGRC ridge 1.00 in every order, linear SVR 1.00 / 1.00 / 0.99 / 0.99 / 0.99,
+  RBF SVR 0.99 / 0.99 / 0.99 / 0.98 / 0.99. p_m (NGRC) 0.98 / 0.94 / 0.87 / 0.78 / 0.64. 100 training dots already
+  give a mean R² of 0.94. Any facet count from 12 to 192 works (E18). A stadium needs straights of ≥ 100 µm
+  (a = 300 µm: 1.00 / 0.99 / 0.98 / 0.97 / 0.97, E17). A flat cut (D-cell) does not help, because the remaining
+  arc normals still point at the centre (E16). **Open problem: detector noise.** At Δn = 3e-5 the readout drops
+  to 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 % noise and 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 % (E19; E20 scans Δn).
 - **Launch angle (E1):** a centred dot is crossed only by rays with R_c |sin χ| below its radius, so the launch
   must be near 0; the sensitivity is gone by 17°. At 0° the odd orders are weakest; 3° with a ±5.7° fan is the
   working point.
@@ -141,6 +150,15 @@ directions per input. R² is for a_m, b_m (averaged over the pair) on held-out d
 
 Launch 20°, fan ±11.5°, Δn = 1e-3; otherwise as above. Kept as the reference for later work on dot position.
 
+- **Working cell: 24-facet segmented circle (E16–E19, TASKS D10).** The smooth circle cannot read the odd
+  orders of a centred dot (parity, below). Flat facets fix it: their normals point at the centre only at the
+  facet midpoints, so every bounce changes a ray's offset. With 1600 dots, linear ridge gives
+  1.00 / 1.00 / 1.00 / 0.99 / 0.99, NGRC ridge 1.00 in every order, linear SVR 1.00 / 1.00 / 0.99 / 0.99 / 0.99,
+  RBF SVR 0.99 / 0.99 / 0.99 / 0.98 / 0.99. p_m (NGRC) 0.98 / 0.94 / 0.87 / 0.78 / 0.64. 100 training dots already
+  give a mean R² of 0.94. Any facet count from 12 to 192 works (E18). A stadium needs straights of ≥ 100 µm
+  (a = 300 µm: 1.00 / 0.99 / 0.98 / 0.97 / 0.97, E17). A flat cut (D-cell) does not help, because the remaining
+  arc normals still point at the centre (E16). **Open problem: detector noise.** At Δn = 3e-5 the readout drops
+  to 0.91 / 0.76 / 0.81 / 0.62 / 0.56 at 0.3 % noise and 0.71 / 0.26 / 0.32 / 0.07 / 0.13 at 1 % (E19; E20 scans Δn).
 - **Launch angle (E1):** sensitivity peaks near 23° and is zero at 57°: dots within 600 µm of the centre are
   then inside the caustic disk.
 - **Port layout (E2, 800 dots at one position, linear readout):** more inputs and more ports help. Four

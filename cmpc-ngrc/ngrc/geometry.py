@@ -185,6 +185,13 @@ class CircularCell:
         d = dict(d)
         d["ports"] = [Port(**p) for p in d.get("ports", [])]
         d["detector"] = Detector(**d.get("detector", {}))
+        if d.get("wall") is not None:
+            pl = _gmpc_planar()
+            w = d.pop("wall")
+            els = [pl.Element(tuple(A), tuple(B), k, e) for A, B, k, e in zip(w["A"], w["B"], w["kappa"], w["ext"])]
+            return WallCell(wall=pl.Cell2D(els, w.get("name", "cell")),
+                            **{k: v for k, v in d.items() if k in CircularCell.__dataclass_fields__})
+        d.pop("wall", None)
         return cls(**d)
 
 
@@ -252,7 +259,10 @@ class WallCell(CircularCell):
                 raise ValueError(f"port {i}: WallCell ports need a boundary coordinate s")
 
     def to_dict(self):
-        raise NotImplementedError("WallCell holds a Cell2D wall; rebuild it from its builder arguments")
+        w = self.wall
+        d = CircularCell.to_dict(self)
+        d["wall"] = dict(A=w.A.tolist(), B=w.B.tolist(), kappa=w.kappa.tolist(), ext=w.ext.tolist(), name=w.name)
+        return d
 
 
 def wall_ports(wall, positions, inputs=(0,), fractions=True, **kw):
@@ -269,6 +279,39 @@ def stadium(radius=0.5e-3, straight=1.0e-3, **kw):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "general-mpc"))
     from gmpc.planar import stadium_cell
     return stadium_cell(radius, straight, **kw)
+
+
+def _gmpc_planar():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "general-mpc"))
+    from gmpc import planar
+    return planar
+
+
+def d_cell(radius=1e-3, cut=0.95, angle=np.deg2rad(110), n_arcs=4):
+    """Circle with one flat cut (a "D"): the chord at distance cut·radius from the centre, centred at polar angle
+    `angle`, replaces the arc beyond it. Breaks the circle's rotational symmetry and its point symmetry."""
+    pl = _gmpc_planar()
+    al = np.arccos(cut)
+    els = pl._arc_elements((0.0, 0.0), radius, angle + al, angle + 2 * np.pi - al, int(n_arcs), False, 0.0, "arc")
+    els.append(pl.Element(els[-1].B, els[0].A, 0.0, 0.0, "flat"))
+    return pl.Cell2D(els, f"D-cell cut={cut:g}")
+
+
+def polygon(radius=1e-3, n=24):
+    """Regular n-gon of flat facets (gmpc.planar.polygon_cell), a segmented circle."""
+    return _gmpc_planar().polygon_cell(radius, n, ext=0.0)
+
+
+def ports_by_angle(wall, angles_deg, inputs=(0,), **kw):
+    """Ports on a Cell2D wall where the rays from the origin at the given polar angles (degrees) meet it."""
+    P = wall.perimeter
+    s = np.linspace(0, P, 20000, endpoint=False)
+    x, y, _, _ = wall.point_at(s)
+    th = np.arctan2(y, x)
+    pos = [s[np.argmin(np.abs(np.angle(np.exp(1j * (th - np.deg2rad(a))))))] for a in angles_deg]
+    return wall_ports(wall, pos, inputs=inputs, fractions=False, **kw)
 
 
 def symmetric_ports(n, offset=0.0, inputs=(0,), **kw):

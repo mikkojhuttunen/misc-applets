@@ -1,5 +1,5 @@
 engine: gas_cell
-version: 3
+version: 4
 title: Gas-sensing cells, deformed Herriott against CMPC
 description: An elongated integrated Herriott cell with smooth deformed, rippled or curved-segmented mirrors and optional refractive-index inclusions (the baseline) against a circular multipass cell of the same footprint area, both fed by the same Gaussian beam. Path, throughput and absorbance per ppm (what you gain) against chaos (twin-ray Lyapunov exponent, dither visibility of the fringes) and a Gaussian-beam two-mirror model along the traced path; a tangent-map chaos map (FTLE, MEGNO) that tells whether the beam launches into the chaotic sea or onto a regular island; shot-noise and fringe-limited detection limits.
 references:
@@ -13,7 +13,7 @@ references:
 functions:
   compare:
     title: Deformed Herriott cell against the CMPC
-    equations: ["R = L / (1 − cos 2πM/N),  S(η) = cη²/(1 + √(1 − (1+k)c²η²)) + a3 η³ + a4 η⁴,  a4 = eps4 c/(2a²)", "A_ppm = 100 α_ppm Γ ⟨L⟩,  NEC_shot = √(2qB/(P_in T))/A_ppm", "NEC_fringe = 2 √f_par V / A_ppm", "q' = (Aq + B)/(Cq + D),  mirror C = −2κ/cos χ", "n1 sin θ1 = n2 sin θ2 at the inclusions (TIR when impossible)", "M² = (4π/λm) √(⟨y²⟩⟨u²⟩ − ⟨yu⟩²)", "S += a sin(2πη/Λ + φ),  K = 8π² a L / Λ²", "⟨Y⟩ = mean_n (2/n) Σ k ln g_k  (0 periodic, 2 torus, ≈ λn/2 chaos)"]
+    equations: ["R = L / (1 − cos 2πM/N),  S(η) = cη²/(1 + √(1 − (1+k)c²η²)) + a3 η³ + a4 η⁴,  a4 = eps4 c/(2a²)", "A_ppm = 100 α_ppm Γ ⟨L⟩,  NEC_shot = √(2qB/(P_in T))/A_ppm", "NEC_fringe = 2 √f_par V_det / A_ppm,  V_det = V/√M² (speckle_avg)",  "V = |∫₀¹ e^{iΔφ(θc + δ(s))} ds| by adaptive Filon quadrature", "q' = (Aq + B)/(Cq + D),  mirror C = −2κ/cos χ", "n1 sin θ1 = n2 sin θ2 at the inclusions (TIR when impossible)", "M² = (4π/λm) √(⟨y²⟩⟨u²⟩ − ⟨yu⟩²)", "S += a sin(2πη/Λ + φ),  K = 8π² a L / Λ²", "⟨Y⟩ = mean_n (2/n) Σ k ln g_k  (0 periodic, 2 torus, ≈ λn/2 chaos)"]
     inputs:
       - {name: L, label: "Cell length (mirror spacing)", ui_unit: mm, scale: 1.0e-3, default: 15}
       - {name: W, label: "Cell width (mirror aperture)", ui_unit: mm, scale: 1.0e-3, default: 1.5}
@@ -57,6 +57,8 @@ functions:
       - {name: n_side, label: "Beam rays per side (n_side² rays)", ui_unit: "", scale: 1.0, default: 24, min: 4, step: 1}
       - {name: n_bounce, label: "Hit limit per ray", ui_unit: "", scale: 1.0, default: 2000, min: 10, step: 1}
       - {name: retune_launch, label: "Re-aim the baseline launch for the best Γ T ⟨L⟩ 1/0", ui_unit: "", scale: 1.0, default: 1, min: 0, max: 1, step: 1}
+      - {name: n_dither_max, label: "Ray budget of the dither integral", ui_unit: "", scale: 1.0, default: 24000, min: 600, step: 1}
+      - {name: speckle_avg, label: "Detector averages the speckle (V_det = V/√M²) 1/0", ui_unit: "", scale: 1.0, default: 0, min: 0, max: 1, step: 1}
       - {name: chaos_grid, label: "Chaos map grid (n × n departures; 0 = launch only)", ui_unit: "", scale: 1.0, default: 20, min: 0, step: 1}
       - {name: n_ftle, label: "Hits per chaos-map ray", ui_unit: "", scale: 1.0, default: 300, min: 30, step: 1}
     outputs:
@@ -66,6 +68,9 @@ functions:
       - {name: h_nec, label: "Herriott: noise-equivalent concentration", ui_unit: ppm, scale: 1.0}
       - {name: h_lam, label: "Herriott: Lyapunov exponent", ui_unit: 1/hit, scale: 1.0}
       - {name: h_V, label: "Herriott: dither visibility at the exit", ui_unit: "", scale: 1.0}
+      - {name: h_V_floor, label: "Herriott: error of V (adaptive dither integral)", ui_unit: "", scale: 1.0}
+      - {name: h_V_det, label: "Herriott: fringe at the detector", ui_unit: "", scale: 1.0}
+      - {name: h_nec_fringe_hi, label: "Herriott: fringe NEC upper bound (V + V_err)", ui_unit: ppm, scale: 1.0}
       - {name: h_T_G, label: "Herriott: power kept in one Gaussian beam", ui_unit: "", scale: 1.0}
       - {name: h_M2, label: "Herriott: M² of the detected light", ui_unit: "", scale: 1.0}
       - {name: h_m_max, label: "Herriott: largest round-trip |m|", ui_unit: "", scale: 1.0}

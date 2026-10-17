@@ -214,6 +214,120 @@ def dither_analysis(cell, theta_c, amplitude, n_pass, wavelength, n_index=1.0, w
                 A_0=X_V0[waveform] * inv, n_used=n, noise_floor=float(np.sqrt(np.pi) / (2 * np.sqrt(n))), L0=L0)
 
 
+def _filon(h, a, b):
+    """∫ over an interval of length h of exp(iφ) with φ linear from a to b: h e^{i(a+b)/2} sinc((b−a)/2), exact for any slope."""
+    x = 0.5 * (b - a)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        sc = np.where(np.abs(x) < 1e-8, 1.0 - x * x / 6, np.sin(x) / np.where(x == 0, 1.0, x))
+    return h * np.exp(0.5j * (a + b)) * sc
+
+
+def dither_filon(cell, theta_c, amplitude, n_pass, wavelength, n_index=1.0, waveform="sine", tol=1e-7, n_min=256,
+                 n_max=24000, s_in=None, passes=None):
+    """Dither visibility as an adaptive oscillatory (Filon) integral: exact where the phase can be resolved, with an
+    error estimate where it cannot. Over one period V_p = |Z_p|, Z_p = ∫₀¹ exp(iΔφ_p(θc + δ(s))) ds with
+    δ(s) = A sin(π(s − ½)) (sine: s is time over the half period, so equal measure) or A(2s − 1) (triangle).
+
+    The s range is cut into intervals; on each the phase is taken as linear between its ends and integrated exactly
+    (any phase slope, however many waves), checked against the two halves through the midpoint. An interval is kept
+    at pass p when the phase is finite at its ends and midpoint, its second difference is ≤ 1 rad and the halves
+    change the integral by ≤ tol × its length (its error: that change). Path ids are not used: many path switches
+    (a ray grazing an inclusion or a wall corner) keep the phase continuous, and the phase test catches those that do
+    not. Open intervals are halved, widest first, while n_max ray evaluations last; passes (1-based, default all)
+    are the passes whose test drives the refinement (e.g. only the exit pass).
+    Intervals left open count with each half's end phases, an error of up to the half's width whose sign varies
+    from interval to interval, so these add in quadrature:  V_err = Σ kept errors + sqrt(Σ open half-widths²).
+    A regular cell (Herriott, mild deformation) is resolved completely and V is exact far below the random-phase
+    floor √π/(2√n) of dither_analysis (to ~tol). After many passes of a chaotic cell the phase breaks into path
+    segments down to 1e-11 rad of dither with long-range structure between them; there V_err falls only as ~1/√n_max,
+    as in sampling, and V below V_err is not resolved (an upper bound V + V_err).
+    Returns V, V_err (absolute; noise_floor: its largest value), frag (share of s left open), same_path (share kept
+    on the centre ray's path ids), max_step (largest |Δφ| across a kept interval), resolved (V_err ≤ max(10 tol,
+    V/5)), n_used, L0 and the linear-model keys of dither_analysis."""
+    require_choice("waveform", waveform, _WAVEFORMS)
+    P = int(n_pass)
+    k = 2 * np.pi * n_index / wavelength
+    L0, id0 = path_lengths(cell, [theta_c], P, s_in, True)
+    L0, id0 = L0[0], id0[0]
+    A = float(amplitude)
+    delta = (lambda s: A * np.sin(np.pi * (s - 0.5))) if waveform == "sine" else (lambda s: A * (2 * s - 1))
+
+    def ev(s):
+        L, ids = path_lengths(cell, theta_c + delta(np.asarray(s, float)), P, s_in, True)
+        return k * (L - L0[None, :]), ids
+
+    tgt = np.zeros(P, bool)
+    if passes is None:
+        tgt[:] = True
+    else:
+        tgt[np.clip(np.atleast_1d(np.asarray(passes, int)) - 1, 0, P - 1)] = True
+    n0 = int(n_min)
+    s_nodes = np.arange(n0 + 1) / n0
+    ph, ids = ev(s_nodes)
+    used = n0 + 1
+    lo, hi = s_nodes[:-1], s_nodes[1:]
+    pl, pr, il = ph[:-1], ph[1:], ids[:-1]
+    Isum, meas, err_s, err_q = np.zeros(P, complex), np.zeros(P), np.zeros(P), np.zeros(P)
+    open_meas, same_meas, max_step = np.zeros(P), np.zeros(P), np.zeros(P)
+    while lo.size:
+        mph, mid = ev(0.5 * (lo + hi))
+        used += lo.size
+        H = (hi - lo)[:, None]
+        fl, fm, fr = np.isfinite(pl), np.isfinite(mph), np.isfinite(pr)
+        a_, m_, b_ = (np.where(np.isfinite(v), v, 0.0) for v in (pl, mph, pr))
+        If = _filon(H / 2, a_, m_) + _filon(H / 2, m_, b_)
+        e = np.abs(_filon(H, a_, b_) - If)
+        ok = fl & fm & fr & (e <= tol * H) & (np.abs(a_ - 2 * m_ + b_) <= 1.0)
+        dead = ~(fl | fm | fr)                                         # leaked throughout: no light, no measure
+        done = np.all((ok | dead)[:, tgt], axis=1)
+        refine = ~done
+        budget = n_max - used
+        n_open = int(refine.sum())
+        if n_open > max(budget, 0):                                    # refine the widest open intervals that fit
+            keep = np.zeros(n_open, bool)
+            if budget > 0:
+                keep[np.argsort(-(hi - lo)[refine], kind="stable")[:budget]] = True
+            ri = np.nonzero(refine)[0]
+            refine = refine.copy()
+            refine[ri[~keep]] = False
+        t = ~refine
+        if t.any():
+            okt, Ht, half = ok[t], H[t], H[t] / 2
+            flt, fmt, frt = fl[t], fm[t], fr[t]
+            jl, jr = flt & fmt, fmt & frt
+            # open intervals: each half with its end phases (Filon when both ends are lit)
+            left = np.where(jl, _filon(half, a_[t], m_[t]), np.where(flt | fmt, half * np.exp(1j * np.where(flt, a_[t], m_[t])), 0.0))
+            right = np.where(jr, _filon(half, m_[t], b_[t]), np.where(fmt | frt, half * np.exp(1j * np.where(frt, b_[t], m_[t])), 0.0))
+            Isum += np.where(okt, If[t], left + right).sum(0)
+            lit_l, lit_r = (flt | fmt).astype(float), (fmt | frt).astype(float)
+            meas += np.where(okt, Ht, half * (lit_l + lit_r)).sum(0)
+            err_s += np.where(okt, e[t], 0.0).sum(0)
+            op = ~okt & ~dead[t]
+            err_q += np.where(op, half**2 * (lit_l + lit_r), 0.0).sum(0)
+            open_meas += np.where(op, half * (lit_l + lit_r), 0.0).sum(0)
+            same_meas += np.where(okt & (il[t] == id0[None, :]), Ht, 0.0).sum(0)
+            max_step = np.maximum(max_step, np.where(okt, np.abs(b_[t] - a_[t]), 0.0).max(0, initial=0.0))
+        if not refine.any():
+            break
+        r = refine
+        m = 0.5 * (lo[r] + hi[r])
+        lo, hi = np.r_[lo[r], m], np.r_[m, hi[r]]
+        pl, pr = np.r_[pl[r], mph[r]], np.r_[mph[r], pr[r]]
+        il = np.r_[il[r], mid[r]]
+    good = meas > 0
+    den = np.where(good, meas, 1.0)
+    V = np.where(good, np.abs(Isum) / den, np.nan)
+    V_err = np.where(good, (err_s + np.sqrt(err_q)) / den, np.nan)
+    a, b = phase_derivatives(cell, theta_c, P, wavelength, n_index, s_in)
+    x = np.abs(a) * A
+    with np.errstate(divide="ignore"):
+        inv = 1 / np.abs(a)
+    return dict(V=V, V_err=V_err, frag=np.where(good, open_meas / den, 0.0), V_model=model_visibility(x, waveform), a=a,
+                b=b, x=x, q=0.5 * np.abs(b) * A**2, same_path=np.where(good, same_meas / den, 0.0), max_step=max_step,
+                resolved=V_err <= np.maximum(10 * tol, 0.2 * V), A_09=X_V09[waveform] * inv, A_05=X_V05[waveform] * inv,
+                A_0=X_V0[waveform] * inv, n_used=used, noise_floor=float(np.nanmax(V_err)) if P else 0.0, L0=L0)
+
+
 def _cell(radius, n_facets, curvature):
     require_positive(radius=radius)
     n = int(n_facets)

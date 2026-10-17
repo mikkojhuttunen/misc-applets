@@ -24,7 +24,11 @@ washout, beam scrambling) it gives up.
   `MediumCell` + `march` trace rays through walls and inclusions (Snell, total internal reflection, Fresnel reflection
   neglected) with geometric and optical path; ray_phase uses its `path_lengths` (optical path), the absorption the
   geometric one. `ensemble` adds the **M²** of the detected light from its exit offsets and angles (1 for the input).
-  The dither visibility is reported with its sampling floor `V_floor` = √π/(2√n); a V at the floor is unresolved.
+  The dither visibility comes from `ray_phase.dither_filon` (adaptive Filon integral over the dither; budget
+  `n_dither_max`) with its error `V_floor` = V_err: exact for regular and mildly chaotic exits, an upper bound V + V_err
+  where the exit pass is broken into unresolvable path fragments (`frag`; `nec_fringe_hi` uses V + V_err).
+  `speckle_avg` = 1 lets a detector that collects all exit light average the fringe over M² speckle grains:
+  `V_det` = V/√M² enters the fringe NEC. Reaching a shot-noise-limited ~10 ppb NEC needs V_det ≈ 1e-5 at f_par = 1e-6.
   **Rippled end mirrors** (`ripple_a`, `ripple_period`, `ripple_phase`, `ripple_on`): a ripple a sin(2πη/Λ + φ) on the
   mirror profile kicks the reflected angle by 2aq cos(qη); over the spacing L this is a standard map with
   K = 8π² a L / Λ² (`K_ripple`; K ≈ 1 for a ≈ 0.3 µm at Λ = 0.5 mm, L = 10 mm).

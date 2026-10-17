@@ -22,11 +22,14 @@ R_mirror. Detected power T, its power-weighted mean path ⟨L⟩, spread, leaked
 CHAOS (what you lose).
   * Lyapunov exponent λ per reflection: twin rays 1e-9 rad apart from the window at θc (planar_cell.twin_divergence,
     least-squares slope of ln separation over its exponential stretch; 0 when there is none: regular motion).
-  * Dither visibility V at the exit pass (ray_phase.dither_analysis; V_floor = √π/(2√n), the level n random phases
-    leave: a V near it is unresolved and the fringe-limited NEC an upper bound): the fringe left when the launch angle is
-    dithered with amplitude A. Chaotic cells scramble the path within the dither (V → 0, fringes wash out); a
+  * Dither visibility V at the exit pass (ray_phase.dither_filon: adaptive Filon integral over the dither, exact where
+    the phase is resolvable, with its error V_err = V_floor; a V below V_err is unresolved and the fringe-limited NEC an
+    upper bound, nec_fringe_hi uses V + V_err): the fringe left when the launch angle is dithered with amplitude A. Chaotic cells scramble the path within the dither (V → 0, fringes wash out); a
     regular, re-entrant Herriott cell keeps it (V → 1). With a parasitic copy of power fraction f_par the fringe
-    floor is 2 sqrt(f_par) V in absorbance (f_par = 1e-6: a 2e-3 fringe before washout):  NEC_fringe = 2 sqrt(f_par) V / A_ppm;  NEC = sqrt(NEC_shot² + NEC_fringe²).
+    floor is 2 sqrt(f_par) V in absorbance (f_par = 1e-6: a 2e-3 fringe before washout):  NEC_fringe = 2 sqrt(f_par) V_det / A_ppm;  NEC = sqrt(NEC_shot² + NEC_fringe²).
+  * Detector speckle averaging (speckle_avg = 1): a detector that collects all the exit light against a parasitic copy
+    with a smooth wavefront sums n_grains ≈ M² independent speckle grains of the detected light, so the fringe it sees is
+    V_det = V / sqrt(max(M², 1)); speckle_avg = 0 (default) keeps V_det = V (a parasitic copy with the same speckle).
 
 RIPPLED END MIRRORS AND THE CHAOS MAP. ripple_a sin(2πη/Λ + φ) on the mirror profile is a standard map of stochasticity
 K = 8π² a L / Λ² (K ≈ 1 for 0.3 µm at Λ = 0.5 mm, L = 10 mm). chaos_map runs the exact tangent map of the walls along the
@@ -541,7 +544,7 @@ def chaos_map(cell, theta_c, q0, lam_m, n_hits=300, n_grid=0, n_side=8, Y_chaos=
 
 def cell_figures(cell, theta_c, q0, lam_m, n_eff=2.0, gamma=0.2, alpha_ppm=SPECIES["CH4"][0], R_mirror=0.995, dither=2e-3,
                  waveform="sine", f_par=1e-6, P_in=1e-3, bandwidth=1.0, n_side=24, n_bounce=2000, n_lyap=300, n_pass_max=60,
-                 n_dither_max=12801, chaos_grid=12, n_ftle=300):
+                 n_dither_max=24000, chaos_grid=12, n_ftle=300, speckle_avg=0):
     """All figures of one cell (module docstring) as a dict; cell may be a MediumCell (index inclusions)."""
     mc = as_medium(cell, n_eff)
     s_in, s_out = mc.s_in_default, mc.s_out_default
@@ -555,12 +558,17 @@ def cell_figures(cell, theta_c, q0, lam_m, n_eff=2.0, gamma=0.2, alpha_ppm=SPECI
     gb = gaussian_path(mc, cp, q0, lam_m, ports, R_mirror)
     sep, fit = twin_divergence(mc, s_in, theta_c, n_lyap)
     n_pass = int(min(cp["n_hits"], n_pass_max)) if cp["n_hits"] else 1
-    da = RP.dither_analysis(mc, theta_c, dither, n_pass, lam, n_eff, waveform, n_max=n_dither_max, s_in=s_in)
+    da = RP.dither_filon(mc, theta_c, dither, n_pass, lam, n_eff, waveform, n_max=n_dither_max, s_in=s_in, passes=[n_pass])
     V = float(da["V"][n_pass - 1])
+    V_err = float(da["V_err"][n_pass - 1])
+    n_gr = max(1.0, float(ev["M2"])) if speckle_avg and math.isfinite(ev["M2"]) else 1.0
+    V_det = V / math.sqrt(n_gr)
     cm = chaos_map(mc, theta_c, q0, lam_m, n_ftle, chaos_grid)
     nec_shot = sig_A / A_ppm if A_ppm > 0 else math.inf
-    nec_fringe = 2 * math.sqrt(f_par) * V / A_ppm if A_ppm > 0 else math.inf
-    return dict(V_floor=float(da["noise_floor"]), T=ev["T"], L_mean=ev["L_mean"], L_rms=ev["L_rms"], S1=ev["S1"], M2=ev["M2"], leaked=ev["leaked"], back=ev["back"],
+    nec_fringe = 2 * math.sqrt(f_par) * V_det / A_ppm if A_ppm > 0 else math.inf
+    nec_fringe_hi = 2 * math.sqrt(f_par) * (V + V_err) / math.sqrt(n_gr) / A_ppm if A_ppm > 0 else math.inf
+    return dict(V_floor=V_err, V_err=V_err, V_err_pass=da["V_err"], V_det=V_det, n_grains=n_gr, nec_fringe_hi=nec_fringe_hi,
+                frag=float(da["frag"][n_pass - 1]), T=ev["T"], L_mean=ev["L_mean"], L_rms=ev["L_rms"], S1=ev["S1"], M2=ev["M2"], leaked=ev["leaked"], back=ev["back"],
                 trapped=ev["trapped"], A_ppm=A_ppm, nec_shot=nec_shot, nec_fringe=nec_fringe, nec=math.hypot(nec_shot, nec_fringe),
                 lam=float(fit["lam"]) if fit else 0.0, lam_fit=fit is not None, V=V, V_pass=da["V"],
                 same_path=float(da["same_path"][n_pass - 1]), n_pass=n_pass, exit_pass=cp["n_hits"] if cp["exits"] else -1,
@@ -610,10 +618,11 @@ def _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_
     return lam_m, q0, MediumCell(base, inc, n_eff), MediumCell(circ, incc, n_eff)
 
 
-_KEYS = ("T", "L_mean", "L_rms", "S1", "M2", "A_ppm", "nec_shot", "nec_fringe", "nec", "lam", "V", "V_floor", "same_path", "n_pass",
+_KEYS = ("T", "L_mean", "L_rms", "S1", "M2", "A_ppm", "nec_shot", "nec_fringe", "nec", "lam", "V", "V_floor", "V_det", "n_grains",
+         "nec_fringe_hi", "frag", "same_path", "n_pass",
          "exit_pass", "T_G", "w_max_ratio", "lam_G", "m_max", "leaked", "area", "theta", "n_inc", "K_ripple", "f_launch",
          "esc_launch", "Y_launch", "lam_ftle", "sea", "island", "verdict")
-_UNITS = dict(theta="rad", L_mean="m", L_rms="m", S1="m", A_ppm="1/ppm", nec_shot="ppm", nec_fringe="ppm", nec="ppm", lam="1/hit",
+_UNITS = dict(theta="rad", L_mean="m", L_rms="m", S1="m", A_ppm="1/ppm", nec_shot="ppm", nec_fringe="ppm", nec_fringe_hi="ppm", nec="ppm", lam="1/hit",
               lam_G="1/hit", area="m^2", lam_ftle="1/hit")
 
 
@@ -621,7 +630,7 @@ def compare(L=15e-3, W=1.5e-3, N=14, M=3, distinct=1, port_width=0.0, eps4=0.0, 
             n_seg=0, seg_curv=1.0, seg_tilt=0.0, seg_seed=1, n_inc=0, inc_radius=50e-6, inc_dn=0.01, inc_sign="both", inc_seed=1,
             inc_circle=0, ripple_a=0.0, ripple_period=0.5e-3, ripple_phase=0.0, ripple_on="both", n_facets=24, circle_theta=0.35, out_frac=0.37, smooth_circle=0, wavelength=1.6537e-6, n_eff=2.0,
             gamma=0.2, species="CH4", R_mirror=0.995, dither=2e-3, waveform="sine", f_parasitic=1e-6, P_in=1e-3, bandwidth=1.0,
-            n_side=24, n_bounce=2000, retune_launch=1, chaos_grid=20, n_ftle=300) -> Result:
+            n_side=24, n_bounce=2000, retune_launch=1, chaos_grid=20, n_ftle=300, n_dither_max=24000, speckle_avg=0) -> Result:
     """Elongated Herriott cell (h_; deformed, segmented and/or with index inclusions) against the CMPC of the same area
     (c_): path, sensitivity and detection limits against chaos (Lyapunov exponent, dither visibility), beam quality
     (M² of the detected light) and the Gaussian-beam model, with the ratios. retune_launch: re-aim the baseline's
@@ -636,7 +645,8 @@ def compare(L=15e-3, W=1.5e-3, N=14, M=3, distinct=1, port_width=0.0, eps4=0.0, 
     lam_m, q0, base, circ = _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_circle, wavelength, n_eff,
                                     species, pert)
     kw = dict(n_eff=n_eff, gamma=gamma, alpha_ppm=SPECIES[species][0], R_mirror=R_mirror, dither=dither, waveform=waveform,
-              f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce, chaos_grid=chaos_grid, n_ftle=n_ftle)
+              f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce, chaos_grid=chaos_grid, n_ftle=n_ftle,
+              n_dither_max=n_dither_max, speckle_avg=speckle_avg)
     th = retune(base, base.meta["theta_launch"], q0, lam_m, R_mirror=R_mirror, gamma=gamma, n_eff=n_eff)[0] if retune_launch else base.meta["theta_launch"]
     h = cell_figures(base, th, q0, lam_m, **kw)
     c = cell_figures(circ, circle_theta, q0, lam_m, **kw)
@@ -657,7 +667,9 @@ def compare(L=15e-3, W=1.5e-3, N=14, M=3, distinct=1, port_width=0.0, eps4=0.0, 
         "segmented or faceted walls; circular index inclusions refract (Snell, TIR), Fresnel reflection at them neglected",
         "Same input beam for both cells: eigenmode of the undeformed baseline at its window, sampled on a quantile grid",
         "Absorbance per ppm from the strongest illustrative line (trace_gas, not HITRAN), geometric path, gas overlap Γ",
-        "Fringe floor 2 sqrt(f_parasitic) V from one parasitic copy whose phase follows the launch dither (optical path); "
+        "Fringe floor 2 sqrt(f_parasitic) V_det from one parasitic copy whose phase does not follow the launch dither "
+        "(optical path); V by an adaptive Filon integral over the dither (error V_err); V_det = V / sqrt(M²) with "
+        "detector speckle averaging (speckle_avg), else V; "
         "shot noise with responsivity 1 A/W",
         "Lyapunov exponent from twin rays at the launch angle (0 when no exponential stretch); Gaussian (ABCD) model "
         "along the centre ray with the walls only (inclusions not included), M² from the detected rays",
@@ -674,6 +686,7 @@ def perturbation_sweep(param="eps4", values=(0.0, 0.02, 0.05, 0.1, 0.15), L=15e-
                        port_width=0.0, walls=0, n_facets=24, circle_theta=0.35, out_frac=0.37, smooth_circle=0,
                        wavelength=1.6537e-6, n_eff=2.0, gamma=0.2, species="CH4", R_mirror=0.995, dither=2e-3,
                        waveform="sine", f_parasitic=1e-6, P_in=1e-3, bandwidth=1.0, n_side=16, n_bounce=2000, retune_launch=1, chaos_grid=10,
+                       n_dither_max=24000, speckle_avg=0,
                        **pert) -> Result:
     """The baseline's path, sensitivity, NEC, chaos (λ, V) and beam quality (M²) against one perturbation parameter
     (SWEEPABLE; the others as given in pert), with the CMPC of the same area as the reference (c_*)."""
@@ -681,7 +694,8 @@ def perturbation_sweep(param="eps4", values=(0.0, 0.02, 0.05, 0.1, 0.15), L=15e-
     lam_m, q0, _, circ = _common(L, W, N, M, distinct, port_width, walls, n_facets, out_frac, smooth_circle, wavelength, n_eff,
                                  species, dict(pert, n_inc=0))
     kw = dict(n_eff=n_eff, gamma=gamma, alpha_ppm=SPECIES[species][0], R_mirror=R_mirror, dither=dither, waveform=waveform,
-              f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce, chaos_grid=chaos_grid)
+              f_par=f_parasitic, P_in=P_in, bandwidth=bandwidth, n_side=n_side, n_bounce=n_bounce, chaos_grid=chaos_grid,
+              n_dither_max=n_dither_max, speckle_avg=speckle_avg)
     rows = []
     for val in values:
         p = dict(pert, **{param: val})

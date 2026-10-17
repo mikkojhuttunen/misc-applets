@@ -112,7 +112,7 @@ def test_placed_inclusions_do_not_overlap_and_stay_inside():
 
 
 def test_chaos_makers_wash_out_the_fringe_and_closed_walls_keep_the_light():
-    base = dict(n_side=8, retune_launch=0, chaos_grid=0)
+    base = dict(n_side=8, retune_launch=0, chaos_grid=0, n_dither_max=8000)
     ideal = G.compare(**base).values
     seg = G.compare(n_seg=8, seg_curv=2.0, **base).values
     inc_open = G.compare(n_inc=20, inc_dn=0.02, **base).values
@@ -158,3 +158,15 @@ def test_rippled_mirrors_launch_into_the_sea_or_onto_an_island():
     assert sea["verdict"] == 2 and sea["f_launch"] > 0.6 and sea["Y_launch"] > 4
     assert G.VERDICTS[sea["verdict"]] == "launches into the chaotic sea"
     assert sea["grid"]["Y"].shape == (12, 12)
+
+
+def test_detector_speckle_averaging_divides_the_fringe_by_sqrt_m2():
+    kw = dict(walls=1, n_inc=10, inc_dn=0.01, n_side=8, retune_launch=0, chaos_grid=0, n_dither_max=6000)
+    off = G.compare(**kw).values
+    on = G.compare(speckle_avg=1, **kw).values
+    assert off["h_n_grains"] == 1 and off["h_V_det"] == off["h_V"]
+    assert on["h_n_grains"] == pytest.approx(on["h_M2"]) and on["h_V_det"] == pytest.approx(on["h_V"] / math.sqrt(on["h_M2"]))
+    assert on["h_nec_fringe"] == pytest.approx(off["h_nec_fringe"] / math.sqrt(on["h_M2"]))
+    assert on["h_nec_fringe_hi"] >= on["h_nec_fringe"] and on["h_V_floor"] > 0
+    ideal = G.compare(n_side=8, retune_launch=0, chaos_grid=0).values
+    assert ideal["h_V_floor"] < 1e-6 and ideal["h_frag"] == 0                   # a regular cell is resolved exactly

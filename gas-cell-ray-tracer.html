@@ -128,7 +128,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
 <div class="wrap">
   <header>
     <h1>Gas Cell Ray Tracer</h1>
-    <p>An elongated on-chip Herriott cell with smooth, deformable mirrors against a circular multipass cell (CMPC) of the same footprint, both fed by the same Gaussian beam. The Herriott cell keeps one clean beam on a long, stable path; the CMPC scrambles its rays, which washes out interference fringes but spreads the beam. Read off the path you gain against the chaos you lose, and what that means for the detection limit of a gas line.</p>
+    <p>An elongated on-chip Herriott cell with smooth, deformable mirrors against a circular multipass cell (CMPC) of the same footprint, both fed by the same Gaussian beam. The Herriott cell keeps one clean beam on a long, stable path; the CMPC scrambles its rays, which washes out interference fringes but spreads the beam. Read off the path you gain against the chaos you lose, and what that means for the detection limit of a gas line. It opens on a 10 × 1.5 mm Herriott cell with closed side walls and 0.3 µm mirror ripple at Λ = 0.5 mm (K ≈ 0.95), whose beam launches into the chaotic sea: set the ripple to 0 for the ideal cell.</p>
   </header>
 
   <div class="main">
@@ -136,7 +136,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
       <fieldset>
         <legend>Baseline: elongated Herriott cell</legend>
         <div class="ctl"><div class="row"><label for="L">Length L (mirror spacing)</label><output id="LOut"></output></div>
-          <input id="L" type="range" min="5" max="30" step="0.5" value="15"></div>
+          <input id="L" type="range" min="5" max="30" step="0.5" value="10"></div>
         <div class="ctl"><div class="row"><label for="W">Width W (mirror aperture)</label><output id="WOut"></output></div>
           <input id="W" type="range" min="0.6" max="4" step="0.05" value="1.5"></div>
         <div class="ctl"><div class="row"><label for="N">Passes to re-entrance N</label><output id="NOut"></output></div>
@@ -146,7 +146,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
         <div class="ctl"><label class="check"><input id="distinct" type="checkbox" checked> Distinct spots (pattern phase π/N)</label></div>
         <div class="ctl"><div class="row"><label for="pw">Window width (0 = 2.5 mode radii)</label><output id="pwOut"></output></div>
           <input id="pw" type="range" min="0" max="400" step="5" value="0"></div>
-        <div class="ctl"><label class="check"><input id="walls" type="checkbox"> Reflecting side walls (closed cell)</label></div>
+        <div class="ctl"><label class="check"><input id="walls" type="checkbox" checked> Reflecting side walls (closed cell)</label></div>
       </fieldset>
 
       <fieldset>
@@ -177,7 +177,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
       <fieldset>
         <legend>Chaos makers: rippled end mirrors</legend>
         <div class="ctl"><div class="row"><label for="ra">Ripple amplitude a</label><output id="raOut"></output></div>
-          <input id="ra" type="range" min="0" max="1.5" step="0.01" value="0"></div>
+          <input id="ra" type="range" min="0" max="1.5" step="0.01" value="0.3"></div>
         <div class="ctl"><div class="row"><label for="rl">Ripple period Λ</label><output id="rlOut"></output></div>
           <input id="rl" type="range" min="0.1" max="2" step="0.05" value="0.5"></div>
         <div class="ctl"><div class="row"><label for="rph">Ripple phase at the mirror centre</label><output id="rphOut"></output></div>
@@ -276,7 +276,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
             <p class="hint">Separation of the hit points (log). Linear growth: regular motion; a straight rise on this log scale: chaos (slope = Lyapunov exponent); jumps: facet edges splitting the twins.</p></div>
           <div class="sub"><h3>Fringe left after the dither, pass by pass</h3>
             <canvas class="chart" id="visChart" aria-label="Dither visibility per pass"></canvas>
-            <p class="hint">Visibility of the interference between the light leaving at pass p and a copy that does not follow the dither. 1: the fringe stays; 0: washed out. Ring: the exit pass.</p></div>
+            <p class="hint">Visibility of the interference between the light leaving at pass p and a copy that does not follow the dither. 1: the fringe stays; small: washed out (log scale; dotted: the sampling floor, below which V is not resolved). Ring: the exit pass.</p></div>
           <div class="sub"><h3>Detected path lengths</h3>
             <canvas class="chart" id="pathChart" aria-label="Distribution of detected path lengths"></canvas>
             <p class="hint">Power-weighted histogram of the paths of the beam's rays that reach the output (mirror losses included).</p></div>
@@ -309,7 +309,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
           <div class="sub"><h3 id="sweepBt">Detection limit</h3>
             <canvas class="chart" id="sweepB" aria-label="Noise-equivalent concentration against the swept parameter"></canvas></div>
         </div>
-        <p class="hint">Left: mean detected path (cm) and the fringe visibility left after the dither. Right: noise-equivalent concentration (ppm, log): total and shot-noise part. Dashed: the circular cell. Dotted: the share of the launch beam in the chaotic sea (right axis). Segment curvature and tilt are swept with 8 segments if the rail has none; |Δn| and radius with 20 inclusions if it has none; ripple phase and period with a = 0.3 µm if the rail has no ripple.</p>
+        <p class="hint">Left: mean detected path (cm) and the fringe visibility left after the dither (right axis, log; grey dotted: its sampling floor; hollow dots: no launch ray in the sea). Right: noise-equivalent concentration (ppm, log): total and shot-noise part. Dashed: the circular cell. Dotted: the share of the launch beam in the chaotic sea (right axis). Segment curvature and tilt are swept with 8 segments if the rail has none; |Δn| and radius with 20 inclusions if it has none; ripple phase and period with a = 0.3 µm if the rail has no ripple.</p>
       </section>
 
       <details class="how">
@@ -1681,6 +1681,8 @@ onmessage = e => {
     const lines = [];
     lines.push(`<div>The Herriott cell detects <b>${fmt(100 * h.T, 0)} %</b> of the light after <b>${fmt(100 * h.L_mean, 1)} cm</b>; the circular cell ${fmt(100 * c.T, 0)} % after ${fmt(100 * c.L_mean, 1)} cm. Path ×${fmt(gain, 2)}, sensitivity Γ T ⟨L⟩ ×${fmt(sens, 2)}.</div>`);
     lines.push(`<div>Under a ${fmt(P().dither * 1e3, 1)} mrad launch dither the Herriott fringe keeps a visibility of <b>${fmt(h.V, 3)}</b>, the circular cell's ${fmt(c.V, 3)}. ${fringeLim(h) ? "The Herriott cell is fringe-limited" : "The Herriott cell is shot-noise limited"}; ${fringeLim(c) ? "the circular cell is fringe-limited" : "the circular cell is shot-noise limited"}. Lower detection limit: <b>${better} cell</b> (${ppm(h.nec)} against ${ppm(c.nec)}).</div>`);
+    const dB = x => x.V < 1.5 * x.V_floor ? `≥ ${fmt(-20 * Math.log10(1.5 * x.V_floor), 0)} dB (floor)` : `${fmt(-20 * Math.log10(Math.max(x.V, 1e-12)), 1)} dB`;
+    lines.push(`<div>Speckle (interference fringe) suppression by the ${fmt(P().dither * 1e3, 1)} mrad dither, 20 log₁₀(1/V): <b>Herriott ${dB(h)}</b>, circular ${dB(c)}.</div>`);
     const VT = { 2: "launches into the chaotic sea", 1: "launches onto a regular island", 0: "sees no chaotic sea (regular phase space)", [-1]: "mostly escapes the cell" };
     const chaosLine = `The Herriott beam <b>${VT[h.verdict]}</b>: ${fmt(100 * h.f_launch, 0)} % of its rays chaotic${h.esc_launch > 0 ? `, ${fmt(100 * h.esc_launch, 0)} % gone within 30 hits` : ""}; chaotic share of the M1 section ${fmt(100 * h.sea, 0)} %${h.K_ripple > 0 ? `, ripple K = ${fmt(h.K_ripple, 2)}` : ""}.`;
     lines.push(`<div>${chaosLine}</div>`);
@@ -1710,6 +1712,7 @@ onmessage = e => {
       ["Fringe-limited NEC", ppm(h.nec_fringe), ppm(c.nec_fringe), h.nec_fringe < c.nec_fringe],
       ["Noise-equivalent concentration", ppm(h.nec), ppm(c.nec), h.nec < c.nec],
       ["Dither visibility at the exit", vis(h), vis(c), h.V < c.V && h.V > 1.5 * h.V_floor],
+      ["Speckle suppression 20 log₁₀(1/V)", dB(h), dB(c), h.V < c.V && h.V > 1.5 * h.V_floor],
       ["Dithered rays on the centre's path", `${fmt(100 * h.same_path, 1)} %`, `${fmt(100 * c.same_path, 1)} %`, null],
       ["Lyapunov exponent (per hit)", h.lam_fit ? sig(h.lam, 3) : "none", c.lam_fit ? sig(c.lam, 3) : "none", null],
       ["Exit pass of the centre ray", h.exit_pass > 0 ? h.exit_pass : "does not exit", c.exit_pass > 0 ? c.exit_pass : "does not exit", null],
@@ -1732,9 +1735,9 @@ onmessage = e => {
 
   /* ---------------------------------------------------------------- charts */
   const M_ = { l: 50, r: 12, t: 10, b: 34 };
-  function twoSeries(id, A, B, xl, yl, log, mark) {
+  function twoSeries(id, A, B, xl, yl, log, mark, floor = null) {
     const [g, w, h] = fit($(id));
-    const all = A.concat(B).filter(v => Number.isFinite(v) && (!log || v > 0));
+    const all = A.concat(B).concat(floor ? [floor.v] : []).filter(v => Number.isFinite(v) && (!log || v > 0));
     if (!all.length) return;
     let lo = Math.min(...all), hi = Math.max(...all);
     if (log) { lo = 10 ** Math.floor(Math.log10(lo)); hi = 10 ** Math.ceil(Math.log10(hi)); if (hi <= lo) hi = lo * 10; }
@@ -1742,6 +1745,7 @@ onmessage = e => {
     const n = Math.max(A.length, B.length, 2);
     const [X, Y] = axes(g, w, h, M_, xl, yl, niceTicks(1, n, 6).map(v => [v, String(v)]), log ? logTicks(lo, hi) : niceTicks(lo, hi, 4).map(v => [v, String(v)]), [1, n], [lo, hi], log);
     const pts = arr => arr.map((v, i) => [X(i + 1), log && !(v > 0) ? NaN : Y(v)]);
+    if (floor) { line(g, [[X(1), Y(floor.v)], [X(n), Y(floor.v)]], css("--muted"), 1, [2, 3]); label(g, floor.text, X(n) - 4, Y(floor.v) - 3, css("--muted"), "right"); }
     line(g, pts(B), css("--circ"), 1.6); line(g, pts(A), css("--accent"), 1.8);
     if (mark) { if (mark.h) ring(g, X(mark.h[0]), Y(mark.h[1]), css("--accent")); if (mark.c) ring(g, X(mark.c[0]), Y(mark.c[1]), css("--circ")); }
     label(g, "— Herriott", M_.l + 6, M_.t + 14, css("--accent")); label(g, "— circular", M_.l + 90, M_.t + 14, css("--circ"));
@@ -1838,14 +1842,18 @@ onmessage = e => {
       const m = { l: 50, r: 46, t: 10, b: 34 };
       const Ls = rows.map(r => r.L_mean * 100).concat(c ? [c.L_mean * 100] : []).filter(Number.isFinite), ym = Math.max(...Ls, 1) * 1.15;
       const [X, Y] = axes(g, w, h, m, sp.label, "⟨L⟩ (cm)", xt, niceTicks(0, ym, 4).map(v => [v, String(v)]), [x0, x1], [0, ym]);
-      const Y2 = v => h - m.b - v * (h - m.t - m.b);
-      rightAxis(g, w, h, m, [0, 0.5, 1].map(v => [v, String(v)]), Y2, "visibility V", css("--port-out"));
+      const pos = rows.flatMap(r => [r.V, r.V_floor, r.f_launch]).concat(c ? [c.V] : []).filter(v => v > 0 && Number.isFinite(v));
+      const lo2 = Math.max(1e-4, 10 ** Math.floor(Math.log10(Math.min(...pos, 0.1)))), L2 = Math.log10(lo2);
+      const Y2 = v => h - m.b - (Math.log10(Math.max(v, lo2)) - L2) / -L2 * (h - m.t - m.b);
+      rightAxis(g, w, h, m, logTicks(lo2, 1), Y2, "V, launch share (log)", css("--port-out"));
+      line(g, rows.map(r => [X(xv(r.eps)), Y2(r.V_floor)]), css("--muted"), 1, [2, 3]);
       if (c) { line(g, [[X(x0), Y(c.L_mean * 100)], [X(x1), Y(c.L_mean * 100)]], css("--circ"), 1.2, [5, 4]); line(g, [[X(x0), Y2(c.V)], [X(x1), Y2(c.V)]], css("--port-out"), 1, [2, 3]); }
       line(g, rows.map(r => [X(xv(r.eps)), Y(r.L_mean * 100)]), css("--accent")); rows.forEach(r => dot(g, X(xv(r.eps)), Y(r.L_mean * 100), css("--accent")));
       line(g, rows.map(r => [X(xv(r.eps)), Y2(r.V)]), css("--port-out"), 1.6, [6, 4]); rows.forEach(r => dot(g, X(xv(r.eps)), Y2(r.V), css("--port-out"), 2.5));
-      line(g, rows.map(r => [X(xv(r.eps)), Y2(r.f_launch)]), css("--sel"), 1.6, [1.5, 3]); rows.forEach(r => dot(g, X(xv(r.eps)), Y2(r.f_launch), css("--sel"), 2));
+      line(g, rows.map(r => [X(xv(r.eps)), r.f_launch > 0 ? Y2(r.f_launch) : NaN]), css("--sel"), 1.6, [1.5, 3]);
+      rows.forEach(r => { if (r.f_launch > 0) dot(g, X(xv(r.eps)), Y2(r.f_launch), css("--sel"), 2); else { g.strokeStyle = css("--sel"); g.lineWidth = 1; g.beginPath(); g.arc(X(xv(r.eps)), Y2(lo2), 2.5, 0, 7); g.stroke(); } });
       const cur = xv(sweep.cur); if (cur >= x0 && cur <= x1) line(g, [[X(cur), m.t], [X(cur), h - m.b]], css("--muted"), 1, [2, 3]);
-      label(g, "— ⟨L⟩  -- V  ·· launch in the sea", m.l + 6, m.t + 14, css("--ink"));
+      label(g, "— ⟨L⟩  -- V  ·· launch in the sea  ·· grey: V floor", m.l + 6, m.t + 14, css("--ink"));
     }
     {
       const [g, w, h] = fit(B);
@@ -1869,7 +1877,8 @@ onmessage = e => {
     drawSummary(p);
     twoSeries("beamChart", res.h.w_hits.map((v, i, a) => v / (res.w_in || a[0])), res.c.w_hits.map(v => v / res.w_in), "hit", "w / w_in", true);
     twoSeries("twinChart", res.h.sep, res.c.sep, "hit", "twin separation (m)", true);
-    twoSeries("visChart", res.h.V_pass, res.c.V_pass, "pass", "visibility V", false, { h: [res.h.n_pass, res.h.V], c: [res.c.n_pass, res.c.V] });
+    twoSeries("visChart", res.h.V_pass, res.c.V_pass, "pass", "visibility V (log)", true, { h: [res.h.n_pass, res.h.V], c: [res.c.n_pass, res.c.V] },
+      { v: res.h.V_floor, text: "sampling floor √π/(2√n)" });
     drawPaths(); drawRetune();
     drawSea(cs.base.cell); drawPoin("hPoin", res.hPoin, css("--accent")); drawPoin("cPoin", res.cPoin, css("--circ"));
     drawSweep();

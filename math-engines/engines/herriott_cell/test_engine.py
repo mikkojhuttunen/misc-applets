@@ -1,7 +1,10 @@
 import numpy as np
 import pytest
 
-from gmpc import herriott as H
+from engines.herriott_cell import engine as H
+from engines.ray_phase import engine as rp
+from engines.cell_mirror import engine as cmir
+from engines.bragg_grating.engine import TrenchDBR
 
 
 def test_sphere_newton_intersection_matches_closed_form():
@@ -101,3 +104,53 @@ def test_stable_herriott_does_not_diverge_exponentially():
     m[0].holes = []
     sep, fit = H.twin_divergence_3d(m, c["p0"], c["d0"], 300)
     assert np.max(sep) < 1e-5 and (fit is None or fit["lam"] < 0.02)
+
+
+def test_aperture_miss_is_not_a_reflection():
+    c = H.herriott_cell(0.5, 30, 7, 0.012, aperture=0.0125)              # spots at radius 12 mm, aperture 12.5 mm
+    m = [H.perturb_mirror(c["mirrors"][0]), H.perturb_mirror(c["mirrors"][1], tilt_x=3e-3)]
+    tr = H.trace3d(m, c["p0"], c["d0"], 200)
+    assert tr.exit[0] == "miss" and tr.exit_mirror[0] >= 0 and tr.reflections() == tr.n_hits[0] - 1
+    L, Leff, I = H.herriott_effective_path(tr, 0.9)
+    assert I == pytest.approx(0.9 ** tr.reflections())
+
+
+def test_herriott_launch_feeds_ray_phase_and_cell_mirror():
+    c = H.herriott_cell(0.5, 30, 7, 0.012)
+    hl = H.HerriottLaunch(c["mirrors"], c["p0"], c["d0"], "x")
+    tr = H.trace3d(c["mirrors"], c["p0"], c["d0"], 40)
+    L, ids = rp.path_lengths(hl, [0.0, 1e-6], 30, return_ids=True)
+    assert L[0, 29] == pytest.approx(tr.path(), rel=1e-12) and ids[0, 29] == ids[1, 29] and ids[0, 29] > 0
+    r = rp.dither_analysis(hl, 0.0, 1e-5, 29, 1.55e-6, n_min=101, n_max=801)
+    assert np.all(r["same_path"] == 1) and np.allclose(r["V"], r["V_model"], atol=2e-3)        # linear phase, no switching
+    a = np.abs(r["a"])
+    assert a.max() < 3 * a[:4].max()                                     # bounded slope: a stable resonator refocuses
+    hy = H.HerriottLaunch(c["mirrors"], c["p0"], c["d0"], "y")
+    assert not np.allclose(hy.directions([1e-3]), hl.directions([1e-3]))
+    S, C = cmir.hit_angles(hl, [0.0], 40)
+    assert np.isfinite(S[0, :29]).all() and np.isnan(S[0, 29:]).all()   # hit 30 leaves through the hole
+    st = cmir.weighted_stats(S, C, lambda s: TrenchDBR(n_tooth=2.479, N=4).R(1.55e-6, s))
+    assert st["chi_max"] < 3                                            # near-normal incidence everywhere
+
+
+def test_front_ends():
+    d = H.design()
+    assert d["spots_per_mirror"] == 15 and d["hole_clearance_in_w"] > 3 and d["spot_spacing_in_w"] > 5
+    a = H.astigmatic_design()
+    assert np.arccos(1 - a["d"] / a["Rx"]) * 50 == pytest.approx(2 * np.pi * 11)
+    r0, r1 = H.reentrance_check(), H.reentrance_check(dR=2e-3)
+    assert r0["exits_through_hole"] and r0["n_hits"] == 30 and r0["exit_offset_in_hole"] < 0.2
+    assert r1["exit_offset"] > 5 * r0["exit_offset"]
+    rt = H.reentrance_check(tilt2=2e-4)
+    assert rt["exits_through_hole"] and rt["exit_offset"] == pytest.approx(r0["exit_offset"], rel=0.05)
+    v = H.dither_visibility(amplitude=1e-5)
+    assert v["same_path_last"] == 1 and 0 < v["V_last"] <= 1
+
+
+def test_shorter_mirror_1_radius_does_not_swallow_the_injected_ray():
+    # the injection starts on the deformed mirror 1: with a shorter radius the design start point would lie behind the
+    # new surface and the ray would "hit" mirror 1 inside the hole after a few tens of nm
+    for dR in (-1e-3, -1e-4, 1e-4):
+        c = H.build_cell(0.5, 30, 7, 0.012, dR=dR)
+        tr = H.trace3d(c["mirrors"], c["p0"], c["d0"], 100)
+        assert tr.n_hits[0] > 2 and tr.chord[0, 0] > 0.4

@@ -117,3 +117,29 @@ def test_path_switching_is_detected():
     cell = bc.SegmentedCell(5e-3, 24, tilts=tilts)
     r = rp.dither_analysis(cell, np.radians(37.5), 1e-4, 60, 1.55e-6)
     assert r["same_path"][0] == 1.0 and r["same_path"][-1] < 0.5
+
+
+def test_filon_resolves_a_dither_null_far_below_the_sampling_floor():
+    cell = bc.SegmentedCell(5e-3, 24, curvature=20.0)
+    th = np.radians(37.5)
+    a, _ = rp.phase_derivatives(cell, th, 6, 1.55e-6)
+    A = rp.X_V0["sine"] / abs(a[5])                                  # dither on the first zero of J0 at pass 6
+    r = rp.dither_filon(cell, th, A, 6, 1.55e-6, passes=[6])
+    d = rp.dither_analysis(cell, th, A, 6, 1.55e-6, n_max=4001)
+    assert r["V"][5] < 1e-4 and r["V_err"][5] < 1e-6 and r["resolved"][5]     # chirp-limited null, resolved
+    assert r["V"][5] == pytest.approx(d["V"][5], abs=1e-8)                   # the dense midpoint rule agrees
+    assert np.sqrt(np.pi) / (2 * np.sqrt(r["n_used"])) > 100 * r["V"][5]     # random-phase floor of as many rays
+    for wf in ("sine", "triangle"):                                          # linear model while paths are shared
+        q = rp.dither_filon(bc.SegmentedCell(5e-3, 24), th, 1e-5, 20, 1.55e-6, waveform=wf)
+        assert np.allclose(q["V"], q["V_model"], atol=1e-3) and q["V_err"].max() < 1e-6
+
+
+def test_filon_error_bounds_fragmented_passes():
+    tilts = np.zeros(24)
+    tilts[5] = 5e-4
+    cell = bc.SegmentedCell(5e-3, 24, tilts=tilts)
+    th = np.radians(37.5)
+    r = rp.dither_filon(cell, th, 1e-4, 60, 1.55e-6, n_max=20000)
+    d = rp.dither_analysis(cell, th, 1e-4, 60, 1.55e-6, n_min=100001, n_max=100001)
+    assert r["frag"][0] == 0 and r["frag"][-1] > 0.3 and r["V_err"][-1] > 1e-4
+    assert np.all(np.abs(r["V"] - d["V"]) <= r["V_err"] + d["noise_floor"])

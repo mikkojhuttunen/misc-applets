@@ -1,0 +1,1020 @@
+<title>Herriott Cell Ray Tracer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument panel. Controls in a left rail, the cell as the main view, diagnostics beneath it. */
+:root {
+  --bg: #eef1f0;
+  --surface: #ffffff;
+  --ink: #142026;
+  --muted: #5a6a6f;
+  --line: #d3dcdc;
+  --mirror: #6d8188;
+  --sel: #b86e00;
+  --port-in: #1f8a4c;
+  --port-out: #c43d2a;
+  --accent: #1d5f86;
+  --beam-l: 42%;
+  --beam-s: 78%;
+  --font-display: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+    --mirror: #9db3ba; --sel: #ffb547; --port-in: #4fd18a; --port-out: #ff7a63; --accent: #6cb8e6;
+    --beam-l: 64%; --beam-s: 85%; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+  --mirror: #9db3ba; --sel: #ffb547; --port-in: #4fd18a; --port-out: #ff7a63; --accent: #6cb8e6;
+  --beam-l: 64%; --beam-s: 85%; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); padding-inline: 16px; padding-block: 16px 32px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+h1 { font: 700 22px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 75ch; }
+.main { display: grid; grid-template-columns: minmax(270px, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.rail { display: grid; gap: 12px; }
+fieldset { margin: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 10px 12px 12px; display: grid; gap: 10px; min-width: 0; }
+legend { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+.ctl { display: grid; gap: 3px; }
+.ctl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { font-weight: 500; }
+.ctl output, .mono { font-family: var(--font-data); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+input[type="number"] { width: 5.5em; font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button { font: 500 13px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; gap: 6px; align-items: center; }
+.check input { accent-color: var(--accent); }
+.views { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; display: grid; gap: 8px; }
+.panel h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.cellview { position: relative; width: 100%; max-width: 100%; aspect-ratio: 1 / 1; max-height: 78vh; margin: 0 auto; }
+[hidden] { display: none !important; }
+canvas { display: block; width: 100%; height: 100%; }
+#cell { cursor: crosshair; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 640px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+.chart { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; }
+.chart.wide { aspect-ratio: 3 / 1; }
+@media (max-width: 640px) { .chart.wide { aspect-ratio: 3 / 2; } }
+.phasectl { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 18px; }
+.phasectl select { max-width: 100%; }
+.phasectl .ctl > select { width: 100%; }
+.sub { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.tablewrap { overflow-x: auto; }
+#mirTable { border-collapse: collapse; font-size: 12.5px; min-width: 520px; width: 100%; }
+#mirTable th, #mirTable td { padding: 4px 10px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+#mirTable th:first-child, #mirTable td:first-child { text-align: left; font-family: var(--font-body); }
+#mirTable thead th { color: var(--muted); font-weight: 500; font-family: var(--font-body); }
+#mirTable td.bad { color: var(--port-out); }
+#mirTable td.good { color: var(--port-in); }
+.explain { border-left: 3px solid var(--accent); background: var(--bg); padding: 8px 12px; border-radius: 0 4px 4px 0; display: grid; gap: 4px; font-size: 13px; }
+.explain .eq { font-family: var(--font-data); font-size: 12.5px; overflow-wrap: anywhere; }
+.explain .note { color: var(--muted); }
+.explain .warn { color: var(--port-out); }
+.status { color: var(--muted); font: 12px var(--font-data); }
+details.how { border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; }
+details.how summary { cursor: pointer; font-weight: 600; }
+details.how ul { margin: 8px 0 4px; padding-left: 18px; display: grid; gap: 4px; max-width: 95ch; }
+.sub h3 { font: 500 12.5px var(--font-body); margin: 0; color: var(--ink); }
+select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; }
+.stat { display: grid; gap: 1px; }
+.stat span:first-child { color: var(--muted); font-size: 12px; }
+.stat span:last-child { font: 500 15px var(--font-data); font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.manual { font: 12px var(--font-data); color: var(--muted); min-height: 1.2em; overflow-wrap: anywhere; }
+footer { color: var(--muted); font-size: 12px; max-width: 95ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Herriott Cell Ray Tracer</h1>
+    <p>Exact 3D ray tracing between two real mirrors: spherical Herriott and astigmatic (Lissajous) designs, with tilt, decentre, radius, spacing, conic and surface errors. See the spot patterns, whether the beam still leaves through the injection hole after N passes, the tolerance on each error, the effective path, and the fringe washout under injection-angle dither.</p>
+  </header>
+
+  <div class="main">
+    <div class="rail">
+      <fieldset>
+        <legend>Design</legend>
+        <div class="ctl"><div class="row"><label for="kind">Mirrors</label></div>
+          <select id="kind"><option value="sph" selected>spherical (Herriott)</option><option value="ast">astigmatic, Rx ≠ Ry (Lissajous)</option></select></div>
+        <div class="ctl"><div class="row"><label for="R" id="RLabel">Radius of curvature R</label><output id="ROut"></output></div>
+          <input id="R" type="range" min="20" max="3000" step="5" value="500"></div>
+        <div class="ctl"><div class="row"><label for="N">Passes to re-entrance N</label><output id="NOut"></output></div>
+          <input id="N" type="range" min="4" max="200" step="2" value="30"></div>
+        <div class="ctl only-sph"><div class="row"><label for="M">Turns M</label><output id="MOut"></output></div>
+          <input id="M" type="range" min="1" max="14" step="1" value="7"></div>
+        <div class="ctl only-ast"><div class="row"><label for="Mx">Turns in x, Mx</label><output id="MxOut"></output></div>
+          <input id="Mx" type="range" min="1" max="99" step="1" value="11"></div>
+        <div class="ctl only-ast"><div class="row"><label for="My">Turns in y, My</label><output id="MyOut"></output></div>
+          <input id="My" type="range" min="1" max="99" step="1" value="13"></div>
+        <div class="ctl"><div class="row"><label for="A">Pattern half axis A (x)</label><output id="AOut"></output></div>
+          <input id="A" type="range" min="0.2" max="25" step="0.1" value="12"></div>
+        <div class="ctl"><div class="row"><label for="B">Pattern half axis B (y)</label><output id="BOut"></output></div>
+          <input id="B" type="range" min="0" max="25" step="0.1" value="12"></div>
+        <div class="ctl"><div class="row"><label for="hole">Injection hole radius</label><output id="holeOut"></output></div>
+          <input id="hole" type="range" min="0" max="5" step="0.01" value="0">
+          <p class="hint">0: design rule, 3 mode radii but at most 0.4 × the distance to the nearest spot.</p></div>
+        <div class="ctl"><div class="row"><label for="ap">Mirror clear aperture (radius)</label><output id="apOut"></output></div>
+          <input id="ap" type="range" min="2" max="50" step="0.5" value="25.4"></div>
+        <div class="ctl"><div class="row"><label for="refl">Mirror reflectance R</label><output id="reflOut"></output></div>
+          <input id="refl" type="range" min="90" max="100" step="0.005" value="99"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Mirror errors (mirror 2 unless stated)</legend>
+        <div class="ctl"><div class="row"><label for="tilt2">Tilt about x</label><output id="tilt2Out"></output></div>
+          <input id="tilt2" type="range" min="-5" max="5" step="0.001" value="0"></div>
+        <div class="ctl"><div class="row"><label for="tilt2y">Tilt about y</label><output id="tilt2yOut"></output></div>
+          <input id="tilt2y" type="range" min="-5" max="5" step="0.001" value="0"></div>
+        <div class="ctl"><div class="row"><label for="dec2">Decentre (y)</label><output id="dec2Out"></output></div>
+          <input id="dec2" type="range" min="-5" max="5" step="0.001" value="0"></div>
+        <div class="ctl"><div class="row"><label for="dR">Radius error, both mirrors</label><output id="dROut"></output></div>
+          <input id="dR" type="range" min="-2" max="2" step="0.001" value="0">
+          <p class="hint">In % of R.</p></div>
+        <div class="ctl"><div class="row"><label for="dR2">Radius error, mirror 2 only</label><output id="dR2Out"></output></div>
+          <input id="dR2" type="range" min="-2" max="2" step="0.001" value="0"></div>
+        <div class="ctl"><div class="row"><label for="ast2">Astigmatism Rx − Ry</label><output id="ast2Out"></output></div>
+          <input id="ast2" type="range" min="-2" max="2" step="0.001" value="0"></div>
+        <div class="ctl"><div class="row"><label for="dd">Spacing error</label><output id="ddOut"></output></div>
+          <input id="dd" type="range" min="-2" max="2" step="0.001" value="0">
+          <p class="hint">In % of the design spacing.</p></div>
+        <div class="ctl"><div class="row"><label for="conic">Conic constant, both mirrors</label><output id="conicOut"></output></div>
+          <input id="conic" type="range" min="-2" max="2" step="0.01" value="0"></div>
+        <div class="ctl"><div class="row"><label for="coma">Surface term a₃₀ x³ + a₁₂ x y² (coma-like)</label><output id="comaOut"></output></div>
+          <input id="coma" type="range" min="-5" max="5" step="0.01" value="0"></div>
+        <div class="btns"><button id="resetErr" type="button">Reset errors</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Injection and display</legend>
+        <div class="ctl"><div class="row"><label for="dthx">Injection angle offset, x–z plane</label><output id="dthxOut"></output></div>
+          <input id="dthx" type="range" min="-5" max="5" step="0.001" value="0"></div>
+        <div class="ctl"><div class="row"><label for="dthy">Injection angle offset, y–z plane</label><output id="dthyOut"></output></div>
+          <input id="dthy" type="range" min="-5" max="5" step="0.001" value="0"></div>
+        <div class="ctl"><div class="row"><label for="nMax">Maximum passes traced</label><output id="nMaxOut"></output></div>
+          <input id="nMax" type="range" min="10" max="2000" step="10" value="300"></div>
+        <div class="ctl"><div class="row"><label for="lam">Wavelength</label><output id="lamOut"></output></div>
+          <input id="lam" type="range" min="400" max="12000" step="10" value="1550"></div>
+        <label class="check" for="numbers"><input id="numbers" type="checkbox" checked> Number the spots</label>
+        <label class="check" for="design"><input id="design" type="checkbox" checked> Show paraxial design spots</label>
+        <label class="check" for="beams"><input id="beams" type="checkbox" checked> Draw spots with the mode radius w</label>
+      </fieldset>
+    </div>
+
+    <div class="views">
+      <section class="panel">
+        <h2>Spot patterns on the mirrors (front view)</h2>
+        <div class="duo">
+          <div class="sub"><h3>Mirror 1 (with the injection hole)</h3><div class="cellview"><canvas id="m1" aria-label="Spot pattern on mirror 1"></canvas></div></div>
+          <div class="sub"><h3>Mirror 2 (seen from mirror 1)</h3><div class="cellview"><canvas id="m2" aria-label="Spot pattern on mirror 2"></canvas></div></div>
+        </div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--accent)"></i>traced reflections (numbered by pass)</span>
+          <span><i class="sw" style="background:var(--muted)"></i>paraxial design spots</span>
+          <span><i class="sw" style="background:var(--port-in)"></i>injection hole and point</span>
+          <span><i class="sw" style="background:var(--port-out)"></i>exit point</span>
+        </div>
+        <div class="explain" id="notes"></div>
+        <div class="stats" id="stats"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Side view</h2>
+        <canvas class="chart wide" id="side" aria-label="Ray path seen from the side, x–z and y–z"></canvas>
+        <p class="hint">Top: x against z; bottom: y against z, between mirror 1 (z = 0) and mirror 2 (z = d). Transverse scale exaggerated; mirror sags drawn to that scale.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Re-entrance tolerance</h2>
+        <div class="btns"><select id="tolParam" aria-label="Swept parameter">
+          <option value="dR">radius error, both mirrors (%)</option><option value="dR2">radius error, mirror 2 (%)</option><option value="dd">spacing error (%)</option>
+          <option value="tilt2">mirror 2 tilt about x (mrad)</option><option value="ast2">mirror 2 astigmatism (% of R)</option><option value="dthx">injection angle, x–z (mrad)</option></select>
+          <label for="tolRange">range ±</label><input id="tolRange" type="number" min="0.001" max="1000" step="any" value="0.5"></div>
+        <canvas class="chart wide" id="tol" aria-label="Exit offset over hole radius versus the swept parameter"></canvas>
+        <p class="hint">Distance of the exit point from the injection point in hole radii (left, log) and the re-entry angle (right) when everything else stays as set. Grey: the beam does not leave through the hole after exactly N passes (earlier through the hole, past the aperture, or still inside). A tilt or decentre of a spherical mirror only tilts the cell axis and keeps re-entrance; radius and spacing errors change θ and break it.</p>
+      </section>
+
+      <div class="duo">
+        <section class="panel">
+          <h2>Intensity and effective path</h2>
+          <canvas class="chart" id="inten" aria-label="Intensity and effective path versus pass"></canvas>
+          <p class="hint">Intensity Rʲ (left, log) and the absorption-weighted path L<sub>eff</sub>(j) = Σ Rⁱ ℓᵢ (right). The exit through the hole is not a reflection.</p>
+        </section>
+        <section class="panel">
+          <h2>Twin-ray separation</h2>
+          <canvas class="chart" id="lyap" aria-label="Twin-ray separation versus pass"></canvas>
+          <p class="hint">Hit-point distance of two rays injected 1 nrad apart, holes closed. A stable two-mirror cell stays bounded: the separation oscillates instead of growing.</p>
+        </section>
+      </div>
+
+      <section class="panel" id="phasePanel">
+        <h2>Phase vs injection angle, and angle dither</h2>
+        <div class="phasectl">
+          <div class="ctl"><div class="row"><label for="plane">Dither plane</label></div>
+            <select id="plane"><option value="x" selected>x–z (about mirror 1's y axis)</option><option value="y">y–z (about mirror 1's x axis)</option></select></div>
+          <div class="ctl"><div class="row"><label for="nIdx">Index n of the medium</label><output id="nIdxOut"></output></div>
+            <input id="nIdx" type="range" min="1" max="4" step="0.001" value="1"></div>
+          <div class="ctl"><div class="row"><label for="win">Angle window ±Δθ</label><output id="winOut"></output></div>
+            <input id="win" type="range" min="-1" max="4" step="0.01" value="2.5"></div>
+          <div class="ctl"><div class="row"><label for="pass">Pass shown p</label><output id="passOut"></output></div>
+            <input id="pass" type="range" min="1" max="400" step="1" value="29"></div>
+          <div class="ctl"><div class="row"><label for="dAmp">Dither amplitude A</label><output id="dAmpOut"></output></div>
+            <input id="dAmp" type="range" min="-2" max="4" step="0.01" value="1"></div>
+          <div class="ctl"><div class="row"><label for="dWave">Dither waveform</label></div>
+            <select id="dWave"><option value="sine" selected>sine</option><option value="triangle">triangle</option></select></div>
+        </div>
+        <div class="explain" id="explain" aria-live="polite"></div>
+        <div class="stats" id="phaseStats"></div>
+        <div class="duo">
+          <div class="sub"><h3>Relative phase Δφ<sub>p</sub>(δ) = k₀ n (L<sub>p</sub>(δ) − L<sub>p</sub>(0))</h3>
+            <canvas class="chart" id="phaseAngle" aria-label="Relative phase versus injection angle"></canvas>
+            <p class="hint">Shaded band: the dither range ±A. Signed-log axis. Curves end where the tilted beam leaves the cell early.</p></div>
+          <div class="sub"><h3>Visibility V<sub>p</sub> against pass number</h3>
+            <canvas class="chart" id="phaseVis" aria-label="Fringe visibility versus pass number"></canvas>
+            <p class="hint">Dots: computed V. Dashed: linear-model prediction from the dither depth. Grey: share of dithered rays still in the cell on the design mirror sequence. Dotted: random-phase floor.</p></div>
+          <div class="sub"><h3>Visibility against dither depth x = a<sub>p</sub>A</h3>
+            <canvas class="chart" id="phaseX" aria-label="Visibility versus dither depth"></canvas>
+            <p class="hint">The curve is |J₀(x)| (sine) or |sinc(x)| (triangle). Ringed: the pass shown.</p></div>
+          <div class="sub"><h3>Phase slope |a<sub>p</sub>| = k₀ n |dL<sub>p</sub>/dθ| against pass number</h3>
+            <canvas class="chart" id="phaseSlope" aria-label="Phase slope versus pass number"></canvas>
+            <p class="hint">A stable resonator refocuses: the slope oscillates with the pattern period instead of growing as in a polygon or exponentially as in a chaotic cell. Horizontal lines: slopes that give V = 0.9, 0.5, 0 at the current A.</p></div>
+        </div>
+        <p class="hint">Ray picture, reflection phases ignored. Engine: <span class="mono">ray_phase.dither_analysis</span> on <span class="mono">herriott_cell.HerriottLaunch</span>; runs in a background worker.</p>
+      </section>
+    </div>
+  </div>
+  <footer>Surfaces, intersections and figures of merit are a JavaScript port of misc-applets <span class="mono">math-engines/engines/herriott_cell</span> (biconic + conic + polynomial sag, Newton intersections, holes and clear apertures), checked against the Python engine's test vectors. Geometric optics: the mode radius is the paraxial resonator value, no diffraction at the hole.</footer>
+</div>
+
+<script id="app">
+/* engine:begin  JS port of math-engines/engines/herriott_cell (Mirror3D surfaces, Newton intersections, trace3d, design and
+   figures of merit, HerriottLaunch) with the ray_phase dither analysis; checked by math-engines/tools/check_js_ports.mjs */
+const HerriottEngine = (() => {
+  const rotX = a => { const c = Math.cos(a), s = Math.sin(a); return [[1, 0, 0], [0, c, -s], [0, s, c]]; };
+  const rotY = a => { const c = Math.cos(a), s = Math.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; };
+  const rotZ = a => { const c = Math.cos(a), s = Math.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; };
+  const mmul = (A, B) => A.map(r => [0, 1, 2].map(j => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
+  const mv = (A, v) => A.map(r => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);       /* A v */
+  const vm = (v, A) => [0, 1, 2].map(j => v[0] * A[0][j] + v[1] * A[1][j] + v[2] * A[2][j]);   /* v A */
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const norm = a => Math.sqrt(dot(a, a));
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+
+  /* herriott_cell.Mirror3D: vertex, rot (columns = local x, y, z in global coordinates), biconic radii and conic constants,
+     polynomial sag terms [[i, j, a_ij]], clear aperture radius, holes [[x, y, r]] in local coordinates */
+  function mirror({ vertex = [0, 0, 0], rot = rotZ(0), Rx = Infinity, Ry = Infinity, kx = 0, ky = 0, poly = [], aperture = 0.0254, holes = [], label = "" }) {
+    return { vertex: vertex.slice(), rot: rot.map(r => r.slice()), Rx, Ry, kx, ky, poly: poly.map(p => p.slice()), aperture, holes: holes.map(h => h.slice()), label,
+      cx: Number.isFinite(Rx) ? 1 / Rx : 0, cy: Number.isFinite(Ry) ? 1 / Ry : 0 };
+  }
+
+  function sag(m, x, y) {
+    const cx = m.cx, cy = m.cy, u = cx * x * x + cy * y * y;
+    const w = 1 - (1 + m.kx) * cx * cx * x * x - (1 + m.ky) * cy * cy * y * y;
+    const sw = w >= 0 ? Math.sqrt(w) : NaN, den = 1 + sw;
+    let f = u / den;
+    const dswx = sw > 0 ? -(1 + m.kx) * cx * cx * x / sw : 0, dswy = sw > 0 ? -(1 + m.ky) * cy * cy * y / sw : 0;
+    let fx = 2 * cx * x / den - u * dswx / (den * den), fy = 2 * cy * y / den - u * dswy / (den * den);
+    for (const [i, j, a] of m.poly) {
+      f += a * x ** i * y ** j;
+      if (i) fx += a * i * x ** (i - 1) * y ** j;
+      if (j) fy += a * j * x ** i * y ** (j - 1);
+    }
+    return [f, fx, fy];
+  }
+
+  /* Mirror3D.intersect for one ray: t (Infinity if no forward hit), global point, global unit normal into the cell, local (x, y) */
+  function intersect(m, p, d, eps = 1e-8, iters = 60) {
+    const o = vm([p[0] - m.vertex[0], p[1] - m.vertex[1], p[2] - m.vertex[2]], m.rot), dl = vm(d, m.rot);
+    let t = Math.abs(dl[2]) > 1e-15 ? -o[2] / dl[2] : Infinity;
+    for (let it = 0; it < iters; it++) {
+      const x = o[0] + t * dl[0], y = o[1] + t * dl[1], z = o[2] + t * dl[2];
+      const [f, fx, fy] = sag(m, x, y);
+      const step = (z - f) / (dl[2] - fx * dl[0] - fy * dl[1]);
+      if (!Number.isFinite(step)) break;
+      t -= step;
+      if (Math.abs(step) < 1e-15 * (1 + (Number.isFinite(t) ? Math.abs(t) : 0))) break;
+    }
+    const x = o[0] + t * dl[0], y = o[1] + t * dl[1];
+    const [f, fx, fy] = sag(m, x, y);
+    const ok = Number.isFinite(t) && t > eps && Number.isFinite(f) && Math.abs(o[2] + t * dl[2] - f) < 1e-9 * (1 + Math.abs(f));
+    if (!ok) return { t: Infinity };
+    const nl = [-fx, -fy, 1], nn = norm(nl);
+    return { t, P: [p[0] + t * d[0], p[1] + t * d[1], p[2] + t * d[2]], N: mv(m.rot, [nl[0] / nn, nl[1] / nn, nl[2] / nn]), xy: [x, y] };
+  }
+
+  function twoMirrorCell(d, R1 = [1, 1], R2 = [1, 1], aperture = 0.0254, holes1 = [], holes2 = [], k1 = [0, 0], k2 = [0, 0], poly1 = [], poly2 = []) {
+    return [mirror({ vertex: [0, 0, 0], rot: rotZ(0), Rx: R1[0], Ry: R1[1], kx: k1[0], ky: k1[1], poly: poly1, aperture, holes: holes1, label: "M1" }),
+      mirror({ vertex: [0, 0, d], rot: rotY(Math.PI), Rx: R2[0], Ry: R2[1], kx: k2[0], ky: k2[1], poly: poly2, aperture, holes: holes2, label: "M2" })];
+  }
+
+  /* herriott_cell.perturb_mirror: tilts about the local x and y axes (about the vertex), rotation about the axis, global shift,
+     radius and conic changes, extra polynomial terms (added) */
+  function perturbMirror(m, { tiltX = 0, tiltY = 0, rotAxis = 0, shift = [0, 0, 0], dRx = 0, dRy = 0, poly = [], dk = [0, 0] } = {}) {
+    const P = m.poly.map(p => p.slice());
+    for (const [i, j, a] of poly) { const q = P.find(r => r[0] === i && r[1] === j); if (q) q[2] += a; else P.push([i, j, a]); }
+    return mirror({ vertex: [m.vertex[0] + shift[0], m.vertex[1] + shift[1], m.vertex[2] + shift[2]], rot: mmul(mmul(mmul(m.rot, rotX(tiltX)), rotY(tiltY)), rotZ(rotAxis)),
+      Rx: m.Rx + dRx, Ry: m.Ry + dRy, kx: m.kx + dk[0], ky: m.ky + dk[1], poly: P, aperture: m.aperture, holes: m.holes, label: m.label });
+  }
+
+  const thetaOf = (R, d) => { const c = 1 - d / R; return c > -1 && c < 1 ? Math.acos(c) : NaN; };
+  const reentrantSpacing = (R, N, M) => R * (1 - Math.cos(2 * Math.PI * M / N));
+  function injection(Rx, Ry, d, A, B) {
+    const v = [-A / Rx, B / Ry * Math.sqrt((2 * Ry - d) / d), 1], n = norm(v);
+    return { xy: [A, 0], v: [v[0] / n, v[1] / n, v[2] / n] };
+  }
+  const paraxialSpots = (n, d, A, B, Rx, Ry) => [A * Math.cos(n * thetaOf(Rx, d)), B * Math.sin(n * thetaOf(Ry, d))];
+  const modeRadius = (R, d, lam) => { const g = 1 - d / R; return Math.sqrt(lam * d / Math.PI / Math.sqrt(1 - g * g)); };
+  function startOnMirror(m, xy, dirLocal) {
+    const f = sag(m, xy[0], xy[1])[0], p = mv(m.rot, [xy[0], xy[1], f]), v = mv(m.rot, dirLocal), n = norm(v);
+    return { p: [m.vertex[0] + p[0], m.vertex[1] + p[1], m.vertex[2] + p[2]], d: [v[0] / n, v[1] / n, v[2] / n] };
+  }
+
+  /* herriott_cell.trace3d for one ray: hits until a hole, a miss or nMax */
+  function trace3d(mirrors, p0, d0, nMax = 500) {
+    let p = p0.slice(), d = d0.slice();
+    const dn0 = norm(d); d = d.map(v => v / dn0);
+    const out = { hits: [], local: [], mirror: [], cosInc: [], chord: [], nHits: 0, exit: "trapped", exitMirror: -1, exitHole: -1,
+      exitDir: null, exitNormal: null, start: p.slice(), startDir: d.slice() };
+    for (let j = 0; j < nMax; j++) {
+      let best = { t: Infinity }, bm = -1;
+      mirrors.forEach((m, k) => { const r = intersect(m, p, d); if (r.t < best.t) { best = r; bm = k; } });
+      if (!Number.isFinite(best.t)) { out.exit = "miss"; break; }
+      out.hits.push(best.P); out.local.push(best.xy); out.mirror.push(bm); out.chord.push(best.t);
+      out.cosInc.push(Math.abs(dot(d, best.N))); out.nHits++;
+      const m = mirrors[bm], [x, y] = best.xy;
+      if (x * x + y * y > m.aperture ** 2) { out.exit = "miss"; out.exitMirror = bm; break; }
+      const hk = m.holes.findIndex(([hx, hy, hr]) => (x - hx) ** 2 + (y - hy) ** 2 <= hr * hr);
+      if (hk >= 0) { out.exit = "hole"; out.exitMirror = bm; out.exitHole = hk; out.exitDir = d.slice(); out.exitNormal = best.N; break; }
+      const dn = dot(d, best.N);
+      d = [d[0] - 2 * dn * best.N[0], d[1] - 2 * dn * best.N[1], d[2] - 2 * dn * best.N[2]];
+      const nn = norm(d); d = d.map(v => v / nn);
+      p = best.P;
+    }
+    out.lastIsExit = out.exit === "hole" || (out.exit === "miss" && out.exitMirror >= 0);
+    out.reflections = out.nHits - (out.lastIsExit ? 1 : 0);
+    out.path = out.chord.reduce((a, b) => a + b, 0);
+    return out;
+  }
+
+  function herriottCell(R, N, M, A, { B = null, holeRadius = null, aperture = 0.0254, lam = 1.55e-6, Rx2 = null, Ry2 = null } = {}) {
+    B = B === null ? A : B;
+    const d = reentrantSpacing(R, N, M), w = modeRadius(R, d, lam);
+    if (holeRadius === null) {
+      const th = thetaOf(R, d);
+      let sp = Infinity;
+      for (let n = 2; n <= N - 2; n += 2) sp = Math.min(sp, Math.hypot(A * Math.cos(n * th) - A, B * Math.sin(n * th)));
+      holeRadius = Number.isFinite(sp) ? Math.min(3 * w, 0.4 * sp) : 3 * w;
+    }
+    const mirrors = twoMirrorCell(d, [R, R], [Rx2 || R, Ry2 || R], aperture, [[A, 0, holeRadius]]);
+    const inj = injection(R, R, d, A, B), st = startOnMirror(mirrors[0], inj.xy, inj.v);
+    return { mirrors, d, p0: st.p, d0: st.d, theta: thetaOf(R, d), wMode: w, holeRadius };
+  }
+
+  function astigmaticReentrant(Rmean, N, Mx, My) {
+    const cx = 1 - Math.cos(2 * Math.PI * Mx / N), cy = 1 - Math.cos(2 * Math.PI * My / N);
+    const d = 2 * Rmean / (1 / cx + 1 / cy);
+    return [d / cx, d / cy, d];
+  }
+
+  function astigmaticCell(Rx, Ry, d, A, B, holeRadius, aperture = 0.0254) {
+    const mirrors = twoMirrorCell(d, [Rx, Ry], [Rx, Ry], aperture, [[A, 0, holeRadius]]);
+    const inj = injection(Rx, Ry, d, A, B), st = startOnMirror(mirrors[0], inj.xy, inj.v);
+    return { mirrors, d, p0: st.p, d0: st.d, thetaX: thetaOf(Rx, d), thetaY: thetaOf(Ry, d), holeRadius };
+  }
+
+  /* herriott_cell.build_cell: design cell with mirror errors; the design injection stays */
+  function buildCell({ R, N, M, A, B = null, holeRadius = 0, lam = 1.55e-6, tilt2 = 0, decentre2 = 0, dR = 0, dR2 = 0, astig2 = 0,
+    spacingError = 0, conic = 0, aperture = 0.0254, tilt2y = 0, poly2 = [] }) {
+    const c = herriottCell(R, N, M, A, { B, holeRadius: holeRadius || null, aperture, lam });
+    const [m1, m2] = c.mirrors;
+    c.mirrors = [perturbMirror(m1, { dRx: dR, dRy: dR, dk: [conic, conic] }),
+      perturbMirror(m2, { tiltX: tilt2, tiltY: tilt2y, shift: [0, decentre2, spacingError], dRx: dR + dR2 + astig2 / 2, dRy: dR + dR2 - astig2 / 2, dk: [conic, conic], poly: poly2 })];
+    c.p0 = startOnMirror(c.mirrors[0], [A, 0], [0, 0, 1]).p;          /* on the deformed mirror 1 */
+    return c;
+  }
+
+  /* herriott_cell.reentrance */
+  function reentrance(tr) {
+    const k = tr.nHits - 1, out = { exit: tr.exit, nHits: tr.nHits, reflections: tr.reflections, path: tr.path };
+    if (k >= 0) { const h = tr.hits[k]; out.exitOffset = Math.hypot(h[0] - tr.start[0], h[1] - tr.start[1], h[2] - tr.start[2]); }
+    if (tr.exit === "hole") {
+      const v = tr.exitDir, n = tr.exitNormal, vn = dot(v, n), refl = [v[0] - 2 * vn * n[0], v[1] - 2 * vn * n[1], v[2] - 2 * vn * n[2]];
+      out.reentryAngle = Math.acos(Math.min(Math.max(dot(refl, tr.startDir) / norm(refl), -1), 1));
+    }
+    return out;
+  }
+
+  /* herriott_cell.spot_metrics: per mirror, reflections, closest spots and the clearance to the first hole */
+  function spotMetrics(tr, mirrors, w) {
+    return mirrors.map((m, k) => {
+      const P = [];
+      for (let j = 0; j < tr.reflections; j++) if (tr.mirror[j] === k) P.push(tr.local[j]);
+      let sp = Infinity;
+      for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) sp = Math.min(sp, Math.hypot(P[i][0] - P[j][0], P[i][1] - P[j][1]));
+      const e = { label: m.label, reflections: P.length, minSpacing: sp };
+      if (m.holes.length && P.length) { const [hx, hy, hr] = m.holes[0]; e.holeClearance = Math.min(...P.map(q => Math.hypot(q[0] - hx, q[1] - hy) - hr)); }
+      if (w) { e.minSpacingW = sp / w; if (e.holeClearance !== undefined) e.holeClearanceW = e.holeClearance / w; }
+      return e;
+    });
+  }
+
+  /* herriott_cell.herriott_effective_path: (path, Σ I_j ℓ_j, intensity left) with reflectance R (number or function of cos χ) */
+  function effectivePath(tr, R) {
+    let I = 1, L = 0, Leff = 0;
+    for (let j = 0; j < tr.nHits; j++) {
+      L += tr.chord[j]; Leff += I * tr.chord[j];
+      I *= j === tr.nHits - 1 && tr.lastIsExit ? 1 : typeof R === "function" ? R(tr.cosInc[j]) : R;
+    }
+    return { L, Leff, Iend: I };
+  }
+
+  /* herriott_cell.HerriottLaunch: injected beam tilted by theta about mirror 1's local y (plane x) or -x (plane y) axis */
+  function launcher(mirrors, p0, d0, plane = "x") {
+    const R = mirrors[0].rot, axis = plane === "x" ? [R[0][1], R[1][1], R[2][1]] : [-R[0][0], -R[1][0], -R[2][0]];
+    const n0 = norm(d0), dd = d0.map(v => v / n0);
+    const dir = th => {
+      const c = Math.cos(th), s = Math.sin(th), kv = cross(axis, dd), kd = dot(axis, dd);
+      return [0, 1, 2].map(i => dd[i] * c + kv[i] * s + axis[i] * kd * (1 - c));
+    };
+    /* path to each of the first nPass hits (exit-hole hit included, aperture miss not) and the mirror-sequence id */
+    const paths = (thetas, nPass) => {
+      const Ls = [], IDs = [];
+      for (const th of thetas) {
+        const tr = trace3d(mirrors, p0, dir(th), nPass);
+        const L = new Float64Array(nPass).fill(NaN), ids = new Float64Array(nPass).fill(-1);
+        let acc = 0, pid = 0;
+        const last = tr.exit === "miss" && tr.exitMirror >= 0 ? tr.nHits - 1 : tr.nHits;
+        for (let j = 0; j < last; j++) { acc += tr.chord[j]; L[j] = acc; pid = (pid * 1000003 + tr.mirror[j] + 1) % 2147483647; ids[j] = pid; }
+        Ls.push(L); IDs.push(ids);
+      }
+      return { L: Ls, ids: IDs };
+    };
+    return { dir, paths, axis };
+  }
+
+  /* ray_phase dither machinery for a path function pf(thetas, nPass) -> {L, ids} */
+  function ditherOffsets(A, n, waveform) {
+    const d = new Float64Array(n);
+    for (let j = 0; j < n; j++) { const t = (j + 0.5) / n; d[j] = waveform === "sine" ? A * Math.sin(2 * Math.PI * t) : A * (2 * t - 1); }
+    return d;
+  }
+  function visibility(dphi) {
+    let re = 0, im = 0, n = 0;
+    for (const v of dphi) if (Number.isFinite(v)) { re += Math.cos(v); im += Math.sin(v); n++; }
+    return n ? Math.hypot(re, im) / n : NaN;
+  }
+  const X_V09 = { sine: 0.6406308771588489, triangle: 0.786683072049212 };
+  const X_V05 = { sine: 1.521144057668765, triangle: 1.8954942670340231 };
+  const X_V0 = { sine: 2.404825557695807, triangle: Math.PI };
+  function modelVisibility(x, waveform) {
+    if (!Number.isFinite(x)) return NaN;
+    if (waveform !== "sine") return x === 0 ? 1 : Math.abs(Math.sin(x) / x);
+    const n = Math.max(64, Math.ceil(Math.abs(x)) + 64);
+    let s = 0;
+    for (let j = 0; j < n; j++) s += Math.cos(x * Math.sin(2 * Math.PI * ((j + 0.5) / n)));
+    return Math.abs(s / n);
+  }
+  function phaseDerivatives(pf, thetaC, nPass, lam, nIdx, h1 = 1e-9, h2 = 1e-6) {
+    const k = 2 * Math.PI * nIdx / lam;
+    const { L, ids } = pf([thetaC - h2, thetaC - h1, thetaC, thetaC + h1, thetaC + h2], nPass);
+    const a = new Float64Array(nPass), b = new Float64Array(nPass);
+    for (let p = 0; p < nPass; p++) {
+      const s1 = ids[1][p] === ids[2][p] && ids[3][p] === ids[2][p], s2 = ids[0][p] === ids[2][p] && ids[4][p] === ids[2][p];
+      a[p] = s1 ? k * (L[3][p] - L[1][p]) / (2 * h1) : NaN;
+      b[p] = s2 ? k * (L[4][p] - 2 * L[2][p] + L[0][p]) / (h2 * h2) : NaN;
+    }
+    return { a, b };
+  }
+  function ditherAnalysis(pf, thetaC, A, nPass, lam, nIdx, waveform, nMin = 401, nMax = 12801, stepTol = Math.PI / 2, onProgress) {
+    const k = 2 * Math.PI * nIdx / lam;
+    const c0 = pf([thetaC], nPass), L0 = c0.L[0], id0 = c0.ids[0];
+    const { a, b } = phaseDerivatives(pf, thetaC, nPass, lam, nIdx);
+    const x = Array.from(a, v => Math.abs(v) * A);
+    const base = {
+      a, b, x, L0, Vmodel: x.map(v => modelVisibility(v, waveform)), q: Array.from(b, v => 0.5 * Math.abs(v) * A * A),
+      A09: Array.from(a, v => X_V09[waveform] / Math.abs(v)), A05: Array.from(a, v => X_V05[waveform] / Math.abs(v)),
+      A0: Array.from(a, v => X_V0[waveform] / Math.abs(v)),
+    };
+    let n = nMin, res;
+    for (;;) {
+      const d = ditherOffsets(A, n, waveform);
+      const { L, ids } = pf(Array.from(d, v => thetaC + v), nPass);
+      const order = Array.from(d.keys()).sort((i, j) => d[i] - d[j]);
+      const V = new Float64Array(nPass), maxStep = new Float64Array(nPass), same = new Float64Array(nPass);
+      const ph = new Float64Array(n);
+      let worst = 0;
+      for (let p = 0; p < nPass; p++) {
+        let cnt = 0;
+        for (let i = 0; i < n; i++) { ph[i] = k * (L[i][p] - L0[p]); if (ids[i][p] === id0[p]) cnt++; }
+        V[p] = visibility(ph); same[p] = cnt / n;
+        let m = 0;
+        for (let q = 1; q < n; q++) {
+          const i = order[q], j = order[q - 1];
+          if (ids[i][p] === ids[j][p] && ids[i][p] >= 0) { const st = Math.abs(ph[i] - ph[j]); if (st > m) m = st; }
+        }
+        maxStep[p] = m; if (m > worst) worst = m;
+      }
+      res = Object.assign({}, base, { V, maxStep, same, resolved: Array.from(maxStep, v => v <= stepTol), nUsed: n,
+        noiseFloor: Math.sqrt(Math.PI) / (2 * Math.sqrt(n)) });
+      const done = worst <= stepTol || n >= nMax;
+      if (onProgress) onProgress(res, done);
+      if (done) return res;
+      n = Math.min(nMax, Math.max(2 * n - 1, Math.ceil(n * worst / stepTol * 1.25)));
+      n += 1 - n % 2;
+    }
+  }
+
+  return { rotX, rotY, rotZ, mmul, mv, dot, norm, mirror, sag, intersect, twoMirrorCell, perturbMirror, thetaOf, reentrantSpacing, injection,
+    paraxialSpots, modeRadius, startOnMirror, trace3d, herriottCell, astigmaticReentrant, astigmaticCell, buildCell, reentrance, spotMetrics,
+    effectivePath, launcher, ditherOffsets, visibility, modelVisibility, phaseDerivatives, ditherAnalysis, X_V09, X_V05, X_V0 };
+})();
+/* engine:end */
+
+(() => {
+  const $ = id => document.getElementById(id);
+  const E = HerriottEngine;
+
+  const P = () => {
+    const kind = $("kind").value, N = +$("N").value;
+    return {
+      kind, ast: kind === "ast", R: +$("R").value * 1e-3, N, M: Math.min(+$("M").value, N / 2 - 1), Mx: Math.min(+$("Mx").value, N / 2 - 1), My: Math.min(+$("My").value, N / 2 - 1),
+      A: +$("A").value * 1e-3, B: +$("B").value * 1e-3, hole: +$("hole").value * 1e-3, ap: +$("ap").value * 1e-3, R0: +$("refl").value / 100,
+      tilt2: +$("tilt2").value * 1e-3, tilt2y: +$("tilt2y").value * 1e-3, dec2: +$("dec2").value * 1e-3, dR: +$("dR").value / 100, dR2: +$("dR2").value / 100,
+      ast2: +$("ast2").value / 100, dd: +$("dd").value / 100, conic: +$("conic").value, coma: +$("coma").value,
+      dthx: +$("dthx").value * 1e-3, dthy: +$("dthy").value * 1e-3, nMax: +$("nMax").value, lam: +$("lam").value * 1e-9,
+      numbers: $("numbers").checked, design: $("design").checked, beams: $("beams").checked,
+      plane: $("plane").value, nIdx: +$("nIdx").value, win: 1e-6 * 10 ** +$("win").value, pass: +$("pass").value,
+      dAmp: 1e-6 * 10 ** +$("dAmp").value, dWave: $("dWave").value, tolParam: $("tolParam").value, tolRange: Math.abs(+$("tolRange").value) || 0.1,
+    };
+  };
+
+  /* design cell (spherical: herriott_cell.build_cell; astigmatic: astigmatic_cell) with the errors and the injection offsets */
+  function build(p) {
+    let Rx, Ry, d;
+    if (p.ast) [Rx, Ry, d] = E.astigmaticReentrant(p.R, p.N, p.Mx, p.My);
+    else { Rx = Ry = p.R; d = E.reentrantSpacing(p.R, p.N, p.M); }
+    if (!(d > 0) || !Number.isFinite(E.thetaOf(Rx, d)) || !Number.isFinite(E.thetaOf(Ry, d))) throw new Error("unstable design");
+    const Rm = 0.5 * (Rx + Ry), w = E.modeRadius(Rm, d, p.lam);
+    let hole = p.hole;
+    if (!hole) {
+      let sp = Infinity;
+      for (let n = 2; n <= p.N - 2; n += 2) { const [x, y] = E.paraxialSpots(n, d, p.A, p.B, Rx, Ry); sp = Math.min(sp, Math.hypot(x - p.A, y)); }
+      hole = Number.isFinite(sp) ? Math.min(3 * w, 0.4 * sp) : 3 * w;
+    }
+    const [m1, m2] = E.twoMirrorCell(d, [Rx, Ry], [Rx, Ry], p.ap, [[p.A, 0, hole]]);
+    const inj = E.injection(Rx, Ry, d, p.A, p.B), st = E.startOnMirror(m1, inj.xy, inj.v);
+    const dR = p.dR * Rm, dR2 = p.dR2 * Rm, ast = p.ast2 * Rm, dk = [p.conic, p.conic];
+    const mirrors = [E.perturbMirror(m1, { dRx: dR, dRy: dR, dk }),
+      E.perturbMirror(m2, { tiltX: p.tilt2, tiltY: p.tilt2y, shift: [0, p.dec2, p.dd * d], dRx: dR + dR2 + ast / 2, dRy: dR + dR2 - ast / 2, dk,
+        poly: p.coma ? [[3, 0, p.coma], [1, 2, p.coma]] : [] })];
+    const p0 = E.startOnMirror(mirrors[0], inj.xy, [0, 0, 1]).p;      /* on the deformed mirror 1 */
+    let d0 = E.launcher(mirrors, p0, st.d, "x").dir(p.dthx);
+    d0 = E.launcher(mirrors, p0, d0, "y").dir(p.dthy);
+    return { mirrors, design: { Rx, Ry, d, w, hole }, p0, d0, dDesign: st.d };
+  }
+
+  let state = null;
+  function compute() {
+    const p = P();
+    let c;
+    try { c = build(p); } catch (err) { state = { error: String(err.message || err) }; return false; }
+    const tr = E.trace3d(c.mirrors, c.p0, c.d0, p.nMax);
+    const re = E.reentrance(tr), sm = E.spotMetrics(tr, c.mirrors, c.design.w), ep = E.effectivePath(tr, p.R0);
+    const closed = c.mirrors.map(m => Object.assign({}, m, { holes: [] }));
+    const nTwin = Math.min(p.nMax, 600), la = E.launcher(closed, c.p0, c.d0, "x");
+    const ta = E.trace3d(closed, c.p0, c.d0, nTwin), tb = E.trace3d(closed, c.p0, la.dir(1e-9), nTwin);
+    const sep = []; for (let j = 0; j < Math.min(ta.nHits, tb.nHits); j++) sep.push(Math.hypot(ta.hits[j][0] - tb.hits[j][0], ta.hits[j][1] - tb.hits[j][1], ta.hits[j][2] - tb.hits[j][2]));
+    state = { p, c, tr, re, sm, ep, sep, theta: 0, tol: tolerance(p) };
+    computePhase();
+    return true;
+  }
+
+  function tolerance(p) {
+    const n = 41, out = [], rg = p.tolRange, k = p.tolParam, unit = k === "tilt2" || k === "dthx" ? 1e-3 : 1e-2;
+    for (let i = 0; i < n; i++) {
+      const v = rg * (2 * i / (n - 1) - 1), q = Object.assign({}, p, { [k]: v * unit });
+      let c; try { c = build(q); } catch (err) { out.push({ v, ok: false }); continue; }
+      const tr = E.trace3d(c.mirrors, c.p0, c.d0, 3 * p.N + 2), re = E.reentrance(tr);
+      out.push({ v, ok: tr.exit === "hole" && tr.nHits === p.N, off: re.exitOffset / c.design.hole, ang: re.reentryAngle });
+    }
+    return out;
+  }
+
+  function computePhase() {
+    const { p, c } = state;
+    const nPass = Math.min(p.pass, 400), pf = E.launcher(c.mirrors, c.p0, c.d0, p.plane).paths;
+    const nA = 161, ang = Array.from({ length: nA }, (_, i) => p.win * (2 * i / (nA - 1) - 1));
+    const L0 = pf([0], nPass).L[0], L = pf(ang, nPass).L;
+    const k = 2 * Math.PI * p.nIdx / p.lam;
+    const passes = [...new Set([1, Math.max(1, Math.round(nPass / 2)), nPass])];
+    const curves = passes.map(q => ({ q, y: L.map(Lq => k * (Lq[q - 1] - L0[q - 1]) / (2 * Math.PI)) }));
+    const Ld = pf([-1e-6, 1e-6], 1).L, dL1 = (Ld[1][0] - Ld[0][0]) / 2e-6;
+    state.phase = { nPass, ang: ang.map(a => a), curves, L1: L0[0], Lp: L0[nPass - 1], dL1, dphi1: k * dL1 };
+    ditherRunner.request({ type: "dither", mirrors: c.mirrors, p0: c.p0, d0: c.d0, plane: p.plane, A: p.dAmp, nPass, lam: p.lam, nIdx: p.nIdx, wave: p.dWave, nMax: 6401 });
+  }
+
+  const appText = $("app").textContent;
+  const WORKER_SRC = appText.slice(appText.indexOf("/* engine:begin"), appText.indexOf("/* engine:end */")) + `
+onmessage = e => {
+  const j = e.data, H = HerriottEngine, pf = H.launcher(j.mirrors, j.p0, j.d0, j.plane).paths;
+  H.ditherAnalysis(pf, 0, j.A, j.nPass, j.lam, j.nIdx, j.wave, 401, j.nMax, Math.PI / 2, (res, done) => postMessage({ id: j.id, res, done }));
+};`;
+
+  let workerUrl = null, useWorker = true;
+  function makeRunner(onDone, fallback) {
+    let worker = null, busy = false, id = 0, lastKey = "", job = null;
+    const deliver = (jid, res, done) => { if (jid !== id) return; busy = !done; onDone(res, done, job); };
+    return {
+      busy: () => busy,
+      request(j) {
+        const key = JSON.stringify(j);
+        if (key === lastKey) return;
+        lastKey = key; job = j; j.id = ++id;
+        if (useWorker) {
+          try {
+            if (worker && busy) { worker.terminate(); worker = null; }
+            if (!worker) {
+              workerUrl = workerUrl || URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+              worker = new Worker(workerUrl);
+              worker.onmessage = e => deliver(e.data.id, e.data.res, e.data.done);
+              worker.onerror = () => { useWorker = false; worker = null; lastKey = ""; update(); };
+            }
+            busy = true; worker.postMessage(j); return;
+          } catch (err) { useWorker = false; }
+        }
+        deliver(j.id, fallback(j), true);
+      },
+    };
+  }
+  let ana = null, anaJob = null;
+  const ditherRunner = makeRunner((res, done, job) => { ana = res; ana.done = done; anaJob = job; if (state && state.phase) drawPhase(); },
+    j => E.ditherAnalysis(E.launcher(j.mirrors, j.p0, j.d0, j.plane).paths, 0, j.A, j.nPass, j.lam, j.nIdx, j.wave, 401, 1601));
+
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function fit(canvas) {
+    const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    const g = canvas.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    return [g, w, h];
+  }
+
+  function drawMirror(k) {
+    const { p, c, tr, re } = state, m = c.mirrors[k], { Rx, Ry, d, w, hole } = c.design;
+    const [g, W, H] = fit($(`m${k + 1}`));
+    const half = Math.max(p.A, p.B, p.A + hole) * 1.3 + 2 * w;
+    const sc = (Math.min(W, H) / 2 - 14) / half, X = x => W / 2 + x * sc, Y = y => H / 2 - y * sc;
+    const cx = m.vertex[0], cy = m.vertex[1];
+    g.strokeStyle = css("--line"); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(X(-half), Y(0)); g.lineTo(X(half), Y(0)); g.moveTo(X(0), Y(-half)); g.lineTo(X(0), Y(half)); g.stroke();
+    if (m.aperture < half * 1.5) { g.strokeStyle = css("--mirror"); g.lineWidth = 2; g.beginPath(); g.arc(X(cx), Y(cy), m.aperture * sc, 0, 7); g.stroke(); }
+    if (k === 0) { g.fillStyle = css("--port-in"); g.globalAlpha = 0.18; g.beginPath(); g.arc(X(p.A), Y(0), hole * sc, 0, 7); g.fill(); g.globalAlpha = 1;
+      g.strokeStyle = css("--port-in"); g.lineWidth = 1.5; g.beginPath(); g.arc(X(p.A), Y(0), hole * sc, 0, 7); g.stroke(); }
+    if (p.design) {
+      g.strokeStyle = css("--muted"); g.lineWidth = 1;
+      for (let n = 1; n < p.N; n++) if (n % 2 === (k === 0 ? 0 : 1)) { const [x, y] = E.paraxialSpots(n, d, p.A, p.B, Rx, Ry); g.beginPath(); g.arc(X(x), Y(y), 4.5, 0, 7); g.stroke(); }
+    }
+    const big = tr.reflections > 120;
+    for (let j = 0; j < tr.nHits; j++) {
+      if (tr.mirror[j] !== k) continue;
+      const [x, y] = tr.hits[j], isExit = j === tr.nHits - 1 && tr.lastIsExit;
+      if (isExit) {
+        g.strokeStyle = css("--port-out"); g.lineWidth = 2; g.beginPath(); g.arc(X(x), Y(y), 6, 0, 7); g.stroke();
+        g.beginPath(); g.moveTo(X(x) - 8, Y(y)); g.lineTo(X(x) + 8, Y(y)); g.moveTo(X(x), Y(y) - 8); g.lineTo(X(x), Y(y) + 8); g.stroke();
+        continue;
+      }
+      if (p.beams && w * sc > 1.5) { g.fillStyle = css("--accent"); g.globalAlpha = big ? 0.08 : 0.18; g.beginPath(); g.arc(X(x), Y(y), w * sc, 0, 7); g.fill(); g.globalAlpha = 1; }
+      g.fillStyle = css("--accent"); g.beginPath(); g.arc(X(x), Y(y), big ? 1.6 : 2.6, 0, 7); g.fill();
+      if (p.numbers && !big) { g.fillStyle = css("--ink"); g.font = `10px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "bottom"; g.fillText(String(j + 1), X(x) + 4, Y(y) - 2); }
+    }
+    if (k === 0) { g.fillStyle = css("--port-in"); g.beginPath(); g.arc(X(c.p0[0]), Y(c.p0[1]), 3.5, 0, 7); g.fill(); }
+    const nice = v => { const e = 10 ** Math.floor(Math.log10(v)), f = v / e; return (f >= 5 ? 5 : f >= 2 ? 2 : 1) * e; };
+    const bar = nice(0.4 * half), bx = 10, by = H - 10;
+    g.strokeStyle = css("--ink"); g.fillStyle = css("--ink"); g.lineWidth = 2; g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + bar * sc, by); g.stroke();
+    g.font = `500 11px ${css("--font-data")}`; g.textAlign = "center"; g.textBaseline = "bottom";
+    g.fillText(bar >= 1e-3 ? `${+(bar * 1e3).toPrecision(3)} mm` : `${+(bar * 1e6).toPrecision(3)} µm`, bx + bar * sc / 2, by - 4);
+    g.textAlign = "right"; g.fillStyle = css("--muted"); g.font = `11px ${css("--font-data")}`; g.textBaseline = "top";
+    g.fillText("global x →, y ↑", W - 6, 6);
+    void re;
+  }
+
+  function drawSide() {
+    const { p, c, tr } = state, d = c.design.d;
+    const [g, W, H] = fit($("side"));
+    const half = Math.max(p.A, p.B) * 1.35 + c.design.hole, m = { l: 40, r: 64, t: 8, b: 8 }, hh = (H - m.t - m.b - 10) / 2;
+    const Z = z => m.l + z / (d * 1.06) * (W - m.l - m.r) + 0.03 * (W - m.l - m.r);
+    const strip = (row, comp, lab) => {
+      const y0 = m.t + row * (hh + 10) + hh / 2, Yv = v => y0 - v / half * hh / 2;
+      g.strokeStyle = css("--line"); g.lineWidth = 1; g.beginPath(); g.moveTo(Z(-0.02 * d), y0); g.lineTo(Z(1.02 * d), y0); g.stroke();
+      c.mirrors.forEach((mm, k) => {
+        g.strokeStyle = css("--mirror"); g.lineWidth = 3; g.beginPath();
+        for (let q = 0; q <= 60; q++) {
+          const u = -half + 2 * half * q / 60, xy = comp === 0 ? [u, 0] : [0, u];
+          const loc = k === 0 ? xy : [-xy[0], xy[1]];
+          const s = E.sag(mm, loc[0], loc[1])[0], z = k === 0 ? s : mm.vertex[2] - s;
+          q ? g.lineTo(Z(z), Yv(u)) : g.moveTo(Z(z), Yv(u));
+        }
+        g.stroke();
+      });
+      g.strokeStyle = css("--accent"); g.lineWidth = 0.9; g.globalAlpha = tr.nHits > 200 ? 0.35 : 0.8; g.beginPath();
+      g.moveTo(Z(c.p0[2]), Yv(c.p0[comp]));
+      tr.hits.forEach(h => g.lineTo(Z(h[2]), Yv(h[comp]))); g.stroke(); g.globalAlpha = 1;
+      g.fillStyle = css("--muted"); g.font = `11px ${css("--font-data")}`; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(lab, m.l - 6, y0);
+      g.textAlign = "left"; g.fillText(`±${fmt(half * 1e3, 1)} mm`, W - m.r + 4, y0 - hh / 2 + 6);
+    };
+    strip(0, 0, "x"); strip(1, 1, "y");
+    g.fillStyle = css("--muted"); g.font = `11px ${css("--font-data")}`; g.textAlign = "center"; g.textBaseline = "bottom";
+    g.fillText(`z: 0 … d = ${fmt(d * 1e3, 2)} mm`, W / 2, H - 1);
+  }
+
+  function axes(g, w, h, m, xl, yl, xt, yt, xr, yr) {
+    const ink = css("--muted"), line = css("--line");
+    g.font = `10.5px ${css("--font-data")}`; g.fillStyle = ink; g.strokeStyle = line; g.lineWidth = 1;
+    const X = v => m.l + (v - xr[0]) / (xr[1] - xr[0]) * (w - m.l - m.r), Y = v => h - m.b - (v - yr[0]) / (yr[1] - yr[0]) * (h - m.t - m.b);
+    g.textAlign = "center"; g.textBaseline = "top";
+    xt.forEach(([v, s]) => { g.beginPath(); g.moveTo(X(v), m.t); g.lineTo(X(v), h - m.b); g.stroke(); g.fillText(s, X(v), h - m.b + 4); });
+    g.textAlign = "right"; g.textBaseline = "middle";
+    yt.forEach(([v, s]) => { g.beginPath(); g.moveTo(m.l, Y(v)); g.lineTo(w - m.r, Y(v)); g.stroke(); g.fillText(s, m.l - 5, Y(v)); });
+    g.textAlign = "center"; g.textBaseline = "bottom"; g.fillText(xl, (m.l + w - m.r) / 2, h - 2);
+    g.save(); g.translate(11, (m.t + h - m.b) / 2); g.rotate(-Math.PI / 2); g.textBaseline = "middle"; g.fillText(yl, 0, 0); g.restore();
+    return [X, Y];
+  }
+  const niceTicks = (a, b, n) => { const s = 10 ** Math.floor(Math.log10((b - a) / n)), f = (b - a) / n / s, st = (f > 5 ? 10 : f > 2 ? 5 : f > 1 ? 2 : 1) * s; const t = []; for (let v = Math.ceil(a / st) * st; v <= b + 1e-12 * Math.abs(b); v += st) t.push(+v.toPrecision(6)); return t; };
+  const label = (g, txt, x, y, col, align = "left", base = "bottom") => { g.fillStyle = col; g.font = `500 10.5px ${css("--font-data")}`; g.textAlign = align; g.textBaseline = base; g.fillText(txt, x, y); };
+
+  function drawTol() {
+    const { p, tol } = state;
+    const [g, w, h] = fit($("tol"));
+    const m = { l: 52, r: 56, t: 10, b: 34 }, xr = [-p.tolRange, p.tolRange];
+    const ok = tol.filter(q => q.ok);
+    const offs = ok.map(q => q.off).filter(v => v > 0), lo = Math.floor(Math.log10(Math.min(...offs, 1e-3))), hi = Math.max(1, Math.ceil(Math.log10(Math.max(...offs, 1))));
+    const yt = []; for (let e = lo; e <= hi; e++) yt.push([e, e === 0 ? "1" : `1e${e}`]);
+    const [X, Y] = axes(g, w, h, m, $("tolParam").selectedOptions[0].text, "exit offset / hole radius", niceTicks(xr[0], xr[1], 4).map(v => [v, String(v)]), yt, xr, [lo, hi]);
+    const bw = (X(xr[1]) - X(xr[0])) / (tol.length - 1);
+    g.fillStyle = css("--line"); g.globalAlpha = 0.6; tol.forEach(q => { if (!q.ok) g.fillRect(X(q.v) - bw / 2, m.t, bw, h - m.t - m.b); }); g.globalAlpha = 1;
+    g.setLineDash([4, 4]); g.strokeStyle = css("--port-out"); g.beginPath(); g.moveTo(m.l, Y(0)); g.lineTo(w - m.r, Y(0)); g.stroke(); g.setLineDash([]);
+    label(g, "exit at the hole edge", m.l + 4, Y(0) - 2, css("--port-out"));
+    const amax = Math.max(1e-9, ...ok.map(q => q.ang || 0)) * 1.1, Y2 = v => h - m.b - v / amax * (h - m.t - m.b);
+    g.fillStyle = css("--sel"); g.font = `10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "middle";
+    niceTicks(0, amax * 1e3, 4).forEach(v => g.fillText(String(v), w - m.r + 5, Y2(v * 1e-3)));
+    g.save(); g.translate(w - 8, (m.t + h - m.b) / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText("re-entry angle (mrad)", 0, 0); g.restore();
+    const line = (f, col) => { g.strokeStyle = col; g.lineWidth = 1.8; g.beginPath(); let pen = false; tol.forEach(q => { const y = q.ok ? f(q) : NaN; if (!Number.isFinite(y)) { pen = false; return; } pen ? g.lineTo(X(q.v), y) : g.moveTo(X(q.v), y); pen = true; }); g.stroke(); };
+    line(q => Y(Math.log10(Math.max(q.off, 10 ** lo))), css("--accent"));
+    line(q => Y2(q.ang), css("--sel"));
+    label(g, "— exit offset / hole radius", m.l + 6, m.t + 14, css("--accent"));
+    label(g, "— re-entry angle", m.l + 6, m.t + 28, css("--sel"));
+  }
+
+  function drawIntensity() {
+    const { p, tr } = state;
+    const [g, w, h] = fit($("inten"));
+    const n = tr.nHits, m = { l: 46, r: 52, t: 10, b: 34 };
+    const I = [1]; let acc = 1;
+    for (let j = 0; j < n; j++) { acc *= j === n - 1 && tr.lastIsExit ? 1 : p.R0; I.push(acc); }
+    const Imin = Math.max(-12, Math.floor(Math.log10(Math.max(I[n], 1e-300)) - 0.5));
+    const yt = []; const st = Math.max(1, Math.ceil(-Math.min(Imin, -1) / 5)); for (let v = 0; v >= Math.min(Imin, -1); v -= st) yt.push([v, v === 0 ? "1" : `1e${v}`]);
+    const xt = niceTicks(0, Math.max(n, 1), 5).map(v => [v, String(v)]);
+    const [X, Y] = axes(g, w, h, m, "pass j", "intensity Rʲ", xt, yt, [0, Math.max(n, 1)], [Math.min(Imin, -1), 0]);
+    g.strokeStyle = css("--accent"); g.lineWidth = 1.8; g.beginPath();
+    I.forEach((v, j) => { const y = Y(Math.log10(Math.max(v, 1e-300))); j ? g.lineTo(X(j), y) : g.moveTo(X(j), y); }); g.stroke();
+    const cum = [0]; let s = 0; for (let j = 0; j < n; j++) { s += I[j] * tr.chord[j]; cum.push(s); }
+    const top = (s || 1) * 1.05, Y2 = v => h - m.b - v / top * (h - m.t - m.b);
+    g.fillStyle = css("--sel"); g.font = `10.5px ${css("--font-data")}`; g.textAlign = "left"; g.textBaseline = "middle";
+    niceTicks(0, top, 4).forEach(v => g.fillText(String(v), w - m.r + 5, Y2(v)));
+    g.save(); g.translate(w - 8, (m.t + h - m.b) / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText("L_eff (m)", 0, 0); g.restore();
+    g.strokeStyle = css("--sel"); g.lineWidth = 1.8; g.beginPath(); cum.forEach((v, j) => j ? g.lineTo(X(j), Y2(v)) : g.moveTo(X(j), Y2(v))); g.stroke();
+  }
+
+  function drawLyap() {
+    const { sep } = state;
+    const [g, w, h] = fit($("lyap"));
+    const m = { l: 46, r: 8, t: 8, b: 34 }, n = Math.max(sep.length, 2);
+    const [X, Y] = axes(g, w, h, m, "pass", "separation / m (log₁₀)", niceTicks(0, n, 5).map(v => [v, String(v)]), [-15, -12, -9, -6, -3, 0].map(v => [v, String(v)]), [0, n], [-16, 0]);
+    g.strokeStyle = css("--accent"); g.lineWidth = 1.4; g.beginPath();
+    sep.forEach((v, j) => { const y = Y(Math.log10(Math.max(v, 1e-16))); j ? g.lineTo(X(j + 1), y) : g.moveTo(X(j + 1), y); }); g.stroke();
+  }
+
+  function drawStats() {
+    const { p, c, tr, re, sm, ep } = state, { Rx, Ry, d, w, hole } = c.design;
+    const N = p.N;
+    const items = [
+      ["Spacing d", `${fmt(d * 1e3, 3)} mm`],
+      [p.ast ? "Rx / Ry" : "θ per pass", p.ast ? `${fmt(Rx * 1e3, 2)} / ${fmt(Ry * 1e3, 2)} mm` : `${fmt(E.thetaOf(Rx, d), 4)} rad`],
+      ["Design path N d", `${fmt(N * d, 3)} m`],
+      ["Mode radius w", `${fmt(w * 1e6, 0)} µm`],
+      ["Hole radius", `${fmt(hole * 1e3, 3)} mm = ${fmt(hole / w, 1)} w`],
+      ["Leaves", tr.exit === "hole" ? `through the hole after ${tr.nHits} passes` : tr.exit === "miss" ? `past an aperture after ${tr.nHits}` : `still inside after ${tr.nHits}`],
+      ["Exit offset", Number.isFinite(re.exitOffset) ? `${fmt(re.exitOffset * 1e6, 1)} µm = ${fmt(re.exitOffset / hole, 3)} hole radii` : "–"],
+      ["Re-entry angle", Number.isFinite(re.reentryAngle) ? `${fmt(re.reentryAngle * 1e3, 3)} mrad` : "–"],
+      ["Closest spots M1 / M2", `${fmt(sm[0].minSpacingW, 1)} w / ${fmt(sm[1].minSpacingW, 1)} w`],
+      ["Hole clearance", sm[0].holeClearanceW !== undefined ? `${fmt(sm[0].holeClearanceW, 1)} w` : "–"],
+      ["Path", `${fmt(tr.path, 3)} m`],
+      ["Effective path Σ Rʲ ℓⱼ", `${fmt(ep.Leff, 3)} m`],
+      ["Intensity at the exit", fmtI(ep.Iend)],
+    ];
+    $("stats").innerHTML = items.map(([a, b]) => `<div class="stat"><span>${a}</span><span>${b}</span></div>`).join("");
+    const notes = [];
+    const good = tr.exit === "hole" && tr.nHits === N;
+    notes.push(good ? `<div><b>Re-entrant:</b> the beam leaves through the injection hole after N = ${N} passes, ${fmt(re.exitOffset / hole, 3)} hole radii from the injection point${re.exitOffset / hole > 0.5 ? " (close to the edge: clipping)" : ""}.</div>`
+      : `<div class="warn"><b>Not re-entrant:</b> ${tr.exit === "hole" ? `the beam leaves through the hole after ${tr.nHits} passes instead of ${N}` : tr.exit === "miss" ? `the beam walks off a mirror after ${tr.nHits} passes` : `the beam is still inside after ${tr.nHits} passes`}.</div>`);
+    if (sm[0].holeClearanceW !== undefined && sm[0].holeClearanceW < 2) notes.push(`<div class="warn">A reflected spot comes within ${fmt(sm[0].holeClearanceW, 1)} w of the hole edge: part of the beam escapes early there.</div>`);
+    if (Math.min(sm[0].minSpacingW, sm[1].minSpacingW) < 2) notes.push(`<div class="note">Spots closer than 2 w overlap on the mirror: interference between passes (fringes) becomes likely.</div>`);
+    notes.push(`<div class="note">Spherical mirrors: the third-order aberration moves the exit point as A³; a tilt or decentre only tilts the cell axis, so re-entrance survives; radius and spacing errors change θ and break it.</div>`);
+    $("notes").innerHTML = notes.join("");
+  }
+  function drawPhase() {
+    const { p, phase, theta } = state;
+    const { ang, curves, nPass } = phase;
+    {
+      const [g, w, h] = fit($("phaseAngle"));
+      const m = { l: 52, r: 10, t: 10, b: 34 };
+      const S = v => Math.asinh(v / 0.1);
+      let lo = Infinity, hi = -Infinity;
+      curves.forEach(c => c.y.forEach(v => { if (Number.isFinite(v)) { lo = Math.min(lo, S(v)); hi = Math.max(hi, S(v)); } }));
+      lo = Math.min(lo, S(-1)); hi = Math.max(hi, S(1));
+      const pad = 0.05 * (hi - lo); lo -= pad; hi += pad;
+      const yt = [[0, "0"]];
+      for (let e = 0; e <= 8; e++) { const v = 10 ** e, lab = e < 4 ? String(v) : `1e${e}`; if (S(v) <= hi) yt.push([S(v), lab]); if (S(-v) >= lo) yt.push([S(-v), "−" + lab]); }
+      const wu = p.win * 1e6 >= 1000 ? [1e-3, "mrad"] : [1e-6, "µrad"];
+      const xs = niceTicks(-p.win, p.win, 4);
+      const [X, Y0] = axes(g, w, h, m, `injection angle offset δ (${wu[1]})`, "Δφ (waves, signed log)", xs.map(v => [v, String(+(v / wu[0]).toPrecision(4))]), yt, [-p.win, p.win], [lo, hi]);
+      const Y = v => Y0(S(v));
+      const A = Math.min(p.dAmp, p.win);
+      g.fillStyle = css("--accent"); g.globalAlpha = 0.12; g.fillRect(X(-A), m.t, X(A) - X(-A), h - m.t - m.b); g.globalAlpha = 1;
+      const cols = [css("--accent"), css("--port-in"), css("--sel")];
+      curves.forEach((c, ci) => {
+        g.strokeStyle = cols[ci % 3]; g.lineWidth = 1.6; g.beginPath(); let pen = false;
+        c.y.forEach((v, i) => { if (!Number.isFinite(v)) { pen = false; return; } const x = X(ang[i] - theta); pen ? g.lineTo(x, Y(v)) : g.moveTo(x, Y(v)); pen = true; });
+        g.stroke();
+        label(g, `pass ${c.q}`, m.l + 6, m.t + 4 + 14 * ci, cols[ci % 3], "left", "top");
+      });
+    }
+    if (!ana) { $("explain").innerHTML = `<span class="status">Computing the dither analysis…</span>`; return; }
+    const R = ana, n = Math.min(nPass, R.V.length), i = n - 1;
+    const wf = anaJob ? anaJob.wave : p.dWave, A = anaJob ? anaJob.A : p.dAmp;
+    const finite = arr => Array.from(arr).filter(Number.isFinite);
+    const mech = j => !R.resolved[j] ? "unres" : R.same[j] < 0.999 ? "switch" : "ok";
+    const colOf = { ok: css("--accent"), switch: css("--sel"), unres: css("--port-out") };
+    const dot = (g, x, y, kind, r) => { g.beginPath(); g.arc(x, y, r, 0, 7); if (kind === "unres") { g.strokeStyle = colOf.unres; g.lineWidth = 1.3; g.stroke(); } else { g.fillStyle = colOf[kind]; g.fill(); } };
+    const passTicks = () => { const st = n > 150 ? 50 : n > 60 ? 20 : n > 20 ? 5 : n > 8 ? 2 : 1; const t = []; for (let v = 0; v <= n; v += st) t.push([v, String(v)]); return t; };
+    {
+      const [g, w, h] = fit($("phaseVis"));
+      const m = { l: 40, r: 10, t: 10, b: 34 };
+      const [X, Y] = axes(g, w, h, m, "pass (mirror hit) p", "visibility V", passTicks(), [0, .25, .5, .75, 1].map(v => [v, String(v)]), [0, Math.max(n, 1)], [0, 1.02]);
+      g.setLineDash([2, 3]); g.strokeStyle = css("--muted"); g.lineWidth = 1; g.beginPath(); g.moveTo(m.l, Y(R.noiseFloor)); g.lineTo(w - m.r, Y(R.noiseFloor)); g.stroke(); g.setLineDash([]);
+      label(g, `floor ${R.noiseFloor.toFixed(3)} (N = ${R.nUsed})`, w - m.r - 4, Y(R.noiseFloor) - 2, css("--muted"), "right");
+      g.strokeStyle = css("--muted"); g.lineWidth = 1.2; g.globalAlpha = 0.7; g.beginPath();
+      for (let j = 0; j < n; j++) { const y = Y(R.same[j]); j ? g.lineTo(X(j + 1), y) : g.moveTo(X(j + 1), y); } g.stroke(); g.globalAlpha = 1;
+      g.setLineDash([6, 4]); g.strokeStyle = css("--sel"); g.lineWidth = 1.4; g.beginPath(); let pen = false;
+      for (let j = 0; j < n; j++) { const v = R.Vmodel[j]; if (!Number.isFinite(v)) { pen = false; continue; } pen ? g.lineTo(X(j + 1), Y(v)) : g.moveTo(X(j + 1), Y(v)); pen = true; } g.stroke(); g.setLineDash([]);
+      const r = n > 120 ? 1.8 : 3;
+      for (let j = 0; j < n; j++) if (Number.isFinite(R.V[j])) dot(g, X(j + 1), Y(R.V[j]), mech(j), r);
+    }
+    {
+      const [g, w, h] = fit($("phaseX"));
+      const m = { l: 40, r: 10, t: 10, b: 34 };
+      const xs = finite(R.x).filter(v => v > 0);
+      const lo = -2, hi = Math.min(5, Math.max(1.5, Math.ceil(Math.log10(Math.max(...xs, 10) * 1.5))));
+      const xt = []; for (let e = lo; e <= hi; e++) xt.push([e, e === 0 ? "1" : e === 1 ? "10" : `1e${e}`]);
+      const [X, Y] = axes(g, w, h, m, "dither depth x = |a_p| A (rad, log)", "visibility V", xt, [0, .25, .5, .75, 1].map(v => [v, String(v)]), [lo, hi], [0, 1.02]);
+      [[E.X_V09[wf], "0.9"], [E.X_V05[wf], "0.5"], [E.X_V0[wf], "0"]].forEach(([xv, lab], q) => {
+        g.setLineDash([3, 3]); g.strokeStyle = css("--line"); g.lineWidth = 1; g.beginPath(); g.moveTo(X(Math.log10(xv)), m.t); g.lineTo(X(Math.log10(xv)), h - m.b); g.stroke(); g.setLineDash([]);
+        label(g, `V=${lab}`, X(Math.log10(xv)) + 3, m.t + 30 + 13 * q, css("--muted"), "left", "top");
+      });
+      g.setLineDash([2, 3]); g.strokeStyle = css("--muted"); g.beginPath(); g.moveTo(m.l, Y(R.noiseFloor)); g.lineTo(w - m.r, Y(R.noiseFloor)); g.stroke(); g.setLineDash([]);
+      g.strokeStyle = css("--ink"); g.lineWidth = 1.4; g.beginPath();
+      const nc = 260; for (let q = 0; q <= nc; q++) { const e = lo + (hi - lo) * q / nc, v = E.modelVisibility(10 ** e, wf); q ? g.lineTo(X(e), Y(v)) : g.moveTo(X(e), Y(v)); } g.stroke();
+      label(g, wf === "sine" ? "|J₀(x)|" : "|sinc(x)|", w - m.r - 4, m.t + 14, css("--ink"), "right", "top");
+      const r = n > 120 ? 2 : 3.2;
+      for (let j = 0; j < n; j++) { const xv = R.x[j]; if (!(xv > 0) || !Number.isFinite(R.V[j])) continue; const e = Math.min(Math.max(Math.log10(xv), lo), hi); dot(g, X(e), Y(R.V[j]), mech(j), r); }
+      if (R.x[i] > 0 && Number.isFinite(R.V[i])) { const e = Math.min(Math.max(Math.log10(R.x[i]), lo), hi); g.strokeStyle = css("--ink"); g.lineWidth = 1.2; g.beginPath(); g.arc(X(e), Y(R.V[i]), 7, 0, 7); g.stroke(); label(g, `p = ${n}`, X(e) + 9, Y(R.V[i]) - 4, css("--ink")); }
+    }
+    let gamma = null;
+    {
+      const [g, w, h] = fit($("phaseSlope"));
+      const m = { l: 52, r: 10, t: 10, b: 34 };
+      const aa = Array.from(R.a, v => Math.abs(v) * 1e-6);
+      const th = [[E.X_V09[wf], "V = 0.9"], [E.X_V05[wf], "V = 0.5"], [E.X_V0[wf], "V = 0"]].map(([xv, lab]) => [xv / A * 1e-6, lab]);
+      const vals = finite(aa).filter(v => v > 0).concat(th.map(t => t[0]));
+      const lo = Math.floor(Math.log10(Math.min(...vals)) - 0.2), hi = Math.ceil(Math.log10(Math.max(...vals)) + 0.2);
+      const yt = []; for (let e = lo; e <= hi; e++) yt.push([e, `1e${e}`]);
+      const [X, Y] = axes(g, w, h, m, "pass (mirror hit) p", "|a_p| (rad/µrad, log)", passTicks(), yt, [0, Math.max(n, 1)], [lo, hi]);
+      th.forEach(([v, lab], q) => {
+        const col = [css("--port-in"), css("--sel"), css("--port-out")][q];
+        g.setLineDash([6, 4]); g.strokeStyle = col; g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(m.l, Y(Math.log10(v))); g.lineTo(w - m.r, Y(Math.log10(v))); g.stroke(); g.setLineDash([]);
+        label(g, `${lab} at A`, w - m.r - 4 - 92 * (2 - q), Y(Math.log10(v)) - 2, col, "right");
+      });
+      g.strokeStyle = css("--accent"); g.lineWidth = 1.8; g.beginPath(); let pen = false;
+      aa.slice(0, n).forEach((v, j) => { if (!(v > 0)) { pen = false; return; } pen ? g.lineTo(X(j + 1), Y(Math.log10(v))) : g.moveTo(X(j + 1), Y(Math.log10(v))); pen = true; }); g.stroke();
+      const raw = aa.slice(0, n).map((v, j) => [j + 1, Math.log(v)]).filter(([, v]) => Number.isFinite(v));
+      const linfit = pts => {
+        const k2 = pts.length, mx = pts.reduce((s2, q) => s2 + q[0], 0) / k2, my = pts.reduce((s2, q) => s2 + q[1], 0) / k2;
+        let sxy = 0, sxx = 0, syy = 0; pts.forEach(([xx, yy]) => { sxy += (xx - mx) * (yy - my); sxx += (xx - mx) ** 2; syy += (yy - my) ** 2; });
+        return { slope: sxy / sxx, r2: syy > 0 ? sxy * sxy / (sxx * syy) : 1 };
+      };
+      if (raw.length >= 4) {
+        const pw = linfit(raw.map(([q, v]) => [Math.log(q), v])), ex = linfit(raw);
+        gamma = pw.r2 >= ex.r2 ? { kind: "power", v: pw.slope } : { kind: "exp", v: ex.slope };
+        if (Math.max(pw.r2, ex.r2) < 0.5) gamma = { kind: "none", v: 0 };
+        label(g, gamma.kind === "none" ? "|a_p| oscillates without a trend (refocusing)" : gamma.kind === "power" ? `|a_p| ∝ p^${gamma.v.toFixed(2)} (power law fits best)` : `|a_p| ∝ e^(${gamma.v.toFixed(2)} p): ×${Math.exp(gamma.v).toFixed(2)} per pass (exponential fits best)`, m.l + 6, m.t + 4, css("--accent"), "left", "top");
+      }
+      g.strokeStyle = css("--ink"); g.lineWidth = 1; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(X(n), m.t); g.lineTo(X(n), h - m.b); g.stroke(); g.setLineDash([]);
+    }
+    const aI = R.a[i], lamJ = anaJob ? anaJob.lam : p.lam, nJ = anaJob ? anaJob.nIdx : p.nIdx;
+    const dLdth = Math.abs(aI) / (2 * Math.PI * nJ / lamJ), fn = wf === "sine" ? "J₀" : "sinc";
+    const lines = [];
+    if (Number.isFinite(aI)) {
+      lines.push(`<div><b>Pass ${n}:</b> x = k₀ n |dL<sub>p</sub>/dθ| A</div>`);
+      lines.push(`<div class="eq">= 2π / ${(lamJ * 1e9).toFixed(0)} nm × ${nJ.toFixed(3)} × ${fmt(dLdth * 1e3, 2)} µm/mrad × ${fmtA(A)} = ${fmtX(R.x[i])} rad → model V = |${fn}(${fmtX(R.x[i])})| = ${fmt(R.Vmodel[i], 3)}; computed V = ${fmt(R.V[i], 3)}${R.resolved[i] ? "" : " (unresolved)"}</div>`);
+    } else if (!Number.isFinite(R.L0[i])) {
+      lines.push(`<div><b>Pass ${n}:</b> the design beam has already left the cell before this pass.</div>`);
+    } else {
+      lines.push(`<div><b>Pass ${n}:</b> the local slope is undefined: rays 1 nrad from θ<sub>c</sub> already take a different mirror sequence (a switching edge, or chaos has amplified 1 nrad to an element width).</div>`);
+    }
+    const notes = [];
+    if (Number.isFinite(R.q[i])) notes.push(R.q[i] < 0.3 ? `Chirp ½|b|A² = ${fmtX(R.q[i])} rad: the phase is linear across the dither.` : `<span class="warn">Chirp ½|b|A² = ${fmtX(R.q[i])} rad: the phase curves across the dither, so V departs from the ${fn} curve.</span>`);
+    notes.push(R.same[i] >= 0.999 ? "All dithered rays keep the centre ray's mirror sequence." : `<span class="warn">${fmt(100 * (1 - R.same[i]), 1)} % of dithered rays take another mirror sequence (or leave) by pass ${n}; their contribution averages out.</span>`);
+    if (!R.resolved[i]) notes.push(`<span class="warn">Not resolved with ${R.nUsed} samples: V is only known to be near the floor ${R.noiseFloor.toFixed(3)}.</span>`);
+    if (Number.isFinite(R.A05[i])) notes.push(`To keep V ≥ 0.9 at pass ${n}, use A ≤ ${fmtA(R.A09[i])}. V = 0.5 at A = ${fmtA(R.A05[i])}; first zero at A = ${fmtA(R.A0[i])}.`);
+    const status = R.done ? `${R.nUsed} dither samples` : `refining: ${R.nUsed} samples so far…`;
+    $("explain").innerHTML = lines.join("") + `<div class="note">${notes.join(" ")}</div><div class="status">${status}${ditherRunner.busy() && R.done ? " · updating…" : ""}</div>`;
+    const firstBad = Array.from(R.V).slice(0, n).findIndex(v => v < 0.5);
+    const items = [
+      ["Path to 1st mirror L₁", `${fmt(phase.L1 * 1e3, 3)} mm`],
+      ["Δθ for 2π at pass 1", `${fmt(Math.abs(2 * Math.PI / phase.dphi1) * 1e6, 3)} µrad`],
+      [`Path to pass ${n}`, `${fmt(phase.Lp * 100, 2)} cm`],
+      [`|a| at pass ${n}`, `${fmt(Math.abs(aI) * 1e-6, 4)} rad/µrad`],
+      ["Slope growth", !gamma ? "–" : gamma.kind === "none" ? "bounded (refocusing)" : gamma.kind === "power" ? `∝ p^${gamma.v.toFixed(2)} (regular)` : `×${Math.exp(gamma.v).toFixed(2)} per pass (chaotic)`],
+      [`V at pass ${n} (model)`, `${fmt(R.V[i], 3)} (${fmt(R.Vmodel[i], 3)})`],
+      ["V at pass 1", fmt(R.V[0], 3)],
+      ["First pass with V < 0.5", firstBad < 0 ? `none up to ${n}` : String(firstBad + 1)],
+      [`On centre path at pass ${n}`, `${fmt(100 * R.same[i], 1)} %`],
+    ];
+    $("phaseStats").innerHTML = items.map(([a2, b2]) => `<div class="stat"><span>${a2}</span><span>${b2}</span></div>`).join("");
+  }
+
+  function fmtA(v) { return !Number.isFinite(v) ? "–" : v >= 1e-3 ? `${+(v * 1e3).toPrecision(3)} mrad` : v >= 1e-6 ? `${+(v * 1e6).toPrecision(3)} µrad` : `${+(v * 1e9).toPrecision(3)} nrad`; }
+  function fmtX(v) { return !Number.isFinite(v) ? "–" : v >= 100 ? v.toFixed(0) : v >= 0.01 ? v.toPrecision(3) : v.toExponential(2); }
+  function fmt(v, d = 2) { return Number.isFinite(v) ? v.toFixed(d) : "–"; }
+  function fmtI(v) { return !Number.isFinite(v) ? "–" : v >= 1e-3 ? v.toFixed(4) : v.toExponential(2); }
+
+
+  function syncOutputs() {
+    const p = P();
+    document.querySelectorAll(".only-sph").forEach(el => { el.hidden = p.ast; });
+    document.querySelectorAll(".only-ast").forEach(el => { el.hidden = !p.ast; });
+    $("RLabel").textContent = p.ast ? "Mean radius (Rx + Ry)/2" : "Radius of curvature R";
+    const ur = v => Math.abs(v) >= 1e-3 ? `${+(v * 1e3).toPrecision(3)} mrad` : Math.abs(v) >= 1e-6 ? `${+(v * 1e6).toPrecision(3)} µrad` : v === 0 ? "0" : `${+(v * 1e9).toPrecision(3)} nrad`;
+    const lim = Math.max(1, p.N / 2 - 1);
+    ["M", "Mx", "My"].forEach(id => { $(id).max = lim; if (+$(id).value > lim) $(id).value = lim; });
+    $("ROut").value = `${(+$("R").value).toFixed(0)} mm`; $("NOut").value = p.N;
+    $("MOut").value = `${$("M").value} (θ = ${(360 * +$("M").value / p.N).toFixed(2)}°)`; $("MxOut").value = $("Mx").value; $("MyOut").value = $("My").value;
+    $("AOut").value = `${(+$("A").value).toFixed(1)} mm`; $("BOut").value = `${(+$("B").value).toFixed(1)} mm`;
+    $("holeOut").value = p.hole ? `${(+$("hole").value).toFixed(2)} mm` : state && state.c ? `auto (${fmt(state.c.design.hole * 1e3, 2)} mm)` : "auto";
+    $("apOut").value = `${(+$("ap").value).toFixed(1)} mm`; $("reflOut").value = `${(+$("refl").value).toFixed(3)} %`;
+    $("tilt2Out").value = ur(p.tilt2); $("tilt2yOut").value = ur(p.tilt2y); $("dec2Out").value = `${(+$("dec2").value).toFixed(3)} mm`;
+    $("dROut").value = `${(+$("dR").value).toFixed(3)} %`; $("dR2Out").value = `${(+$("dR2").value).toFixed(3)} %`; $("ast2Out").value = `${(+$("ast2").value).toFixed(3)} % of R`;
+    $("ddOut").value = `${(+$("dd").value).toFixed(3)} %`; $("conicOut").value = (+$("conic").value).toFixed(2); $("comaOut").value = `${(+$("coma").value).toFixed(2)} /m²`;
+    $("dthxOut").value = ur(p.dthx); $("dthyOut").value = ur(p.dthy); $("nMaxOut").value = p.nMax; $("lamOut").value = `${$("lam").value} nm`;
+    $("nIdxOut").value = (+$("nIdx").value).toFixed(3); $("winOut").value = `±${ur(p.win)}`; $("dAmpOut").value = ur(p.dAmp);
+    $("pass").max = Math.max(1, Math.min(400, p.nMax)); $("passOut").value = `${Math.min(p.pass, 400)}`;
+  }
+
+  let pending = false;
+  function update() {
+    if (pending) return; pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      if (!compute()) { $("notes").innerHTML = `<div class="warn">${state.error}</div>`; return; }
+      syncOutputs();
+      drawMirror(0); drawMirror(1); drawStats(); drawSide(); drawTol(); drawIntensity(); drawLyap(); drawPhase();
+    });
+  }
+  ["R", "M", "Mx", "My", "A", "B", "hole", "ap", "refl", "tilt2", "tilt2y", "dec2", "dR", "dR2", "ast2", "dd", "conic", "coma", "dthx", "dthy", "nMax", "lam",
+    "numbers", "design", "beams", "plane", "nIdx", "win", "pass", "dAmp", "dWave", "tolRange"].forEach(id => $(id).addEventListener("input", update));
+  $("N").addEventListener("input", () => { $("pass").value = +$("N").value - 1; update(); });
+  $("kind").addEventListener("input", () => { if ($("kind").value === "ast") { $("R").value = 1000; $("N").value = 50; $("A").value = 3; $("B").value = 2; $("pass").value = 49; } else { $("R").value = 500; $("N").value = 30; $("A").value = 12; $("B").value = 12; $("pass").value = 29; } update(); });
+  $("tolParam").addEventListener("input", () => { $("tolRange").value = { dR: 0.5, dR2: 0.5, dd: 0.5, tilt2: 2, ast2: 0.5, dthx: 1 }[$("tolParam").value]; update(); });
+  $("resetErr").addEventListener("click", () => { ["tilt2", "tilt2y", "dec2", "dR", "dR2", "ast2", "dd", "conic", "coma", "dthx", "dthy"].forEach(id => { $(id).value = 0; }); update(); });
+  new ResizeObserver(update).observe(document.querySelector(".views"));
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", update);
+  new MutationObserver(update).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  update();
+})();
+</script>

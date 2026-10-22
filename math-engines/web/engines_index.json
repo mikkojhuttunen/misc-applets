@@ -1277,6 +1277,656 @@
    }
   },
   {
+   "engine": "gas_cell",
+   "version": 4,
+   "title": "Gas-sensing cells, deformed Herriott against CMPC",
+   "description": "An elongated integrated Herriott cell with smooth deformed, rippled or curved-segmented mirrors and optional refractive-index inclusions (the baseline) against a circular multipass cell of the same footprint area, both fed by the same Gaussian beam. Path, throughput and absorbance per ppm (what you gain) against chaos (twin-ray Lyapunov exponent, dither visibility of the fringes) and a Gaussian-beam two-mirror model along the traced path; a tangent-map chaos map (FTLE, MEGNO) that tells whether the beam launches into the chaotic sea or onto a regular island; shot-noise and fringe-limited detection limits.",
+   "requires": [],
+   "references": [
+    "D. Herriott, H. Kogelnik, R. Kompfner, Appl. Opt. 3, 523 (1964) (off-axis paths in spherical mirror interferometers)",
+    "H. Kogelnik, T. Li, Appl. Opt. 5, 1550 (1966) (laser beams and resonators, ABCD)",
+    "J. B. McManus, P. L. Kebabian, M. S. Zahniser, Appl. Opt. 34, 3336 (1995) (astigmatic multipass cells, fringe and path design)",
+    "L. A. Bunimovich, Commun. Math. Phys. 65, 295 (1979) (ergodic billiards); G. Benettin et al., Meccanica 15, 9 (1980) (Lyapunov exponents)",
+    "B. V. Chirikov, Phys. Rep. 52, 263 (1979) (standard map, stochasticity K)",
+    "P. M. Cincotta, C. Simó, Astron. Astrophys. Suppl. 147, 205 (2000) (MEGNO chaos indicator)",
+    "P. J. Acklam, An algorithm for computing the inverse normal cumulative distribution function (2003)"
+   ],
+   "files": [
+    "engines/billiard_cell/__init__.py",
+    "engines/billiard_cell/engine.py",
+    "engines/bragg_grating/__init__.py",
+    "engines/bragg_grating/engine.py",
+    "engines/cell_mirror/__init__.py",
+    "engines/cell_mirror/engine.py",
+    "engines/gas_cell/__init__.py",
+    "engines/gas_cell/engine.py",
+    "engines/planar_cell/__init__.py",
+    "engines/planar_cell/engine.py",
+    "engines/ray_phase/__init__.py",
+    "engines/ray_phase/engine.py"
+   ],
+   "functions": {
+    "compare": {
+     "title": "Deformed Herriott cell against the CMPC",
+     "equations": [
+      "R = L / (1 − cos 2πM/N),  S(η) = cη²/(1 + √(1 − (1+k)c²η²)) + a3 η³ + a4 η⁴,  a4 = eps4 c/(2a²)",
+      "A_ppm = 100 α_ppm Γ ⟨L⟩,  NEC_shot = √(2qB/(P_in T))/A_ppm",
+      "NEC_fringe = 2 √f_par V_det / A_ppm,  V_det = V/√M² (speckle_avg)",
+      "V = |∫₀¹ e^{iΔφ(θc + δ(s))} ds| by adaptive Filon quadrature",
+      "q' = (Aq + B)/(Cq + D),  mirror C = −2κ/cos χ",
+      "n1 sin θ1 = n2 sin θ2 at the inclusions (TIR when impossible)",
+      "M² = (4π/λm) √(⟨y²⟩⟨u²⟩ − ⟨yu⟩²)",
+      "S += a sin(2πη/Λ + φ),  K = 8π² a L / Λ²",
+      "⟨Y⟩ = mean_n (2/n) Σ k ln g_k  (0 periodic, 2 torus, ≈ λn/2 chaos)"
+     ],
+     "inputs": [
+      {
+       "name": "L",
+       "label": "Cell length (mirror spacing)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 15
+      },
+      {
+       "name": "W",
+       "label": "Cell width (mirror aperture)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1.5
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N (even)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 14,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 3,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "distinct",
+       "label": "Distinct spots (phase π/N) 1/0",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "port_width",
+       "label": "Window width (0 = 2.5 mode radii)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "eps4",
+       "label": "Quartic deformation (fraction of the edge sag)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "eps3",
+       "label": "Cubic deformation (fraction of the edge sag)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "conic",
+       "label": "Conic constant",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "deform",
+       "label": "Deformed mirror(s)",
+       "type": "choice",
+       "choices": [
+        "both",
+        "M1",
+        "M2"
+       ],
+       "default": "both"
+      },
+      {
+       "name": "walls",
+       "label": "Reflecting side walls 1/0",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "n_seg",
+       "label": "Mirror segments per mirror (0 = smooth)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "seg_curv",
+       "label": "Segment curvature / mirror curvature (0 = flat facets)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "seg_tilt",
+       "label": "Segment tilt jitter (rms)",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "seg_seed",
+       "label": "Segment tilt seed",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "n_inc",
+       "label": "Index inclusions in the cell",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "inc_radius",
+       "label": "Inclusion radius",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 50,
+       "min": 1
+      },
+      {
+       "name": "inc_dn",
+       "label": "Inclusion index change |Δn_eff|",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.01,
+       "min": 0
+      },
+      {
+       "name": "inc_sign",
+       "label": "Sign of Δn_eff",
+       "type": "choice",
+       "choices": [
+        "both",
+        "plus",
+        "minus"
+       ],
+       "default": "both"
+      },
+      {
+       "name": "inc_seed",
+       "label": "Inclusion placement seed",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "inc_circle",
+       "label": "Same inclusions in the circular cell 1/0",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "ripple_a",
+       "label": "End-mirror ripple amplitude",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "ripple_period",
+       "label": "Ripple period Λ",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0.5,
+       "min": 0.01
+      },
+      {
+       "name": "ripple_phase",
+       "label": "Ripple phase at the mirror centre",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "ripple_on",
+       "label": "Rippled mirror(s)",
+       "type": "choice",
+       "choices": [
+        "both",
+        "M1",
+        "M2"
+       ],
+       "default": "both"
+      },
+      {
+       "name": "n_facets",
+       "label": "CMPC facets",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 24,
+       "min": 3,
+       "step": 1
+      },
+      {
+       "name": "circle_theta",
+       "label": "CMPC launch angle",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0.35
+      },
+      {
+       "name": "out_frac",
+       "label": "CMPC output port position (fraction of the perimeter)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.37
+      },
+      {
+       "name": "smooth_circle",
+       "label": "Smooth circle instead of facets 1/0",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1653.7
+      },
+      {
+       "name": "n_eff",
+       "label": "Slab n_eff",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.0,
+       "min": 1
+      },
+      {
+       "name": "gamma",
+       "label": "Gas overlap Γ",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.2,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "species",
+       "label": "Gas (strongest listed line)",
+       "type": "choice",
+       "choices": [
+        "CH4",
+        "NH3",
+        "CO2",
+        "H2O"
+       ],
+       "default": "CH4"
+      },
+      {
+       "name": "R_mirror",
+       "label": "Mirror reflectance",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.995,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "dither",
+       "label": "Launch-angle dither amplitude",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 2
+      },
+      {
+       "name": "waveform",
+       "label": "Dither waveform",
+       "type": "choice",
+       "choices": [
+        "sine",
+        "triangle"
+       ],
+       "default": "sine"
+      },
+      {
+       "name": "f_parasitic",
+       "label": "Parasitic (fringe) power fraction",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1e-06
+      },
+      {
+       "name": "P_in",
+       "label": "Input power",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 1
+      },
+      {
+       "name": "bandwidth",
+       "label": "Noise bandwidth",
+       "ui_unit": "Hz",
+       "scale": 1.0,
+       "default": 1
+      },
+      {
+       "name": "n_side",
+       "label": "Beam rays per side (n_side² rays)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 24,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "n_bounce",
+       "label": "Hit limit per ray",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2000,
+       "min": 10,
+       "step": 1
+      },
+      {
+       "name": "retune_launch",
+       "label": "Re-aim the baseline launch for the best Γ T ⟨L⟩ 1/0",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "n_dither_max",
+       "label": "Ray budget of the dither integral",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 24000,
+       "min": 600,
+       "step": 1
+      },
+      {
+       "name": "speckle_avg",
+       "label": "Detector averages the speckle (V_det = V/√M²) 1/0",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "chaos_grid",
+       "label": "Chaos map grid (n × n departures; 0 = launch only)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "n_ftle",
+       "label": "Hits per chaos-map ray",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 300,
+       "min": 30,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "h_L_mean",
+       "label": "Herriott: mean detected path",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "h_T",
+       "label": "Herriott: detected power",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_A_ppm",
+       "label": "Herriott: absorbance per ppm",
+       "ui_unit": "1/ppm",
+       "scale": 1.0
+      },
+      {
+       "name": "h_nec",
+       "label": "Herriott: noise-equivalent concentration",
+       "ui_unit": "ppm",
+       "scale": 1.0
+      },
+      {
+       "name": "h_lam",
+       "label": "Herriott: Lyapunov exponent",
+       "ui_unit": "1/hit",
+       "scale": 1.0
+      },
+      {
+       "name": "h_V",
+       "label": "Herriott: dither visibility at the exit",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_V_floor",
+       "label": "Herriott: error of V (adaptive dither integral)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_V_det",
+       "label": "Herriott: fringe at the detector",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_nec_fringe_hi",
+       "label": "Herriott: fringe NEC upper bound (V + V_err)",
+       "ui_unit": "ppm",
+       "scale": 1.0
+      },
+      {
+       "name": "h_T_G",
+       "label": "Herriott: power kept in one Gaussian beam",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_M2",
+       "label": "Herriott: M² of the detected light",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_m_max",
+       "label": "Herriott: largest round-trip |m|",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_theta",
+       "label": "Herriott: launch angle used",
+       "ui_unit": "mrad",
+       "scale": 0.001
+      },
+      {
+       "name": "h_K_ripple",
+       "label": "Herriott: ripple stochasticity K",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_f_launch",
+       "label": "Herriott: launch rays in the chaotic sea",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_esc_launch",
+       "label": "Herriott: launch rays gone within 30 hits",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_Y_launch",
+       "label": "Herriott: median MEGNO of the launch",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_lam_ftle",
+       "label": "Herriott: median finite-time Lyapunov exponent",
+       "ui_unit": "1/hit",
+       "scale": 1.0
+      },
+      {
+       "name": "h_sea",
+       "label": "Herriott: chaotic share of the M1 section",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_island",
+       "label": "Herriott: regular share of the M1 section",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_verdict",
+       "label": "Herriott: launch verdict (2 sea, 1 island, 0 no sea, −1 escapes)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "c_L_mean",
+       "label": "CMPC: mean detected path",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "c_T",
+       "label": "CMPC: detected power",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "c_A_ppm",
+       "label": "CMPC: absorbance per ppm",
+       "ui_unit": "1/ppm",
+       "scale": 1.0
+      },
+      {
+       "name": "c_nec",
+       "label": "CMPC: noise-equivalent concentration",
+       "ui_unit": "ppm",
+       "scale": 1.0
+      },
+      {
+       "name": "c_lam",
+       "label": "CMPC: Lyapunov exponent",
+       "ui_unit": "1/hit",
+       "scale": 1.0
+      },
+      {
+       "name": "c_V",
+       "label": "CMPC: dither visibility at the exit",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "c_T_G",
+       "label": "CMPC: power kept in one Gaussian beam",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "c_M2",
+       "label": "CMPC: M² of the detected light",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "path_gain",
+       "label": "Path gain ⟨L⟩_H / ⟨L⟩_C",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "sensitivity_gain",
+       "label": "Sensitivity gain (Γ T ⟨L⟩)_H / (…)_C",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "washout_lost",
+       "label": "Washout lost V_H − V_C",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "chaos_lost",
+       "label": "Chaos lost λ_C − λ_H",
+       "ui_unit": "1/hit",
+       "scale": 1.0
+      },
+      {
+       "name": "nec_ratio",
+       "label": "NEC_H / NEC_C",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "gaussian_beam",
    "version": 1,
    "title": "Gaussian beam",
@@ -1495,6 +2145,612 @@
        "label": "Beam radius at the lens",
        "ui_unit": "mm",
        "scale": 0.001
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "herriott_cell",
+   "version": 1,
+   "title": "Herriott-type multipass cells (3D)",
+   "description": "Exact 3D ray tracing between real mirror surfaces (spherical, conic, biconic, polynomial deformations) for Herriott, astigmatic and deformed Herriott cells; re-entrant design, re-entrance check with mirror errors, injection-angle dither.",
+   "requires": [],
+   "references": [
+    "D. Herriott, H. Kogelnik, R. Kompfner, Appl. Opt. 3, 523 (1964) (off-axis paths in spherical mirror interferometers)",
+    "D. R. Herriott, H. J. Schulte, Appl. Opt. 4, 883 (1965) (folded optical delay lines, astigmatic mirrors)",
+    "J. B. McManus, P. L. Kebabian, M. S. Zahniser, Appl. Opt. 34, 3336 (1995) (astigmatic mirror multipass absorption cells)"
+   ],
+   "files": [
+    "engines/billiard_cell/__init__.py",
+    "engines/billiard_cell/engine.py",
+    "engines/bragg_grating/__init__.py",
+    "engines/bragg_grating/engine.py",
+    "engines/cell_mirror/__init__.py",
+    "engines/cell_mirror/engine.py",
+    "engines/herriott_cell/__init__.py",
+    "engines/herriott_cell/engine.py",
+    "engines/planar_cell/__init__.py",
+    "engines/planar_cell/engine.py",
+    "engines/ray_phase/__init__.py",
+    "engines/ray_phase/engine.py"
+   ],
+   "functions": {
+    "design": {
+     "title": "Re-entrant design (paraxial)",
+     "equations": [
+      "cos θ = 1 − d/R",
+      "d = R (1 − cos 2πM/N)",
+      "x_n = A cos nθ, y_n = B sin nθ",
+      "x₀' = −A/R, y₀' = (B/R) √((2R − d)/d)",
+      "w² = (λ d/π) / √(1 − g²)"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius of curvature R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 500
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N (even)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 30,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M (0 < M < N/2)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 7,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Spot circle radius A (injection at (A, 0))",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 12
+      },
+      {
+       "name": "B",
+       "label": "Spot ellipse half axis B (y)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 12
+      },
+      {
+       "name": "wavelength",
+       "label": "Wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      }
+     ],
+     "outputs": [
+      {
+       "name": "d",
+       "label": "Mirror spacing d",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "theta",
+       "label": "Phase advance per hit θ",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "path",
+       "label": "Path N d",
+       "ui_unit": "m",
+       "scale": 1.0
+      },
+      {
+       "name": "mode_radius",
+       "label": "Mode radius on the mirrors",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "spot_spacing",
+       "label": "Closest spots on one mirror",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "spot_spacing_in_w",
+       "label": "Closest spots, in mode radii",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "hole_radius",
+       "label": "Injection hole radius",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "hole_clearance_in_w",
+       "label": "Hole clearance, in mode radii",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "spots_per_mirror",
+       "label": "Spots per mirror",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "injection_slope_x",
+       "label": "Injection slope x₀'",
+       "ui_unit": "mrad",
+       "scale": 0.001
+      },
+      {
+       "name": "injection_slope_y",
+       "label": "Injection slope y₀'",
+       "ui_unit": "mrad",
+       "scale": 0.001
+      }
+     ]
+    },
+    "astigmatic_design": {
+     "title": "Astigmatic (Lissajous) re-entrant design",
+     "equations": [
+      "N θx = 2π Mx, N θy = 2π My",
+      "cos θx,y = 1 − d/Rx,y",
+      "(Rx + Ry)/2 = R_mean"
+     ],
+     "inputs": [
+      {
+       "name": "R_mean",
+       "label": "Mean radius (Rx + Ry)/2",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1000
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 50,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "Mx",
+       "label": "Turns in x",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 11,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "My",
+       "label": "Turns in y",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 13,
+       "min": 1,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "Rx",
+       "label": "Rx",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "Ry",
+       "label": "Ry",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "d",
+       "label": "Spacing d",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "path",
+       "label": "Path N d",
+       "ui_unit": "m",
+       "scale": 1.0
+      },
+      {
+       "name": "theta_x",
+       "label": "θx",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "theta_y",
+       "label": "θy",
+       "ui_unit": "rad",
+       "scale": 1.0
+      }
+     ]
+    },
+    "reentrance_check": {
+     "title": "Re-entrance with mirror errors (exact 3D trace)",
+     "equations": [
+      "exit offset: |P_exit − P_injection|",
+      "re-entry angle: ∠(reflected exit ray, injected ray)",
+      "L_eff = Σ Rʲ ℓⱼ"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius of curvature R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 500
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N (even)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 30,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M (0 < M < N/2)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 7,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Spot circle radius A (injection at (A, 0))",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 12
+      },
+      {
+       "name": "hole_radius",
+       "label": "Hole radius (0: design rule)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "wavelength",
+       "label": "Wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "tilt2",
+       "label": "Tilt of mirror 2",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "decentre2",
+       "label": "Decentre of mirror 2 (y)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "dR",
+       "label": "Radius error, both mirrors",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "dR2",
+       "label": "Radius error, mirror 2 only",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "astig2",
+       "label": "Astigmatism of mirror 2, Rx − Ry",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "spacing_error",
+       "label": "Spacing error",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "conic",
+       "label": "Conic constant, both mirrors",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "R_mirror",
+       "label": "Mirror reflectance",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.99,
+       "min": 0,
+       "max": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "exits_through_hole",
+       "label": "Leaves through the injection hole",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "n_hits",
+       "label": "Hits including the exit",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "reflections",
+       "label": "Reflections",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "path",
+       "label": "Path",
+       "ui_unit": "m",
+       "scale": 1.0
+      },
+      {
+       "name": "exit_offset",
+       "label": "Exit point from the injection point",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "exit_offset_in_hole",
+       "label": "Exit offset / hole radius",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "reentry_angle",
+       "label": "Re-entry angle",
+       "ui_unit": "mrad",
+       "scale": 0.001
+      },
+      {
+       "name": "hole_radius",
+       "label": "Hole radius",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "mode_radius",
+       "label": "Mode radius",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "spot_spacing_in_w",
+       "label": "Closest spots, in mode radii",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "hole_clearance_in_w",
+       "label": "Hole clearance, in mode radii",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_eff",
+       "label": "Effective path Σ Rʲ ℓⱼ",
+       "ui_unit": "m",
+       "scale": 1.0
+      },
+      {
+       "name": "I_end",
+       "label": "Intensity at the exit",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "d",
+       "label": "Design spacing",
+       "ui_unit": "mm",
+       "scale": 0.001
+      }
+     ]
+    },
+    "dither_visibility": {
+     "title": "Fringe visibility under injection-angle dither",
+     "equations": [
+      "V_p = |⟨exp(i Δφ_p(δ(t)))⟩_t|",
+      "x_p = k₀ n |dL_p/dθ| A",
+      "V ≈ |J₀(x_p)| (sine), |sinc(x_p)| (triangle)"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius of curvature R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 500
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N (even)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 30,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M (0 < M < N/2)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 7,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Spot circle radius A (injection at (A, 0))",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 12
+      },
+      {
+       "name": "plane",
+       "label": "Dither plane",
+       "type": "choice",
+       "choices": [
+        "x",
+        "y"
+       ],
+       "default": "x"
+      },
+      {
+       "name": "amplitude",
+       "label": "Dither amplitude A",
+       "ui_unit": "µrad",
+       "scale": 1e-06,
+       "default": 10
+      },
+      {
+       "name": "n_pass",
+       "label": "Pass (mirror hit) number",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 29,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "wavelength",
+       "label": "Wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "n_index",
+       "label": "Index of the medium",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1
+      },
+      {
+       "name": "waveform",
+       "label": "Dither waveform",
+       "type": "choice",
+       "choices": [
+        "sine",
+        "triangle"
+       ],
+       "default": "sine"
+      },
+      {
+       "name": "tilt2",
+       "label": "Tilt of mirror 2",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "dR2",
+       "label": "Radius error of mirror 2",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "V_first",
+       "label": "Visibility at pass 1",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V_last",
+       "label": "Visibility at the chosen pass",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V_model_last",
+       "label": "Linear-model V at the chosen pass",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "x_last",
+       "label": "Dither depth x = a A",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "chirp_last",
+       "label": "Chirp ½|b|A²",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "same_path_last",
+       "label": "Share of rays still on the design path",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "A_half_last",
+       "label": "Amplitude for V = 0.5 (model)",
+       "ui_unit": "µrad",
+       "scale": 1e-06
+      },
+      {
+       "name": "L_last",
+       "label": "Path to the chosen pass",
+       "ui_unit": "m",
+       "scale": 1.0
+      },
+      {
+       "name": "noise_floor",
+       "label": "Random-phase floor √π/(2√N)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "resolved",
+       "label": "Resolved",
+       "ui_unit": "",
+       "scale": 1.0
       }
      ]
     }
@@ -1837,6 +3093,1236 @@
    }
   },
   {
+   "engine": "onchip_herriott",
+   "version": 4,
+   "title": "On-chip Herriott cell, Gaussian-beam path and volume budget",
+   "description": "Effective path, absorption-weighted mode volume, angles of incidence and throughput of an integrated (in-plane) Herriott cell with constant or etched-trench DBR mirrors, the beam's angular spectrum, and Gaussian clipping at the mirror ends and the window.",
+   "requires": [],
+   "references": [
+    "D. Herriott, H. Kogelnik, R. Kompfner, Appl. Opt. 3, 523 (1964) (off-axis paths in spherical mirror interferometers)",
+    "H. Kogelnik, T. Li, Appl. Opt. 5, 1550 (1966) (laser beams and resonators)",
+    "P. Yeh, Optical Waves in Layered Media (Wiley, 1988) (transfer matrices at oblique incidence)",
+    "J. Bradley, M. Pollnau, Laser Photonics Rev. 5, 368 (2011) (erbium-doped integrated waveguide amplifiers)",
+    "D. E. McCumber, Phys. Rev. 136, A954 (1964) (emission from absorption cross-sections)"
+   ],
+   "files": [
+    "engines/billiard_cell/__init__.py",
+    "engines/billiard_cell/engine.py",
+    "engines/bragg_grating/__init__.py",
+    "engines/bragg_grating/engine.py",
+    "engines/cell_mirror/__init__.py",
+    "engines/cell_mirror/engine.py",
+    "engines/onchip_herriott/__init__.py",
+    "engines/onchip_herriott/amp2d.py",
+    "engines/onchip_herriott/ase2d.py",
+    "engines/onchip_herriott/engine.py",
+    "engines/onchip_herriott/erbium.py",
+    "engines/onchip_herriott/stack.py",
+    "engines/planar_cell/__init__.py",
+    "engines/planar_cell/engine.py",
+    "engines/ray_phase/__init__.py",
+    "engines/ray_phase/engine.py"
+   ],
+   "functions": {
+    "path_budget": {
+     "title": "Path, volume and angle budget",
+     "equations": [
+      "zR = √(d(2R − d))/2, w0² = λm zR/π, w(x) = w0 √(1 + x²/zR²)",
+      "I_j = I_{j−1} R(χ_j) c_j",
+      "L_eff = Σ I_{j−1} ℓ_j",
+      "V_eff = h_eff Σ I_{j−1} ∫ w √(π/2) ds",
+      "⟨|χ|⟩ = Σ I_{j−1}|χ_j| / Σ I_{j−1}"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius of curvature R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 10
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N (even)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 3,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Pattern half width A",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1
+      },
+      {
+       "name": "phase",
+       "label": "Pattern phase φ",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "port_width",
+       "label": "Window width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 100
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "n_eff",
+       "label": "Slab n_eff",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.479,
+       "min": 1
+      },
+      {
+       "name": "h_eff",
+       "label": "Slab effective height h_eff",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.3
+      },
+      {
+       "name": "mirror",
+       "label": "Mirror model",
+       "type": "choice",
+       "choices": [
+        "dbr",
+        "constant"
+       ],
+       "default": "dbr"
+      },
+      {
+       "name": "R_mirror",
+       "label": "Constant reflectance",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.999,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "polarization",
+       "label": "Slab polarisation (DBR)",
+       "type": "choice",
+       "choices": [
+        "TM",
+        "TE"
+       ],
+       "default": "TM"
+      },
+      {
+       "name": "periods",
+       "label": "DBR periods",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 4,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "sin_design",
+       "label": "sin of the DBR design angle",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "beam_average",
+       "label": "Average R over the beam's angular spectrum (1/0)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "scatter",
+       "label": "Extra loss per bounce",
+       "ui_unit": "ppm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "clip",
+       "label": "Gaussian clipping at mirror ends and window (1/0)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "exit_mode",
+       "label": "Exit",
+       "type": "choice",
+       "choices": [
+        "window",
+        "closed"
+       ],
+       "default": "window"
+      },
+      {
+       "name": "dR2",
+       "label": "Radius error of M2",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0
+      },
+      {
+       "name": "tilt2",
+       "label": "Tilt of M2",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "spacing_error",
+       "label": "Spacing error",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0
+      },
+      {
+       "name": "dtheta",
+       "label": "Launch-angle offset",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "loss_db_cm",
+       "label": "Waveguide propagation loss",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "beam_model",
+       "label": "Beam model",
+       "type": "choice",
+       "choices": [
+        "propagated",
+        "design"
+       ],
+       "default": "propagated"
+      },
+      {
+       "name": "w_ratio",
+       "label": "Input waist / eigenmode waist",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0.05
+      },
+      {
+       "name": "focus_shift",
+       "label": "Input focus shift along pass 1",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "m_roundtrip",
+       "label": "Round-trip stability (A + D)/2",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "coupling",
+       "label": "Input coupling into the eigenmode",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "w_hit_min",
+       "label": "Smallest beam radius on a mirror",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "w_hit_max",
+       "label": "Largest beam radius on a mirror",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "T_out",
+       "label": "Throughput (in through the window, out after N)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "eta_window",
+       "label": "Window coupling of the Gaussian",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_eff",
+       "label": "Effective path Σ I ℓ",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "L_geom",
+       "label": "Geometric path",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "V_eff",
+       "label": "Effective mode volume",
+       "ui_unit": "nL",
+       "scale": 1e-12
+      },
+      {
+       "name": "A_eff",
+       "label": "Mean effective cross-section",
+       "ui_unit": "µm²",
+       "scale": 1e-12
+      },
+      {
+       "name": "w_eff_mean",
+       "label": "Mean effective width w√(π/2)",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "chi_mean_deg",
+       "label": "Mean |χ| (power-weighted)",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "chi_rms_deg",
+       "label": "RMS |χ|",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "chi_max_deg",
+       "label": "Largest |χ|",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "R_mean",
+       "label": "Mean mirror reflectance (power-weighted)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "clip_loss",
+       "label": "Clipping loss over the path",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "reflections",
+       "label": "Reflections",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "exits",
+       "label": "Leaves through the window",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "w0",
+       "label": "Waist w0",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "w_mirror",
+       "label": "Beam radius on the mirrors",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "theta0_deg",
+       "label": "Beam half-angle θ0",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "d",
+       "label": "Mirror spacing",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "R_dbr_normal",
+       "label": "Mirror R at normal incidence",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "slab_stack": {
+     "title": "Layer stack mode and overlaps",
+     "equations": [
+      "Γ_i = ∫_i S dz / ∫ S dz, S = E_y² (TE) or H_y²/n² (TM)",
+      "h_eff = ∫S dz / max S"
+     ],
+     "inputs": [
+      {
+       "name": "platform",
+       "label": "Platform film",
+       "type": "choice",
+       "choices": [
+        "al2o3",
+        "si3n4",
+        "tfln",
+        "tflt",
+        "si"
+       ],
+       "default": "al2o3"
+      },
+      {
+       "name": "film_t",
+       "label": "Film thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4
+      },
+      {
+       "name": "er_t",
+       "label": "Er:Al₂O₃ layer thickness (0: none)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4,
+       "min": 0
+      },
+      {
+       "name": "substrate",
+       "label": "Below the film",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "cladding",
+       "label": "Top cladding",
+       "type": "choice",
+       "choices": [
+        "air",
+        "sio2"
+       ],
+       "default": "air"
+      },
+      {
+       "name": "wavelength",
+       "label": "Wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "neff",
+       "label": "Slab n_eff",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "h_eff",
+       "label": "Effective height",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "gamma_substrate",
+       "label": "Power share, substrate",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_film",
+       "label": "Power share, film",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_er",
+       "label": "Power share, Er layer",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_cladding",
+       "label": "Power share, cladding",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "beam_stability": {
+     "title": "Beam stability and input collimation",
+     "equations": [
+      "q' = q + ℓ, 1/q'' = 1/q' − 2/(R cos χ)",
+      "m = (A + D)/2 of a round trip, stable for |m| < 1",
+      "η = 2 / (w₁ w₂ |1/w₁² + 1/w₂² + i k (1/R₁ − 1/R₂)/2|)"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 10
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 3,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Pattern half width A",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1
+      },
+      {
+       "name": "phase",
+       "label": "Pattern phase φ",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "port_width",
+       "label": "Window width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 100
+      },
+      {
+       "name": "wavelength",
+       "label": "Wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "n_eff",
+       "label": "Slab n_eff",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.479,
+       "min": 1
+      },
+      {
+       "name": "w_ratio",
+       "label": "Input waist / eigenmode waist",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0.05
+      },
+      {
+       "name": "focus_shift",
+       "label": "Input focus shift",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "dR2",
+       "label": "Radius error of M2",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0
+      },
+      {
+       "name": "spacing_error",
+       "label": "Spacing error",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "m_roundtrip",
+       "label": "Round-trip (A + D)/2",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "stable",
+       "label": "Stable",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gouy_roundtrip",
+       "label": "Gouy phase per round trip",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "gouy_design",
+       "label": "Design 2θ",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "m_path",
+       "label": "Full-pattern (A + D)/2 (1 = beam re-entrant)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "w0_eigen",
+       "label": "Eigenmode waist",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "coupling",
+       "label": "Input coupling",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "w_mirror_min",
+       "label": "Smallest radius on a mirror",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "w_mirror_max",
+       "label": "Largest radius on a mirror",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "breathing",
+       "label": "Breathing max/min",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "w_mirror_design",
+       "label": "Design radius on the mirrors",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      }
+     ]
+    },
+    "er_amplifier": {
+     "title": "Er:Al₂O₃ gain in the cell (shared inversion, ASE)",
+     "equations": [
+      "φ_b(X, z) = Σ_passes P_b √(2/π)/w e^{−2d²/w²} S_b(z)/h_eff,b / hν_b",
+      "N2 = 2RaN/(b + √(b² + 4 C_up Ra N)), b = Ra + Re + 1/τ",
+      "g_b = Σ_q ω_q Σ_m Γ_m,b [σe N2 − σa N1]",
+      "dP_ASE/ds = (g − α) P_ASE + m Γ σe N2 hν Δν (forward and backward)"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 10
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 3,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Pattern half width A",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1
+      },
+      {
+       "name": "phase",
+       "label": "Pattern phase φ",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "port_width",
+       "label": "Window width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 100
+      },
+      {
+       "name": "platform",
+       "label": "Platform film",
+       "type": "choice",
+       "choices": [
+        "al2o3",
+        "si3n4",
+        "tfln",
+        "tflt",
+        "si"
+       ],
+       "default": "al2o3"
+      },
+      {
+       "name": "film_t",
+       "label": "Film thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4
+      },
+      {
+       "name": "er_t",
+       "label": "Er:Al₂O₃ layer thickness",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0.4,
+       "min": 0
+      },
+      {
+       "name": "substrate",
+       "label": "Below the film",
+       "type": "choice",
+       "choices": [
+        "sio2",
+        "air"
+       ],
+       "default": "sio2"
+      },
+      {
+       "name": "cladding",
+       "label": "Top cladding",
+       "type": "choice",
+       "choices": [
+        "air",
+        "sio2"
+       ],
+       "default": "air"
+      },
+      {
+       "name": "polarization",
+       "label": "Polarisation",
+       "type": "choice",
+       "choices": [
+        "TE",
+        "TM"
+       ],
+       "default": "TE"
+      },
+      {
+       "name": "lam_s",
+       "label": "Signal wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1532
+      },
+      {
+       "name": "lam_p",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 980
+      },
+      {
+       "name": "P_signal",
+       "label": "Signal power",
+       "ui_unit": "µW",
+       "scale": 1e-06,
+       "default": 1
+      },
+      {
+       "name": "P_pump",
+       "label": "Pump power",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 100
+      },
+      {
+       "name": "N_er",
+       "label": "Er concentration",
+       "ui_unit": "10²⁰ cm⁻³",
+       "scale": 1e+26,
+       "default": 1.5
+      },
+      {
+       "name": "tau",
+       "label": "Metastable lifetime",
+       "ui_unit": "ms",
+       "scale": 0.001,
+       "default": 7.5
+      },
+      {
+       "name": "Cup",
+       "label": "Upconversion coefficient",
+       "ui_unit": "10⁻¹⁸ cm³/s",
+       "scale": 1e-24,
+       "default": 4
+      },
+      {
+       "name": "fq",
+       "label": "Quenched ion fraction",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 0.95
+      },
+      {
+       "name": "loss_db_cm",
+       "label": "Waveguide loss (signal, ASE)",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": 0.25,
+       "min": 0
+      },
+      {
+       "name": "loss_pump_db_cm",
+       "label": "Pump waveguide loss (< 0: as the signal)",
+       "ui_unit": "dB/cm",
+       "scale": 1.0,
+       "default": -1
+      },
+      {
+       "name": "periods",
+       "label": "Signal DBR periods",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 6,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "R_pump",
+       "label": "Pump mirror reflectance (constant)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.99,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "pump_mirror",
+       "label": "Pump mirror",
+       "type": "choice",
+       "choices": [
+        "constant",
+        "dbr"
+       ],
+       "default": "constant"
+      },
+      {
+       "name": "w_ratio",
+       "label": "Input waist / eigenmode waist",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0.05
+      },
+      {
+       "name": "focus_shift",
+       "label": "Input focus shift",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "scale",
+       "label": "Cell size factor (R, A, window)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0.05
+      },
+      {
+       "name": "model",
+       "label": "Amplifier model",
+       "type": "choice",
+       "choices": [
+        "coupled",
+        "independent",
+        "tophat"
+       ],
+       "default": "coupled"
+      },
+      {
+       "name": "ase",
+       "label": "Include ASE (1/0)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "max": 1,
+       "step": 1
+      },
+      {
+       "name": "n_bins",
+       "label": "ASE spectral bins (1450-1650 nm)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 2,
+       "step": 1
+      },
+      {
+       "name": "ase_modes",
+       "label": "Guided modes fed by spontaneous emission",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2,
+       "min": 1
+      },
+      {
+       "name": "ase2d",
+       "label": "In-plane ASE in all directions (0/1)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "n_bins2d",
+       "label": "In-plane ASE spectral bins",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 8,
+       "min": 2,
+       "max": 40
+      },
+      {
+       "name": "n_p",
+       "label": "In-plane ASE angle bins",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 64,
+       "min": 8,
+       "max": 256
+      },
+      {
+       "name": "h2d",
+       "label": "In-plane ASE grid pitch (0 = aperture/24)",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "scatter_frac",
+       "label": "Share of the loss scattered in-plane",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.25,
+       "min": 0,
+       "max": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "gain_db",
+       "label": "Net signal gain, window to window",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "ase_fwd",
+       "label": "Forward ASE out of the window",
+       "ui_unit": "µW",
+       "scale": 1e-06
+      },
+      {
+       "name": "ase_bwd",
+       "label": "Backward ASE out of the window",
+       "ui_unit": "µW",
+       "scale": 1e-06
+      },
+      {
+       "name": "nf_db",
+       "label": "Noise figure",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "iterations",
+       "label": "Self-consistency iterations",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "converged",
+       "label": "Converged",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "internal_gain_db",
+       "label": "Internal gain",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "Ps_out",
+       "label": "Signal out",
+       "ui_unit": "µW",
+       "scale": 1e-06
+      },
+      {
+       "name": "pump_left",
+       "label": "Pump left at the exit",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "path",
+       "label": "Path",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "gain_per_cm",
+       "label": "Internal gain per cm",
+       "ui_unit": "dB/cm",
+       "scale": 1.0
+      },
+      {
+       "name": "inversion_mean",
+       "label": "Mean inversion N2/N",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "neff_s",
+       "label": "n_eff at the signal",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "neff_p",
+       "label": "n_eff at the pump",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_er_s",
+       "label": "Er overlap, signal",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "gamma_er_p",
+       "label": "Er overlap, pump",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_dbr_signal",
+       "label": "DBR R at the signal (normal)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_dbr_pump",
+       "label": "Same DBR at the pump (normal)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "small_signal_absorption_db_cm",
+       "label": "Unpumped signal absorption",
+       "ui_unit": "dB/cm",
+       "scale": 1.0
+      },
+      {
+       "name": "exits",
+       "label": "Leaves through the window",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "footprint_area",
+       "label": "Cell footprint",
+       "ui_unit": "mm²",
+       "scale": 1e-06
+      },
+      {
+       "name": "gain_db_without_2d",
+       "label": "Net gain without the in-plane ASE",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "pump_left_without_2d",
+       "label": "Pump left without the in-plane ASE",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "ase2d_spont",
+       "label": "In-plane spontaneous emission into the slab",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "ase2d_stimulated",
+       "label": "Stimulated emission into the in-plane field",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "ase2d_absorbed",
+       "label": "In-plane field reabsorbed by Er",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "ase2d_scattered_in",
+       "label": "Guided ASE scattered into the in-plane field",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "ase2d_side",
+       "label": "In-plane ASE leaving through the open sides",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "ase2d_window",
+       "label": "In-plane ASE leaving through the window",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "ase2d_mirror",
+       "label": "In-plane ASE transmitted by the mirrors",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "ase2d_prop_loss",
+       "label": "In-plane ASE lost to waveguide loss",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "ase2d_ratio_max",
+       "label": "Largest bounce-to-bounce ratio of the trapped ASE (1 = lasing)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "ase2d_lasing",
+       "label": "Parasitic lasing of the trapped ASE",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "nf_total_db",
+       "label": "Noise figure with off-axis ASE scattered into the mode",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "noise_onpath",
+       "label": "ASE density in the signal mode (on-path)",
+       "ui_unit": "W/Hz",
+       "scale": 1.0
+      },
+      {
+       "name": "noise_mode_spont",
+       "label": "ASE density in the mode, back-traced",
+       "ui_unit": "W/Hz",
+       "scale": 1.0
+      },
+      {
+       "name": "noise_offaxis",
+       "label": "Off-axis ASE scattered into the mode",
+       "ui_unit": "W/Hz",
+       "scale": 1.0
+      },
+      {
+       "name": "offaxis_noise_ratio",
+       "label": "Off-axis / on-path noise in the signal mode",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "path_coherence",
    "version": 2,
    "title": "Multipath interference (speckle) noise",
@@ -2098,6 +4584,1340 @@
        "label": "Coherence length",
        "ui_unit": "µm",
        "scale": 1e-06
+      }
+     ]
+    }
+   }
+  },
+  {
+   "engine": "planar_cell",
+   "version": 1,
+   "title": "Planar multipass cells (stadium, faceted stadium, integrated Herriott)",
+   "description": "2D ray tracing in cells whose wall is a chain of flat and curved mirror elements (circle, segmented polygon, smooth or faceted stadium, perturbed walls) and in the integrated in-plane Herriott cell; port statistics, chaos, re-entrance, launch-angle dither and trench-DBR mirror analyses.",
+   "requires": [],
+   "references": [
+    "L. A. Bunimovich, Commun. Math. Phys. 65, 295 (1979) (stadium billiard)",
+    "N. Chernov, J. Stat. Phys. 88, 1 (1997) (mean free path πA/P of planar billiards)",
+    "D. Herriott, H. Kogelnik, R. Kompfner, Appl. Opt. 3, 523 (1964) (off-axis paths in spherical mirror interferometers)",
+    "R. E. Richens, J. Phys. A 15, 2101 (1982) (pseudo-integrable polygonal billiards)"
+   ],
+   "files": [
+    "engines/billiard_cell/__init__.py",
+    "engines/billiard_cell/engine.py",
+    "engines/bragg_grating/__init__.py",
+    "engines/bragg_grating/engine.py",
+    "engines/cell_mirror/__init__.py",
+    "engines/cell_mirror/engine.py",
+    "engines/planar_cell/__init__.py",
+    "engines/planar_cell/engine.py",
+    "engines/ray_phase/__init__.py",
+    "engines/ray_phase/engine.py"
+   ],
+   "functions": {
+    "ray_statistics": {
+     "title": "Port statistics (Monte Carlo)",
+     "equations": [
+      "W_i = R^(n_i) e^{-α L_i}",
+      "T = Σ W_i / N_launched",
+      "⟨L⟩ = Σ W_i L_i / Σ W_i",
+      "mean field: ℓ = πA/P, η = w/P"
+     ],
+     "inputs": [
+      {
+       "name": "shape",
+       "label": "Cell shape",
+       "type": "choice",
+       "choices": [
+        "circle",
+        "polygon",
+        "stadium",
+        "faceted_stadium"
+       ],
+       "default": "faceted_stadium"
+      },
+      {
+       "name": "radius",
+       "label": "Radius (circle, polygon circumradius, stadium caps)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 5
+      },
+      {
+       "name": "straight",
+       "label": "Stadium straight length a",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 5,
+       "min": 0
+      },
+      {
+       "name": "n_facets",
+       "label": "Facets (polygon) or facets per cap (faceted stadium)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 12,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "tilt_rms",
+       "label": "Random element tilt (rms)",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "curvature_rms",
+       "label": "Random element curvature 1/ρ (rms)",
+       "ui_unit": "1/m",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "seed",
+       "label": "Perturbation pattern (seed)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "port_width",
+       "label": "Port width w",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 150
+      },
+      {
+       "name": "theta0",
+       "label": "Launch half-angle",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 349.066
+      },
+      {
+       "name": "R_mean",
+       "label": "Mirror reflectance",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.999,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "alpha_bg",
+       "label": "Background loss α_bg",
+       "ui_unit": "1/cm",
+       "scale": 100.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "Gamma",
+       "label": "Evanescent factor Γ",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0
+      },
+      {
+       "name": "n_rays",
+       "label": "Rays",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1000,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "n_bounce",
+       "label": "Maximum reflections per ray",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1500,
+       "min": 1,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "T_det",
+       "label": "Transmission to the output port",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_mean",
+       "label": "Mean path ⟨L⟩",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "L_mean_err",
+       "label": "Standard error of ⟨L⟩",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "L_eff_gas",
+       "label": "Gas-equivalent path Γ⟨L⟩",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "S1",
+       "label": "Signal yield Γ T ⟨L⟩",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "n_det",
+       "label": "Detected rays",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "trapped_fraction",
+       "label": "Rays still trapped at the end",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "leaked_fraction",
+       "label": "Rays leaked through gaps",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "mean_chord",
+       "label": "Mean chord πA/P",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "area",
+       "label": "Cell area",
+       "ui_unit": "mm²",
+       "scale": 1e-06
+      },
+      {
+       "name": "perimeter",
+       "label": "Wall length",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "T_mean_field",
+       "label": "Transmission, ergodic mean field",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_mean_field",
+       "label": "Mean path, ergodic mean field",
+       "ui_unit": "cm",
+       "scale": 0.01
+      }
+     ]
+    },
+    "chaos": {
+     "title": "Chaos (twin-ray Lyapunov exponent)",
+     "equations": [
+      "|δ_j| ≈ |δ_0| e^{λ j}",
+      "λ from ln|δ_j| between 1e-10 and 1e-2 of the cell size"
+     ],
+     "inputs": [
+      {
+       "name": "shape",
+       "label": "Cell shape",
+       "type": "choice",
+       "choices": [
+        "circle",
+        "polygon",
+        "stadium",
+        "faceted_stadium"
+       ],
+       "default": "stadium"
+      },
+      {
+       "name": "radius",
+       "label": "Radius (circle, polygon circumradius, stadium caps)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 5
+      },
+      {
+       "name": "straight",
+       "label": "Stadium straight length a",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 5,
+       "min": 0
+      },
+      {
+       "name": "n_facets",
+       "label": "Facets (polygon) or facets per cap (faceted stadium)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 12,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "tilt_rms",
+       "label": "Random element tilt (rms)",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "curvature_rms",
+       "label": "Random element curvature 1/ρ (rms)",
+       "ui_unit": "1/m",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "seed",
+       "label": "Perturbation pattern (seed)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "theta",
+       "label": "Launch angle from the wall normal",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 500
+      },
+      {
+       "name": "n_hits",
+       "label": "Reflections",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 300,
+       "min": 10,
+       "step": 1
+      }
+     ],
+     "outputs": [
+      {
+       "name": "lyapunov",
+       "label": "Lyapunov exponent λ",
+       "ui_unit": "1/reflection",
+       "scale": 1.0
+      },
+      {
+       "name": "chaotic",
+       "label": "Chaotic (λ > 0.05)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "final_separation",
+       "label": "Separation after the last reflection",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "fit_first",
+       "label": "Fit from reflection",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "fit_last",
+       "label": "Fit to reflection",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "planar_herriott": {
+     "title": "Integrated Herriott cell, design and re-entrance",
+     "equations": [
+      "cos θ = 1 − d/R",
+      "d = R (1 − cos 2πM/N)",
+      "y_n = A cos(nθ + φ)",
+      "w² = (λ/n) d / (π √(1 − g²)), g = 1 − d/R"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius of curvature R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 10
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N (even)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M (0 < M < N/2)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 3,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Spot pattern half width A",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1
+      },
+      {
+       "name": "phase",
+       "label": "Pattern phase φ (0: window at the edge, π/N: distinct spots)",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "port_width",
+       "label": "Window width",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 100
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "n_index",
+       "label": "Slab index n_eff",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.479,
+       "min": 1
+      },
+      {
+       "name": "R_mirror",
+       "label": "Mirror reflectance",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.999,
+       "min": 0,
+       "max": 1
+      },
+      {
+       "name": "dR2",
+       "label": "Radius error of M2",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0
+      },
+      {
+       "name": "tilt2",
+       "label": "Tilt of M2",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "spacing_error",
+       "label": "Spacing error",
+       "ui_unit": "µm",
+       "scale": 1e-06,
+       "default": 0
+      },
+      {
+       "name": "dtheta",
+       "label": "Launch-angle offset",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "d",
+       "label": "Mirror spacing d",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "theta",
+       "label": "Phase advance per hit θ",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "theta_launch",
+       "label": "Design launch angle from the normal",
+       "ui_unit": "mrad",
+       "scale": 0.001
+      },
+      {
+       "name": "path_design",
+       "label": "Design path N d",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "mode_radius",
+       "label": "Mode radius on the mirrors",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "spot_spacing_design",
+       "label": "Closest spots on one mirror",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "spot_spacing_in_w",
+       "label": "Closest spots, in mode radii",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "window_clearance_in_w",
+       "label": "Window clearance, in mode radii",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "exits_through_port",
+       "label": "Leaves through the window",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "reflections",
+       "label": "Reflections",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "path",
+       "label": "Traced path",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "exit_offset",
+       "label": "Exit point from the window centre",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "exit_angle",
+       "label": "Exit-angle error",
+       "ui_unit": "mrad",
+       "scale": 0.001
+      },
+      {
+       "name": "L_eff",
+       "label": "Effective path Σ Rʲ ℓⱼ",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "I_end",
+       "label": "Intensity at the exit",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "footprint_length",
+       "label": "Footprint length",
+       "ui_unit": "mm",
+       "scale": 0.001
+      },
+      {
+       "name": "footprint_width",
+       "label": "Footprint width",
+       "ui_unit": "mm",
+       "scale": 0.001
+      }
+     ]
+    },
+    "dither_visibility": {
+     "title": "Fringe visibility under angle dither (stadium, polygon, circle)",
+     "equations": [
+      "V_p = |⟨exp(i Δφ_p(θc + δ(t)))⟩_t|",
+      "x_p = k₀ n |dL_p/dθ| A",
+      "V ≈ |J₀(x_p)| (sine), |sinc(x_p)| (triangle)"
+     ],
+     "inputs": [
+      {
+       "name": "shape",
+       "label": "Cell shape",
+       "type": "choice",
+       "choices": [
+        "circle",
+        "polygon",
+        "stadium",
+        "faceted_stadium"
+       ],
+       "default": "faceted_stadium"
+      },
+      {
+       "name": "radius",
+       "label": "Radius (circle, polygon circumradius, stadium caps)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 5
+      },
+      {
+       "name": "straight",
+       "label": "Stadium straight length a",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 5,
+       "min": 0
+      },
+      {
+       "name": "n_facets",
+       "label": "Facets (polygon) or facets per cap (faceted stadium)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 12,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "tilt_rms",
+       "label": "Random element tilt (rms)",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "curvature_rms",
+       "label": "Random element curvature 1/ρ (rms)",
+       "ui_unit": "1/m",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "seed",
+       "label": "Perturbation pattern (seed)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "theta_c",
+       "label": "Launch angle θc",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 500
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "n_index",
+       "label": "Index of the medium (n_eff)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.0,
+       "min": 1
+      },
+      {
+       "name": "amplitude",
+       "label": "Dither amplitude A",
+       "ui_unit": "µrad",
+       "scale": 1e-06,
+       "default": 10
+      },
+      {
+       "name": "n_pass",
+       "label": "Pass (mirror hit) number",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "waveform",
+       "label": "Dither waveform",
+       "type": "choice",
+       "choices": [
+        "sine",
+        "triangle"
+       ],
+       "default": "sine"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "V_first",
+       "label": "Visibility at pass 1",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V_last",
+       "label": "Visibility at the chosen pass",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V_model_last",
+       "label": "Linear-model V at the chosen pass",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "x_last",
+       "label": "Dither depth x = a A",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "chirp_last",
+       "label": "Chirp ½|b|A²",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "same_path_last",
+       "label": "Share of rays on the centre ray's element path",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "A_half_last",
+       "label": "Amplitude for V = 0.5 (model)",
+       "ui_unit": "µrad",
+       "scale": 1e-06
+      },
+      {
+       "name": "L_last",
+       "label": "Path to the chosen pass",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "noise_floor",
+       "label": "Random-phase floor √π/(2√N)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "resolved",
+       "label": "Resolved",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "planar_herriott_dither": {
+     "title": "Integrated Herriott cell, angle dither",
+     "equations": [
+      "V_p = |⟨exp(i Δφ_p(θ_launch + δ(t)))⟩_t|",
+      "x_p = k₀ n |dL_p/dθ| A"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius of curvature R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 10
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N (even)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M (0 < M < N/2)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 3,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Spot pattern half width A",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1
+      },
+      {
+       "name": "phase",
+       "label": "Pattern phase φ (0: window at the edge, π/N: distinct spots)",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "dtheta",
+       "label": "Launch-angle offset",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "n_index",
+       "label": "Slab index n_eff",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.479,
+       "min": 1
+      },
+      {
+       "name": "amplitude",
+       "label": "Dither amplitude A",
+       "ui_unit": "µrad",
+       "scale": 1e-06,
+       "default": 100
+      },
+      {
+       "name": "n_pass",
+       "label": "Pass (mirror hit) number (< N)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 19,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "waveform",
+       "label": "Dither waveform",
+       "type": "choice",
+       "choices": [
+        "sine",
+        "triangle"
+       ],
+       "default": "sine"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "V_first",
+       "label": "Visibility at pass 1",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V_last",
+       "label": "Visibility at the chosen pass",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "V_model_last",
+       "label": "Linear-model V at the chosen pass",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "x_last",
+       "label": "Dither depth x = a A",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "chirp_last",
+       "label": "Chirp ½|b|A²",
+       "ui_unit": "rad",
+       "scale": 1.0
+      },
+      {
+       "name": "same_path_last",
+       "label": "Share of rays on the centre ray's element path",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "A_half_last",
+       "label": "Amplitude for V = 0.5 (model)",
+       "ui_unit": "µrad",
+       "scale": 1e-06
+      },
+      {
+       "name": "L_last",
+       "label": "Path to the chosen pass",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "noise_floor",
+       "label": "Random-phase floor √π/(2√N)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "resolved",
+       "label": "Resolved",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    },
+    "mirror_reflectance": {
+     "title": "Trench-DBR reflectance over the cell's angles (stadium, polygon, circle)",
+     "equations": [
+      "I_j = Π_{i<j} R(χ_i)",
+      "R_eff = I_end^(1/n̄)",
+      "L_eff = Σ I_j ℓ_j"
+     ],
+     "inputs": [
+      {
+       "name": "shape",
+       "label": "Cell shape",
+       "type": "choice",
+       "choices": [
+        "circle",
+        "polygon",
+        "stadium",
+        "faceted_stadium"
+       ],
+       "default": "faceted_stadium"
+      },
+      {
+       "name": "radius",
+       "label": "Radius (circle, polygon circumradius, stadium caps)",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 5
+      },
+      {
+       "name": "straight",
+       "label": "Stadium straight length a",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 5,
+       "min": 0
+      },
+      {
+       "name": "n_facets",
+       "label": "Facets (polygon) or facets per cap (faceted stadium)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 12,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "tilt_rms",
+       "label": "Random element tilt (rms)",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "curvature_rms",
+       "label": "Random element curvature 1/ρ (rms)",
+       "ui_unit": "1/m",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "seed",
+       "label": "Perturbation pattern (seed)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 0,
+       "step": 1
+      },
+      {
+       "name": "theta_c",
+       "label": "Launch angle θc",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 500
+      },
+      {
+       "name": "fan",
+       "label": "Fan width",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 17.45
+      },
+      {
+       "name": "n_beams",
+       "label": "Beams",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 7,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "n_hits",
+       "label": "Reflections per beam",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 150,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "n_eff",
+       "label": "Slab n_eff (DBR tooth index)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.479,
+       "min": 1
+      },
+      {
+       "name": "polarization",
+       "label": "Slab polarisation",
+       "type": "choice",
+       "choices": [
+        "TM",
+        "TE"
+       ],
+       "default": "TM"
+      },
+      {
+       "name": "periods",
+       "label": "DBR periods",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 6,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "sin_design",
+       "label": "sin of the DBR design angle",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      }
+     ],
+     "outputs": [
+      {
+       "name": "R_eff",
+       "label": "R per bounce, I_end^(1/n)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "loss_per_bounce",
+       "label": "Loss per bounce",
+       "ui_unit": "ppm",
+       "scale": 1e-06
+      },
+      {
+       "name": "R_mean",
+       "label": "⟨R⟩ weighted by arriving power",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "I_end",
+       "label": "Intensity after the traced hits",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_eff",
+       "label": "Effective path Σ Iⱼ ℓⱼ",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "L_geom",
+       "label": "Geometric path",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "chi_50",
+       "label": "Median |χ|",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "chi_95",
+       "label": "95 % of power below |χ|",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "chi_max",
+       "label": "Largest |χ|",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "R_design",
+       "label": "R at the design angle",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_uniform",
+       "label": "⟨R⟩ over uniform sin χ",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_eff_regular",
+       "label": "R per bounce, unperturbed cell",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_eff_regular",
+       "label": "Effective path, unperturbed cell",
+       "ui_unit": "cm",
+       "scale": 0.01
+      }
+     ]
+    },
+    "planar_herriott_mirror": {
+     "title": "Integrated Herriott cell, trench-DBR reflectance",
+     "equations": [
+      "I_j = Π_{i<j} R(χ_i)",
+      "R_eff = I_end^(1/n̄)",
+      "L_eff = Σ I_j ℓ_j"
+     ],
+     "inputs": [
+      {
+       "name": "R",
+       "label": "Mirror radius of curvature R",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 10
+      },
+      {
+       "name": "N",
+       "label": "Hits to re-entrance N (even)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 20,
+       "min": 4,
+       "step": 1
+      },
+      {
+       "name": "M",
+       "label": "Pattern turns M (0 < M < N/2)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 3,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "A",
+       "label": "Spot pattern half width A",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 1
+      },
+      {
+       "name": "phase",
+       "label": "Pattern phase φ (0: window at the edge, π/N: distinct spots)",
+       "ui_unit": "rad",
+       "scale": 1.0,
+       "default": 0
+      },
+      {
+       "name": "fan",
+       "label": "Fan width",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0
+      },
+      {
+       "name": "n_beams",
+       "label": "Beams",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "n_hits",
+       "label": "Reflections per beam (< N)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 19,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "n_eff",
+       "label": "Slab n_eff (DBR tooth index)",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.479,
+       "min": 1
+      },
+      {
+       "name": "polarization",
+       "label": "Slab polarisation",
+       "type": "choice",
+       "choices": [
+        "TM",
+        "TE"
+       ],
+       "default": "TM"
+      },
+      {
+       "name": "periods",
+       "label": "DBR periods",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 4,
+       "min": 1,
+       "step": 1
+      },
+      {
+       "name": "sin_design",
+       "label": "sin of the DBR design angle",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "wavelength",
+       "label": "Vacuum wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1550
+      },
+      {
+       "name": "tilt2",
+       "label": "Tilt of M2",
+       "ui_unit": "mrad",
+       "scale": 0.001,
+       "default": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "R_eff",
+       "label": "R per bounce, I_end^(1/n)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "loss_per_bounce",
+       "label": "Loss per bounce",
+       "ui_unit": "ppm",
+       "scale": 1e-06
+      },
+      {
+       "name": "R_mean",
+       "label": "⟨R⟩ weighted by arriving power",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "I_end",
+       "label": "Intensity after the traced hits",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_eff",
+       "label": "Effective path Σ Iⱼ ℓⱼ",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "L_geom",
+       "label": "Geometric path",
+       "ui_unit": "cm",
+       "scale": 0.01
+      },
+      {
+       "name": "chi_50",
+       "label": "Median |χ|",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "chi_95",
+       "label": "95 % of power below |χ|",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "chi_max",
+       "label": "Largest |χ|",
+       "ui_unit": "deg",
+       "scale": 1.0
+      },
+      {
+       "name": "R_design",
+       "label": "R at the design angle",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_uniform",
+       "label": "⟨R⟩ over uniform sin χ",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "R_eff_regular",
+       "label": "R per bounce, unperturbed cell",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "L_eff_regular",
+       "label": "Effective path, unperturbed cell",
+       "ui_unit": "cm",
+       "scale": 0.01
       }
      ]
     }

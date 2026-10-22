@@ -1,0 +1,112 @@
+engine: herriott_cell
+version: 1
+title: Herriott-type multipass cells (3D)
+description: Exact 3D ray tracing between real mirror surfaces (spherical, conic, biconic, polynomial deformations) for Herriott, astigmatic and deformed Herriott cells; re-entrant design, re-entrance check with mirror errors, injection-angle dither.
+references:
+  - "D. Herriott, H. Kogelnik, R. Kompfner, Appl. Opt. 3, 523 (1964) (off-axis paths in spherical mirror interferometers)"
+  - "D. R. Herriott, H. J. Schulte, Appl. Opt. 4, 883 (1965) (folded optical delay lines, astigmatic mirrors)"
+  - "J. B. McManus, P. L. Kebabian, M. S. Zahniser, Appl. Opt. 34, 3336 (1995) (astigmatic mirror multipass absorption cells)"
+common_inputs:
+  R: {label: "Mirror radius of curvature R", ui_unit: mm, scale: 1.0e-3, default: 500}
+  N: {label: "Hits to re-entrance N (even)", ui_unit: "", scale: 1.0, default: 30, min: 4, step: 1}
+  M: {label: "Pattern turns M (0 < M < N/2)", ui_unit: "", scale: 1.0, default: 7, min: 1, step: 1}
+  A: {label: "Spot circle radius A (injection at (A, 0))", ui_unit: mm, scale: 1.0e-3, default: 12}
+  wavelength: {label: "Wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550}
+functions:
+  design:
+    title: Re-entrant design (paraxial)
+    equations: ["cos θ = 1 − d/R", "d = R (1 − cos 2πM/N)", "x_n = A cos nθ, y_n = B sin nθ", "x₀' = −A/R, y₀' = (B/R) √((2R − d)/d)", "w² = (λ d/π) / √(1 − g²)"]
+    inputs:
+      - R
+      - N
+      - M
+      - A
+      - {name: B, label: "Spot ellipse half axis B (y)", ui_unit: mm, scale: 1.0e-3, default: 12}
+      - wavelength
+    outputs:
+      - {name: d, label: "Mirror spacing d", ui_unit: mm, scale: 1.0e-3}
+      - {name: theta, label: "Phase advance per hit θ", ui_unit: rad, scale: 1.0}
+      - {name: path, label: "Path N d", ui_unit: m, scale: 1.0}
+      - {name: mode_radius, label: "Mode radius on the mirrors", ui_unit: µm, scale: 1.0e-6}
+      - {name: spot_spacing, label: "Closest spots on one mirror", ui_unit: mm, scale: 1.0e-3}
+      - {name: spot_spacing_in_w, label: "Closest spots, in mode radii", ui_unit: "", scale: 1.0}
+      - {name: hole_radius, label: "Injection hole radius", ui_unit: mm, scale: 1.0e-3}
+      - {name: hole_clearance_in_w, label: "Hole clearance, in mode radii", ui_unit: "", scale: 1.0}
+      - {name: spots_per_mirror, label: "Spots per mirror", ui_unit: "", scale: 1.0}
+      - {name: injection_slope_x, label: "Injection slope x₀'", ui_unit: mrad, scale: 1.0e-3}
+      - {name: injection_slope_y, label: "Injection slope y₀'", ui_unit: mrad, scale: 1.0e-3}
+  astigmatic_design:
+    title: Astigmatic (Lissajous) re-entrant design
+    equations: ["N θx = 2π Mx, N θy = 2π My", "cos θx,y = 1 − d/Rx,y", "(Rx + Ry)/2 = R_mean"]
+    inputs:
+      - {name: R_mean, label: "Mean radius (Rx + Ry)/2", ui_unit: mm, scale: 1.0e-3, default: 1000}
+      - {name: N, label: "Hits to re-entrance N", ui_unit: "", scale: 1.0, default: 50, min: 4, step: 1}
+      - {name: Mx, label: "Turns in x", ui_unit: "", scale: 1.0, default: 11, min: 1, step: 1}
+      - {name: My, label: "Turns in y", ui_unit: "", scale: 1.0, default: 13, min: 1, step: 1}
+    outputs:
+      - {name: Rx, label: "Rx", ui_unit: mm, scale: 1.0e-3}
+      - {name: Ry, label: "Ry", ui_unit: mm, scale: 1.0e-3}
+      - {name: d, label: "Spacing d", ui_unit: mm, scale: 1.0e-3}
+      - {name: path, label: "Path N d", ui_unit: m, scale: 1.0}
+      - {name: theta_x, label: "θx", ui_unit: rad, scale: 1.0}
+      - {name: theta_y, label: "θy", ui_unit: rad, scale: 1.0}
+  reentrance_check:
+    title: Re-entrance with mirror errors (exact 3D trace)
+    equations: ["exit offset: |P_exit − P_injection|", "re-entry angle: ∠(reflected exit ray, injected ray)", "L_eff = Σ Rʲ ℓⱼ"]
+    inputs:
+      - R
+      - N
+      - M
+      - A
+      - {name: hole_radius, label: "Hole radius (0: design rule)", ui_unit: mm, scale: 1.0e-3, default: 0, min: 0}
+      - wavelength
+      - {name: tilt2, label: "Tilt of mirror 2", ui_unit: mrad, scale: 1.0e-3, default: 0}
+      - {name: decentre2, label: "Decentre of mirror 2 (y)", ui_unit: mm, scale: 1.0e-3, default: 0}
+      - {name: dR, label: "Radius error, both mirrors", ui_unit: mm, scale: 1.0e-3, default: 0}
+      - {name: dR2, label: "Radius error, mirror 2 only", ui_unit: mm, scale: 1.0e-3, default: 0}
+      - {name: astig2, label: "Astigmatism of mirror 2, Rx − Ry", ui_unit: mm, scale: 1.0e-3, default: 0}
+      - {name: spacing_error, label: "Spacing error", ui_unit: mm, scale: 1.0e-3, default: 0}
+      - {name: conic, label: "Conic constant, both mirrors", ui_unit: "", scale: 1.0, default: 0}
+      - {name: R_mirror, label: "Mirror reflectance", ui_unit: "", scale: 1.0, default: 0.99, min: 0, max: 1}
+    outputs:
+      - {name: exits_through_hole, label: "Leaves through the injection hole", ui_unit: "", scale: 1.0}
+      - {name: n_hits, label: "Hits including the exit", ui_unit: "", scale: 1.0}
+      - {name: reflections, label: "Reflections", ui_unit: "", scale: 1.0}
+      - {name: path, label: "Path", ui_unit: m, scale: 1.0}
+      - {name: exit_offset, label: "Exit point from the injection point", ui_unit: µm, scale: 1.0e-6}
+      - {name: exit_offset_in_hole, label: "Exit offset / hole radius", ui_unit: "", scale: 1.0}
+      - {name: reentry_angle, label: "Re-entry angle", ui_unit: mrad, scale: 1.0e-3}
+      - {name: hole_radius, label: "Hole radius", ui_unit: mm, scale: 1.0e-3}
+      - {name: mode_radius, label: "Mode radius", ui_unit: µm, scale: 1.0e-6}
+      - {name: spot_spacing_in_w, label: "Closest spots, in mode radii", ui_unit: "", scale: 1.0}
+      - {name: hole_clearance_in_w, label: "Hole clearance, in mode radii", ui_unit: "", scale: 1.0}
+      - {name: L_eff, label: "Effective path Σ Rʲ ℓⱼ", ui_unit: m, scale: 1.0}
+      - {name: I_end, label: "Intensity at the exit", ui_unit: "", scale: 1.0}
+      - {name: d, label: "Design spacing", ui_unit: mm, scale: 1.0e-3}
+  dither_visibility:
+    title: Fringe visibility under injection-angle dither
+    equations: ["V_p = |⟨exp(i Δφ_p(δ(t)))⟩_t|", "x_p = k₀ n |dL_p/dθ| A", "V ≈ |J₀(x_p)| (sine), |sinc(x_p)| (triangle)"]
+    inputs:
+      - R
+      - N
+      - M
+      - A
+      - {name: plane, label: "Dither plane", type: choice, choices: [x, y], default: x}
+      - {name: amplitude, label: "Dither amplitude A", ui_unit: µrad, scale: 1.0e-6, default: 10}
+      - {name: n_pass, label: "Pass (mirror hit) number", ui_unit: "", scale: 1.0, default: 29, min: 1, step: 1}
+      - wavelength
+      - {name: n_index, label: "Index of the medium", ui_unit: "", scale: 1.0, default: 1.0, min: 1}
+      - {name: waveform, label: "Dither waveform", type: choice, choices: [sine, triangle], default: sine}
+      - {name: tilt2, label: "Tilt of mirror 2", ui_unit: mrad, scale: 1.0e-3, default: 0}
+      - {name: dR2, label: "Radius error of mirror 2", ui_unit: mm, scale: 1.0e-3, default: 0}
+    outputs:
+      - {name: V_first, label: "Visibility at pass 1", ui_unit: "", scale: 1.0}
+      - {name: V_last, label: "Visibility at the chosen pass", ui_unit: "", scale: 1.0}
+      - {name: V_model_last, label: "Linear-model V at the chosen pass", ui_unit: "", scale: 1.0}
+      - {name: x_last, label: "Dither depth x = a A", ui_unit: rad, scale: 1.0}
+      - {name: chirp_last, label: "Chirp ½|b|A²", ui_unit: rad, scale: 1.0}
+      - {name: same_path_last, label: "Share of rays still on the design path", ui_unit: "", scale: 1.0}
+      - {name: A_half_last, label: "Amplitude for V = 0.5 (model)", ui_unit: µrad, scale: 1.0e-6}
+      - {name: L_last, label: "Path to the chosen pass", ui_unit: m, scale: 1.0}
+      - {name: noise_floor, label: "Random-phase floor √π/(2√N)", ui_unit: "", scale: 1.0}
+      - {name: resolved, label: "Resolved", ui_unit: "", scale: 1.0}

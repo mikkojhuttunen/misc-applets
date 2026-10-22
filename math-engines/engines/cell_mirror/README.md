@@ -5,3 +5,5 @@ Mirror reflectance the light actually sees in a segmented multipass cell. Beams 
 Version 1. `cell_mirror_reflectance` returns a Result; `hit_angles`, `weighted_stats`, `cell_mirror_stats`, `uniform_average`, `weighted_quantile`, `launch_angles` are helpers. `TrenchDBR(sin_design=…)` (bragg_grating v2) makes the stack quarter-wave at an oblique design angle; it must stay below the critical angle n_gap/n_eff, beyond which the first air gap already totally reflects.
 
 R is evaluated exactly at every hit: a table interpolated in |sin χ| is off by up to 0.15 next to the TIR edge of a p-polarised mirror. The `cmpc-ray-tracer.html` applet carries a JS port checked against `test_vectors/vectors.json`.
+
+Other cells: `hit_angles` also runs on any `planar_cell` wall (rays that leave an open wall stop) and on objects with their own `hit_angles` method (`herriott_cell.HerriottLaunch`). Front ends: `planar_cell.mirror_reflectance` and `planar_cell.planar_herriott_mirror`.

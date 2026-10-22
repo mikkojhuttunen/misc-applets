@@ -325,12 +325,12 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
         <div class="explain" id="novelty"><span class="status">Tracing…</span></div>
         <div class="sub"><h3>B and A · Residual fringe against the wavelength-dither amplitude</h3><canvas class="chart wide" id="nvChart" aria-label="Residual fringe against the wavelength-dither amplitude for regular and chaotic cells, with the gas line half-width"></canvas></div>
         <div class="sub"><h3>B and A · Wavelength dither needed for the target, in line half-widths</h3><canvas class="chart wide" id="nvNeed" aria-label="Wavelength dither needed for the target relative to the line half-width against gas pressure"></canvas></div>
-        <p class="hint">Top: static residual fringe 2√ε V/√M² (T → ∞, no drift) with the rail's angle dither, against the wavelength-dither amplitude Δλ (top axis: the frequency excursion Δν). Dashed: the regular cells; solid: the current (chaotic) cells; dotted: their sampling floor. The grey line is the half-width of the gas line at the chosen pressure (Voigt: air broadening plus Doppler at 296 K), the dotted grey line the Doppler limit; in the shaded region the wavelength dither is wider than the line and blurs it. Bottom: the smallest Δλ beyond which the residual stays below the target, as a multiple of the line half-width, against pressure; above 1 the fringe can only be washed out by blurring the line. A curve along the bottom edge needs no wavelength dither at all; one along the top edge does not reach the target within 1 nm.</p>
+        <p class="hint">Top: static residual fringe 2√ε V/√M² (T → ∞, no drift) with the rail's angle dither, against the wavelength-dither amplitude Δλ (top axis: the frequency excursion Δν). Dashed: the regular cells; solid: the current (chaotic) cells; thin dotted curves: the sampling floor of the chaotic cells (values that reach it are upper bounds). The grey line is the half-width of the gas line at the chosen pressure (Voigt: air broadening plus Doppler at 296 K), the dotted grey line the Doppler limit; in the shaded region the wavelength dither is wider than the line and blurs it. Bottom: the smallest Δλ beyond which the residual stays below the target, as a multiple of the line half-width, against pressure; above 1 the fringe can only be washed out by blurring the line. A curve along the bottom edge needs no wavelength dither at all; one along the top edge does not reach the target within 1 nm.</p>
       </section>
 
       <section class="panel">
         <h2>Visibility against stretching λ·n</h2>
-        <div class="btns"><button id="stBtn" type="button">Run the configuration study</button><span class="status" id="stStatus">About 36 configurations of both cells (regular; 4–32 inclusions of |Δn| 0.005–0.02; other placement seeds; the advanced facet and mirror perturbations), with the rail's geometry, light and dither at a reduced budget: one to two minutes.</span></div>
+        <div class="btns"><select id="stN" aria-label="Number of configurations"><option value="36" selected>36 configurations</option><option value="50">50 configurations</option><option value="100">100 configurations</option><option value="200">200 configurations</option></select><button id="stBtn" type="button">Run the configuration study</button><span class="status" id="stStatus">Half for each cell: the regular design, three advanced facet or mirror perturbations, and inclusions drawn evenly from 2–40 disks, |Δn| 0.002–0.02, radius 30–80 µm and seven placement seeds, with the rail's geometry, light and dither at a reduced budget. About 45 s for 36, 4–5 min for 200.</span></div>
         <div class="sub"><h3>A and B · Static visibility against stretching</h3><canvas class="chart wide" id="stChart" aria-label="Static visibility against the stretching λ·n of both cells"></canvas></div>
         <p class="hint">x: finite-time Lyapunov exponent per hit (median over the launch beam) × the mean exit pass of the dithered light (amplitude-weighted): the e-folds by which neighbouring rays separate before the light leaves. y: static visibility V (T → ∞, no drift) with angle dither only (green) and with both dithers (blue). Circles: A, circular cell; squares: B, Herriott cell; hollow: within 3× the sampling floor (an upper bound); ringed: the current cells. Points from the regular references, sweeps and scans of this session are included. Lines: least-squares fits of ln V against λ·n over the resolved points of both cells.</p>
       </section>
@@ -374,7 +374,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
           <li><b>Chaos</b>: twin rays 10⁻⁹ rad apart (Lyapunov fit); finite-time Lyapunov exponent and MEGNO ⟨Y⟩ from a twin renormalised at every hit through walls and index disks (⟨Y⟩ → 0–2 regular, > 4 chaotic after 300 hits). Flat facets do not stretch the twin: their mixing comes from splitting at corners.</li>
           <li><b>Fringe</b>: at every launch angle of the dither the ray is followed to the output port, whichever pass that is, and carries the field amplitude R^((n−1)/2) of its n hits (only the output port ends this ray; the light lost through the input window is counted in T, from the ray bundle across the beam). It interferes with a stray copy whose path is shorter by a share of the exit path (stray setting); the copy follows the wavelength but not the angle. With the angle dither θ(t) at f_θ and the wavelength dither at f_λ (whole Hz) the term a e^{i k(t) D(θ(t))} is periodic in both; an FFT over Na angle samples and the harmonics of the wavelength waveform at depth x = k₀ D Δλ/λ₀ (per sample, binned in x) give its components at m f_θ + n f_λ (equal frequencies up to 5 kHz summed; above that pooled in 1/200-decade bins), normalised by the mean amplitude. The 0 Hz component is the static floor; a boxcar of length T weights the others by sinc(Ω T/2) (bold: lobe average 1/√(1 + 2z²)); a fringe drift ω_d shifts every frequency. Residual = 2√ε V/√M² with the speckle-averaging option.</li>
           <li><b>Stretching λ·n</b>: the median finite-time Lyapunov exponent of the launch beam times the amplitude-weighted mean exit pass of the dithered light, i.e. the e-folds by which neighbouring rays separate before the light leaves. The static visibility of chaotic exits falls roughly exponentially with it, in both cell types.</li>
-          <li><b>Fringe suppression without spectral blur</b>: the static floor is recomputed from the same traced samples for 41 wavelength-dither amplitudes from 0.01 pm to 1 nm (c₀ term: |Σ a e^{iφ} w K(x)|/Na, K = sinc or J₀). Line half-width: Voigt (0.5346 L + √(0.2166 L² + G²)) from typical air-broadening coefficients (HWHM per atm: CH₄ 0.060, NH₃ 0.090, CO₂ 0.073, H₂O 0.085 cm⁻¹) and the Doppler width at 296 K.</li>
+          <li><b>Fringe suppression without spectral blur</b>: the static floor is recomputed from the same traced samples for 161 wavelength-dither amplitudes from 0.01 pm to 1 nm (32 per decade) (c₀ term: |Σ a e^{iφ} w K(x)|/Na, K = sinc or J₀). Line half-width: Voigt (0.5346 L + √(0.2166 L² + G²)) from typical air-broadening coefficients (HWHM per atm: CH₄ 0.060, NH₃ 0.090, CO₂ 0.073, H₂O 0.085 cm⁻¹) and the Doppler width at 296 K.</li>
           <li><b>Spectral dither</b>: a wavelength dither of depth x suppresses the fringe only algebraically, |sinc x| ≈ 1/x for a triangle and |J₀(x)| ≈ √(2/(πx)) for a sine, with x = 2π OPD Δν/c; a deeper dither soon meets the gas line itself (Δν comparable to the line width blurs the absorption). The angle dither of a chaotic cell suppresses exponentially in λ·n, so the two multiply.</li>
           <li><b>Angle samples and their intervals</b>: Na = 4096, 8192 or 32768 angle samples by budget (1024 in sweeps and scans), each standing for its dither interval Δθ. One probe ray at θ + Δθ tells whether the exit phase is smooth over the interval (same path): then the interval integral is Filon's, exact for a linear phase, weight sinc(Δφ/2). If the path changes inside, seven log-scale bisections (down to 10⁻¹³ rad) find the coherence width h over which the path and the phase (|Δφ| &lt; 1) hold; the interval then holds Δθ/h independent phasors and contributes a random term of rms √(h/Δθ). These weights enter the slow angle harmonics (|m| ≤ 8, the 0 Hz static floor first); the faster harmonics keep the point samples, whose power is the instantaneous fringe.</li>
           <li><b>Sampling floor</b>: the random terms leave √(Σ (h/Δθ) |y|²)/Na (y: the sample's fringe term, with the wavelength kernel when both dithers run), far below the plain random-sampling floor √π/(2√Na) when the exit phase is scrambled on fine scales (strong chaos); a static floor at this level is a statistical estimate, an upper bound. Regular and mildly chaotic exits (smooth phase) are resolved exactly. The wavelength part is exact (tabulated harmonics, interpolated in x).</li>
@@ -1989,9 +1989,9 @@ const DitherLab = (() => {
       return { F, P, floor: c0c ? Math.hypot(c0c[0], c0c[1]) : 0, total: tot, sfloor: Math.sqrt(sf) / Na };
     };
     const useA = Na > 1, spectral = dl ? collect(false, true) : null, angle = useA ? collect(true, false) : null, both = useA || dl ? collect(useA, dl) : null;
-    /* static floor (c00 term) against the wavelength-dither amplitude, 0.01 pm to 1000 pm, from the same samples:
+    /* static floor (c00 term) against the wavelength-dither amplitude, 0.01 pm to 1000 pm (32 points per decade), from the same samples:
        spectral only |K(x0)|, angle + spectral |Σ z w K(x_i)|/Na with its sampling floor, K = sinc (triangle) or J0 (sine) */
-    const grid = Array.from({ length: 41 }, (_, j) => 1e-14 * 10 ** (j / 8)), stat = { dl: grid, spec: [], both: [], floor: [] };
+    const grid = Array.from({ length: 161 }, (_, j) => 1e-14 * 10 ** (j / 32)), stat = { dl: grid, spec: [], both: [], floor: [] };
     for (const g of grid) {
       const K0 = kernel(k0 * D0 * g / lam, o.lwave);
       stat.spec.push(Math.abs(K0));
@@ -2330,21 +2330,30 @@ onmessage = e => {
   let studyW = null, studyId = 0, study = null;
   /* the configuration study: per cell the regular design, inclusions of several numbers and |Δn|, other seeds and the
      advanced perturbations, on the rail's geometry, light and dither */
-  function studyCases(p) {
-    const out = [], red = { n_samp: 1024, n_u: 12, n_v: 32, n_side: 8 };
+  /* the configuration study: per cell the regular design and three advanced perturbations, the rest inclusion sets drawn
+     evenly (fixed shuffle) from 2–40 disks × |Δn| 0.002–0.02 × radius 30–80 µm, placement seeds 1–7; rail geometry,
+     light and dither at a reduced budget */
+  function studyCases(p, N) {
+    const out = [], red = { n_samp: 1024, n_u: 12, n_v: 32, n_side: 8 }, per = Math.max(6, Math.round(N / 2));
+    const grid = [];
+    for (const n of [2, 4, 6, 8, 12, 16, 24, 32, 40]) for (const dn of [0.002, 0.005, 0.01, 0.015, 0.02]) for (const rad of [30e-6, 50e-6, 80e-6]) grid.push({ n, dn, rad });
+    const u = Pl.mulberry32(7);
+    for (let i = grid.length - 1; i > 0; i--) { const k = Math.floor(u() * (i + 1)); [grid[i], grid[k]] = [grid[k], grid[i]]; }
     for (const cell of CELLS) {
       const base = Object.assign(D.regular(p[cell]), red, { inc_radius: 50e-6, inc_sign: "both", inc_seed: 1 }), nm = cell === "circle" ? "A" : "B";
       out.push({ label: `${nm} regular`, o: base });
-      for (const n of [4, 8, 16, 32]) for (const dn of [0.005, 0.01, 0.02]) out.push({ label: `${nm} ${n} × |Δn| ${dn}`, o: Object.assign({}, base, { n_inc: n, inc_dn: dn }) });
-      for (const seed of [2, 3]) out.push({ label: `${nm} 16 × 0.01, seed ${seed}`, o: Object.assign({}, base, { n_inc: 16, inc_dn: 0.01, inc_seed: seed }) });
       const adv = cell === "circle" ? [["facet curvature 0.5", { facet_curv: 0.5 }], ["facet tilt 2 mrad", { f_tilt_rms: 2e-3 }], ["facet curvature rms 0.2", { f_curv_rms: 0.2 }]]
         : [["ripple 0.3 µm", { ripple_a: 0.3e-6 }], ["ripple 0.6 µm", { ripple_a: 0.6e-6 }], ["ε₄ 0.2", { eps4: 0.2 }]];
       for (const [l, x] of adv) out.push({ label: `${nm} ${l}`, o: Object.assign({}, base, x) });
+      for (let i = 0; i < per - 4; i++) {
+        const q = grid[i % grid.length], seed = 1 + (i + Math.floor(i / grid.length)) % 7;
+        out.push({ label: `${nm} ${q.n} × |Δn| ${q.dn}, r ${Math.round(q.rad * 1e6)} µm, seed ${seed}`, o: Object.assign({}, base, { n_inc: q.n, inc_dn: q.dn, inc_radius: q.rad, inc_seed: seed }) });
+      }
     }
     return out;
   }
   function runStudy() {
-    const cases = studyCases(P());
+    const cases = studyCases(P(), +$("stN").value);
     studyId++;
     if (studyW) studyW.terminate();
     studyW = new Worker(STUDY_URL);

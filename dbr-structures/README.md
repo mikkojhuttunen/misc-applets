@@ -28,6 +28,16 @@ python plot_pump_spectra.py crigf.csv --db --no-t --xlim 1549.5 1551
 
 LiNbO₃ e and o Sellmeier coefficients were swapped in earlier versions (n_e at 1550 nm came out as about 2.21 instead of 2.13). The engine tests caught it; results for LiNbO₃ from earlier versions should be recomputed. LiTaO₃ was not affected.
 
+## 3D geometry schematic
+
+`crigf_3d.py` is a Python port of the `crigf_schematic.m` geometry (same section, tooth and offset conventions, thick layers capped for display): an oblique 3D view of the whole device, a 3D close-up of the grating coupler cut open at its centre, the full longitudinal section, a GC close-up and a dimensions panel. Defaults follow Hemsley et al., Opt. Express 31, 27274 (2023); the 300 nm phase sections are example values. Writes `figs/crigf_3d.png` and `.pdf` (git-ignored). Needs numpy, matplotlib, Pillow and shapely; the renderer is `../mpc-schematics/render3d.py`.
+
+```
+python crigf_3d.py
+python crigf_3d.py --NGC 31 --offset 50 --NL 200 --NR 200
+python crigf_3d.py --layers "Fused silica:500000,LiNbO3:300" --grating-height 47
+```
+
 ## Limits
 
 Design-stage models: effective-index method, first-order radiation coupling, undepleted-pump SHG unless the depletion panel is used, no thermal or Kerr effects. LiTaO₃ indices are an approximate fit (±0.01). Photorefraction thresholds are placeholders to be replaced with measured values. Check final designs with a mode solver and FDTD.

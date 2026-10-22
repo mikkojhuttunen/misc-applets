@@ -1,0 +1,780 @@
+<title>MPC Design Viewer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument panel, same family as cmpc-ray-tracer.html. Controls in a left rail; the cell drawing, then the membrane mirror (stack to scale, R(χ), periods needed). */
+:root {
+  --bg: #eef1f0;
+  --surface: #ffffff;
+  --ink: #142026;
+  --muted: #5a6a6f;
+  --line: #d3dcdc;
+  --mirror: #1f4e79;
+  --tooth: #8faadc;
+  --ray: #c0504d;
+  --port: #1f8a4c;
+  --accent: #1d5f86;
+  --warn: #c43d2a;
+  --font-display: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+    --mirror: #8fc1ea; --tooth: #3d5f8f; --ray: #ff8a73; --port: #4fd18a; --accent: #6cb8e6; --warn: #ff7a63; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+  --mirror: #8fc1ea; --tooth: #3d5f8f; --ray: #ff8a73; --port: #4fd18a; --accent: #6cb8e6; --warn: #ff7a63; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 32px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: grid; gap: 4px; }
+h1 { font: 700 22px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 90ch; }
+.main { display: grid; grid-template-columns: minmax(270px, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.rail { display: grid; gap: 12px; }
+fieldset { margin: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 10px 12px 12px; display: grid; gap: 10px; min-width: 0; }
+legend { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+.ctl { display: grid; gap: 3px; }
+.ctl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { font-weight: 500; }
+.ctl output, .mono { font-family: var(--font-data); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; width: 100%; }
+.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.seg button { font: 500 13px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; cursor: pointer; }
+.seg button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.views { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; display: grid; gap: 10px; }
+.panel h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.cellview { width: 100%; max-width: 640px; aspect-ratio: 1 / 1; margin: 0 auto; }
+.sideview { width: 100%; max-width: 100%; aspect-ratio: 3 / 1; }
+@media (max-width: 640px) { .sideview { aspect-ratio: 2 / 1; } }
+canvas { display: block; width: 100%; height: 100%; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 700px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+.chart { width: 100%; max-width: 100%; aspect-ratio: 4 / 3; }
+.stack { width: 100%; max-width: 100%; aspect-ratio: 3 / 1; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 16px; }
+.stat { display: grid; gap: 1px; }
+.stat span:first-child { color: var(--muted); font-size: 12px; }
+.stat span:last-child { font: 500 15px var(--font-data); font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 12.5px; min-width: 480px; width: 100%; }
+th, td { padding: 4px 10px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; font-family: var(--font-body); }
+thead th { color: var(--muted); font-weight: 500; font-family: var(--font-body); }
+td.none { color: var(--warn); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; max-width: 95ch; }
+footer { color: var(--muted); font-size: 12px; max-width: 95ch; display: grid; gap: 6px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>MPC Design Viewer</h1>
+    <p>The multipass-cell geometries used in <span class="mono">cmpc-sim</span> and <span class="mono">general-mpc</span>: segmented circular CMPC, stadium cells and Herriott cells. For the membrane cells, the etched-trench DBR on each facet is drawn to scale, with the number of periods it needs to reach a target reflectance.</p>
+  </header>
+
+  <div class="main">
+    <div class="rail">
+      <fieldset>
+        <legend>Cell type</legend>
+        <div class="seg" role="group" aria-label="Cell type">
+          <button type="button" id="tSeg" data-type="seg" aria-pressed="true">Segmented CMPC</button>
+          <button type="button" id="tSta" data-type="stadium" aria-pressed="false">Stadium</button>
+          <button type="button" id="tHer" data-type="herriott" aria-pressed="false">Herriott</button>
+          <button type="button" id="tAst" data-type="astig" aria-pressed="false">Astigmatic</button>
+        </div>
+        <div class="ctl"><label for="preset">Simulation preset</label>
+          <select id="preset"></select></div>
+      </fieldset>
+
+      <fieldset id="fsSeg">
+        <legend>Segmented cell</legend>
+        <div class="ctl"><div class="row"><label for="segR">Diameter</label><output id="segROut"></output></div>
+          <input id="segR" type="range" min="2" max="40" step="0.5" value="10"></div>
+        <div class="ctl"><div class="row"><label for="segN">Facets N</label><output id="segNOut"></output></div>
+          <input id="segN" type="range" min="6" max="60" step="1" value="24"></div>
+        <div class="ctl"><div class="row"><label for="segM">Star orbit {N/m}</label><output id="segMOut"></output></div>
+          <input id="segM" type="range" min="1" max="11" step="1" value="7">
+          <p class="hint">Launch angle χ = 90° − 180° m/N from the input-facet normal.</p></div>
+        <div class="ctl"><div class="row"><label for="segTilt">Facet tilt, rms</label><output id="segTiltOut"></output></div>
+          <input id="segTilt" type="range" min="0" max="3" step="0.01" value="0"></div>
+        <div class="ctl"><div class="row"><label for="segCurv">Facet curvature 1/ρ</label><output id="segCurvOut"></output></div>
+          <input id="segCurv" type="range" min="-100" max="100" step="1" value="0">
+          <p class="hint">All facets. Positive bulges into the cell (dispersing, chaotic); ρ = 5 cm is 20 /m.</p></div>
+        <div class="ctl"><div class="row"><label for="segOff">Facet offset, rms</label><output id="segOffOut"></output></div>
+          <input id="segOff" type="range" min="0" max="50" step="0.5" value="0"></div>
+      </fieldset>
+
+      <fieldset id="fsSta" hidden>
+        <legend>Stadium cell</legend>
+        <div class="ctl"><div class="row"><label for="staR">Cap radius r</label><output id="staROut"></output></div>
+          <input id="staR" type="range" min="1" max="15" step="0.25" value="5"></div>
+        <div class="ctl"><div class="row"><label for="staA">Straight length a</label><output id="staAOut"></output></div>
+          <input id="staA" type="range" min="0" max="20" step="0.25" value="5"></div>
+        <div class="ctl"><div class="row"><label for="staF">Facets per cap</label><output id="staFOut"></output></div>
+          <input id="staF" type="range" min="0" max="40" step="1" value="0">
+          <p class="hint">0 = smooth caps. Faceted caps get 4 segments per straight, as in general-mpc.</p></div>
+        <div class="ctl"><div class="row"><label for="staTilt">Element tilt, rms</label><output id="staTiltOut"></output></div>
+          <input id="staTilt" type="range" min="0" max="20" step="0.1" value="0"></div>
+        <div class="ctl"><div class="row"><label for="staCurv">Cap curvature, rms</label><output id="staCurvOut"></output></div>
+          <input id="staCurv" type="range" min="0" max="200" step="1" value="0"></div>
+        <div class="ctl"><div class="row"><label for="staTh">Launch angle</label><output id="staThOut"></output></div>
+          <input id="staTh" type="range" min="-80" max="80" step="0.5" value="25.8"></div>
+      </fieldset>
+
+      <fieldset id="fsPlanar">
+        <legend>Drawing</legend>
+        <div class="ctl"><div class="row"><label for="bounces">Bounces drawn</label><output id="bouncesOut"></output></div>
+          <input id="bounces" type="range" min="5" max="400" step="1" value="48"></div>
+        <div class="ctl"><div class="row"><label for="exag">Exaggerate perturbations</label><output id="exagOut"></output></div>
+          <input id="exag" type="range" min="1" max="40" step="1" value="1">
+          <p class="hint">Tilts, offsets and curvatures of a few µm are invisible at cell scale. This scales them in the drawing only; the mirror statistics use the true cell.</p></div>
+        <div class="ctl"><div class="row"><label for="seed">Random seed</label><output id="seedOut"></output></div>
+          <input id="seed" type="range" min="1" max="40" step="1" value="1"></div>
+      </fieldset>
+
+      <fieldset id="fsHer" hidden>
+        <legend>Herriott cell</legend>
+        <div class="ctl"><div class="row"><label for="herR">Mirror radius R</label><output id="herROut"></output></div>
+          <input id="herR" type="range" min="0.05" max="2" step="0.01" value="0.5"></div>
+        <div class="ctl"><div class="row"><label for="herN">Hits to re-entry N</label><output id="herNOut"></output></div>
+          <input id="herN" type="range" min="4" max="120" step="1" value="30"></div>
+        <div class="ctl"><div class="row"><label for="herM">Turns M</label><output id="herMOut"></output></div>
+          <input id="herM" type="range" min="1" max="59" step="1" value="7"></div>
+        <div class="ctl"><div class="row"><label for="herA">Pattern radius A</label><output id="herAOut"></output></div>
+          <input id="herA" type="range" min="2" max="24" step="0.5" value="12"></div>
+        <div id="astCtl" hidden class="ctl" style="gap:10px">
+          <div class="ctl"><div class="row"><label for="astMy">Turns in y, M<sub>y</sub></label><output id="astMyOut"></output></div>
+            <input id="astMy" type="range" min="1" max="59" step="1" value="13"></div>
+          <div class="ctl"><div class="row"><label for="astB">Pattern half-height B</label><output id="astBOut"></output></div>
+            <input id="astB" type="range" min="1" max="24" step="0.5" value="8.4"></div>
+        </div>
+        <div class="ctl"><div class="row"><label for="herLam">Wavelength</label><output id="herLamOut"></output></div>
+          <input id="herLam" type="range" min="0.4" max="12" step="0.01" value="1.55"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Membrane mirror (trench DBR)</legend>
+        <div class="ctl"><div class="row"><label for="mThk">Si membrane thickness</label><output id="mThkOut"></output></div>
+          <input id="mThk" type="range" min="100" max="600" step="5" value="250"></div>
+        <div class="seg" role="group" aria-label="Slab mode">
+          <button type="button" id="pTM" data-pol="TM" aria-pressed="true">TM₀ (s on walls)</button>
+          <button type="button" id="pTE" data-pol="TE" aria-pressed="false">TE₀ (p on walls)</button>
+        </div>
+        <div class="ctl"><div class="row"><label for="mLam">Wavelength</label><output id="mLamOut"></output></div>
+          <input id="mLam" type="range" min="1.2" max="8" step="0.01" value="1.55"></div>
+        <div class="ctl"><div class="row"><label for="mN">Periods N</label><output id="mNOut"></output></div>
+          <input id="mN" type="range" min="1" max="30" step="1" value="4"></div>
+        <div class="ctl"><div class="row"><label for="mOrd">Quarter-wave orders gap, tooth</label><output id="mOrdOut"></output></div>
+          <select id="mOrd"><option value="1,1" selected>1, 1</option><option value="1,3">1, 3</option><option value="3,1">3, 1</option><option value="3,3">3, 3</option></select></div>
+        <div class="ctl"><div class="row"><label for="mDes">Design angle</label><output id="mDesOut"></output></div>
+          <input id="mDes" type="range" min="0" max="29" step="0.5" value="0">
+          <p class="hint">Quarter-wave at this angle in the membrane; must stay below the first-gap TIR angle.</p></div>
+        <div class="ctl"><div class="row"><label for="mTgt">Target reflectance</label><output id="mTgtOut"></output></div>
+          <select id="mTgt"><option value="0.9">0.90</option><option value="0.99" selected>0.99</option><option value="0.999">0.999</option><option value="0.9999">0.9999</option></select></div>
+      </fieldset>
+    </div>
+
+    <div class="views">
+      <section class="panel" aria-labelledby="hCell">
+        <h2 id="hCell">Cell</h2>
+        <div class="cellview" id="cellWrap"><canvas id="cell" aria-label="Cell drawing"></canvas></div>
+        <div class="sideview" id="sideWrap" hidden><canvas id="side" aria-label="Herriott side view"></canvas></div>
+        <div class="legend" id="cellLegend"></div>
+        <div class="stats" id="cellStats"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="hMir">
+        <h2 id="hMir">Membrane mirror</h2>
+        <div class="stack"><canvas id="stack" aria-label="DBR stack to scale"></canvas></div>
+        <div class="duo">
+          <div class="chart"><canvas id="rchi" aria-label="Reflectance versus angle"></canvas></div>
+          <div class="chart"><canvas id="rN" aria-label="One minus reflectance versus periods"></canvas></div>
+        </div>
+        <div class="stats" id="mirStats"></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Where the light hits the mirror</th><th>R at N</th><th>Periods for target</th></tr></thead>
+            <tbody id="perTable"></tbody>
+          </table>
+        </div>
+        <p class="note" id="mirNote"></p>
+      </section>
+
+      <footer>
+        <p>Planar cells are traced with flat and circular-arc wall elements (the <span class="mono">general-mpc</span> <span class="mono">Cell2D</span> picture; facets extended by 15 % past their corners). Random tilts use this page's own generator, so a seed here does not reproduce a numpy seed. Herriott cells are drawn from paraxial theory: x<sub>n</sub> = A cos nθ<sub>x</sub>, y<sub>n</sub> = B sin nθ<sub>y</sub>, cos θ = 1 − d/R, d = R(1 − cos 2πM/N).</p>
+        <p>Mirror: Si index from the Salzberg–Villa fit, n<sub>eff</sub> of the air | Si | air slab mode, and the exact oblique-incidence transfer matrix of cavity | [air gap, Si tooth] × N | air, all ported from <span class="mono">math-engines</span> (<span class="mono">materials</span>, <span class="mono">slab_waveguide</span>, <span class="mono">bragg_grating.TrenchDBR</span>). It is a 1D effective-index model: radiation out of the membrane in the air gaps, sidewall roughness and TE↔TM conversion are not included, and above the first-gap TIR angle the model mirror is lossless.</p>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const D2R = Math.PI / 180;
+
+  // ---------------------------------------------------------------- complex numbers (for the transfer matrix)
+  const C = (re, im = 0) => ({ re, im });
+  const cadd = (a, b) => C(a.re + b.re, a.im + b.im);
+  const csub = (a, b) => C(a.re - b.re, a.im - b.im);
+  const cmul = (a, b) => C(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+  const cdiv = (a, b) => { const d = b.re * b.re + b.im * b.im; return C((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d); };
+  const cabs = a => Math.hypot(a.re, a.im);
+  const csqrt = a => { const r = cabs(a); const re = Math.sqrt((r + a.re) / 2); const im = Math.sqrt(Math.max((r - a.re) / 2, 0)); return C(re, a.im < 0 ? -im : im); };
+  const ccos = a => C(Math.cos(a.re) * Math.cosh(a.im), -Math.sin(a.re) * Math.sinh(a.im));
+  const csin = a => C(Math.sin(a.re) * Math.cosh(a.im), Math.cos(a.re) * Math.sinh(a.im));
+  const J = C(0, 1);
+
+  // ---------------------------------------------------------------- materials and slab mode (math-engines ports)
+  function nSi(lamM) {                       // engines.materials "si": Salzberg & Villa, n^2 = 1 + Σ A λ²/(λ² − B), λ in µm
+    const l2 = (lamM * 1e6) ** 2;
+    return Math.sqrt(1 + 10.6684293 * l2 / (l2 - 0.301516485 ** 2) + 1.54133408 * l2 / (l2 - 1104.0 ** 2));
+  }
+  function neffSlab(lam, nf, d, pol) {       // engines.slab_waveguide.neff_three_layer, symmetric air cladding, order 0
+    const k = 2 * Math.PI / lam, ns = 1, nc = 1;
+    const disp = ne => {
+      const kx = k * Math.sqrt(Math.max(nf * nf - ne * ne, 0)), g = k * Math.sqrt(Math.max(ne * ne - 1, 0));
+      const r = pol === "TM" ? nf * nf : 1;
+      return kx * d - 2 * Math.atan2(r * g, kx);
+    };
+    let lo = Math.max(ns, nc) + 1e-12, hi = nf - 1e-12;
+    if (disp(lo) <= 0) return NaN;
+    for (let i = 0; i < 80; i++) { const m = 0.5 * (lo + hi); if (disp(m) > 0) lo = m; else hi = m; }
+    return 0.5 * (lo + hi);
+  }
+  // engines.bragg_grating.stack_R_oblique: tilted admittances, evanescent branch Im(cos) >= 0, renormalised products
+  function stackR(lam, sinIn, nIn, layers, nOut, pol) {
+    const s = nIn * Math.min(Math.abs(sinIn), 1 - 1e-9), k = 2 * Math.PI / lam;
+    const cosine = n => csqrt(C(1 - (s / n) ** 2, 1e-18));
+    const adm = n => { const c = cosine(n); return pol === "s" ? cmul(C(n), c) : cdiv(C(n), c); };
+    let m00 = C(1), m01 = C(0), m10 = C(0), m11 = C(1);
+    for (const [n, d] of layers) {
+      const q = adm(n), c = cosine(n);
+      const dl = cmul(C(k * n * d), c), cs = ccos(dl), sn = csin(dl);
+      const l01 = cmul(C(0, -1), cdiv(sn, q)), l10 = cmul(C(0, -1), cmul(q, sn));
+      const a00 = cadd(cmul(m00, cs), cmul(m01, l10)), a01 = cadd(cmul(m00, l01), cmul(m01, cs));
+      const a10 = cadd(cmul(m10, cs), cmul(m11, l10)), a11 = cadd(cmul(m10, l01), cmul(m11, cs));
+      const sc = Math.max(cabs(a00), cabs(a01), cabs(a10), cabs(a11)) || 1;
+      m00 = C(a00.re / sc, a00.im / sc); m01 = C(a01.re / sc, a01.im / sc); m10 = C(a10.re / sc, a10.im / sc); m11 = C(a11.re / sc, a11.im / sc);
+    }
+    const qi = adm(nIn), qo = adm(nOut);
+    const x = cmul(qi, cadd(m00, cmul(m01, qo))), y = cadd(m10, cmul(m11, qo));
+    const r = cdiv(csub(x, y), cadd(x, y));
+    return r.re * r.re + r.im * r.im;
+  }
+  // engines.bragg_grating.TrenchDBR: cavity (n_tooth) | [gap, tooth] x N | gap medium
+  function trenchDBR(nT, lam, N, mGap, mTooth, sinDes, slabPol) {
+    const cosG = Math.sqrt(1 - (nT * sinDes) ** 2);
+    const dGap = mGap * lam / (4 * cosG), dTooth = mTooth * lam / (4 * nT * Math.sqrt(1 - sinDes * sinDes));
+    const pol = slabPol === "TE" ? "p" : "s";
+    const lay = []; for (let i = 0; i < N; i++) lay.push([1, dGap], [nT, dTooth]);
+    return { dGap, dTooth, N, R: s => stackR(lam, s, nT, lay, 1, pol) };
+  }
+
+  // ---------------------------------------------------------------- random numbers (seeded)
+  function rng(seed) {
+    let a = seed >>> 0;
+    const u = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    return { normal: () => { let x = 0; while (x === 0) x = u(); return Math.sqrt(-2 * Math.log(x)) * Math.cos(2 * Math.PI * u()); } };
+  }
+
+  // ---------------------------------------------------------------- planar wall: chain of flat / circular-arc elements
+  // Element: chord A -> B (counter-clockwise), curvature kappa (0 flat, < 0 concave seen from inside, > 0 convex into the
+  // cell), ext = fractional hit-window extension past the chord ends (faceted walls).
+  function element(A, B, kappa, ext, label) {
+    const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy);
+    const t = [dx / L, dy / L], n = [t[1], -t[0]], M = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], h = L / 2;
+    const e = { A, B, kappa, ext, label, t, n, M, h };
+    if (kappa !== 0) {
+      const rho = Math.max(1 / Math.abs(kappa), 1.0005 * h), D = Math.sqrt(rho * rho - h * h);
+      e.sg = kappa < 0 ? 1 : -1;                       // concave: centre inside, arc bulges outward
+      e.rho = rho;
+      e.Cc = [M[0] - e.sg * n[0] * D, M[1] - e.sg * n[1] * D];
+    }
+    return e;
+  }
+  function perturb(els, tiltRms, offRms, curvRms, seed, select) {
+    const r = rng(seed);
+    return els.map(e => {
+      const on = !select || e.label.includes(select);
+      const tl = on ? tiltRms * r.normal() : 0, of = on ? offRms * r.normal() : 0, cu = on ? curvRms * r.normal() : 0;
+      const c = Math.cos(tl), s = Math.sin(tl), M0 = e.M, M = [M0[0] + of * e.n[0], M0[1] + of * e.n[1]];
+      const rot = P => [M[0] + c * (P[0] - M0[0]) - s * (P[1] - M0[1]), M[1] + s * (P[0] - M0[0]) + c * (P[1] - M0[1])];
+      return element(rot(e.A), rot(e.B), e.kappa + cu, e.ext, e.label);
+    });
+  }
+  function polygonCell(r, N, curvature) {
+    const els = [];
+    for (let k = 0; k < N; k++) {
+      const a = 2 * Math.PI * k / N - Math.PI / N, b = a + 2 * Math.PI / N;
+      els.push(element([r * Math.cos(a), r * Math.sin(a)], [r * Math.cos(b), r * Math.sin(b)], curvature, 0.15, "facet"));
+    }
+    return els;
+  }
+  function arcEls(c, r, p0, p1, n, faceted, label) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const a = p0 + (p1 - p0) * i / n, b = p0 + (p1 - p0) * (i + 1) / n;
+      out.push(element([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)], [c[0] + r * Math.cos(b), c[1] + r * Math.sin(b)], faceted ? 0 : -1 / r, faceted ? 0.15 : 0, label));
+    }
+    return out;
+  }
+  function stadiumCell(r, a, capFacets) {             // general-mpc planar.stadium_cell
+    const faceted = capFacets > 0, ns = faceted ? 4 : 1, npc = faceted ? capFacets : 2, els = [];
+    const xs = Array.from({ length: ns + 1 }, (_, i) => -a / 2 + a * i / ns), ext = faceted ? 0.15 : 0;
+    if (a > 0) for (let i = 0; i < ns; i++) els.push(element([xs[i], -r], [xs[i + 1], -r], 0, ext, "straight"));
+    els.push(...arcEls([a / 2, 0], r, -Math.PI / 2, Math.PI / 2, npc, faceted, "cap"));
+    if (a > 0) for (let i = 0; i < ns; i++) els.push(element([xs[ns - i], r], [xs[ns - i - 1], r], 0, ext, "straight"));
+    els.push(...arcEls([-a / 2, 0], r, Math.PI / 2, 3 * Math.PI / 2, npc, faceted, "cap"));
+    return els;
+  }
+  function hit(els, p, d, eps) {
+    let best = { t: Infinity };
+    for (const e of els) {
+      if (e.kappa === 0) {
+        const dn = d[0] * e.n[0] + d[1] * e.n[1];
+        if (dn <= 1e-12) continue;
+        const t = ((e.M[0] - p[0]) * e.n[0] + (e.M[1] - p[1]) * e.n[1]) / dn;
+        if (!(t > eps) || t >= best.t) continue;
+        const u = (p[0] + t * d[0] - e.M[0]) * e.t[0] + (p[1] + t * d[1] - e.M[1]) * e.t[1];
+        if (Math.abs(u) > e.h * (1 + e.ext)) continue;
+        best = { t, n: e.n };
+      } else {
+        const ox = p[0] - e.Cc[0], oy = p[1] - e.Cc[1], b = ox * d[0] + oy * d[1], disc = b * b - (ox * ox + oy * oy - e.rho * e.rho);
+        if (disc < 0) continue;
+        const sq = Math.sqrt(disc);
+        for (const t of [-b - sq, -b + sq]) {
+          if (!(t > eps) || t >= best.t) continue;
+          const hx = p[0] + t * d[0], hy = p[1] + t * d[1];
+          const side = ((hx - e.Cc[0]) * e.n[0] + (hy - e.Cc[1]) * e.n[1]) * e.sg;
+          if (side <= 0) continue;
+          const u = (hx - e.M[0]) * e.t[0] + (hy - e.M[1]) * e.t[1];
+          if (Math.abs(u) > e.h * (1 + e.ext)) continue;
+          const nn = [e.sg * (hx - e.Cc[0]) / e.rho, e.sg * (hy - e.Cc[1]) / e.rho];
+          if (d[0] * nn[0] + d[1] * nn[1] <= 0) continue;
+          best = { t, n: nn };
+        }
+      }
+    }
+    return best;
+  }
+  function launchPoint(e) {
+    if (e.kappa === 0) return { p: e.M.slice(), n: e.n };
+    return { p: [e.Cc[0] + e.sg * e.n[0] * e.rho, e.Cc[1] + e.sg * e.n[1] * e.rho], n: e.n };
+  }
+  // Trace from the middle of element 0 at angle chi (rad) from the inward normal, counter-clockwise positive.
+  function trace(els, chi, nHits, scale) {
+    const L = launchPoint(els[0]), ux = -L.n[0], uy = -L.n[1];
+    let p = [L.p[0] + ux * 1e-9 * scale, L.p[1] + uy * 1e-9 * scale];
+    let d = [ux * Math.cos(chi) - uy * Math.sin(chi), ux * Math.sin(chi) + uy * Math.cos(chi)];
+    const pts = [p.slice()], sins = [], chords = [];
+    for (let j = 0; j < nHits; j++) {
+      const H = hit(els, p, d, 1e-9 * scale);
+      if (!isFinite(H.t)) break;
+      p = [p[0] + H.t * d[0], p[1] + H.t * d[1]];
+      const dn = d[0] * H.n[0] + d[1] * H.n[1];
+      sins.push(Math.sqrt(Math.max(0, 1 - dn * dn)));
+      chords.push(H.t);
+      d = [d[0] - 2 * dn * H.n[0], d[1] - 2 * dn * H.n[1]];
+      const nd = Math.hypot(d[0], d[1]); d = [d[0] / nd, d[1] / nd];
+      pts.push(p.slice());
+    }
+    return { pts, sins, chords };
+  }
+  function outline(els, per = 24) {
+    const pts = [];
+    for (const e of els) {
+      if (e.kappa === 0) { pts.push(e.A, e.B); continue; }
+      const a0 = Math.atan2(e.A[1] - e.Cc[1], e.A[0] - e.Cc[0]);
+      let a1 = Math.atan2(e.B[1] - e.Cc[1], e.B[0] - e.Cc[0]), da = a1 - a0;
+      while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+      for (let i = 0; i <= per; i++) { const a = a0 + da * i / per; pts.push([e.Cc[0] + e.rho * Math.cos(a), e.Cc[1] + e.rho * Math.sin(a)]); }
+    }
+    return pts;
+  }
+  function areaPerim(els) {
+    const P = outline(els, 64); let A = 0, L = 0;
+    for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; A += a[0] * b[1] - b[0] * a[1]; L += Math.hypot(b[0] - a[0], b[1] - a[1]); }
+    return { area: Math.abs(A) / 2, perim: L };
+  }
+
+  // ---------------------------------------------------------------- state and presets
+  const S = { type: "seg", pol: "TM" };
+  const PRESETS = {
+    seg: [
+      ["cmpc-sim regular: 24 flat facets, 1 cm, star {24/7}", { segR: 10, segN: 24, segM: 7, segTilt: 0, segCurv: 0, segOff: 0, exag: 1 }],
+      ["cmpc-sim tilt: 1° rms facet tilts", { segR: 10, segN: 24, segM: 7, segTilt: 1, segCurv: 0, segOff: 0, exag: 1 }],
+      ["cmpc-sim chaotic: curved facets ρ = 5 cm", { segR: 10, segN: 24, segM: 7, segTilt: 0, segCurv: 20, segOff: 0, exag: 1 }],
+      ["same, curvature exaggerated ×25", { segR: 10, segN: 24, segM: 7, segTilt: 0, segCurv: 20, segOff: 0, exag: 25 }],
+      ["prelim figs: curved ρ = 20 cm", { segR: 10, segN: 24, segM: 7, segTilt: 0, segCurv: 5, segOff: 0, exag: 1 }],
+      ["prelim figs: tilt 0.3° rms", { segR: 10, segN: 24, segM: 7, segTilt: 0.3, segCurv: 0, segOff: 0, exag: 1 }],
+      ["mid-IR regular, 45° launch (star {24/6})", { segR: 10, segN: 24, segM: 6, segTilt: 0, segCurv: 0, segOff: 0, exag: 1, mThk: 300, mLam: 5.26 }],
+    ],
+    stadium: [
+      ["general-mpc smooth stadium r = a = 5 mm", { staR: 5, staA: 5, staF: 0, staTilt: 0, staCurv: 0, exag: 1 }],
+      ["16 facets per cap", { staR: 5, staA: 5, staF: 16, staTilt: 0, staCurv: 0, exag: 1 }],
+      ["facets + 1 mrad rms tilt (×10 drawn)", { staR: 5, staA: 5, staF: 16, staTilt: 1, staCurv: 0, exag: 10 }],
+      ["facets + curved caps 40 /m rms (×10 drawn)", { staR: 5, staA: 5, staF: 16, staTilt: 0, staCurv: 40, exag: 10 }],
+      ["circle (a = 0, smooth)", { staR: 5, staA: 0, staF: 0, staTilt: 0, staCurv: 0, exag: 1 }],
+    ],
+    herriott: [
+      ["general-mpc: R = 0.5 m, N = 30, M = 7, A = 12 mm", { herR: 0.5, herN: 30, herM: 7, herA: 12 }],
+      ["short cell: R = 0.1 m, N = 22, M = 5", { herR: 0.1, herN: 22, herM: 5, herA: 8 }],
+      ["dense: R = 1 m, N = 90, M = 19", { herR: 1, herN: 90, herM: 19, herA: 18 }],
+    ],
+    astig: [
+      ["general-mpc: Lissajous N = 50, Mx = 11, My = 13", { herR: 0.5, herN: 50, herM: 11, astMy: 13, herA: 12, astB: 8.4 }],
+      ["N = 90, Mx = 21, My = 23", { herR: 0.5, herN: 90, herM: 21, astMy: 23, herA: 15, astB: 12 }],
+    ],
+  };
+  const ids = ["segR", "segN", "segM", "segTilt", "segCurv", "segOff", "staR", "staA", "staF", "staTilt", "staCurv", "staTh", "bounces", "exag", "seed",
+    "herR", "herN", "herM", "herA", "astMy", "astB", "herLam", "mThk", "mLam", "mN", "mDes"];
+  const v = id => parseFloat($(id).value);
+
+  function fillPresets() {
+    const sel = $("preset");
+    sel.innerHTML = "";
+    PRESETS[S.type].forEach(([name], i) => { const o = document.createElement("option"); o.value = i; o.textContent = name; sel.appendChild(o); });
+    const o = document.createElement("option"); o.value = "custom"; o.textContent = "custom (edited)"; o.hidden = true; sel.appendChild(o);
+  }
+  function applyPreset(i) {
+    const p = PRESETS[S.type][i][1];
+    for (const k in p) $(k).value = p[k];
+    update();
+  }
+  function setType(t) {
+    S.type = t;
+    for (const b of document.querySelectorAll("[data-type]")) b.setAttribute("aria-pressed", String(b.dataset.type === t));
+    const planar = t === "seg" || t === "stadium";
+    $("fsSeg").hidden = t !== "seg"; $("fsSta").hidden = t !== "stadium"; $("fsPlanar").hidden = !planar;
+    $("fsHer").hidden = planar; $("astCtl").hidden = t !== "astig";
+    $("sideWrap").hidden = planar;
+    $("herM").previousElementSibling.querySelector("label").innerHTML = t === "astig" ? "Turns in x, M<sub>x</sub>" : "Turns M";
+    fillPresets();
+    applyPreset(0);
+  }
+
+  // ---------------------------------------------------------------- geometry builders from the controls
+  function planarCell(exag) {
+    const seed = v("seed");
+    if (S.type === "seg") {
+      const r = v("segR") / 2 * 1e-3, N = v("segN");
+      let els = polygonCell(r, N, v("segCurv") * exag);
+      const tilt = v("segTilt") * D2R * exag, off = v("segOff") * 1e-6 * exag;
+      if (tilt || off) els = perturb(els, tilt, off, 0, seed);
+      const m = v("segM"), chi = Math.PI / 2 - Math.PI * m / N;
+      return { els, chi, scale: r, launchLabel: `star {${N}/${m}}, χ = ${(chi / D2R).toFixed(1)}°` };
+    }
+    const r = v("staR") * 1e-3, a = v("staA") * 1e-3;
+    let els = stadiumCell(r, a, v("staF"));
+    const tilt = v("staTilt") * 1e-3 * exag, cu = v("staCurv") * exag;
+    if (tilt) els = perturb(els, tilt, 0, 0, seed);
+    if (cu) els = perturb(els, 0, 0, cu, seed + 1000, "cap");
+    const chi = v("staTh") * D2R;
+    return { els, chi, scale: r, launchLabel: `θ = ${(chi / D2R).toFixed(1)}°` };
+  }
+  function herriott() {
+    const R = v("herR"), N = v("herN"), Mx = v("herM"), A = v("herA") * 1e-3, lam = v("herLam") * 1e-6;
+    if (S.type === "herriott") {
+      const th = 2 * Math.PI * Mx / N, d = R * (1 - Math.cos(th));
+      return { Rx: R, Ry: R, d, thx: th, thy: th, A, B: A, N, lam };
+    }
+    const My = v("astMy"), cx = 1 - Math.cos(2 * Math.PI * Mx / N), cy = 1 - Math.cos(2 * Math.PI * My / N);
+    const d = 2 * R / (1 / cx + 1 / cy);
+    return { Rx: d / cx, Ry: d / cy, d, thx: Math.acos(1 - cx), thy: Math.acos(1 - cy), A, B: v("astB") * 1e-3, N, lam };
+  }
+  function gcd(a, b) { while (b) [a, b] = [b, a % b]; return a; }
+
+  // ---------------------------------------------------------------- drawing helpers
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function ctxFor(canvas) {
+    const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    const c = canvas.getContext("2d");
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, w, h);
+    return { c, w, h };
+  }
+  function niceStep(span, n) { const raw = span / n, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; }
+  function scaleBar(c, x, y, pxPerM, maxPx) {
+    const m = niceStep(maxPx / pxPerM, 1), L = m * pxPerM;
+    c.strokeStyle = css("--ink"); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y); c.lineTo(x + L, y); c.moveTo(x, y - 4); c.lineTo(x, y + 4); c.moveTo(x + L, y - 4); c.lineTo(x + L, y + 4); c.stroke();
+    c.fillStyle = css("--ink"); c.font = `12px ${css("--font-data")}`; c.textAlign = "left"; c.textBaseline = "bottom";
+    c.fillText(m >= 1e-3 ? `${+(m * 1e3).toPrecision(3)} mm` : `${+(m * 1e6).toPrecision(3)} µm`, x, y - 6);
+  }
+  function axes(c, w, h, pad, xr, yr, xlab, ylab, xt, yt, logY) {
+    const X = x => pad.l + (x - xr[0]) / (xr[1] - xr[0]) * (w - pad.l - pad.r);
+    const Y = y => { const f = logY ? (Math.log10(y) - Math.log10(yr[0])) / (Math.log10(yr[1]) - Math.log10(yr[0])) : (y - yr[0]) / (yr[1] - yr[0]); return h - pad.b - f * (h - pad.t - pad.b); };
+    c.strokeStyle = css("--line"); c.lineWidth = 1; c.fillStyle = css("--muted"); c.font = `11px ${css("--font-data")}`;
+    c.textAlign = "center"; c.textBaseline = "top";
+    for (const x of xt) { c.beginPath(); c.moveTo(X(x), pad.t); c.lineTo(X(x), h - pad.b); c.stroke(); c.fillText(String(x), X(x), h - pad.b + 4); }
+    c.textAlign = "right"; c.textBaseline = "middle";
+    for (const y of yt) { c.beginPath(); c.moveTo(pad.l, Y(y)); c.lineTo(w - pad.r, Y(y)); c.stroke(); c.fillText(logY ? `1e${Math.round(Math.log10(y))}` : String(y), pad.l - 4, Y(y)); }
+    c.fillStyle = css("--ink"); c.font = `12px ${css("--font-body")}`; c.textAlign = "center"; c.textBaseline = "bottom";
+    c.fillText(xlab, (pad.l + w - pad.r) / 2, h - 2);
+    c.save(); c.translate(12, (pad.t + h - pad.b) / 2); c.rotate(-Math.PI / 2); c.textBaseline = "middle"; c.fillText(ylab, 0, 0); c.restore();
+    return { X, Y };
+  }
+  const stat = (k, val) => `<div class="stat"><span>${k}</span><span>${val}</span></div>`;
+  const fmtLen = m => m >= 1 ? `${m.toFixed(2)} m` : m >= 0.01 ? `${(m * 100).toFixed(1)} cm` : `${(m * 1e3).toFixed(2)} mm`;
+
+  // ---------------------------------------------------------------- planar cell view
+  let lastHits = null;
+  function drawPlanar() {
+    const exag = v("exag"), geo = planarCell(exag), { c, w, h } = ctxFor($("cell"));
+    const P = outline(geo.els, 32);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const [x, y] of P) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const pad = 28, s = Math.min((w - 2 * pad) / (x1 - x0), (h - 2 * pad - 20) / (y1 - y0));
+    const X = x => w / 2 + (x - (x0 + x1) / 2) * s, Y = y => (h - 20) / 2 - (y - (y0 + y1) / 2) * s;
+    const tr = trace(geo.els, geo.chi, v("bounces"), geo.scale);
+    c.strokeStyle = css("--ray"); c.globalAlpha = 0.75; c.lineWidth = 0.8; c.beginPath();
+    tr.pts.forEach(([x, y], i) => i ? c.lineTo(X(x), Y(y)) : c.moveTo(X(x), Y(y))); c.stroke(); c.globalAlpha = 1;
+    c.strokeStyle = css("--mirror"); c.lineWidth = 2.2; c.lineJoin = "round"; c.beginPath();
+    for (const e of geo.els) {
+      const seg = outline([e], 32);
+      seg.forEach(([x, y], i) => i ? c.lineTo(X(x), Y(y)) : c.moveTo(X(x), Y(y)));
+    }
+    c.stroke();
+    const L0 = launchPoint(geo.els[0]);
+    c.fillStyle = css("--port"); c.beginPath(); c.arc(X(L0.p[0]), Y(L0.p[1]), 5, 0, 2 * Math.PI); c.fill();
+    c.font = `12px ${css("--font-body")}`; c.textBaseline = "middle"; c.textAlign = L0.n[0] >= 0 ? "left" : "right";
+    c.fillText("input", X(L0.p[0]) + (L0.n[0] >= 0 ? 9 : -9), Y(L0.p[1]) - 12);
+    scaleBar(c, 16, h - 10, s, w * 0.25);
+    if (exag > 1) { c.fillStyle = css("--warn"); c.textAlign = "right"; c.textBaseline = "bottom"; c.fillText(`perturbations drawn ×${exag}`, w - 12, h - 6); }
+
+    // statistics on the true geometry: 7 beams over a 1° fan, 150 hits (as engines.cell_mirror defaults)
+    const truth = planarCell(1), ap = areaPerim(truth.els), chord = Math.PI * ap.area / ap.perim;
+    const hits = [];
+    for (let b = 0; b < 7; b++) {
+      const t = trace(truth.els, truth.chi + D2R * (b / 6 - 0.5), 150, truth.scale);
+      hits.push(t);
+    }
+    lastHits = hits;
+    const pathDrawn = tr.chords.reduce((a, b) => a + b, 0);
+    $("cellLegend").innerHTML = `<span><i class="sw" style="background:var(--mirror)"></i>mirror wall</span><span><i class="sw" style="background:var(--ray)"></i>one ray, ${tr.sins.length} bounces, launch ${geo.launchLabel}</span><span><i class="sw" style="background:var(--port)"></i>input point</span>`;
+    $("cellStats").innerHTML = stat("Width × height", `${((x1 - x0) * 1e3).toFixed(1)} × ${((y1 - y0) * 1e3).toFixed(1)} mm`) +
+      stat("Wall elements", geo.els.length) + stat("Area", `${(ap.area * 1e6).toFixed(1)} mm²`) +
+      stat("Perimeter", `${(ap.perim * 1e3).toFixed(1)} mm`) + stat("Mean chord πA/P", `${(chord * 1e3).toFixed(2)} mm`) +
+      stat("Drawn path", fmtLen(pathDrawn));
+    return { chord };
+  }
+
+  // ---------------------------------------------------------------- Herriott view
+  function drawHerriott() {
+    const g = herriott(), { c, w, h } = ctxFor($("cell"));
+    const nMax = g.N, ext = 25.4e-3, pad = 30, s = (Math.min(w, h) - 2 * pad) / (2 * ext);
+    const X = x => w / 2 + x * s, Y = y => h / 2 - y * s;
+    c.strokeStyle = css("--line"); c.lineWidth = 1.2; c.beginPath(); c.arc(X(0), Y(0), ext * s, 0, 2 * Math.PI); c.stroke();
+    const g2 = gcd(v("herN"), v("herM"));
+    const pts = [];
+    for (let n = 0; n <= nMax; n++) pts.push([g.A * Math.cos(n * g.thx), g.B * Math.sin(n * g.thy), n % 2]);
+    const wmode = Math.sqrt(g.lam * g.d / Math.PI / Math.sqrt(Math.max(1 - (1 - g.d / Math.max(g.Rx, g.Ry)) ** 2, 1e-12)));
+    for (const [x, y, m] of pts.slice(1, -1)) {
+      c.fillStyle = m ? css("--ray") : css("--mirror");
+      c.beginPath(); c.arc(X(x), Y(y), Math.max(3, wmode * s), 0, 2 * Math.PI); c.fill();
+    }
+    const hr = Math.min(3 * wmode, 0.4 * Math.min(...pts.slice(2, -1).filter(p => !p[2]).map(p => Math.hypot(p[0] - g.A, p[1])), 1));
+    c.strokeStyle = css("--port"); c.lineWidth = 2; c.beginPath(); c.arc(X(g.A), Y(0), Math.max(hr * s, 5), 0, 2 * Math.PI); c.stroke();
+    c.fillStyle = css("--port"); c.font = `12px ${css("--font-body")}`; c.textBaseline = "bottom";
+    const room = X(g.A) + 8 + c.measureText("input / output hole").width < w - 4;
+    c.textAlign = room ? "left" : "right"; c.fillText("input / output hole", room ? X(g.A) + 8 : X(g.A) - 8, Y(0) - 10);
+    c.fillStyle = css("--muted"); c.textAlign = "center"; c.textBaseline = "top"; c.fillText("2-inch mirror (Ø 50.8 mm), seen along the axis", w / 2, 6);
+    scaleBar(c, 16, h - 10, s, w * 0.25);
+
+    // side view x–z
+    const sv = ctxFor($("side")), cs2 = sv.c, W = sv.w, Hh = sv.h, sp = 24;
+    const sz = (W - 2 * sp) / g.d, sx = (Hh - 2 * sp) / (2 * ext);
+    const Z = z => sp + z * sz, XX = x => Hh / 2 - x * sx;
+    cs2.strokeStyle = css("--mirror"); cs2.lineWidth = 3;
+    for (const [z0, sg, R] of [[0, 1, g.Rx], [g.d, -1, g.Rx]]) {
+      cs2.beginPath();
+      for (let i = 0; i <= 60; i++) { const x = -ext + 2 * ext * i / 60; const z = z0 + sg * (R - Math.sqrt(R * R - x * x)); i ? cs2.lineTo(Z(z), XX(x)) : cs2.moveTo(Z(z), XX(x)); }
+      cs2.stroke();
+    }
+    cs2.strokeStyle = css("--ray"); cs2.lineWidth = 0.9; cs2.globalAlpha = 0.85; cs2.beginPath();
+    pts.forEach(([x, , m], i) => { const z = m ? g.d : 0; i ? cs2.lineTo(Z(z), XX(x)) : cs2.moveTo(Z(z), XX(x)); });
+    cs2.stroke(); cs2.globalAlpha = 1;
+    cs2.strokeStyle = css("--surface"); cs2.lineWidth = 5; cs2.beginPath(); cs2.moveTo(Z(0), XX(g.A - hr)); cs2.lineTo(Z(0), XX(g.A + hr)); cs2.stroke();
+    cs2.fillStyle = css("--muted"); cs2.font = `12px ${css("--font-body")}`; cs2.textAlign = "center"; cs2.textBaseline = "bottom";
+    cs2.fillText(`side view (x–z), axial scale compressed ${(sx / sz).toFixed(0)}×`, W / 2, Hh - 2);
+
+    let path = 0;
+    for (let n = 1; n < pts.length; n++) path += Math.hypot(g.d, pts[n][0] - pts[n - 1][0], pts[n][1] - pts[n - 1][1]);
+    $("cellLegend").innerHTML = `<span><i class="sw" style="background:var(--mirror)"></i>spots on M1 (input mirror)</span><span><i class="sw" style="background:var(--ray)"></i>spots on M2</span><span><i class="sw" style="background:var(--port)"></i>coupling hole (3 mode radii, at most 0.4 × the nearest spot spacing)</span>`;
+    const reent = S.type === "herriott" ? (g2 === 1 ? "re-entrant after N" : `N/M not coprime: exits after ${v("herN") / g2}`) : "re-entrant after N";
+    $("cellStats").innerHTML = (S.type === "herriott" ? stat("Mirror radius R", `${g.Rx.toFixed(3)} m`) : stat("Rx, Ry", `${(g.Rx * 100).toFixed(2)}, ${(g.Ry * 100).toFixed(2)} cm`)) +
+      stat("Spacing d", fmtLen(g.d)) + stat("θ per pass", S.type === "herriott" ? `${(g.thx / D2R).toFixed(2)}°` : `${(g.thx / D2R).toFixed(1)}°, ${(g.thy / D2R).toFixed(1)}°`) +
+      stat("Path (paraxial)", fmtLen(path)) + stat("Mode radius w", `${(wmode * 1e3).toFixed(2)} mm`) + stat("Pattern", reent);
+    return { hitsN: g.N };
+  }
+
+  // ---------------------------------------------------------------- membrane mirror
+  function mirror() {
+    const lam = v("mLam") * 1e-6, t = v("mThk") * 1e-9, n = nSi(lam), nT = neffSlab(lam, n, t, S.pol);
+    const [mg, mt] = $("mOrd").value.split(",").map(Number);
+    const sTIR = 1 / nT, desMax = Math.asin(sTIR) / D2R - 0.5;
+    $("mDes").max = Math.max(0, Math.floor(desMax * 2) / 2);
+    if (v("mDes") > desMax) $("mDes").value = Math.max(0, Math.floor(desMax * 2) / 2);
+    const sd = Math.sin(v("mDes") * D2R), N = v("mN"), tgt = parseFloat($("mTgt").value);
+    return { lam, t, n, nT, mg, mt, sd, N, tgt, sTIR, make: k => trenchDBR(nT, lam, k, mg, mt, sd, S.pol) };
+  }
+  const SG = Array.from({ length: 401 }, (_, i) => i / 400 * 0.999);
+  function metrics(dbr, sLaunch, hits) {
+    const R = SG.map(s => dbr.R(s));
+    let avg = 0; for (let i = 1; i < SG.length; i++) avg += (R[i] + R[i - 1]) / 2 * (SG[i] - SG[i - 1]); avg /= SG[SG.length - 1];
+    const out = { R0: dbr.R(0), Rmin: Math.min(...R), Ravg: avg, curve: R };
+    if (sLaunch != null) out.Rl = dbr.R(sLaunch);
+    if (hits) {                                           // engines.cell_mirror: I_end^(1/n), power-weighted path
+      let Iend = 0, n = 0, Leff = 0;
+      for (const t of hits) { let I = 1; t.sins.forEach((s, j) => { Leff += I * t.chords[j]; I *= dbr.R(s); }); Iend += I; n += t.sins.length; }
+      Iend /= hits.length; n /= hits.length;
+      out.Reff = Math.pow(Iend, 1 / n); out.Leff = Leff / hits.length;
+    }
+    return out;
+  }
+  function drawMirror(ctx) {
+    const M = mirror(), dbr = M.make(M.N);
+    const planar = S.type === "seg" || S.type === "stadium";
+    const geo = planar ? planarCell(1) : null, sL = planar ? Math.abs(Math.sin(geo.chi)) : 0;
+    const hits = planar ? lastHits : null;
+    const met = metrics(dbr, sL, hits);
+
+    // stack to scale
+    { const { c, w, h } = ctxFor($("stack"));
+      const total = M.N * (dbr.dGap + dbr.dTooth), lead = 0.25 * total, tail = 0.15 * total;
+      const s = (w - 24) / (lead + total + tail), X = x => 12 + (x + lead) * s, y0 = 26, y1 = h - 34;
+      c.fillStyle = css("--line"); c.fillRect(X(-lead), y0, lead * s, y1 - y0);
+      let x = 0;
+      for (let i = 0; i < M.N; i++) {
+        c.strokeStyle = css("--muted"); c.lineWidth = 0.6; c.strokeRect(X(x), y0, dbr.dGap * s, y1 - y0); x += dbr.dGap;
+        c.fillStyle = css("--tooth"); c.fillRect(X(x), y0, dbr.dTooth * s, y1 - y0); x += dbr.dTooth;
+      }
+      c.setLineDash([3, 3]); c.strokeStyle = css("--muted"); c.strokeRect(X(x), y0, tail * s, y1 - y0); c.setLineDash([]);
+      c.fillStyle = css("--ink"); c.font = `12px ${css("--font-body")}`; c.textBaseline = "bottom"; c.textAlign = "left";
+      c.fillText(`cell (Si membrane, n_eff = ${M.nT.toFixed(3)})`, X(-lead), y0 - 4);
+      c.textAlign = "right"; c.fillText("air", X(x + tail), y0 - 4);
+      c.textAlign = "center"; c.textBaseline = "top"; c.font = `11.5px ${css("--font-data")}`;
+      const cap1 = `gap ${(dbr.dGap * 1e9).toFixed(0)} nm · tooth ${(dbr.dTooth * 1e9).toFixed(0)} nm · period ${((dbr.dGap + dbr.dTooth) * 1e9).toFixed(0)} nm`, cap2 = `${M.N} periods = ${(total * 1e6).toFixed(2)} µm`;
+      if (c.measureText(`${cap1} · ${cap2}`).width < w - 8) c.fillText(`${cap1} · ${cap2}`, w / 2, y1 + 6);
+      else { c.fillText(cap1, w / 2, y1 + 4); c.fillText(cap2, w / 2, y1 + 18); }
+      const ax = X(-lead * 0.8), ay = y1 - 6, ang = planar ? geo.chi : 0, L = Math.min(lead * 0.7 * s, (y1 - y0) * 0.8);
+      c.strokeStyle = css("--ray"); c.lineWidth = 2; c.beginPath(); c.moveTo(ax, ay); c.lineTo(ax + L * Math.cos(ang), ay - L * Math.abs(Math.sin(ang))); c.stroke();
+    }
+
+    // R(χ) with the traced hit-angle distribution
+    { const { c, w, h } = ctxFor($("rchi"));
+      const lo = Math.min(0.9, Math.floor(Math.min(met.Rmin, M.tgt) * 50) / 50 - 0.02), pad = { l: 46, r: 10, t: 12, b: 34 };
+      const yt = []; const st = niceStep(1 - lo, 4); for (let y = Math.ceil(lo / st) * st; y <= 1 + 1e-9; y += st) yt.push(+y.toFixed(4));
+      const A = axes(c, w, h, pad, [0, 90], [Math.max(0, lo), 1.002], "angle of incidence χ (deg)", "R", [0, 15, 30, 45, 60, 75, 90], yt);
+      if (hits) {
+        const bins = new Array(45).fill(0); let tot = 0;
+        for (const t of hits) { let I = 1; for (const s of t.sins) { const b = Math.min(44, Math.floor(Math.asin(s) / D2R / 2)); bins[b] += I; tot += I; I *= dbr.R(s); } }
+        const mx = Math.max(...bins);
+        c.fillStyle = css("--accent"); c.globalAlpha = 0.18;
+        bins.forEach((b, i) => { const hh = b / mx * (h - pad.t - pad.b) * 0.9; c.fillRect(A.X(2 * i) + 0.5, h - pad.b - hh, A.X(2) - A.X(0) - 1, hh); });
+        c.globalAlpha = 1;
+      }
+      c.strokeStyle = css("--warn"); c.setLineDash([4, 3]); c.lineWidth = 1; c.beginPath(); c.moveTo(pad.l, A.Y(M.tgt)); c.lineTo(w - pad.r, A.Y(M.tgt)); c.stroke(); c.setLineDash([]);
+      const xt = Math.asin(Math.min(M.sTIR, 1)) / D2R;
+      c.strokeStyle = css("--muted"); c.beginPath(); c.moveTo(A.X(xt), pad.t); c.lineTo(A.X(xt), h - pad.b); c.stroke();
+      c.fillStyle = css("--muted"); c.font = `11px ${css("--font-body")}`; c.textAlign = "left"; c.textBaseline = "top"; c.fillText("TIR", A.X(xt) + 3, pad.t + 2);
+      c.strokeStyle = css("--mirror"); c.lineWidth = 2; c.beginPath();
+      SG.forEach((s, i) => { const x = A.X(Math.asin(s) / D2R), y = A.Y(Math.max(met.curve[i], lo)); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+      c.fillStyle = css("--ink"); c.textAlign = "right"; c.fillText(`N = ${M.N}`, w - pad.r - 2, h - pad.b - 16);
+      if (hits) { c.fillStyle = css("--accent"); c.fillText("bars: power-weighted hit angles", w - pad.r - 2, h - pad.b - 30); }
+    }
+
+    // 1 − R vs N, and the periods table
+    const NN = 30, rows = { R0: [], Ravg: [], Rmin: [], Rl: [], Reff: [] };
+    for (let k = 1; k <= NN; k++) { const m = metrics(M.make(k), sL, hits && k <= 30 ? hits : null); for (const key in rows) rows[key].push(m[key]); }
+    const firstN = key => { const i = rows[key].findIndex(x => x != null && x >= M.tgt); return i < 0 ? null : i + 1; };
+    { const { c, w, h } = ctxFor($("rN"));
+      const pad = { l: 46, r: 10, t: 12, b: 34 }, ymin = 1e-6;
+      const A = axes(c, w, h, pad, [1, NN], [ymin, 1], "periods N", "1 − R", [1, 5, 10, 15, 20, 25, 30], [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1], true);
+      const series = [["R0", "--mirror", "normal incidence"], ["Ravg", "--accent", "uniform sin χ (chaotic)"], ["Rmin", "--warn", "worst angle"]];
+      if (planar) series.push(["Reff", "--ray", "traced cell, R_eff"]);
+      series.forEach(([key, col, lab], j) => {
+        c.strokeStyle = css(col); c.lineWidth = 1.8; c.beginPath(); let started = false;
+        rows[key].forEach((r, i) => { if (r == null) return; const y = A.Y(Math.min(1, Math.max(ymin, 1 - r))); const x = A.X(i + 1); started ? c.lineTo(x, y) : c.moveTo(x, y); started = true; });
+        c.stroke();
+        c.fillStyle = css(col); c.font = `11px ${css("--font-body")}`; c.textAlign = "right"; c.textBaseline = "top"; c.fillText(lab, w - pad.r - 2, pad.t + 2 + 13 * j);
+      });
+      c.strokeStyle = css("--warn"); c.setLineDash([4, 3]); c.lineWidth = 1; c.beginPath(); c.moveTo(pad.l, A.Y(1 - M.tgt)); c.lineTo(w - pad.r, A.Y(1 - M.tgt)); c.stroke(); c.setLineDash([]);
+      c.strokeStyle = css("--muted"); c.beginPath(); c.moveTo(A.X(M.N), pad.t); c.lineTo(A.X(M.N), h - pad.b); c.stroke();
+    }
+    const cell = (key) => { const N0 = firstN(key); return N0 ? `<td>${N0}</td>` : `<td class="none">not within ${NN}</td>`; };
+    const fR = r => r == null ? "–" : r >= 0.99995 ? (1 - r < 1e-9 ? "1 (TIR)" : r.toFixed(6)) : r.toFixed(4);
+    let tb = `<tr><td>Normal incidence</td><td>${fR(met.R0)}</td>${cell("R0")}</tr>`;
+    if (planar) tb += `<tr><td>Launch angle (${(Math.asin(sL) / D2R).toFixed(1)}°)</td><td>${fR(met.Rl)}</td>${cell("Rl")}</tr>`;
+    tb += `<tr><td>Average over uniform sin χ (fully chaotic cell)</td><td>${fR(met.Ravg)}</td>${cell("Ravg")}</tr>`;
+    tb += `<tr><td>Worst angle, 0–90°</td><td>${fR(met.Rmin)}</td>${cell("Rmin")}</tr>`;
+    if (planar) tb += `<tr><td>Traced in this cell: R<sub>eff</sub> = I<sub>end</sub><sup>1/n</sup>, 7 beams × 150 hits</td><td>${fR(met.Reff)}</td>${cell("Reff")}</tr>`;
+    $("perTable").innerHTML = tb;
+    const pol = S.pol === "TE" ? "p" : "s";
+    $("mirStats").innerHTML = stat("n<sub>Si</sub>(λ)", M.n.toFixed(4)) + stat(`n<sub>eff</sub> ${S.pol}₀`, isFinite(M.nT) ? M.nT.toFixed(4) : "cut off") +
+      stat("First-gap TIR above", `${(Math.asin(Math.min(M.sTIR, 1)) / D2R).toFixed(1)}°`) +
+      (pol === "p" ? stat("Brewster (Si/air walls)", `${(Math.atan(1 / M.nT) / D2R).toFixed(1)}°`) : stat("Wall polarisation", "s")) +
+      stat("Stop band (normal)", `R = ${fR(met.R0)}`) +
+      (planar && met.Leff ? stat("Absorption path L<sub>eff</sub>", fmtLen(met.Leff)) : "");
+    let note = "";
+    if (pol === "p") note = "TE₀ meets the trench walls p-polarised. Every Si/air interface has the same Brewster angle, so a two-material stack is transparent there whatever its period count: the worst-angle and chaotic-average rows cannot reach the target. cmpc-sim uses TM₀ for this reason, or a three-index (partly etched) stack from mirror_design.py.";
+    else if (!firstN("Rmin")) note = "Higher-order layers narrow the stop band, so some angles below TIR fall in a pass band and adding periods does not help. Use first-order (1, 1) layers.";
+    else note = `With TM₀ the walls are s-polarised: R rises with angle and is total above ${(Math.asin(M.sTIR) / D2R).toFixed(1)}°, so normal incidence is the worst case. ${firstN("R0")} periods reach R ≥ ${M.tgt} at every angle in this 1D model. cmpc-sim adds a 3×10⁻⁴ per-bounce loss on top for what the model misses.`;
+    if (!planar) note = "Herriott cells use free-space coated mirrors at near-normal incidence; the membrane trench DBR is shown for comparison only (normal-incidence row). " + note;
+    $("mirNote").textContent = note;
+  }
+
+  // ---------------------------------------------------------------- wiring
+  const LABELS = {
+    segR: x => `${x} mm`, segN: x => x, segM: x => `${x} → χ = ${(90 - 180 * x / v("segN")).toFixed(1)}°`, segTilt: x => `${x.toFixed(2)}°`,
+    segCurv: x => x === 0 ? "flat" : `${x} /m (ρ = ${(100 / Math.abs(x)).toFixed(1)} cm${x < 0 ? ", concave" : ""})`, segOff: x => `${x} µm`,
+    staR: x => `${x} mm`, staA: x => `${x} mm`, staF: x => x === 0 ? "smooth" : x, staTilt: x => `${x} mrad`, staCurv: x => `${x} /m`, staTh: x => `${x}°`,
+    bounces: x => x, exag: x => `×${x}`, seed: x => x,
+    herR: x => `${x.toFixed(2)} m`, herN: x => x, herM: x => x, herA: x => `${x} mm`, astMy: x => x, astB: x => `${x} mm`, herLam: x => `${x.toFixed(2)} µm`,
+    mThk: x => `${x} nm`, mLam: x => `${x.toFixed(2)} µm`, mN: x => x, mDes: x => `${x}°`,
+  };
+  function syncLabels() {
+    $("segM").max = Math.floor((v("segN") - 1) / 2);
+    $("herM").max = v("herN") - 1; $("astMy").max = v("herN") - 1;
+    for (const id of ids) { const o = $(id + "Out"); if (o) o.textContent = LABELS[id](v(id)); }
+    $("mOrdOut").textContent = ""; $("mTgtOut").textContent = "";
+  }
+  let raf = 0;
+  function update() { cancelAnimationFrame(raf); raf = requestAnimationFrame(render); }
+  function render() {
+    syncLabels();
+    const planar = S.type === "seg" || S.type === "stadium";
+    if (planar) drawPlanar(); else { lastHits = null; drawHerriott(); }
+    drawMirror();
+  }
+  for (const id of ids) $(id).addEventListener("input", () => { $("preset").value = "custom"; update(); });
+  for (const id of ["mOrd", "mTgt"]) $(id).addEventListener("change", update);
+  $("preset").addEventListener("change", e => { if (e.target.value !== "custom") applyPreset(+e.target.value); });
+  for (const b of document.querySelectorAll("[data-type]")) b.addEventListener("click", () => setType(b.dataset.type));
+  for (const b of document.querySelectorAll("[data-pol]")) b.addEventListener("click", () => {
+    S.pol = b.dataset.pol; for (const x of document.querySelectorAll("[data-pol]")) x.setAttribute("aria-pressed", String(x === b)); update();
+  });
+  window.addEventListener("resize", update);
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", update); } catch (e) { /* older browsers */ }
+  new MutationObserver(update).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  setType("seg");
+})();
+</script>

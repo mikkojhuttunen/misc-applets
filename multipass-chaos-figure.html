@@ -180,8 +180,13 @@ table.vals thead th { font: 700 11px var(--f-ui); color: var(--muted); }
       </div>
       <div class="panel">
         <h2>Export</h2>
-        <div class="btns"><button type="button" id="savePdf">Download PDF</button><button type="button" id="saveSvg">Download SVG</button><button type="button" id="saveCsv">Download bar data (CSV)</button><span class="status" id="saveStatus"></span></div>
+        <div class="btns"><button type="button" id="savePdf">Download PDF</button><button type="button" id="saveSvg">Download SVG</button><button type="button" id="saveCsv">Download bar data (CSV)</button><button type="button" id="saveSet">Download settings (JSON)</button><span class="status" id="saveStatus"></span></div>
         <p class="hint">The PDF is vector (fonts embedded) and the SVG carries its physical size in cm. jsPDF loads from cdnjs on the first PDF export. In the claude.ai viewer, confirm each file in the save dialog.</p>
+      </div>
+      <div class="panel">
+        <h2>Settings used for the figure</h2>
+        <p class="hint">What “Download settings” writes: the rail as set for the last run, the complete engine options of all four cells (SI units, angles in rad; the regular cells are the chaotic ones with the inclusions removed), the figure and display settings, and the values behind the bars. Rail changes made after the last run are flagged, not mixed in.</p>
+        <pre id="setPre" style="margin:0;font:12px/1.5 var(--f-data);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px;overflow:auto;max-height:340px;white-space:pre"></pre>
       </div>
       <div class="panel">
         <h2>Numbers behind the bars</h2>
@@ -2103,7 +2108,7 @@ onmessage = e => {
   function start() {
     for (const w of run.workers) w.terminate();
     const p = params(), id = run.id + 1;
-    run = { id, p, res: { circle: {}, herriott: {} }, workers: [], t0: performance.now(), cells: {} };
+    run = { id, p, res: { circle: {}, herriott: {} }, workers: [], t0: performance.now(), cells: {}, rail: Object.fromEntries(SIM_IDS.map(k => [k, ctl(k)])) };
     for (const cell of CELLS) for (const kind of KINDS) {
       try { run.cells[cell + kind] = D.setup(kind === "regular" ? D.regular(p[cell]) : p[cell]); } catch (err) { run.cells[cell + kind] = { error: String(err.message || err) }; }
     }
@@ -2448,6 +2453,7 @@ onmessage = e => {
     lastSvg = toSvg(W, H);
     $("sheet").innerHTML = lastSvg;
     table();
+    $("setPre").textContent = JSON.stringify(settings(), null, 2);
   }
 
   /* ---------------------------------------------------------------- numbers */
@@ -2497,6 +2503,42 @@ onmessage = e => {
     catch (e) { $("saveStatus").textContent = `PDF failed: ${e.message || e}`; }
   };
   $("saveSvg").onclick = () => save(base() + ".svg", new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + lastSvg.replace("<svg ", `<svg width="${$("figW").value}cm" height="${$("figH").value}cm" `)], { type: "image/svg+xml" }));
+  /* settings file: the rail and engine options of the last run, the figure as drawn, and the bar values */
+  const SIM_IDS = ["sp", "bud", "dA", "dL", "dWave", "lWave", "cR", "cNf", "cTh", "cOf", "nIncC", "incRC", "incDnC", "incSeedC", "hL", "hW", "hN", "hM", "nIncH", "incRH", "incDnH", "incSeedH"];
+  const ctl = id => { const el = $(id), out = $(id + "Out"), v = el.type === "checkbox" ? el.checked : el.type === "range" ? +el.value : el.value; return out ? { value: v, shown: out.textContent } : v; };
+  function settings() {
+    const full = o => Object.assign({}, D.DEFAULTS, o);
+    const sim = {};
+    for (const c of CELLS) sim[c === "circle" ? "A_circular_cell_CMPC" : "B_herriott_cell"] = {
+      regular: full(D.regular(run.p[c])), chaotic: full(run.p[c]),
+      launch_angle_rad: { regular: thetaOf(c, "regular"), chaotic: thetaOf(c, "current") },
+    };
+    const res = {};
+    for (const r of rows()) res[r.name] = r.err ? { error: r.err } : r;
+    return {
+      generator: "Multipass Chaos Figure (Multipass Chaos Lab engine: DitherLab on the gas_cell and planar_cell JS ports)",
+      written: new Date().toISOString(),
+      run: { complete: nDone() === 4, seconds: run.tEnd ? +((run.tEnd - run.t0) / 1000).toFixed(1) : null, rail_changed_since_run: JSON.stringify(params()) !== JSON.stringify(run.p), rail: run.rail },
+      parasitic_reflectance_eps: eps(),
+      residual_definition: "2 sqrt(eps) V / sqrt(speckle grains); V per dither: none 1, angle V_theta, wavelength V_lambda, both V_joint",
+      units: "engine options in SI (m, rad, W, Hz); wavelength is the vacuum wavelength; dither = angle-dither amplitude (rad), dlam = wavelength-dither amplitude (m)",
+      simulation: sim,
+      figure: {
+        width_cm: +$("figW").value, height_cm: +$("figH").value, font: "Arial (Liberation Sans embedded in the PDF)", font_pt: +$("fs").value,
+        ray_trace_height_share: +$("rayShare").value, poincare_width_share: +$("poinShare").value,
+        colours: { herriott_regular: $("colHR").value, herriott_chaotic: $("colHC").value, cmpc_regular: $("colCR").value, cmpc_chaotic: $("colCC").value },
+        panel_letters: $("letters").checked, panel_titles: $("titles").checked,
+        ray_traces: { hits_drawn: +$("nHits").value, beams: +$("nBeams").value === 1 ? "centre ray" : "centre ray + dither edge (theta + dither)", ray_width_pt: +$("rayW").value,
+          one_scale_for_all: $("sameScale").checked, inclusions_shown: $("showInc").checked, ports_shown: $("showPorts").checked },
+        poincare: { points_per_map: ctl("pCap").shown, dot_size_pt: +$("pSize").value, opacity: +$("pAlpha").value, rasterised_600dpi: $("pRaster").checked,
+          axes: "x: position along the wall / perimeter, y: sin chi" },
+        bars: { target_line: $("bTarget").checked, target: 10 ** +$("tgt").value, value_labels: $("bVals").checked, decade_grid: $("bGrid").checked,
+          order: ["Herriott regular", "Herriott chaotic", "CMPC regular", "CMPC chaotic"] },
+      },
+      results: res,
+    };
+  }
+  $("saveSet").onclick = () => save(base() + "_settings.json", new Blob([JSON.stringify(settings(), null, 2) + "\n"], { type: "application/json" }));
   $("saveCsv").onclick = () => {
     const R = rows(), keys = ["none", "angle", "spectral", "both", "floor_angle", "floor_both", "grains", "stretch", "n_pass", "T"];
     const csv = ["cell," + keys.join(",")].concat(R.map(r => r.err ? `${r.name},${keys.map(() => "").join(",")}` : `${r.name},${keys.map(k => r[k]).join(",")}`)).join("\n") + "\n";

@@ -108,6 +108,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
         </div>
         <label class="check" for="cut"><input id="cut" type="checkbox" checked> Cutaway</label>
         <label class="check" for="labelsOn"><input id="labelsOn" type="checkbox"> Labels</label>
+        <label class="check" for="glowOn"><input id="glowOn" type="checkbox" checked> Guided field on the cut faces</label>
       </fieldset>
 
       <fieldset id="fsMem">
@@ -382,6 +383,33 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     }
   }
 
+  // ---------------------------------------------------------------- guided-mode glow on cut faces
+  // |H|^2 (TM) or |E|^2 (TE) of the symmetric slab mode vs height z (m, from the membrane centre), peak 1.
+  function modeProfile(M) {
+    const k = 2 * Math.PI / M.lam, kap = k * Math.sqrt(M.n * M.n - M.ne * M.ne), gam = k * Math.sqrt(M.ne * M.ne - 1), h = M.t / 2;
+    const f = z => Math.abs(z) <= h ? Math.cos(kap * z) ** 2 : Math.cos(kap * h) ** 2 * Math.exp(-2 * gam * (Math.abs(z) - h));
+    return { f, tail: 3 / (2 * gam) };                // intensity down to e^-3 outside the membrane
+  }
+  // Grid on a vertical plane: horizontal from P0 along unit U for length L, vertical z0..z1; alpha(s, z).
+  function glowGrid(P0, U, L, z0, z1, alphaFn, ns = 90, nz = 48) {
+    const pos = [], al = [];
+    const pt = (i, j) => { const s = L * i / ns, z = z0 + (z1 - z0) * j / nz; return [P0[0] + s * U[0], P0[1] + s * U[1], z, alphaFn(s, z)]; };
+    for (let i = 0; i < ns; i++) for (let j = 0; j < nz; j++) {
+      const a = pt(i, j), b = pt(i + 1, j), c = pt(i + 1, j + 1), d = pt(i, j + 1);
+      for (const p of [a, b, c, a, c, d]) { pos.push(p[0], p[1], p[2]); al.push(p[3]); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("alpha", new THREE.Float32BufferAttribute(al, 1));
+    return g;
+  }
+  const glowMaterial = () => new THREE.ShaderMaterial({
+    uniforms: { color: { value: new THREE.Color("#ff2a1a") } },
+    vertexShader: "attribute float alpha; varying float vA; void main() { vA = alpha; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: "uniform vec3 color; varying float vA; void main() { gl_FragColor = vec4(color, vA); }",
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+  });
+
   // ---------------------------------------------------------------- colours (world materials, same in both themes)
   const COL = { si: "#8fa3c4", siSec: "#cdd8ea", handle: "#9a9fa6", handleSec: "#c8ccd1", box: "#e3d29a", boxSec: "#f1e7c6",
     beam: "#d0352b", port: "#1f8a4c", field: "#8a4fc8", out: "#7a3fb0", strip: "#d4a63c", stripSec: "#ead39b",
@@ -469,7 +497,13 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     ];
     outStarts.forEach(([st, u], i) => labels.push({ text: i ? "output" : `output port: ${nOut} of ${Np} periods, T(0°) ${(T0 * 100).toFixed(0)} %`, p: [st[0] + u[0] * 0.25, st[1] + u[1] * 0.25, t + ts] }));
     if (cut) labels.push({ text: "released over the backside window", p: [0.7, 0.7, -tb - th] });
-    return { B, isSec, segs, inSegs, inBand, outSegs, beamZ: t + 0.002, beamW: 0.012, labels, info: { M, N, Np, m, t, band, nOut, nOutPorts } };
+    let glow = null;
+    if (cut && isFinite(M.ne)) {                       // mode intensity on the cut faces: cell, then decaying through the DBR
+      const mp = modeProfile(M), sc = t / M.t, ext = mp.tail * sc, Rm = a0 + bandR;
+      const af = (s, z) => 0.62 * mp.f((z - t / 2) / sc) * (s <= a0 ? 1 : Math.exp(-3 * (s - a0) / bandR));
+      glow = [glowGrid([0, -2e-4], [1, 0], Rm, -ext, t + ext, af), glowGrid([2e-4, 0], [0, -1], Rm, -ext, t + ext, af)];
+    }
+    return { B, isSec, segs, inSegs, inBand, outSegs, glow, beamZ: t + 0.002, beamW: 0.012, labels, info: { M, N, Np, m, t, band, nOut, nOutPorts } };
   }
   function memMirror() {
     const M = mirrorModel(), um = 1e6, t = M.t * um, g = M.dGap * um, tw = M.dTooth * um, outMir = $("mOutMir").checked, Np = outMir ? Math.max(1, Math.min(v("mOutN"), v("mPer") - 1)) : v("mPer");
@@ -496,7 +530,10 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       { text: `|${M.pol === "TM" ? "H" : "E"}|² across the membrane`, p: [-cav * 0.5 - 0.8, -0.002, 0] },
     ];
     if (outMir) labels.push({ text: `output port: ${Np} periods, then the strip-loaded taper`, p: [x + tail / 2, Ly * 0.4, z1] });
-    return { B, isSec, segs, inSegs: [], beamZ: z1 + 0.002, beamW: 0.03, prof, labels, info: { M, Np } };
+    const mp = modeProfile(M), ext = mp.tail * um, xEnd = x;
+    const glow = [glowGrid([-cav, -2e-3], [1, 0], cav + xEnd, z0 - ext, z1 + ext,
+      (s, z) => 0.55 * mp.f(z / um) * (s <= cav ? 1 : Math.exp(-3 * (s - cav) / Math.max(xEnd, 1e-9))), 140, 40)];
+    return { B, isSec, segs, inSegs: [], glow, beamZ: z1 + 0.002, beamW: 0.03, prof, labels, info: { M, Np } };
   }
   function crigfModel() {
     const c = { NGC: v("cNGC"), pGC: v("cPGC") / 1e3, fGC: v("cFGC"), NL: v("cNL"), NR: v("cNR"), pL: v("cPD") / 1e3, pR: v("cPD") / 1e3,
@@ -615,6 +652,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
           group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: colr, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })));
         }
       }
+      if (desc.glow && $("glowOn").checked) for (const g of desc.glow) group.add(new THREE.Mesh(g, glowMaterial()));
       if (desc.prof) {
         const g = new THREE.BufferGeometry().setFromPoints(desc.prof.map(p => new THREE.Vector3(...p)));
         group.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: COL.field })));
@@ -656,7 +694,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     const sg = Array.from({ length: 101 }, (_, i) => i / 100 * 0.999);
     const Rmin = Math.min(...sg.map(s => M.R(Np, s)));
     leg.innerHTML = S.mview === "chip"
-      ? `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>star orbit {${desc.info.N}/${desc.info.m}}</span><span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>strip-loaded waveguide</span><span><i class="sw" style="background:${COL.out}"></i>output</span><span>lighter shade: cut face</span>`
+      ? `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>star orbit {${desc.info.N}/${desc.info.m}}</span><span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>strip-loaded waveguide</span><span><i class="sw" style="background:${COL.out}"></i>output</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span><span>lighter shade: cut face</span>`
       : `<span><i class="sw" style="background:${COL.si}"></i>Si (to scale, µm)</span><span><i class="sw" style="background:${COL.beam}"></i>incident and reflected slab-mode ray</span><span><i class="sw" style="background:${COL.field}"></i>mode intensity across the membrane</span>`;
     st.innerHTML = stat("n_Si", M.n.toFixed(4)) + stat(`n_eff ${M.pol}₀`, isFinite(M.ne) ? M.ne.toFixed(4) : "cut off") + stat("Air gap / tooth", `${nm(M.dGap)} / ${nm(M.dTooth)}`) +
       stat("Mirror depth", `${((M.dGap + M.dTooth) * Np * 1e6).toFixed(2)} µm`) + stat(`R at 0°, N = ${Np}`, R0.toFixed(4)) +
@@ -695,7 +733,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
   let raf = 0;
   function update() { labels(); cancelAnimationFrame(raf); raf = requestAnimationFrame(rebuild); }
   for (const id in LAB) $(id).addEventListener("input", update);
-  for (const id of ["cut", "labelsOn", "beamOn", "mOutMir"]) $(id).addEventListener("change", update);
+  for (const id of ["cut", "labelsOn", "beamOn", "mOutMir", "glowOn"]) $(id).addEventListener("change", update);
   const press = (sel, attr, val) => { for (const b of document.querySelectorAll(sel)) b.setAttribute("aria-pressed", String(b.dataset[attr] === val)); };
   for (const b of document.querySelectorAll("[data-dev]")) b.addEventListener("click", () => {
     S.dev = b.dataset.dev; press("[data-dev]", "dev", S.dev);

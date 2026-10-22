@@ -109,9 +109,24 @@ def chip(a):
     sc.prism(chipsq.difference(undercut).difference(cut), -tb, 0, COL["box"], on_cut, COL["box_sec"])
     mem = chipsq.difference(slots).difference(cut)
     sc.prism(mem, 0, t, COL["si"], on_cut, COL["si_sec"])
+    # guided-mode intensity on the two cut faces: cell, then decaying through the DBR (heights scaled to the drawn membrane)
+    mode_g = cs.membrane_mode("Si", a.thickness * 1e-9, a.lam * 1e-6, a.pol, with_group_index=False)
+    xf, If = cs.field_profile(mode_g, 1.5)
+    zsc = t / (a.thickness * 1e-9)
+    ext = (xf.max() - a.thickness * 1e-9 / 2) * zsc
+    Rm = band + 0.0
+
+    def glow_alpha(s_, tt):
+        z = (-ext + tt * (t + 2 * ext) - t / 2) / zsc
+        r = s_ * Rm
+        return 0.62 * np.interp(z, xf, If / If.max()) * np.where(r <= a0, 1.0, np.exp(-3 * (r - a0) / (band - a0)))
+    sc_glow = [([0, -1e-4, -ext], [Rm, 0, 0], [0, 0, t + 2 * ext]), ([1e-4, 0, -ext], [0, -Rm, 0], [0, 0, t + 2 * ext])]
     strips = unary_union([gd[0] for gd in guides]).intersection(chipsq).difference(cut)
     sc.prism(strips, t, t + ts, COL["strip"], on_cut, COL["strip_sec"])
 
+    if not a.no_glow:
+        for O, U, V in sc_glow:
+            sc.glow(O, U, V, glow_alpha)
     # star orbit {N/m} through the facet midpoints, starting at the port, on the membrane surface
     keep = mem.buffer(1e-6).union(ngon(a0, N)).difference(cut)
     for seg in zip(mids[:-1], mids[1:]):
@@ -193,6 +208,11 @@ def dbr(a):
 
     xf, zf = cs.field_profile(mode, 3.0)
     zf_um, I = xf * um, zf / zf.max()
+    if not a.no_glow:                                     # guided-mode intensity on the cut face, decaying through the mirror
+        ez = zf_um.max()
+        sc.glow([-cav, -1e-3, -ez], [cav + x_end, 0, 0], [0, 0, 2 * ez],
+                lambda s_, tt: 0.55 * np.interp(-ez + 2 * ez * tt, zf_um, I) *
+                np.where(s_ * (cav + x_end) <= cav, 1.0, np.exp(-3 * (s_ * (cav + x_end) - cav) / x_end)))
     sc.line(np.c_[-cav * 0.55 - 0.8 * I, np.full(len(I), -2e-3), zf_um], COL["field"], width=1.6, depth_test=False)
     sc.line([[-cav * 0.55, -2e-3, zf_um.min()], [-cav * 0.55, -2e-3, zf_um.max()]], "#8a8f96", width=0.6, depth_test=False)
 
@@ -245,6 +265,7 @@ if __name__ == "__main__":
     ap.add_argument("--azim", type=float, default=-38.0)
     ap.add_argument("--elev", type=float, default=30.0)
     ap.add_argument("--width", type=int, default=1800, help="image width in pixels")
+    ap.add_argument("--no-glow", action="store_true", help="omit the guided-mode glow on the cut faces")
     args = ap.parse_args()
     for f in args.figs:
         {"chip": chip, "dbr": dbr}[f](args)

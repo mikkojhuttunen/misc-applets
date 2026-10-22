@@ -32,6 +32,7 @@ class Scene:
         self.edge_alpha = edge_alpha
         self.faces = []        # (rings [exterior, holes...] as (n, 3) arrays, normal, rgb, group)
         self.lines = []        # (points (n, 3), rgb, width_px, depth_tested)
+        self.glows = []        # (origin, U, V, alpha(s, t) on [0, 1]^2, rgb): translucent overlays, depth tested
 
     # ------------------------------------------------------------------ geometry
     def face(self, rings, color, normal=None, group=None):
@@ -68,6 +69,11 @@ class Scene:
                     sec = section is not None and section(p, q)
                     quad = [[p[0], p[1], z0], [q[0], q[1], z0], [q[0], q[1], z1], [p[0], p[1], z1]]
                     self.face([quad], (section_color or color) if sec else color, (q[1] - p[1], -(q[0] - p[0]), 0), group)
+
+    def glow(self, origin, U, V, alpha, color="#ff2a1a"):
+        """Translucent parallelogram origin + s U + t V (s, t in [0, 1]) with opacity alpha(s, t) (vectorised), drawn
+        over the faces where it is not hidden behind them; e.g. a guided-mode intensity on a cut face."""
+        self.glows.append((np.asarray(origin, float), np.asarray(U, float), np.asarray(V, float), alpha, np.array(to_rgb(color))))
 
     def line(self, pts, color, width=2.0, depth_test=True):
         self.lines.append((np.asarray(pts, float), np.array(to_rgb(color)), width, depth_test))
@@ -123,6 +129,31 @@ class Scene:
             shade = self.ambient + (1 - self.ambient) * max(n @ self.light, 0.0)
             img[y0:y1, x0:x1][upd] = np.clip(col * shade, 0, 1)
             ib[y0:y1, x0:x1][upd] = fid
+        # translucent overlays (after the faces, before the outlines)
+        for O, U, V, alpha, col in self.glows:
+            corners = np.array([O, O + U, O + U + V, O + V])
+            pr = np.c_[to_px(corners)[:2]]
+            x0, y0 = np.maximum(np.floor(pr.min(0)).astype(int), 0)
+            x1, y1 = np.minimum(np.ceil(pr.max(0)).astype(int) + 1, [W, H])
+            if x1 <= x0 or y1 <= y0:
+                continue
+            m = Image.new("L", (x1 - x0, y1 - y0), 0)
+            ImageDraw.Draw(m).polygon([tuple(p) for p in pr - [x0, y0]], fill=1)
+            mask = np.asarray(m, bool)
+            ox, oy, ow = to_px(O[None])
+            ux, uy, uw = (np.ravel(c) - np.ravel(o) for c, o in zip(to_px((O + U)[None]), (ox, oy, ow)))
+            vx, vy, vw = (np.ravel(c) - np.ravel(o) for c, o in zip(to_px((O + V)[None]), (ox, oy, ow)))
+            det = ux * vy - uy * vx
+            if abs(det) < 1e-12:
+                continue
+            yy, xx = np.mgrid[y0:y1, x0:x1]
+            dx, dy = xx - ox[0], yy - oy[0]
+            gs, gt = (dx * vy - dy * vx) / det, (ux * dy - uy * dx) / det
+            w = ow[0] + gs * uw + gt * vw
+            vis = mask & (w >= zb[y0:y1, x0:x1] - 2e-3 * span)
+            a = np.clip(alpha(np.clip(gs, 0, 1), np.clip(gt, 0, 1)), 0, 1) * vis
+            sub = img[y0:y1, x0:x1]
+            sub[:] = sub * (1 - a[..., None]) + col * a[..., None]
         # outlines: boundaries of the face-id buffer
         e = np.zeros((H, W), bool)
         e[:, 1:] |= ib[:, 1:] != ib[:, :-1]

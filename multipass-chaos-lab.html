@@ -302,14 +302,16 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
           <div class="sub"><h3>A · Static residual fringe by dither</h3><canvas class="chart" id="cBar" aria-label="Static residual fringe of the regular, index-free and current circular cell"></canvas></div>
           <div class="sub"><h3>B · Static residual fringe by dither</h3><canvas class="chart" id="hBar" aria-label="Static residual fringe of the regular, index-free and current Herriott cell"></canvas></div>
         </div>
-        <p class="hint">What is left after infinitely long averaging (no drift), 2√ε V/√M², for the regular design (flat facets, ideal mirrors, no index disks), the same cell without its index disks (geometry perturbations kept) and the current cell. “≤”: at the angle-sampling floor, an upper bound. The no-dither level differs between variants by their speckle averaging √M².</p>
+        <div class="sub"><h3>A and B · Static residual fringe by dither</h3><canvas class="chart wide" id="bBar" aria-label="Static residual fringe of both cells, regular, index-free and current"></canvas></div>
+        <p class="hint">What is left after infinitely long averaging (no drift), 2√ε V/√M², for the regular design (flat facets, ideal mirrors, no index disks), the same cell without its index disks (geometry perturbations kept) and the current cell. All three figures share one y axis; in the combined figure the opacity marks the variant (faint: regular, half: without index disks, full: current). “≤”: at the angle-sampling floor, an upper bound. The no-dither level differs between variants by their speckle averaging √M².</p>
         <div class="btns"><label class="check" for="scPar">Scan</label><select id="scPar" aria-label="Index parameter to scan"><option value="ctr_dn" selected>central disk Δn</option><option value="ctr_r">central disk radius</option><option value="n_inc">number of random inclusions</option><option value="inc_dn">random inclusion |Δn|</option></select>
           <button id="scBtn" type="button">Run the inclusion scan</button><span class="status" id="scStatus">Both cells, all other settings as in the rail; reduced ray budget; about half a minute.</span></div>
         <div class="duo">
           <div class="sub"><h3>A · Visibility against index inclusions</h3><canvas class="chart" id="cScan" aria-label="Static residual fringe against the index parameter, circular cell"></canvas></div>
           <div class="sub"><h3>B · Visibility against index inclusions</h3><canvas class="chart" id="hScan" aria-label="Static residual fringe against the index parameter, Herriott cell"></canvas></div>
         </div>
-        <p class="hint">Static residual fringe (log) with angle dither only, spectral only and both, against the scanned index parameter; grey dashed: the regular cell with both dithers; grey dotted: the angle-sampling floor with both; black dashed: N_eff of the exit speckle (right axis).</p>
+        <div class="sub"><h3>A and B · Visibility against index inclusions</h3><canvas class="chart wide" id="bScan" aria-label="Static residual fringe of both cells against the index parameter"></canvas></div>
+        <p class="hint">All three figures share one y axis (and one N_eff scale). Combined figure: dashed lines with dots for A, solid lines with squares for B, dotted in the cell colour: each regular cell with both dithers. Static residual fringe (log) with angle dither only, spectral only and both, against the scanned index parameter; grey dashed: the regular cell with both dithers; grey dotted: the angle-sampling floor with both; black dashed: N_eff of the exit speckle (right axis).</p>
       </section>
 
       <section class="panel">
@@ -2254,10 +2256,10 @@ onmessage = e => {
       if (m.kind === "row") { scan.rows[m.cell].push(m.row); $("scStatus").textContent = `${scan.rows.circle.length + scan.rows.herriott.length} of ${n} done`; }
       else if (m.kind === "error") scan.errors.push(`${NAME[m.cell]}: ${m.error}`);
       else { scan.done = true; $("scStatus").textContent = scan.errors.length ? scan.errors.join("; ") : "Scan done for these settings."; }
-      drawScan("cScan", "circle"); drawScan("hScan", "herriott");
+      drawScanAll();
     };
     scanW.postMessage({ id: scanId, param, p: { circle: p.circle, herriott: p.herriott } });
-    drawScan("cScan", "circle"); drawScan("hScan", "herriott");
+    drawScanAll();
   }
   function fillSweepParams() {
     const cell = $("swCell").value, sel = $("swPar"), prev = sel.value;
@@ -2560,64 +2562,112 @@ onmessage = e => {
   const VAR = [["regular", "regular cell", "--v-reg"], ["noindex", "without index disks", "--v-noidx"], ["current", "current cell", null]];
   const SCV = [["angle", "angle only", "V_theta", "V_floor"], ["spectral", "spectral only", "V_lambda", null], ["both", "both", "V_joint", "V_floor_both"]];
   const ampOf = (r, p) => 2 * Math.sqrt(p.eps) / Math.sqrt(r.grains || 1);
-  function drawBars(id, cell, p) {
-    const cv = $(id), cur = res[cell];
-    if (!cur) { message(cv, "tracing…"); return; }
-    if (cur.error) { message(cv, cur.error); return; }
-    const vs = [];
+  /* bar sets of one cell: [legend name, colour, result or null]; in a combined figure the cell colour carries the
+     variant by opacity and the names get the cell prefix */
+  function barSets(cell, combined) {
+    const cur = res[cell], cc = css(cell === "circle" ? "--circ" : "--accent"), pre = combined ? (cell === "circle" ? "A " : "B ") : "", out = [];
+    if (!cur || cur.error) return out;
+    const ALPHA = { regular: 0.35, noindex: 0.65, current: 1 };
     for (const [k, name, col] of VAR) {
-      if (k === "current") { vs.push([name, css(cell === "circle" ? "--circ" : "--accent"), cur]); continue; }
+      const c = combined ? cc : k === "current" ? cc : css(col), a = combined ? ALPHA[k] : 1;
+      if (k === "current") { out.push([pre + name, c, cur, a]); continue; }
       const raw = refs[cell][k];
-      if (!raw) { vs.push([`${name} (tracing…)`, css(col), null]); continue; }
+      if (!raw) { out.push([`${pre}${name} (tracing…)`, c, null, a]); continue; }
       if (raw.same === "current" || (k === "noindex" && raw.same === "regular")) continue;
       const r = refOf(cell, k);
-      vs.push([r && r.error ? `${name}: ${r.error}` : name, css(col), r && !r.error ? r : null]);
+      out.push([r && r.error ? `${pre}${name}: ${r.error}` : pre + name, c, r && !r.error ? r : null, a]);
     }
-    const CATS = [["none", "no dither", null, null]].concat(SCV), nc = CATS.length;
-    const val = (r, s) => ampOf(r, p) * (s[2] ? r[s[2]] : 1), flo = (r, s) => s[3] ? ampOf(r, p) * r[s[3]] : 0;
-    const all = vs.filter(v => v[2]).flatMap(([, , r]) => CATS.map(s => val(r, s))).concat([p.target]).filter(v => v > 0 && Number.isFinite(v));
-    const hi = 10 ** Math.ceil(Math.log10(Math.max(...all) * 1.5)), lo = Math.max(10 ** Math.floor(Math.log10(Math.min(...all) / 3)), hi * 1e-10);
-    const [g, w, h] = fit(cv), m = { l: 54, r: 12, t: 28, b: 34 };
+    return out;
+  }
+  const CATS = [["none", "no dither", null, null]].concat(SCV);
+  const barVal = (r, s, p) => ampOf(r, p) * (s[2] ? r[s[2]] : 1), barFloor = (r, s, p) => s[3] ? ampOf(r, p) * r[s[3]] : 0;
+  /* one y range for every bar figure (both cells), so A, B and the combined figure compare directly */
+  function barRange(p) {
+    const all = CELLS.flatMap(c => barSets(c, false)).filter(v => v[2]).flatMap(([, , r]) => CATS.map(s => barVal(r, s, p))).concat([p.target]).filter(v => v > 0 && Number.isFinite(v));
+    if (!all.length) return null;
+    const hi = 10 ** Math.ceil(Math.log10(Math.max(...all) * 1.5));
+    return [Math.max(10 ** Math.floor(Math.log10(Math.min(...all) / 3)), hi * 1e-10), hi];
+  }
+  function drawBars(id, cells, p) {
+    const cv = $(id), combined = cells.length > 1, errs = cells.map(c => res[c]).filter(r => r && r.error);
+    if (cells.some(c => !res[c])) { message(cv, "tracing…"); return; }
+    if (errs.length === cells.length) { message(cv, errs[0].error); return; }
+    const vs = cells.flatMap(c => barSets(c, combined)), rg = barRange(p);
+    if (!rg) { message(cv, "no light reaches the output"); return; }
+    const [lo, hi] = rg, nc = CATS.length, [g, w, h] = fit(cv), m = { l: 54, r: 12, t: combined ? 42 : 28, b: 34 };
     const [X, Y] = axes(g, w, h, m, { xr: [0, nc], yr: [lo, hi], ylog: true, xt: CATS.map((s, i) => [i + 0.5, s[1]]), xl: "dither", yl: "static residual 2√ε V (log)" });
-    const n = vs.length, bw = (X(1) - X(0)) * 0.72 / n;
-    CATS.forEach((s, i) => vs.forEach(([, col, r], j) => {
+    const n = vs.length, bw = (X(1) - X(0)) * (combined ? 0.84 : 0.72) / n;
+    CATS.forEach((s, i) => vs.forEach(([, col, r, a], j) => {
       if (!r) return;
-      const v = val(r, s), x = X(i + 0.5) - bw * n / 2 + j * bw;
+      const v = barVal(r, s, p), x = X(i + 0.5) - bw * n / 2 + j * bw;
       if (!(v > 0)) return;
-      g.fillStyle = col; g.globalAlpha = 0.9; g.fillRect(x + 1, Y(Math.max(v, lo)), bw - 2, Y(lo) - Y(Math.max(v, lo))); g.globalAlpha = 1;
-      if (bw >= 30) label(g, `${v <= 1.5 * flo(r, s) ? "≤" : ""}${sci(v, 2)}`, x + bw / 2, Y(Math.max(v, lo)) - 3, css("--ink"), "center", "bottom", 400);
+      g.fillStyle = col; g.globalAlpha = 0.9 * a; g.fillRect(x + 1, Y(Math.max(v, lo)), bw - 2, Y(lo) - Y(Math.max(v, lo))); g.globalAlpha = 1;
+      if (bw >= 30) label(g, `${v <= 1.5 * barFloor(r, s, p) ? "≤" : ""}${sci(v, 2)}`, x + bw / 2, Y(Math.max(v, lo)) - 3, css("--ink"), "center", "bottom", 400);
+      else if (v <= 1.5 * barFloor(r, s, p)) label(g, "≤", x + bw / 2, Y(Math.max(v, lo)) - 3, css("--ink"), "center", "bottom", 400);
     }));
     line(g, [[X(0), Y(Math.max(p.target, lo))], [X(nc), Y(Math.max(p.target, lo))]], css("--bad"), 1.2);
-    let lx = X(0);
-    vs.forEach(([name, col]) => { g.fillStyle = col; g.fillRect(lx, 8, 10, 8); label(g, name, lx + 14, 12, css("--ink"), "left", "middle", 400); lx += 22 + 6.4 * name.length; });
+    let lx = X(0), ly = 12;
+    vs.forEach(([name, col, , a]) => {
+      const wd = 22 + 6.4 * name.length;
+      if (lx + wd > w - 8) { lx = X(0); ly += 14; }
+      g.fillStyle = col; g.globalAlpha = 0.9 * a; g.fillRect(lx, ly - 4, 10, 8); g.globalAlpha = 1; label(g, name, lx + 14, ly, css("--ink"), "left", "middle", 400); lx += wd;
+    });
   }
-  function drawScan(id, cell) {
-    const cv = $(id);
+  /* one y range (and one N_eff scale) for every scan figure */
+  function scanRange(p) {
+    const vals = [], ne = [];
+    for (const cell of CELLS) {
+      for (const r of scan.rows[cell].filter(r => !r.error)) { SCV.forEach(s => vals.push(ampOf(r, p) * r[s[2]])); ne.push(r.N_eff); }
+      const reg = refOf(cell, "regular"); if (reg && !reg.error) vals.push(ampOf(reg, p) * reg.V_joint);
+    }
+    vals.push(p.target);
+    const v = vals.filter(x => x > 0 && Number.isFinite(x)), hi = 10 ** Math.ceil(Math.log10(Math.max(...v) * 1.5));
+    return { lo: Math.max(10 ** Math.floor(Math.log10(Math.min(...v) / 2)), hi * 1e-10), hi, nm: Math.max(...ne.filter(Number.isFinite), 2) * 1.1 };
+  }
+  function drawScan(id, cells) {
+    const cv = $(id), combined = cells.length > 1;
     if (!scan) { message(cv, "Press “Run the inclusion scan”."); return; }
-    const rows = scan.rows[cell].filter(r => !r.error), sp = D.SWEEPS[cell][scan.param];
-    if (!rows.length) { message(cv, scan.done ? "no result" : "Running…"); return; }
-    const p = P(), xv = v => v * sp.scale, x0 = xv(Math.min(...sp.values)), x1 = xv(Math.max(...sp.values));
-    const reg = refOf(cell, "regular"), regV = reg && !reg.error ? ampOf(reg, p) * reg.V_joint : NaN;
-    const vals = rows.flatMap(r => SCV.map(s => ampOf(r, p) * r[s[2]])).concat([regV, p.target]).filter(v => v > 0 && Number.isFinite(v));
-    const hi = 10 ** Math.ceil(Math.log10(Math.max(...vals) * 1.5)), lo = Math.max(10 ** Math.floor(Math.log10(Math.min(...vals) / 2)), hi * 1e-10);
-    const [g, w, h] = fit(cv), m = { l: 54, r: 46, t: 12, b: 34 };
-    const [X, Y] = axes(g, w, h, m, { xr: [x0, x1], yr: [lo, hi], ylog: true, xl: sp.label, yl: "static residual 2√ε V (log)" });
+    const sets = cells.map(c => [c, scan.rows[c].filter(r => !r.error), D.SWEEPS[c][scan.param]]).filter(([, rows]) => rows.length);
+    if (!sets.length) { message(cv, scan.done ? "no result" : "Running…"); return; }
+    const p = P(), { lo, hi, nm } = scanRange(p);
+    const xs = sets.flatMap(([, , sp]) => sp.values.map(v => v * sp.scale)), x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const [g, w, h] = fit(cv), m = { l: 54, r: combined ? 14 : 46, t: combined ? 26 : 12, b: 34 };
+    const [X, Y] = axes(g, w, h, m, { xr: [x0, x1], yr: [lo, hi], ylog: true, xl: sets[0][2].label, yl: "static residual 2√ε V (log)" });
     const cl = v => v > 0 ? Y(Math.max(v, lo)) : NaN;
-    if (Number.isFinite(regV)) { line(g, [[X(x0), cl(regV)], [X(x1), cl(regV)]], css("--v-reg"), 1.4, [6, 4]); label(g, "regular cell, both", X(x1) - 4, cl(regV) - 3, css("--muted"), "right"); }
-    line(g, rows.map(r => [X(xv(r.x)), cl(ampOf(r, p) * r.V_floor_both)]), css("--muted"), 1, [1.5, 3]);
-    for (const [, , key, ] of SCV) {
-      const col = css(key === "V_theta" ? "--s-ang" : key === "V_lambda" ? "--s-spec" : "--s-both");
-      line(g, rows.map(r => [X(xv(r.x)), cl(ampOf(r, p) * r[key])]), col, 1.8); rows.forEach(r => { const v = ampOf(r, p) * r[key]; if (v > 0) dot(g, X(xv(r.x)), cl(v), col, 2.5); });
+    for (const [cell, rows, sp] of sets) {
+      const xv = v => v * sp.scale, cn = cell === "circle" ? "A" : "B", dash = combined && cell === "circle" ? [6, 3] : null;
+      const reg = refOf(cell, "regular"), regV = reg && !reg.error ? ampOf(reg, p) * reg.V_joint : NaN;
+      if (Number.isFinite(regV)) { line(g, [[X(x0), cl(regV)], [X(x1), cl(regV)]], combined ? css(cell === "circle" ? "--circ" : "--accent") : css("--v-reg"), 1.3, combined ? [2, 4] : [6, 4]); label(g, `${combined ? cn + " " : ""}regular cell, both`, X(x1) - 4, cl(regV) - 3, css("--muted"), "right"); }
+      if (!combined) line(g, rows.map(r => [X(xv(r.x)), cl(ampOf(r, p) * r.V_floor_both)]), css("--muted"), 1, [1.5, 3]);
+      for (const [, , key] of SCV) {
+        const col = css(key === "V_theta" ? "--s-ang" : key === "V_lambda" ? "--s-spec" : "--s-both");
+        line(g, rows.map(r => [X(xv(r.x)), cl(ampOf(r, p) * r[key])]), col, 1.8, dash);
+        rows.forEach(r => {
+          const v = ampOf(r, p) * r[key];
+          if (!(v > 0)) return;
+          if (combined && cell === "herriott") { g.fillStyle = col; g.fillRect(X(xv(r.x)) - 2.6, cl(v) - 2.6, 5.2, 5.2); } else dot(g, X(xv(r.x)), cl(v), col, 2.6);
+        });
+      }
+      if (!combined) {
+        const Y2 = v => h - m.b - v / nm * (h - m.t - m.b);
+        g.fillStyle = css("--ink"); g.font = fontStr(400, 10.5); g.textAlign = "left"; g.textBaseline = "middle";
+        niceTicks(0, nm, 4).forEach(v => g.fillText(String(v), w - m.r + 5, Y2(v)));
+        line(g, rows.map(r => [X(xv(r.x)), Y2(r.N_eff)]), css("--ink"), 1.3, [5, 4]); rows.forEach(r => dot(g, X(xv(r.x)), Y2(r.N_eff), css("--ink"), 2));
+        const cur = xv(scan.cur[cell]); if (cur >= x0 && cur <= x1) line(g, [[X(cur), m.t], [X(cur), h - m.b]], css("--muted"), 1, [2, 3]);
+      }
     }
     line(g, [[X(x0), cl(p.target)], [X(x1), cl(p.target)]], css("--bad"), 1.1);
-    const nm = Math.max(...rows.map(r => r.N_eff).filter(Number.isFinite), 2) * 1.1, Y2 = v => h - m.b - v / nm * (h - m.t - m.b);
-    g.fillStyle = css("--ink"); g.font = fontStr(400, 10.5); g.textAlign = "left"; g.textBaseline = "middle";
-    niceTicks(0, nm, 4).forEach(v => g.fillText(String(v), w - m.r + 5, Y2(v)));
-    line(g, rows.map(r => [X(xv(r.x)), Y2(r.N_eff)]), css("--ink"), 1.3, [5, 4]); rows.forEach(r => dot(g, X(xv(r.x)), Y2(r.N_eff), css("--ink"), 2));
-    const cur = xv(scan.cur[cell]); if (cur >= x0 && cur <= x1) line(g, [[X(cur), m.t], [X(cur), h - m.b]], css("--muted"), 1, [2, 3]);
-    [["angle only", "--s-ang"], ["spectral only", "--s-spec"], ["both", "--s-both"], ["N_eff (right)", "--ink"]].forEach(([t, c], i) => label(g, t, m.l + 6 + i * 100, m.t + 14, css(c)));
+    const leg = [["angle only", "--s-ang"], ["spectral only", "--s-spec"], ["both", "--s-both"]].concat(combined ? [] : [["N_eff (right)", "--ink"]]);
+    leg.forEach(([t, c], i) => label(g, t, m.l + 6 + i * 100, m.t + 14, css(c)));
+    if (combined) {
+      const ly = 12, lx = m.l + 6;
+      line(g, [[lx, ly], [lx + 22, ly]], css("--ink"), 1.8, [6, 3]); dot(g, lx + 11, ly, css("--ink"), 2.6); label(g, "A · circular cell", lx + 28, ly, css("--circ"), "left", "middle");
+      line(g, [[lx + 160, ly], [lx + 182, ly]], css("--ink"), 1.8); g.fillStyle = css("--ink"); g.fillRect(lx + 168.4, ly - 2.6, 5.2, 5.2); label(g, "B · Herriott cell", lx + 188, ly, css("--accent"), "left", "middle");
+    }
   }
-  function drawVis() { const p = P(); drawRes("cRes", res.circle, p); drawRes("hRes", res.herriott, p); drawBars("cBar", "circle", p); drawBars("hBar", "herriott", p); drawScan("cScan", "circle"); drawScan("hScan", "herriott"); drawSummary(p); }
+  function drawBarsAll(p) { drawBars("cBar", ["circle"], p); drawBars("hBar", ["herriott"], p); drawBars("bBar", CELLS, p); }
+  function drawScanAll() { drawScan("cScan", ["circle"]); drawScan("hScan", ["herriott"]); drawScan("bScan", CELLS); }
+  function drawVis() { const p = P(); drawRes("cRes", res.circle, p); drawRes("hRes", res.herriott, p); drawBarsAll(p); drawScanAll(); drawSummary(p); }
 
   /* ---------------------------------------------------------------- summary */
   function residualAt(r, p, key) { if (!r.spec || !r.spec[key]) return NaN; return 2 * Math.sqrt(p.eps) / Math.sqrt(r.grains || 1) * D.residual(r.spec[key], p.T, p.drift, true); }
@@ -2677,7 +2727,7 @@ onmessage = e => {
     drawSummary(p); drawTwin();
     drawPoin("cPoin", res.circle, css("--circ")); drawPoin("hPoin", res.herriott, css("--accent"));
     drawRes("cRes", res.circle, p); drawRes("hRes", res.herriott, p);
-    drawBars("cBar", "circle", p); drawBars("hBar", "herriott", p); drawScan("cScan", "circle"); drawScan("hScan", "herriott");
+    drawBarsAll(p); drawScanAll();
     drawMap("cMap", res.circle, p, "circle"); drawMap("hMap", res.herriott, p, "herriott");
     drawCorr(); drawPaths(); drawSweep();
   }
@@ -2704,10 +2754,12 @@ onmessage = e => {
     hPoin: ["herriott-cell-poincare", () => drawPoin("hPoin", res.herriott, css("--accent"))],
     cRes: ["circular-cell-residual-fringe", () => drawRes("cRes", res.circle, P())],
     hRes: ["herriott-cell-residual-fringe", () => drawRes("hRes", res.herriott, P())],
-    cBar: ["circular-cell-visibility-regular-vs-index", withCells(p => drawBars("cBar", "circle", p))],
-    hBar: ["herriott-cell-visibility-regular-vs-index", withCells(p => drawBars("hBar", "herriott", p))],
-    cScan: ["circular-cell-visibility-index-scan", () => drawScan("cScan", "circle")],
-    hScan: ["herriott-cell-visibility-index-scan", () => drawScan("hScan", "herriott")],
+    cBar: ["circular-cell-visibility-regular-vs-index", () => drawBars("cBar", ["circle"], P())],
+    hBar: ["herriott-cell-visibility-regular-vs-index", () => drawBars("hBar", ["herriott"], P())],
+    bBar: ["both-cells-visibility-regular-vs-index", () => drawBars("bBar", CELLS, P())],
+    cScan: ["circular-cell-visibility-index-scan", () => drawScan("cScan", ["circle"])],
+    hScan: ["herriott-cell-visibility-index-scan", () => drawScan("hScan", ["herriott"])],
+    bScan: ["both-cells-visibility-index-scan", () => drawScan("bScan", CELLS)],
     cMap: ["circular-cell-speckle-Neff", () => drawMap("cMap", res.circle, P(), "circle")],
     hMap: ["herriott-cell-speckle-Neff", () => drawMap("hMap", res.herriott, P(), "herriott")],
     corrA: ["speckle-correlation-angle", drawCorr], corrL: ["speckle-correlation-wavelength", drawCorr],

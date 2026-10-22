@@ -5,9 +5,9 @@ output-port waveguides.
     python setup_schematic.py cmpc             cmpc | herriott
     python setup_schematic.py --outputs 3      CMPC output ports (1-3)
 
-Light path: laser (bulk, with its driver) -> isolator -> fibre -> edge coupler -> tap coupler (a few % to a reference
+Light path: laser (bulk, with its driver) -> isolator -> lens -> edge coupler -> tap coupler (a few % to a reference
 detector for power normalisation) -> dither section -> cell input port -> cell -> output ports (dark blue) -> output
-waveguides -> edge couplers -> fibres -> bulk detectors -> lock-in / DAQ.
+waveguides -> edge couplers -> lenses -> bulk photodiodes -> lock-in / DAQ.
 
 Dithering (the fringe-washout methods of fringe-washout.html and cmpc-ray-tracer.html):
     frequency dither    laser current modulation, from the function generator through the laser driver
@@ -15,7 +15,8 @@ Dithering (the fringe-washout methods of fringe-washout.html and cmpc-ray-tracer
                         at the input port; their relative phase steers the launch angle into the cell
     phase dither        a heater on the common input waveguide
 The lock-in / DAQ takes the detector signals and the dither reference. Drawing only: positions, sizes and component
-choices are schematic, not a layout.
+choices are schematic, not a layout. Bulk optics use gwoptics ComponentLibrary SVGs from components/ when present
+(see components/README.md), otherwise vector stand-ins in the same style.
 """
 import argparse
 from pathlib import Path
@@ -28,10 +29,12 @@ import numpy as np  # noqa: E402
 from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, PathPatch, Polygon, Rectangle  # noqa: E402
 from matplotlib.path import Path as MPath  # noqa: E402
 
+import components  # noqa: E402
+
 OUT = Path(__file__).resolve().parent / "figs"
 C = dict(chip="#eef1f3", chip_ec="#8a949b", mem="#c9d6ea", mem_ec="#1f4e79", dbr="#3d4e66", wg_in="#c9952a", wg_out="#1d3f8f",
          wg_ref="#6b7378", beam="#d0352b", heater="#e07b00", fibre="#4f9d4f", elec="#5a6a6f", box="#ffffff", box_ec="#1b2328",
-         ink="#1b2328", muted="#5a6a6f", gas="#8a4fc8")
+         ink="#1b2328", muted="#5a6a6f", gas="#8a4fc8", fs="#e8574a")
 plt.rcParams.update({"font.size": 10, "font.family": ["Inter", "DejaVu Sans"]})
 
 
@@ -129,20 +132,26 @@ def herriott_cell(ax, x0, y0, d, D, R):
 
 def figure(kind, a):
     fig, ax = plt.subplots(figsize=(16, 8.4), dpi=130)
-    ax.set_xlim(-0.2, 18.2)
+    ax.set_xlim(-0.2, 18.45)
     ax.set_ylim(-0.6, 9.3)
     ax.set_aspect("equal")
     ax.axis("off")
     # ------------------------------------------------------------ bulk: laser, driver, isolator, fibre
-    box(ax, 0.1, 4.0, 2.3, 1.15, "Laser", "bulk DFB / ICL, CW")
+    yb = 4.57                                              # free-space beam height (chip input)
+    components.place(ax, "laser", 1.05, yb, 1.75)
+    ax.text(1.05, yb - 0.62, "Laser", ha="center", va="top", fontsize=11, fontweight="bold", color=C["ink"])
+    ax.text(1.05, yb - 0.9, "bulk DFB / ICL, CW", ha="center", va="top", fontsize=8.5, color=C["muted"])
     box(ax, 0.1, 6.4, 2.3, 1.05, "Laser driver", "current + TEC")
     box(ax, 0.1, 8.05, 2.3, 0.95, "Function generator", "dither waveforms", fs=10)
-    elec(ax, [[1.25, 6.4], [1.25, 5.15]], "frequency dither (current)")
+    elec(ax, [[1.25, 6.4], [1.25, 5.05]], "frequency dither (current)")
     elec(ax, [[1.25, 8.05], [1.25, 7.45]])
-    box(ax, 2.75, 4.27, 0.85, 0.6, "isolator", fs=8.5)
-    ax.plot([2.4, 2.75], [4.57, 4.57], color=C["fibre"], lw=2.2, zorder=3)
-    curve(ax, [[3.6, 4.57], [4.0, 4.57], [4.4, 4.57]], C["fibre"], lw=2.2)
-    ax.text(3.95, 4.75, "fibre", fontsize=8.5, color=C["fibre"], ha="center")
+    # free space: laser -> isolator -> lens focusing onto the edge coupler
+    ax.plot([2.05, 2.62], [yb, yb], color=C["fs"], lw=2.4, zorder=3)
+    components.place(ax, "isolator", 3.0, yb, 0.72)
+    ax.text(3.0, yb - 0.33, "isolator", ha="center", va="top", fontsize=8.5, color=C["muted"])
+    ax.add_patch(Polygon([[3.37, yb - 0.09], [3.85, yb - 0.09], [4.4, yb], [3.85, yb + 0.09], [3.37, yb + 0.09]], fc=C["fs"], ec="none", alpha=0.85, zorder=3))
+    components.place(ax, "lens", 3.85, yb, 0.5)
+    ax.text(3.85, yb + 0.32, "lens", ha="center", va="bottom", fontsize=8.5, color=C["muted"])
     # ------------------------------------------------------------ chip
     cx0, cy0, cx1, cy1 = 4.4, 0.6, 14.4, 7.75
     ax.add_patch(FancyBboxPatch((cx0, cy0), cx1 - cx0, cy1 - cy0, boxstyle="round,pad=0,rounding_size=0.1", fc=C["chip"], ec=C["chip_ec"], lw=1.4, zorder=1))
@@ -197,7 +206,7 @@ def figure(kind, a):
         ax.text(ccen[0], ccen[1] - 0.25, "segmented cell, trench DBRs\nstar orbit {24/7}", fontsize=8.3, ha="center", va="top", color="#12324f", zorder=4)
     else:
         ax.add_patch(FancyBboxPatch((8.55, 2.75), 5.1, 3.3, boxstyle="round,pad=0,rounding_size=0.3", fc="none", ec=C["mem_ec"], lw=1.0, ls=(0, (5, 3)), zorder=2))
-        ax.text(13.55, 2.85, "released membrane\n(backside window)", fontsize=8.3, color=C["mem_ec"], ha="right", va="bottom")
+        ax.text(8.7, 2.85, "released membrane (backside window)", fontsize=8.3, color=C["mem_ec"], ha="left", va="bottom")
         ax.text(11.1, 6.2, "integrated Herriott cell: curved trench-DBR mirrors", fontsize=9.5, fontweight="bold", ha="center", color="#12324f")
     # ------------------------------------------------------------ outputs to the detectors
     det_y = []
@@ -215,17 +224,23 @@ def figure(kind, a):
         curve(ax, pts, C["wg_out"], lw=2.6)
         det_y.append(2.35)
     det_y_ref = cy0 + 0.35
-    box(ax, 15.6, det_y_ref - 0.42, 2.4, 0.84, "Reference detector", "power normalisation", fs=9.5)
-    ax.plot([xe, 15.6], [det_y_ref, det_y_ref], color=C["fibre"], lw=2.2, zorder=3)
+
+    def detector(yt, title, sub):
+        """Edge coupler -> diverging beam -> collecting lens -> focused onto a bulk photodiode."""
+        ax.add_patch(Polygon([[xe, yt - 0.03], [14.95, yt - 0.11], [14.95, yt + 0.11], [xe, yt + 0.03]], fc=C["fs"], ec="none", alpha=0.85, zorder=3))
+        ax.add_patch(Polygon([[14.95, yt - 0.11], [15.45, yt - 0.02], [15.45, yt + 0.02], [14.95, yt + 0.11]], fc=C["fs"], ec="none", alpha=0.85, zorder=3))
+        components.place(ax, "lens", 14.95, yt, 0.42)
+        components.place(ax, "photodiode", 15.75, yt, 0.62)
+        ax.text(16.15, yt + 0.12, title, ha="left", va="center", fontsize=9.5, fontweight="bold", color=C["ink"])
+        ax.text(16.15, yt - 0.18, sub, ha="left", va="center", fontsize=8.2, color=C["muted"])
+    detector(det_y_ref, "Reference detector", "power normalisation")
     for i, yt in enumerate(det_y):
         ax.add_patch(Polygon([[xe - 0.5, yt - 0.04], [xe, yt - 0.18], [xe, yt + 0.18], [xe - 0.5, yt + 0.04]], fc=C["wg_out"], ec="none", zorder=3))
-        ax.plot([xe, 15.6], [yt, yt], color=C["fibre"], lw=2.2, zorder=3)
-        box(ax, 15.6, yt - 0.45, 2.4, 0.9, f"Detector {i + 1}", "bulk InGaAs / MCT", fs=10)
-    ax.text(14.9, max(det_y + [det_y_ref]) + 0.55, "fibres", fontsize=8.5, color=C["fibre"], ha="center")
+        detector(yt, f"Detector {i + 1}", "bulk InGaAs / MCT")
     # lock-in / DAQ
     box(ax, 15.6, 7.95, 2.4, 1.05, "Lock-in / DAQ", "demodulation, averaging", fs=10)
     for yt in det_y + [det_y_ref]:
-        elec(ax, [[18.0, yt], [18.15, yt], [18.15, 8.3], [18.0, 8.3]])
+        elec(ax, [[16.0, yt - 0.33], [16.0, yt - 0.45], [18.3, yt - 0.45], [18.3, 8.3], [18.0, 8.3]])
     elec(ax, [[2.4, 8.75], [15.6, 8.75]], "dither reference", at=0.8)
     # gas
     gx = 10.6 if kind == "cmpc" else 11.1
@@ -234,15 +249,17 @@ def figure(kind, a):
     ax.text(gx, -0.15, "sample gas flows over and under the membrane", fontsize=8.8, color=C["gas"], ha="center", va="top")
     # legend for the guides
     lg = [("input waveguide (strip-loaded)", C["wg_in"], "-"), ("output-port waveguides", C["wg_out"], "-"), ("reference tap", C["wg_ref"], "-"),
-          ("optical fibre", C["fibre"], "-"), ("ray path in the cell", C["beam"], "-"), ("electrical", C["elec"], (0, (4, 2.5))),
+          ("free-space beam (bulk optics)", C["fs"], "-"), ("ray path in the cell", C["beam"], "-"), ("electrical", C["elec"], (0, (4, 2.5))),
           ("heater (thermo-optic)", C["heater"], "-")]
     for i, (lab, col, ls) in enumerate(lg):
-        y = 3.3 - 0.36 * i
+        y = 2.85 - 0.34 * i
         ax.plot([0.15, 0.6], [y, y], color=col, lw=2.4, ls=ls)
         ax.text(0.7, y, lab, fontsize=8.5, va="center", color=C["ink"])
     title = "CMPC" if kind == "cmpc" else "integrated Herriott cell"
     ax.text(-0.1, 9.25, f"Setup, top view: bulk laser and detectors, on-chip dithering, {title} (schematic, not to scale)",
             fontsize=13, fontweight="bold", va="bottom", color=C["ink"])
+    if components.used_library():
+        ax.text(18.1, -0.55, components.ATTRIBUTION, ha="right", va="bottom", fontsize=7, color=C["muted"])
     OUT.mkdir(exist_ok=True)
     for ext in ("pdf", "png"):
         fig.savefig(OUT / f"setup_{kind}.{ext}", bbox_inches="tight", pad_inches=0.15)

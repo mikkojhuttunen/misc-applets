@@ -35,7 +35,7 @@ import cmpc_sim as cs  # noqa: E402
 OUT = HERE / "figs"
 OUT.mkdir(exist_ok=True)
 COL = dict(si="#8fa3c4", si_sec="#c9d4e6", handle="#9a9fa6", handle_sec="#c8ccd1", box="#e8d9a8", box_sec="#f3ead0",
-           beam="#d0352b", port="#1f8a4c", field="#7a3fb0", ink="#1b2328")
+           beam="#d0352b", port="#1f8a4c", strip="#d4a63c", strip_sec="#ead39b", strip_ink="#8a6a12", out="#7a3fb0", field="#7a3fb0", ink="#1b2328")
 plt.rcParams.update({"font.size": 10, "font.family": ["Inter", "DejaVu Sans"]})
 
 
@@ -61,12 +61,38 @@ def chip(a):
         u, v = np.array([np.cos(ang), np.sin(ang)]), np.array([-np.sin(ang), np.cos(ang)])
         q = [0.9 * u - bw / 2 * v, (band + 0.2) * u - bw / 2 * v, (band + 0.2) * u + bw / 2 * v, 0.9 * u + bw / 2 * v]
         bridges.append(Polygon(q))
-    ap = 2 * np.pi * p / N
-    up, vp = np.array([np.cos(ap), np.sin(ap)]), np.array([-np.sin(ap), np.cos(ap)])
+    # input port: no trenches along the input beam (it enters at the launch angle, along the first star chord)
+    ks = (p + m * np.arange(N + 1)) % N
+    mids = np.c_[a0 * np.cos(2 * np.pi * ks / N), a0 * np.sin(2 * np.pi * ks / N)]
+    d0 = (mids[1] - mids[0]) / np.linalg.norm(mids[1] - mids[0])
     wp = 0.10
-    port = Polygon([(a0 - 0.05) * up - wp / 2 * vp, (band + 0.05) * up - wp / 2 * vp, (band + 0.05) * up + wp / 2 * vp,
-                    (a0 - 0.05) * up + wp / 2 * vp])
-    slots = slots.difference(unary_union(bridges)).difference(port)
+    ring = ngon(band + 0.02, N).difference(ngon(a0 - 0.02, N))
+    in_win = LineString([mids[0] + 0.2 * d0, mids[0] - 1.0 * d0]).buffer(wp / 2, cap_style=2).intersection(ring)
+    # output ports: past the first n_out periods the membrane is solid over the port width (partial transmission)
+    n_out = a.out_periods if a.out_periods is not None else Np // 2
+    out_k = [round(N * f) % N for f in (0.625, 0.25, 0.375, 0.125)][: a.outputs]
+    out_win = []
+    for k in out_k:
+        ang = 2 * np.pi * k / N
+        u, v = np.array([np.cos(ang), np.sin(ang)]), np.array([-np.sin(ang), np.cos(ang)])
+        r0 = a0 + n_out * (g + tooth) - 0.25 * g
+        out_win.append(Polygon([r0 * u - wp / 2 * v, (band + 0.05) * u - wp / 2 * v, (band + 0.05) * u + wp / 2 * v, r0 * u + wp / 2 * v]))
+    slots = slots.difference(unary_union(bridges)).difference(unary_union([in_win] + out_win))
+
+    # tapered strip-loaded waveguides on the outer membrane: wide at the port, single-mode width further out
+    w1, w2, lt, ts = wp, 0.035, 0.32, 0.6 * t
+
+    def taper(start, u):
+        v_ = np.array([-u[1], u[0]])
+        far = start + 4 * u
+        return unary_union([Polygon([start - w1 / 2 * v_, start + lt * u - w2 / 2 * v_, start + lt * u + w2 / 2 * v_, start + w1 / 2 * v_]),
+                            Polygon([start + lt * u - w2 / 2 * v_, far - w2 / 2 * v_, far + w2 / 2 * v_, start + lt * u + w2 / 2 * v_])])
+
+    s_in = mids[0] - d0 * ((band - a0) / abs(d0 @ (mids[0] / a0)) + 0.01)
+    guides = [(taper(s_in, -d0), s_in, -d0)]
+    for k in out_k:
+        u = np.array([np.cos(2 * np.pi * k / N), np.sin(2 * np.pi * k / N)])
+        guides.append((taper((band + 0.01) * u, u), (band + 0.01) * u, u))
 
     L = 1.75
     chipsq = box(-L, -L, L, L)
@@ -83,10 +109,10 @@ def chip(a):
     sc.prism(chipsq.difference(undercut).difference(cut), -tb, 0, COL["box"], on_cut, COL["box_sec"])
     mem = chipsq.difference(slots).difference(cut)
     sc.prism(mem, 0, t, COL["si"], on_cut, COL["si_sec"])
+    strips = unary_union([gd[0] for gd in guides]).intersection(chipsq).difference(cut)
+    sc.prism(strips, t, t + ts, COL["strip"], on_cut, COL["strip_sec"])
 
     # star orbit {N/m} through the facet midpoints, starting at the port, on the membrane surface
-    ks = (p + m * np.arange(N + 1)) % N
-    mids = np.c_[a0 * np.cos(2 * np.pi * ks / N), a0 * np.sin(2 * np.pi * ks / N)]
     keep = mem.buffer(1e-6).union(ngon(a0, N)).difference(cut)
     for seg in zip(mids[:-1], mids[1:]):
         piece = LineString(seg).intersection(keep)
@@ -94,21 +120,40 @@ def chip(a):
             if ls.length > 0 and ls.geom_type == "LineString":
                 xy = np.asarray(ls.coords)
                 sc.line(np.c_[xy, np.full(len(xy), t + 1e-3)], COL["beam"], width=1.4)
-    d0 = (mids[1] - mids[0]) / np.linalg.norm(mids[1] - mids[0])
-    p_in = mids[0] - 0.75 * d0
-    sc.line(np.r_[[np.r_[p_in, t + 1e-3]], [np.r_[mids[0], t + 1e-3]]], COL["port"], width=2.2)
+    p_in = s_in - 0.55 * d0
+    sc.line(np.r_[[np.r_[p_in, t + ts + 1e-3]], [np.r_[s_in, t + ts + 1e-3]]], COL["port"], width=2.2)
+    sc.line(np.r_[[np.r_[s_in, t + 1e-3]], [np.r_[mids[0], t + 1e-3]]], COL["port"], width=2.2)
+    outs = []
+    for _, st, u in guides[1:]:
+        e = LineString([st, st + 4 * u]).intersection(chipsq.difference(cut))
+        if e.is_empty:
+            continue
+        xy = np.asarray(e.coords)
+        sc.line(np.c_[xy, np.full(len(xy), t + ts + 1e-3)], COL["out"], width=2.0)
+        outs.append((xy[0], xy[-1]))
 
     img, to_px = sc.render(width=a.width)
     fig = plt.figure(figsize=(img.shape[1] / 150, img.shape[0] / 150), dpi=150)
     ax = fig.add_axes([0, 0, 1, 1])
     ax.imshow(img)
     ax.set_axis_off()
-    A0, B0 = to_px(np.atleast_2d(np.r_[p_in, t])), to_px(np.atleast_2d(np.r_[mids[0] - 0.25 * d0, t]))
+    A0, B0 = to_px(np.atleast_2d(np.r_[p_in, t + ts])), to_px(np.atleast_2d(np.r_[s_in - 0.1 * d0, t + ts]))
     ax.annotate("", (B0[0][0], B0[1][0]), (A0[0][0], A0[1][0]), arrowprops=dict(arrowstyle="-|>", color=COL["port"], lw=2))
+    for st, en in outs:
+        A_, B_ = to_px(np.atleast_2d(np.r_[st + 0.6 * (en - st), t + ts])), to_px(np.atleast_2d(np.r_[en, t + ts]))
+        ax.annotate("", (B_[0][0], B_[1][0]), (A_[0][0], A_[1][0]), arrowprops=dict(arrowstyle="-|>", color=COL["out"], lw=2))
     k1 = N * 3 // 8
     fm = a0 * np.array([np.cos(2 * np.pi * k1 / N), np.sin(2 * np.pi * k1 / N)])
     annotate(ax, to_px, np.r_[fm * (a0 + 0.12) / a0, t], [-0.9, 2.15, t], f"etched-trench DBR on every facet ({Np} periods, drawn wide)")
-    annotate(ax, to_px, np.r_[mids[0] - 0.4 * d0, t], [-2.3, -0.5, t], "input port (no DBR over the port width)", COL["port"])
+    annotate(ax, to_px, np.r_[mids[0] - 0.08 * d0, t], [-2.3, -0.5, t], f"input port: no DBR, beam enters at χ = {90 - 180 * m / N:.1f}°", COL["port"])
+    annotate(ax, to_px, np.r_[s_in - 0.2 * d0, t + ts], [-2.1, 0.9, t], "tapered strip-loaded waveguides\n(strip on the membrane, to the chip edge)", COL["strip_ink"])
+    if out_k:
+        u = np.array([np.cos(2 * np.pi * out_k[0] / N), np.sin(2 * np.pi * out_k[0] / N)])
+        mode = cs.membrane_mode("Si", a.thickness * 1e-9, a.lam * 1e-6, a.pol, with_group_index=False)
+        D = cs.DBR(n_tooth=mode.neff, lam_design=a.lam * 1e-6, N=n_out, m_gap=1, m_tooth=1, slab_pol=a.pol, bounce_loss=0)
+        T0 = 1 - float(D.R(a.lam * 1e-6, np.array(0.0)))
+        annotate(ax, to_px, np.r_[(a0 + 0.5 * (band - a0)) * u, t], [0.6, 2.55, t],
+                 f"output ports: {n_out} of {Np} periods, T(0°) = {T0 * 100:.0f} %\n(no output above the {np.degrees(np.arcsin(1 / mode.neff)):.0f}° TIR angle)", COL["out"])
     annotate(ax, to_px, np.r_[0.15, 0.55, t], [1.2, 2.25, t], f"star orbit {{{N}/{m}}} in the membrane", COL["beam"])
     annotate(ax, to_px, [0.9, -0.02, t / 2], [2.45, 0.9, 0.0], "section through the DBR\n(gaps and teeth)")
     annotate(ax, to_px, [0.45, 0, t], [2.6, 0.2, -0.25], f"free-standing Si membrane\n(thickness ×{t / 250e-9 * 5e-3:.0f})")
@@ -191,6 +236,8 @@ if __name__ == "__main__":
     ap.add_argument("--facets", type=int, default=24)
     ap.add_argument("--star", type=int, default=7)
     ap.add_argument("--periods", type=int, default=4)
+    ap.add_argument("--outputs", type=int, default=2, help="number of output ports (0-4)")
+    ap.add_argument("--out-periods", type=int, default=None, help="DBR periods kept at an output port (default periods // 2)")
     ap.add_argument("--thickness", type=float, default=250, help="membrane thickness, nm")
     ap.add_argument("--lam", type=float, default=1.55, help="wavelength, µm")
     ap.add_argument("--pol", default="TM", choices=("TE", "TM"))

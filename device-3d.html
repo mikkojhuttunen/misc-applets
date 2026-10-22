@@ -76,6 +76,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .note { color: var(--muted); font-size: 12.5px; margin: 0; max-width: 100ch; }
 .err { color: var(--warn); font-size: 12.5px; margin: 0; }
 .tablewrap { overflow-x: auto; }
+table + table { margin-top: 10px; }
 table { border-collapse: collapse; font-size: 12.5px; width: 100%; min-width: 420px; }
 th, td { padding: 4px 10px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
 th:first-child, td:first-child { text-align: left; font-family: var(--font-body); }
@@ -117,6 +118,12 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
           <input id="mStar" type="range" min="1" max="11" step="1" value="7"></div>
         <div class="ctl"><div class="row"><label for="mPer">DBR periods</label><output id="mPerOut"></output></div>
           <input id="mPer" type="range" min="1" max="10" step="1" value="4"></div>
+        <div class="ctl"><div class="row"><label for="mOuts">Output ports</label><output id="mOutsOut"></output></div>
+          <input id="mOuts" type="range" min="0" max="4" step="1" value="2"></div>
+        <div class="ctl"><div class="row"><label for="mOutN">DBR periods at an output port</label><output id="mOutNOut"></output></div>
+          <input id="mOutN" type="range" min="0" max="9" step="1" value="2">
+          <p class="hint">Fewer periods over the port width let part of the light through into a tapered strip-loaded waveguide.</p></div>
+        <label class="check" for="mOutMir"><input id="mOutMir" type="checkbox"> Close-up shows the output-port mirror</label>
         <div class="ctl"><div class="row"><label for="mThk">Si membrane thickness</label><output id="mThkOut"></output></div>
           <input id="mThk" type="range" min="150" max="600" step="10" value="250"></div>
         <div class="seg" role="group" aria-label="Slab mode">
@@ -377,7 +384,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
 
   // ---------------------------------------------------------------- colours (world materials, same in both themes)
   const COL = { si: "#8fa3c4", siSec: "#cdd8ea", handle: "#9a9fa6", handleSec: "#c8ccd1", box: "#e3d29a", boxSec: "#f1e7c6",
-    beam: "#d0352b", port: "#1f8a4c", field: "#8a4fc8",
+    beam: "#d0352b", port: "#1f8a4c", field: "#8a4fc8", out: "#7a3fb0", strip: "#d4a63c", stripSec: "#ead39b",
     layers: ["#c7cccc", "#91ada6", "#d4bf9e", "#b8a3c2"], layersSec: ["#e2e6e6", "#c2d4cf", "#e8dcc8", "#d9cde0"],
     dbr: "#21855f", dbrSec: "#73bc9f", gc: "#e87a29", gcSec: "#f4b787" };
 
@@ -391,26 +398,46 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     const B = new Builder();
     const at = (A, phi) => [A * sec * Math.cos(phi), A * sec * Math.sin(phi)];
     const wedge = (A1, A2, k) => { const th0 = 2 * Math.PI * k / N, pm = th0 - Math.PI / N, pp = th0 + Math.PI / N; return [at(A1, pm), at(A2, pm), at(A2, pp), at(A1, pp)]; };
-    const port = Math.floor(N / 2);
+    const port = Math.floor(N / 2), nOut = Math.min(v("mOutN"), Np - 1), nOutPorts = v("mOuts");
+    const outK = [0.625, 0.25, 0.375, 0.125].slice(0, nOutPorts).map(f => Math.round(N * f) % N);
+    const mid = k => { const a = 2 * Math.PI * (((k % N) + N) % N) / N; return [a0 * Math.cos(a), a0 * Math.sin(a)]; };
+    // input beam: enters at the launch angle along the first star chord; no trenches along its path
+    const p0 = mid(port), p1 = mid(port + m), dl = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), d0 = [(p1[0] - p0[0]) / dl, (p1[1] - p0[1]) / dl];
+    const nb = [-d0[1], d0[0]], c0 = nb[0] * p0[0] + nb[1] * p0[1], cb = d0[0] * p0[0] + d0[1] * p0[1];
+    const inWin = Q => clip(clip(clip(Q, nb[0], nb[1], c0 + wp / 2), -nb[0], -nb[1], -c0 + wp / 2), d0[0], d0[1], cb + 1e-6);
     const inner = []; for (let k = 0; k < N; k++) inner.push(at(a0, 2 * Math.PI * k / N - Math.PI / N));
     B.add(inner, 0, t, COL.si, COL.siSec, cut);
     for (let k = 0; k < N; k++) {
       const th0 = 2 * Math.PI * k / N, pm = th0 - Math.PI / N, pp = th0 + Math.PI / N;
+      const tx = -Math.sin(th0), ty = Math.cos(th0), isOut = outK.includes(k);
+      const nm_ = [-Math.sin(pm), Math.cos(pm)], np_ = [Math.sin(pp), -Math.cos(pp)];
       for (let j = 0; j < Np; j++) {
         const A = a0 + j * (g + tw);
         B.add(wedge(A + g, A + g + tw, k), 0, t, COL.si, COL.siSec, cut);                 // tooth
-        const gq = wedge(A, A + g, k);                                                     // gap: membrane only at bridges / port
-        B.add(clip(gq, -Math.sin(pm), Math.cos(pm), bw / 2), 0, t, COL.si, COL.siSec, cut);
-        B.add(clip(gq, Math.sin(pp), -Math.cos(pp), bw / 2), 0, t, COL.si, COL.siSec, cut);
-        if (k === port) {
-          const tx = -Math.sin(th0), ty = Math.cos(th0);
-          B.add(clip(clip(gq, tx, ty, wp / 2), -tx, -ty, wp / 2), 0, t, COL.si, COL.siSec, cut);
-        }
+        const gq = wedge(A, A + g, k);                                                     // gap: membrane only at bridges / ports
+        B.add(clip(gq, nm_[0], nm_[1], bw / 2), 0, t, COL.si, COL.siSec, cut);
+        B.add(clip(gq, np_[0], np_[1], bw / 2), 0, t, COL.si, COL.siSec, cut);
+        const mid_ = clip(clip(gq, -nm_[0], -nm_[1], -bw / 2), -np_[0], -np_[1], -bw / 2);   // gap between the bridges
+        const w_in = inWin(mid_);
+        if (w_in.length >= 3) B.add(w_in, 0, t, COL.si, COL.siSec, cut);
+        if (isOut && j >= nOut) B.add(clip(clip(mid_, tx, ty, wp / 2), -tx, -ty, wp / 2), 0, t, COL.si, COL.siSec, cut);
       }
       let outer = wedge(a0 + Np * (g + tw), 6, k);
       outer = clip(clip(clip(clip(outer, 1, 0, L), -1, 0, L), 0, 1, L), 0, -1, L);
       B.add(outer, 0, t, COL.si, COL.siSec, cut);
     }
+    // tapered strip-loaded waveguides: wide (port width) at the DBR, single-mode width further out, to the chip edge
+    const ts = 0.6 * t, w1 = wp, w2 = 0.035, lt = 0.32, sq = Q => clip(clip(clip(clip(Q, 1, 0, L), -1, 0, L), 0, 1, L), 0, -1, L);
+    const bandR = Np * (g + tw);
+    const guide = (st, u) => {
+      const w = [-u[1], u[0]], P = (s, h) => [st[0] + s * u[0] + h * w[0], st[1] + s * u[1] + h * w[1]];
+      B.add(sq([P(0, -w1 / 2), P(lt, -w2 / 2), P(lt, w2 / 2), P(0, w1 / 2)]), t, t + ts, COL.strip, COL.stripSec, cut);
+      B.add(sq([P(lt, -w2 / 2), P(5, -w2 / 2), P(5, w2 / 2), P(lt, w2 / 2)]), t, t + ts, COL.strip, COL.stripSec, cut);
+    };
+    const cosIn = Math.abs(d0[0] * p0[0] + d0[1] * p0[1]) / a0, uIn = [-d0[0], -d0[1]];
+    const sIn = [p0[0] + uIn[0] * (bandR / cosIn + 0.01), p0[1] + uIn[1] * (bandR / cosIn + 0.01)];
+    guide(sIn, uIn);
+    const outStarts = outK.map(k => { const u = [Math.cos(2 * Math.PI * k / N), Math.sin(2 * Math.PI * k / N)]; const st = [u[0] * (a0 + bandR + 0.01), u[1] * (a0 + bandR + 0.01)]; guide(st, u); return [st, u]; });
     const frame = w => [[[-L, -L], [L, -L], [L, -w], [-L, -w]], [[-L, w], [L, w], [L, L], [-L, L]], [[-L, -w], [-w, -w], [-w, w], [-L, w]], [[w, -w], [L, -w], [L, w], [w, w]]];
     for (const R of frame(und)) B.add(R, -tb, 0, COL.box, COL.boxSec, cut);
     for (const R of frame(win)) B.add(R, -tb - th, -tb, COL.handle, COL.handleSec, cut);
@@ -418,32 +445,34 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       (Math.abs(p[1]) < 1e-9 && Math.abs(q[1]) < 1e-9 && Math.min(p[0], q[0]) >= -1e-9) : null;
     // beams
     const segs = [], inCut = (x, y) => cut && x > 0 && y < 0;
-    const mid = k => { const a = 2 * Math.PI * (((k % N) + N) % N) / N; return [a0 * Math.cos(a), a0 * Math.sin(a)]; };
     const keepSeg = (a, b, out) => {
-      const ts = [0, 1];
-      if ((a[0] < 0) !== (b[0] < 0)) ts.push(a[0] / (a[0] - b[0]));
-      if ((a[1] < 0) !== (b[1] < 0)) ts.push(a[1] / (a[1] - b[1]));
-      ts.sort((x, y) => x - y);
+      const ts_ = [0, 1];
+      if ((a[0] < 0) !== (b[0] < 0)) ts_.push(a[0] / (a[0] - b[0]));
+      if ((a[1] < 0) !== (b[1] < 0)) ts_.push(a[1] / (a[1] - b[1]));
+      ts_.sort((x, y) => x - y);
       const P = s => [a[0] + s * (b[0] - a[0]), a[1] + s * (b[1] - a[1])];
-      for (let i = 0; i < ts.length - 1; i++) { const m_ = P((ts[i] + ts[i + 1]) / 2); if (!inCut(m_[0], m_[1])) out.push(P(ts[i]), P(ts[i + 1])); }
+      for (let i = 0; i < ts_.length - 1; i++) { const m_ = P((ts_[i] + ts_[i + 1]) / 2); if (!inCut(m_[0], m_[1])) out.push(P(ts_[i]), P(ts_[i + 1])); }
     };
     let k = port;
     for (let i = 0; i < N; i++) { keepSeg(mid(k), mid(k + m), segs); k += m; }
-    const p0 = mid(port), p1 = mid(port + m), dl = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), d0 = [(p1[0] - p0[0]) / dl, (p1[1] - p0[1]) / dl];
-    const inSegs = [[p0[0] - 0.7 * d0[0], p0[1] - 0.7 * d0[1]], p0];
+    const toEdge = (st, u) => { let s = 10; for (const [c, d] of [[L - st[0], u[0]], [-L - st[0], u[0]], [L - st[1], u[1]], [-L - st[1], u[1]]]) if (Math.abs(d) > 1e-9 && c / d > 0) s = Math.min(s, c / d); return [st[0] + s * u[0], st[1] + s * u[1]]; };
+    const inSegs = [toEdge(sIn, uIn), sIn], inBand = [sIn, p0];
+    const outSegs = []; for (const [st, u] of outStarts) keepSeg(st, toEdge(st, u), outSegs);
+    const T0 = 1 - M.R(nOut, 0);
     const labels = [
-      { text: `trench DBR, ${Np} periods (drawn wide)`, p: [...at(a0 + band / 2, 2 * Math.PI * Math.round(N / 4) / N), t] },
-      { text: "input port (no DBR)", p: [...p0.map((x, i) => x - 0.35 * d0[i]), t] },
+      { text: `trench DBR, ${Np} periods (drawn wide)`, p: [...at(a0 + band / 2, 2 * Math.PI * Math.round(N * 3 / 16) / N), t] },
+      { text: `input port, χ = ${(90 - 180 * m / N).toFixed(1)}°`, p: [...p0.map((x, i) => x - 0.1 * d0[i]), t] },
+      { text: "tapered strip-loaded waveguide", p: [sIn[0] + uIn[0] * 0.2, sIn[1] + uIn[1] * 0.2, t + ts] },
       { text: `Si membrane, ${v("mThk")} nm`, p: [-0.5, 0.25, t] },
       { text: "buried oxide", p: [-L * 0.45, -L, -tb / 2] },
       { text: "Si handle", p: [-L * 0.85, -L, -tb - th / 2] },
-      { text: "released over the backside window", p: [0.7, 0.7, -tb - th] },
     ];
-    if (!cut) labels.pop();
-    return { B, isSec, segs, inSegs, beamZ: t + 0.002, beamW: 0.012, labels, info: { M, N, Np, m, t, band } };
+    outStarts.forEach(([st, u], i) => labels.push({ text: i ? "output" : `output port: ${nOut} of ${Np} periods, T(0°) ${(T0 * 100).toFixed(0)} %`, p: [st[0] + u[0] * 0.25, st[1] + u[1] * 0.25, t + ts] }));
+    if (cut) labels.push({ text: "released over the backside window", p: [0.7, 0.7, -tb - th] });
+    return { B, isSec, segs, inSegs, inBand, outSegs, beamZ: t + 0.002, beamW: 0.012, labels, info: { M, N, Np, m, t, band, nOut, nOutPorts } };
   }
   function memMirror() {
-    const M = mirrorModel(), um = 1e6, t = M.t * um, g = M.dGap * um, tw = M.dTooth * um, Np = v("mPer");
+    const M = mirrorModel(), um = 1e6, t = M.t * um, g = M.dGap * um, tw = M.dTooth * um, outMir = $("mOutMir").checked, Np = outMir ? Math.max(1, Math.min(v("mOutN"), v("mPer") - 1)) : v("mPer");
     const cav = 1.8, Ly = 2.4, tail = 0.9, z0 = -t / 2, z1 = t / 2, B = new Builder();
     B.add([[-cav, 0], [0, 0], [0, Ly], [-cav, Ly]], z0, z1, COL.si, COL.siSec, null);
     let x = 0; const teeth = [];
@@ -466,6 +495,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       { text: `${M.pol}₀ ray, χ = ${v("mChi")}°`, p: [-Lr * 0.6, yh - Lr * 0.6 * Math.tan(chi), z1] },
       { text: `|${M.pol === "TM" ? "H" : "E"}|² across the membrane`, p: [-cav * 0.5 - 0.8, -0.002, 0] },
     ];
+    if (outMir) labels.push({ text: `output port: ${Np} periods, then the strip-loaded taper`, p: [x + tail / 2, Ly * 0.4, z1] });
     return { B, isSec, segs, inSegs: [], beamZ: z1 + 0.002, beamW: 0.03, prof, labels, info: { M, Np } };
   }
   function crigfModel() {
@@ -577,9 +607,10 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       group.add(new THREE.LineSegments(lines, new THREE.LineBasicMaterial({ color: 0x1b2328, transparent: true, opacity: 0.55 })));
       const showBeam = S.dev === "mem" && (S.mview === "mirror" || $("beamOn").checked);
       if (showBeam) {
-        for (const [pts, colr, w] of [[desc.segs, COL.beam, desc.beamW], [desc.inSegs, COL.port, desc.beamW * 1.8]]) {
+        const zs = desc.beamZ + (desc.info.t || 0) * 0.6;
+        for (const [pts, colr, w, z] of [[desc.segs, COL.beam, desc.beamW, desc.beamZ], [desc.inSegs || [], COL.port, desc.beamW * 1.8, zs], [desc.inBand || [], COL.port, desc.beamW * 1.8, desc.beamZ], [desc.outSegs || [], COL.out, desc.beamW * 1.8, zs]]) {
           if (!pts.length) continue;
-          const arr = []; ribbon(pts, desc.beamZ, w, arr);
+          const arr = []; ribbon(pts, z, w, arr);
           const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(arr, 3));
           group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: colr, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })));
         }
@@ -625,26 +656,36 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     const sg = Array.from({ length: 101 }, (_, i) => i / 100 * 0.999);
     const Rmin = Math.min(...sg.map(s => M.R(Np, s)));
     leg.innerHTML = S.mview === "chip"
-      ? `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>star orbit {${desc.info.N}/${desc.info.m}}</span><span><i class="sw" style="background:${COL.port}"></i>input beam</span><span>lighter shade: cut face</span>`
+      ? `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>star orbit {${desc.info.N}/${desc.info.m}}</span><span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>strip-loaded waveguide</span><span><i class="sw" style="background:${COL.out}"></i>output</span><span>lighter shade: cut face</span>`
       : `<span><i class="sw" style="background:${COL.si}"></i>Si (to scale, µm)</span><span><i class="sw" style="background:${COL.beam}"></i>incident and reflected slab-mode ray</span><span><i class="sw" style="background:${COL.field}"></i>mode intensity across the membrane</span>`;
     st.innerHTML = stat("n_Si", M.n.toFixed(4)) + stat(`n_eff ${M.pol}₀`, isFinite(M.ne) ? M.ne.toFixed(4) : "cut off") + stat("Air gap / tooth", `${nm(M.dGap)} / ${nm(M.dTooth)}`) +
       stat("Mirror depth", `${((M.dGap + M.dTooth) * Np * 1e6).toFixed(2)} µm`) + stat(`R at 0°, N = ${Np}`, R0.toFixed(4)) +
       stat("Worst angle R", Rmin < 1e-3 ? "≈ 0 (Brewster)" : Rmin.toFixed(4)) + stat("Periods for R ≥ 0.99 at 0°", N99 ?? "> 40") + stat("TIR at first gap above", `${tir.toFixed(1)}°`);
+    const nOut = Math.min(v("mOutN"), v("mPer") - 1), chiL = 90 - 180 * Math.min(v("mStar"), Math.floor((v("mFac") - 1) / 2)) / v("mFac");
+    const Tat = deg => 1 - M.R(nOut, Math.sin(deg * D2R));
+    let Tavg = 0; for (let i = 1; i < sg.length; i++) Tavg += (Tat(Math.asin(sg[i]) / D2R) + Tat(Math.asin(sg[i - 1]) / D2R)) / 2 * (sg[i] - sg[i - 1]); Tavg /= sg[sg.length - 1];
+    const pct = x => x < 1e-4 ? "≈ 0 (TIR)" : `${(x * 100).toFixed(x < 0.01 ? 2 : 1)} %`;
+    let tab = `<table><thead><tr><th>Output port, ${nOut} of ${v("mPer")} periods: transmission into the waveguide</th><th>T</th></tr></thead><tbody>
+      <tr><td>Normal incidence</td><td>${pct(Tat(0))}</td></tr>
+      <tr><td>χ = 20°</td><td>${pct(Tat(20))}</td></tr>
+      <tr><td>Star-orbit angle χ = ${chiL.toFixed(1)}°</td><td>${pct(Tat(chiL))}</td></tr>
+      <tr><td>Average over uniform sin χ (fully chaotic cell)</td><td>${pct(Tavg)}</td></tr></tbody></table>`;
     if (S.mview === "chip") {
       const R = v("mDiam") / 2 * 1e-3;
-      tw.innerHTML = `<table><thead><tr><th>Drawn exaggeration</th><th>Factor</th></tr></thead><tbody>
+      tab += `<table><thead><tr><th>Drawn exaggeration</th><th>Factor</th></tr></thead><tbody>
         <tr><td>Membrane thickness (vs cell radius)</td><td>×${(desc.info.t / (M.t / R)).toFixed(0)}</td></tr>
         <tr><td>DBR band width (vs cell radius)</td><td>×${(desc.info.band / ((M.dGap + M.dTooth) * Np / R)).toFixed(0)}</td></tr></tbody></table>`;
-    } else tw.innerHTML = "";
+    }
+    tw.innerHTML = tab;
     note.textContent = M.pol === "TE"
       ? "TE₀ meets the trench walls p-polarised: every Si/air interface has the same Brewster angle, so the stack is transparent there whatever the period count. cmpc-sim uses TM₀, or a three-index stack (mirror_design.py)."
-      : `TM₀ is s-polarised on the walls: R rises with angle and is total above ${tir.toFixed(1)}°, so normal incidence is the worst case. Lossless 1D model; cmpc-sim adds 3×10⁻⁴ per bounce for out-of-plane radiation and roughness.`;
+      : `TM₀ is s-polarised on the walls: R rises with angle and is total above ${tir.toFixed(1)}°, so normal incidence is the worst case. The same TIR means an output port passes nothing to rays hitting it above ${tir.toFixed(1)}°: in a regular star orbit at ${chiL.toFixed(1)}° no light leaves; the chaotic cell is what sends rays in at small angles. Lossless 1D model; cmpc-sim adds 3×10⁻⁴ per bounce for out-of-plane radiation and roughness.`;
   }
 
   // ---------------------------------------------------------------- controls
   const LAB = {
     mFac: x => x, mStar: x => `${Math.min(x, Math.floor((v("mFac") - 1) / 2))} (χ = ${(90 - 180 * Math.min(x, Math.floor((v("mFac") - 1) / 2)) / v("mFac")).toFixed(1)}°)`,
-    mPer: x => x, mThk: x => `${x} nm`, mLam: x => `${x.toFixed(2)} µm`, mDiam: x => `${x} mm`, mChi: x => `${x}°`,
+    mPer: x => x, mOuts: x => x, mOutN: x => `${Math.min(x, v("mPer") - 1)} of ${v("mPer")}`, mThk: x => `${x} nm`, mLam: x => `${x.toFixed(2)} µm`, mDiam: x => `${x} mm`, mChi: x => `${x}°`,
     dBand: x => `${(x * 100).toFixed(0)} % of radius`, dT: x => `${(x * 100).toFixed(1)} % of radius`,
     cNGC: x => x, cPGC: x => `${x} nm`, cFGC: x => x.toFixed(2), cNL: x => x, cNR: x => x, cPD: x => `${x} nm`, cFD: x => x.toFixed(2),
     cPhL: x => `${x} nm`, cPhR: x => `${x} nm`, cOff: x => `${x} nm`, cH: x => `${x} nm`, cLN: x => `${x} nm`, cW: x => `${x} µm`,
@@ -654,7 +695,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
   let raf = 0;
   function update() { labels(); cancelAnimationFrame(raf); raf = requestAnimationFrame(rebuild); }
   for (const id in LAB) $(id).addEventListener("input", update);
-  for (const id of ["cut", "labelsOn", "beamOn"]) $(id).addEventListener("change", update);
+  for (const id of ["cut", "labelsOn", "beamOn", "mOutMir"]) $(id).addEventListener("change", update);
   const press = (sel, attr, val) => { for (const b of document.querySelectorAll(sel)) b.setAttribute("aria-pressed", String(b.dataset[attr] === val)); };
   for (const b of document.querySelectorAll("[data-dev]")) b.addEventListener("click", () => {
     S.dev = b.dataset.dev; press("[data-dev]", "dev", S.dev);

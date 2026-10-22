@@ -55,16 +55,16 @@ FIG_W_CM, FIG_H_CM, A_SHARE = 18.0, 9.5, 0.6
 HEADROOM = 1.4                    # y range of each strip in (a) as a multiple of its peak: room for the labels
 # curves of (b): none, angle, spectral, both, regular, shot, total
 B_CURVES = ["none", "angle", "spectral", "both", "regular", "shot", "total"]
-MODE_STYLE = {"none": ("C4", "no dither"), "angle": ("C2", "angle"), "spectral": ("C1", "wavelength"), "both": ("k", "both")}
+MODE_STYLE = {"none": ("C4", "no dither"), "angle": ("C2", "angle"), "spectral": ("C6", "wavelength"), "both": ("k", "both")}
 LINES = [("NH$_3$", "NH3", 6528.77, "C0", "NH3"), ("CH$_4$", "CH4", 6114.652, "C0", "CH4 1.6"), ("CH$_4$", "CH4", 3017.80, "C1", "CH4 3.3"),
          ("C$_2$H$_6$", "C2H6", 2996.852, "C1", "C2H6"), ("NO", "NO", 1900.076, "C3", "NO")]
 
 FW, FH = FIG_W_CM / 2.54, FIG_H_CM / 2.54
-ML, GAP, MR, MT_A, MT_B, MB = 0.78, 0.92, 0.92, 0.70, 0.29, 0.48          # margins [in]: left, between panels, right, tops, bottom
+ML, GAP, MR, MT_A, MB = 0.78, 0.92, 0.92, 0.70, 0.48          # margins [in]: left, between panels, right, top (both panels), bottom
 WA = (FW - ML - GAP - MR) * A_SHARE                                          # width of (a) [in]
 fig = plt.figure(figsize=(FW, FH))
 gsA = fig.add_gridspec(len(LINES), 1, hspace=0.22, left=ML / FW, right=(ML + WA) / FW, top=1 - MT_A / FH, bottom=MB / FH)
-gsB = fig.add_gridspec(1, 1, left=(ML + WA + GAP) / FW, right=1 - MR / FW, top=1 - MT_B / FH, bottom=MB / FH)
+gsB = fig.add_gridspec(1, 1, left=(ML + WA + GAP) / FW, right=1 - MR / FW, top=1 - MT_A / FH, bottom=MB / FH)
 
 # ------------------------------------------------------------------ speckle fringe of the cell of (b), for the overlay in (a)
 d = json.load(open(ROOT / "data" / "chaoslab_nh3.json"))
@@ -129,7 +129,7 @@ axs[0].legend([Line2D([], [], color=MODE_STYLE[m][0], lw=0.9, alpha=OVERLAY_ALPH
 
 # ------------------------------------------------------------------ (b) noise floor against averaging time
 b = fig.add_subplot(gsB[0, 0])
-SC = [("none", "no dither", "C4"), ("angle", "angle dither", "C2"), ("spectral", "wavelength dither", "C1"), ("both", "both dithers", "C0")]
+SC = [("none", "no dither", "C4"), ("angle", "angle dither", "C2"), ("spectral", "wavelength dither", "C6"), ("both", "both dithers", "C0")]
 for key, name, cc in SC:
     if key in B_CURVES: b.loglog(T, cur["scen"][key]["env"], color=cc, lw=1.4, label=name)
 if "regular" in B_CURVES: b.loglog(T, reg["scen"]["both"]["env"], color="C0", lw=1.4, ls=":", label="both, regular cell")
@@ -149,7 +149,7 @@ b.plot([1.0], [total[i1]], "ko", ms=4)
 b.annotate(f"{ppb(total[i1]):.0f} ppb", (1.0, total[i1]), xytext=(0.02, 1e-8), ha="center", fontsize=FS,
            arrowprops=dict(arrowstyle="-", lw=0.6, color="k"))
 # direct labels instead of a legend: (curve key, T where the label sits, factor above (>1) or below (<1) the curve, text)
-LBL = [("none", 1e-2, 2.6, "none", "C4"), ("spectral", 1.0, 2.6, "λ", "C1"), ("angle", 1.0, 2.6, "angle", "C2"),
+LBL = [("none", 1e-2, 2.6, "none", "C4"), ("spectral", 1.0, 2.6, "λ", "C6"), ("angle", 1.0, 2.6, "angle", "C2"),
        ("shot", 3.0, 0.2, "shot", "0.35"), ("total", 3e-4, 0.15, "both", "k")]
 curve_of = {"regular": reg["scen"]["both"]["env"], "shot": shot, "total": total, **{k: cur["scen"][k]["env"] for k in ("none", "angle", "spectral", "both")}}
 for key, tl, fac, text, cc in LBL:

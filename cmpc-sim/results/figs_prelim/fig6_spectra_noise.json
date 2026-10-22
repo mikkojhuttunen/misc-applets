@@ -1,0 +1,51 @@
+{
+ "lines": [
+  {
+   "line": "NH3 1.532 um",
+   "nu_cm": 6528.774166666667,
+   "alpha_per_ppm_cm": 2.2656522977454855e-07,
+   "background_at_line_cm": 1.0537932680248972e-06,
+   "background_max_scan_cm": 3.221155997115502e-06
+  },
+  {
+   "line": "CH4 1.635 um",
+   "nu_cm": 6114.652833333334,
+   "alpha_per_ppm_cm": 1.5476510393032686e-07,
+   "background_at_line_cm": 2.0158977160974685e-08,
+   "background_max_scan_cm": 1.728682130224316e-07
+  },
+  {
+   "line": "CH4 3.314 um",
+   "nu_cm": 3017.8,
+   "alpha_per_ppm_cm": 3.6136895437582834e-05,
+   "background_at_line_cm": 8.837855429074212e-06,
+   "background_max_scan_cm": 1.277273660560811e-05
+  },
+  {
+   "line": "C2H6 3.337 um",
+   "nu_cm": 2996.8528333333334,
+   "alpha_per_ppm_cm": 3.317467160856552e-05,
+   "background_at_line_cm": 1.06613184855507e-05,
+   "background_max_scan_cm": 2.9630406733461834e-05
+  },
+  {
+   "line": "NO 5.263 um",
+   "nu_cm": 1900.0751666666667,
+   "alpha_per_ppm_cm": 1.6345572289327283e-05,
+   "background_at_line_cm": 4.301729715521943e-05,
+   "background_max_scan_cm": 0.00010997336663637836
+  }
+ ],
+ "cell": {
+  "Gamma": 0.2,
+  "L_mean_cm": 11.126207749408657,
+  "T_cell": 0.2237452783871819,
+  "M2": 314.3182283308637
+ },
+ "nec_ppb_1s": {
+  "total": 229.10936676516377,
+  "shot": 53.84654416386439,
+  "fringe_both": 222.69183106064608,
+  "fringe_both_regular": 1101.3036529829533
+ }
+}

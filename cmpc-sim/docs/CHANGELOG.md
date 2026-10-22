@@ -1,4 +1,5 @@
 # Changelog
+* **v0.6 (fig. 6)** — `fig6_spectra_noise.py`: (a) HITRAN spectra of the five lines over a ±15 GHz scan in breath-like H₂O/CO₂ (line-by-line Voigt from the cached HITRAN records, `../HITRAN/hitran_lbl.py`, matches HAPI to <0.1 %), (b) NH₃ noise-equivalent absorbance against averaging time from the Multipass Chaos Lab DitherLab engine (`chaoslab_nh3.js` → `data/chaoslab_nh3.json`) with shot noise. Replaces the bar chart and speckle-floor panel of the old fig. 6.
 * **v0.5 (packaging)** — moved into `misc-applets/cmpc-sim/` (engines found in `../math-engines`), package layout, `scripts/` pipelines writing to `results/`, `design_mirror.py`, unit tests, docs, Makefile.
 * **v0.4** — hole-free three-index TE mirror (`mirror_design`); speckle vs chaos and K beams; suppression budget; `select_lines`, HAPI partition sums; Lyapunov exponent; `extra_ports`, `launch_w`, `launch_off`, `s_out` in the tracer; single-port multi-beam scans; proposal figures (10 pt, 17 cm).
 * **v0.3** — mid-IR (Ge/Si 5.26 µm): Ge Sellmeier, NO/CO/N₂O line placeholders, `run_midir.py`; phase-dither (sweep) kernel; `fetch_hitran.py nir|mir`.

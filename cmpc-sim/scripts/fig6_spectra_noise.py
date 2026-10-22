@@ -19,7 +19,8 @@ measurement against averaging time.
     drift; shot noise sqrt(q/(P T_cell T)) for 1 mW; the total of shot noise and the both-dither fringe. Dotted: the
     regular cell (flat facets, no index disks) with both dithers. Right axis: NH3 mixing ratio, with the HITRAN peak
     alpha of (a) and the cell's Gamma <L> (2.2 cm; stray power eps = 1e-6). Curves are labelled directly.
-All text Arial 12 pt (Liberation Sans, metrically identical, where Arial is not installed); 17 cm x 12.2 cm.
+All text Arial 12 pt (Liberation Sans, metrically identical, where Arial is not installed); size FIG_W_CM x FIG_H_CM, margins
+fixed in inches so the text keeps its spacing at any size.
 
 Writes results/figs_prelim/fig6_spectra_noise.pdf and .png."""
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "HITRAN"))
@@ -49,15 +50,21 @@ OVERLAY = {"NH3": ["angle", "both"], "CH4 1.6": ["angle", "both"], "CH4 3.3": ["
 OVERLAY_BAND = {}
 T_OVERLAY, OVERLAY_ALPHA, OVERLAY_SEED = 1.0, 0.75, 6
 ANALYTE_PPM = 1.0
+# figure size [cm] and the share of the panel width that goes to (a)
+FIG_W_CM, FIG_H_CM, A_SHARE = 18.0, 9.5, 0.6
+HEADROOM = 1.4                    # y range of each strip in (a) as a multiple of its peak: room for the labels
 # curves of (b): none, angle, spectral, both, regular, shot, total
 B_CURVES = ["none", "angle", "spectral", "both", "regular", "shot", "total"]
 MODE_STYLE = {"none": ("C4", "no dither"), "angle": ("C2", "angle"), "spectral": ("C1", "wavelength"), "both": ("k", "both")}
 LINES = [("NH$_3$", "NH3", 6528.77, "C0", "NH3"), ("CH$_4$", "CH4", 6114.652, "C0", "CH4 1.6"), ("CH$_4$", "CH4", 3017.80, "C1", "CH4 3.3"),
          ("C$_2$H$_6$", "C2H6", 2996.852, "C1", "C2H6"), ("NO", "NO", 1900.076, "C3", "NO")]
 
-fig = plt.figure(figsize=(6.69, 4.8))
-gsA = fig.add_gridspec(len(LINES), 1, hspace=0.22, left=0.115, right=0.485, top=0.855, bottom=0.1)
-gsB = fig.add_gridspec(1, 1, left=0.62, right=0.865, top=0.94, bottom=0.1)
+FW, FH = FIG_W_CM / 2.54, FIG_H_CM / 2.54
+ML, GAP, MR, MT_A, MT_B, MB = 0.78, 0.92, 0.92, 0.70, 0.29, 0.48          # margins [in]: left, between panels, right, tops, bottom
+WA = (FW - ML - GAP - MR) * A_SHARE                                          # width of (a) [in]
+fig = plt.figure(figsize=(FW, FH))
+gsA = fig.add_gridspec(len(LINES), 1, hspace=0.22, left=ML / FW, right=(ML + WA) / FW, top=1 - MT_A / FH, bottom=MB / FH)
+gsB = fig.add_gridspec(1, 1, left=(ML + WA + GAP) / FW, right=1 - MR / FW, top=1 - MT_B / FH, bottom=MB / FH)
 
 # ------------------------------------------------------------------ speckle fringe of the cell of (b), for the overlay in (a)
 d = json.load(open(ROOT / "data" / "chaoslab_nh3.json"))
@@ -100,7 +107,7 @@ for k, (lab, sp, nu0, cc, key) in enumerate(LINES):
         a.plot(x, (tot + (speckle(dnu, lev) + rng.normal(0, shot[iov], x.size)) / GL) / e, color=MODE_STYLE[mode][0],
                lw=0.5, alpha=OVERLAY_ALPHA, zorder=3 + j)
         if mode not in used: used.append(mode)
-    a.set_ylim(0, top * 1.12); a.set_yticks([0, np.floor(top * 10) / 10 if top < 2 else np.floor(top)])
+    a.set_ylim(0, top * HEADROOM); a.set_yticks([0, np.floor(top * 10) / 10 if top < 2 else np.floor(top)])
     a.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
     a.text(1.0, 0.98, f"×10$^{{{int(np.log10(e))}}}$", transform=a.transAxes, ha="right", va="top", fontsize=FS, color="0.35")
     a.text(0.015, 0.97, f"{lab} {1e4 / nu0:.2f} µm", transform=a.transAxes, ha="left", va="top", fontsize=FS, color=cc,
@@ -111,7 +118,7 @@ for k, (lab, sp, nu0, cc, key) in enumerate(LINES):
     a.set_xlim(-15, 15)
 axs[-1].set_xlabel("detuning (GHz)")
 axs[len(LINES) // 2].set_ylabel(r"absorption coefficient $\alpha$ (cm$^{-1}$)")
-axs[len(LINES) // 2].yaxis.set_label_coords(-0.17, 0.5)
+axs[len(LINES) // 2].yaxis.set_label_coords(-0.42 / WA, 0.5)
 axs[0].set_title(f"(a) {ANALYTE_PPM:g} ppm in breath background", loc="left", fontsize=FS, pad=22)
 from matplotlib.lines import Line2D
 Tlab = f"{T_OVERLAY:g} s" if T_OVERLAY >= 1 else f"{T_OVERLAY * 1e3:g} ms"

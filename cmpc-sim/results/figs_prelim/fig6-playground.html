@@ -53,6 +53,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .sheetwrap { overflow-x: auto; }
 .sheet { background: #ffffff; border-radius: 4px; box-shadow: var(--sheet-shadow); min-width: 640px; }
 .sheet svg { display: block; width: 100%; height: auto; }
+.sizes { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 18px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; display: grid; gap: 8px; min-width: 0; }
 .panel h2 { font: 700 11px/1 var(--f-ui); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; }
 pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 10px; overflow-x: auto; white-space: pre; }
@@ -62,7 +63,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
 <div class="wrap">
   <header>
     <h1>Fig. 6 Playground</h1>
-    <p>Figure: 17 cm wide, all text Arial 12 pt. Try noise overlays on the HITRAN spectra of panel (a), and choose the curves of panel (b). Spectra: line-by-line Voigt from the repo's HITRAN files. Noise: the Multipass Chaos Lab's chaotic circular cell, NH₃ line, built from its traced exit paths.</p>
+    <p>All figure text Arial 12 pt; set the figure size below the figure. Try noise overlays on the HITRAN spectra of panel (a), and choose the curves of panel (b). Spectra: line-by-line Voigt from the repo's HITRAN files. Noise: the Multipass Chaos Lab's chaotic circular cell, NH₃ line, built from its traced exit paths.</p>
   </header>
   <div class="main">
     <div class="rail">
@@ -107,6 +108,16 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     </div>
     <div class="stage">
       <div class="sheetwrap"><div class="sheet" id="sheet"></div></div>
+      <div class="panel">
+        <h2>Figure size</h2>
+        <div class="sizes">
+          <div class="ctl"><div class="row"><label for="figW">Width</label><output id="figWOut"></output></div><input id="figW" type="range" min="14" max="26" step="0.1" value="18"></div>
+          <div class="ctl"><div class="row"><label for="figH">Height</label><output id="figHOut"></output></div><input id="figH" type="range" min="7" max="15" step="0.1" value="9.5"></div>
+          <div class="ctl"><div class="row"><label for="aShare">Width share of (a)</label><output id="aShareOut"></output></div><input id="aShare" type="range" min="0.4" max="0.75" step="0.01" value="0.6"></div>
+          <div class="ctl"><div class="row"><label for="head">Strip headroom in (a)</label><output id="headOut"></output></div><input id="head" type="range" min="1.05" max="2" step="0.05" value="1.4"></div>
+        </div>
+        <div class="btns"><button type="button" id="szA">17 × 12.2 cm</button><button type="button" id="szB">18 × 9.5 cm</button><button type="button" id="szC">18 × 8.5 cm</button><button type="button" id="szD">22 × 9 cm</button></div>
+      </div>
       <div class="panel">
         <h2>Settings for fig6_spectra_noise.py</h2>
         <pre id="py"></pre>
@@ -158,8 +169,10 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
   $("clearAll").onclick = () => { for (const s of D.strips) state.ov[s.key] = []; state.band = {}; syncMatrix(); draw(); };
   const bc = $("bCurves");
   for (const [k, n] of B_ALL) bc.insertAdjacentHTML("beforeend", `<label class="check"><input type="checkbox" id="b-${k}" checked> ${n}</label>`);
-  for (const id of ["avgT", "alpha", "lw", "seed", "shotOn", "ppm", "bgH2O", "bgCO2", "bgCH4", "anaLine", "bMark", ...B_ALL.map(([k]) => "b-" + k)])
+  for (const id of ["avgT", "alpha", "lw", "seed", "shotOn", "ppm", "bgH2O", "bgCO2", "bgCH4", "anaLine", "bMark", "figW", "figH", "aShare", "head", ...B_ALL.map(([k]) => "b-" + k)])
     $(id).addEventListener("input", draw);
+  const setSize = (w, h) => { $("figW").value = w; $("figH").value = h; draw(); };
+  $("szA").onclick = () => setSize(17, 12.2); $("szB").onclick = () => setSize(18, 9.5); $("szC").onclick = () => setSize(18, 8.5); $("szD").onclick = () => setSize(22, 9);
   $("reroll").onclick = () => { $("seed").value = 1 + ((+$("seed").value * 7919 + 13) % 9999); draw(); };
 
   /* ---- numerics ---- */
@@ -188,9 +201,9 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     const out = { f, w }; cache.set(key, out); return out;
   }
 
-  /* ---- drawing: the figure in points, 17 cm × 12.2 cm, all text Arial 12 pt (same layout as fig6_spectra_noise.py) ---- */
-  const W = 481.7, H = 345.6, FS = 12, LW = 0.8;
-  const fx = f => f * W, fy = f => (1 - f) * H;                  /* matplotlib figure fractions → points */
+  /* ---- drawing: the figure in points, all text Arial 12 pt; margins fixed in points (same layout as fig6_spectra_noise.py) ---- */
+  const FS = 12, LW = 0.8, ML = 0.78 * 72, GAP = 0.92 * 72, MR = 0.92 * 72, MT_A = 0.70 * 72, MT_B = 0.29 * 72, MB = 0.48 * 72;
+  let W = 0, H = 0;
   const P = pts => pts.map(([x, y], i) => (i ? "L" : "M") + x.toFixed(2) + " " + y.toFixed(2)).join("");
   const txt = (x, y, s, o = {}) => `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${o.fs || FS}" fill="${o.fill || "#000"}" text-anchor="${o.anchor || "start"}"${o.rot ? ` transform="rotate(${o.rot} ${x.toFixed(2)} ${y.toFixed(2)})"` : ""}>${s}</text>`;
   const sup = n => `10<tspan dy="-5" font-size="${FS * 0.7}">${n < 0 ? "−" + -n : n}</tspan>`;
@@ -204,13 +217,18 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     const ppm = +(10 ** +$("ppm").value).toPrecision(2), shotOn = $("shotOn").checked;
     const bgOn = { H2O: $("bgH2O").checked, CO2: $("bgCO2").checked, CH4: $("bgCH4").checked };
     $("avgTOut").textContent = fmtT(T); $("alphaOut").textContent = op.toFixed(2); $("lwOut").textContent = (+$("lw").value).toFixed(1); $("ppmOut").textContent = `${ppm} ppm`;
+    const fw = +$("figW").value, fh = +$("figH").value, share = +$("aShare").value, head = +$("head").value;
+    $("figWOut").textContent = `${fw.toFixed(1)} cm`; $("figHOut").textContent = `${fh.toFixed(1)} cm`; $("aShareOut").textContent = share.toFixed(2); $("headOut").textContent = head.toFixed(2);
+    W = fw / 2.54 * 72; H = fh / 2.54 * 72;
+    const WA = (W - ML - GAP - MR) * share;
+    $("sheet").style.maxWidth = `${Math.round(W * 2.2)}px`;
     const sh = shotAt(T), lev = {}; for (const m of MODES) lev[m] = interpLog(cur.env[m], T);
     let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Arial, 'Liberation Sans', Arimo, Helvetica, sans-serif" role="img" aria-label="Figure 6 preview: HITRAN spectra with noise overlays and the NH3 noise floor against averaging time">`;
     s += `<rect width="${W}" height="${H}" fill="#ffffff"/>`;
     const axis = (x0, y0, x1, y1, box) => `<path d="${box ? `M${x0} ${y0}V${y1}H${x1}V${y0}` : `M${x0} ${y0}V${y1}H${x1}`}" fill="none" stroke="#000" stroke-width="${LW}"/>`;
 
     /* ---------- (a) ---------- */
-    const xl = fx(0.115), xr = fx(0.485), yt = fy(0.855), yb = fy(0.1), n = D.strips.length, hs = (yb - yt) / (n + (n - 1) * 0.22), gap = 0.22 * hs;
+    const xl = ML, xr = ML + WA, yt = MT_A, yb = H - MB, n = D.strips.length, hs = (yb - yt) / (n + (n - 1) * 0.22), gap = 0.22 * hs;
     const X = v => xl + (v + 15) / 30 * (xr - xl);
     s += txt(xl, yt - 33, `(a) ${ppm} ppm in breath background`);
     const used = [];
@@ -219,7 +237,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       const an = st.analyte_per_ppm.map(v => v * ppm), bg = new Float64Array(N);
       for (const [g, arr] of Object.entries(st.bg)) if (bgOn[g]) for (let i = 0; i < N; i++) bg[i] += arr[i];
       const tot = an.map((v, i) => v + bg[i]), mx = Math.max(...tot, 1e-30);
-      const e = 10 ** Math.floor(Math.log10(mx)), tp = mx / e, ymax = tp * 1.12;
+      const e = 10 ** Math.floor(Math.log10(mx)), tp = mx / e, ymax = tp * head;
       const Y = v => bot - v / e / ymax * hs;
       s += `<clipPath id="clip${si}"><rect x="${xl}" y="${top}" width="${xr - xl}" height="${hs}"/></clipPath><g clip-path="url(#clip${si})">`;
       const [nm, col] = STRIP[st.key];
@@ -261,7 +279,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     });
 
     /* ---------- (b): right column ---------- */
-    const bl = fx(0.62), br = fx(0.865), bt = fy(0.94), bb = fy(0.1);
+    const bl = ML + WA + GAP, br = W - MR, bt = MT_B, bb = H - MB;
     const Tl = 1e-5, Th = 100, Al = 1e-9, Ah = 1e-3;
     const BX = t => bl + (Math.log10(t) - Math.log10(Tl)) / (Math.log10(Th) - Math.log10(Tl)) * (br - bl);
     const BY = a => bb - (Math.log10(Math.max(a, Al * 1e-3)) - Math.log10(Al)) / (Math.log10(Ah) - Math.log10(Al)) * (bb - bt);
@@ -317,6 +335,8 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
 OVERLAY_BAND = {${bd}}
 T_OVERLAY, OVERLAY_ALPHA, OVERLAY_SEED = ${+T.toPrecision(3)}, ${op}, ${seed}
 ANALYTE_PPM = ${ppm}
+FIG_W_CM, FIG_H_CM, A_SHARE = ${+$("figW").value}, ${+$("figH").value}, ${+$("aShare").value}
+HEADROOM = ${+$("head").value}
 B_CURVES = [${bcur}]`;
   }
   async function copy(text, label) {

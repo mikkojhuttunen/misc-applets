@@ -62,7 +62,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
 <div class="wrap">
   <header>
     <h1>Fig. 6 Playground</h1>
-    <p>Figure: 17 cm wide, all text Arial 12 pt. Try noise overlays on the HITRAN spectra of panel (a), choose the curves of panel (b) and set up the NH₃ line of panel (c). Spectra: line-by-line Voigt from the repo's HITRAN files. Noise: the Multipass Chaos Lab's chaotic circular cell, NH₃ line, built from its traced exit paths.</p>
+    <p>Figure: 17 cm wide, all text Arial 12 pt. Try noise overlays on the HITRAN spectra of panel (a), and choose the curves of panel (b). Spectra: line-by-line Voigt from the repo's HITRAN files. Noise: the Multipass Chaos Lab's chaotic circular cell, NH₃ line, built from its traced exit paths.</p>
   </header>
   <div class="main">
     <div class="rail">
@@ -103,18 +103,6 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
         <legend>Panel (b): curves</legend>
         <div class="checks" id="bCurves"></div>
         <label class="check"><input type="checkbox" id="bMark" checked> Mark T and the total at T</label>
-      </fieldset>
-      <fieldset>
-        <legend>Panel (c): NH₃ line, background removed</legend>
-        <div class="ctl"><div class="row"><label for="cppb">NH₃ mixing ratio</label><output id="cppbOut"></output></div>
-          <input id="cppb" type="range" min="1" max="4" step="0.05" value="3"></div>
-        <div class="checks">
-          <label class="check"><input type="checkbox" id="c-none"> no dither</label>
-          <label class="check"><input type="checkbox" id="c-angle" checked> angle</label>
-          <label class="check"><input type="checkbox" id="c-spectral"> wavelength</label>
-          <label class="check"><input type="checkbox" id="c-both" checked> both</label>
-        </div>
-        <p class="hint">What the detector would see of the NH₃ line once the H₂O and CO₂ background is fitted out: the line at this mixing ratio plus the noise after averaging for T. The fit is a least-squares scale of the line shape.</p>
       </fieldset>
     </div>
     <div class="stage">
@@ -170,7 +158,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
   $("clearAll").onclick = () => { for (const s of D.strips) state.ov[s.key] = []; state.band = {}; syncMatrix(); draw(); };
   const bc = $("bCurves");
   for (const [k, n] of B_ALL) bc.insertAdjacentHTML("beforeend", `<label class="check"><input type="checkbox" id="b-${k}" checked> ${n}</label>`);
-  for (const id of ["avgT", "alpha", "lw", "seed", "shotOn", "ppm", "bgH2O", "bgCO2", "bgCH4", "anaLine", "bMark", "cppb", "c-none", "c-angle", "c-spectral", "c-both", ...B_ALL.map(([k]) => "b-" + k)])
+  for (const id of ["avgT", "alpha", "lw", "seed", "shotOn", "ppm", "bgH2O", "bgCO2", "bgCH4", "anaLine", "bMark", ...B_ALL.map(([k]) => "b-" + k)])
     $(id).addEventListener("input", draw);
   $("reroll").onclick = () => { $("seed").value = 1 + ((+$("seed").value * 7919 + 13) % 9999); draw(); };
 
@@ -200,8 +188,8 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     const out = { f, w }; cache.set(key, out); return out;
   }
 
-  /* ---- drawing: the figure in points, 17 cm × 14.2 cm, all text Arial 12 pt (same layout as fig6_spectra_noise.py) ---- */
-  const W = 481.7, H = 403.2, FS = 12, LW = 0.8;
+  /* ---- drawing: the figure in points, 17 cm × 12.2 cm, all text Arial 12 pt (same layout as fig6_spectra_noise.py) ---- */
+  const W = 481.7, H = 345.6, FS = 12, LW = 0.8;
   const fx = f => f * W, fy = f => (1 - f) * H;                  /* matplotlib figure fractions → points */
   const P = pts => pts.map(([x, y], i) => (i ? "L" : "M") + x.toFixed(2) + " " + y.toFixed(2)).join("");
   const txt = (x, y, s, o = {}) => `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${o.fs || FS}" fill="${o.fill || "#000"}" text-anchor="${o.anchor || "start"}"${o.rot ? ` transform="rotate(${o.rot} ${x.toFixed(2)} ${y.toFixed(2)})"` : ""}>${s}</text>`;
@@ -217,12 +205,12 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     const bgOn = { H2O: $("bgH2O").checked, CO2: $("bgCO2").checked, CH4: $("bgCH4").checked };
     $("avgTOut").textContent = fmtT(T); $("alphaOut").textContent = op.toFixed(2); $("lwOut").textContent = (+$("lw").value).toFixed(1); $("ppmOut").textContent = `${ppm} ppm`;
     const sh = shotAt(T), lev = {}; for (const m of MODES) lev[m] = interpLog(cur.env[m], T);
-    let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Arial, 'Liberation Sans', Arimo, Helvetica, sans-serif" role="img" aria-label="Figure 6 preview: HITRAN spectra with noise overlays, the NH3 noise floor against averaging time, and the NH3 line after background removal">`;
+    let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Arial, 'Liberation Sans', Arimo, Helvetica, sans-serif" role="img" aria-label="Figure 6 preview: HITRAN spectra with noise overlays and the NH3 noise floor against averaging time">`;
     s += `<rect width="${W}" height="${H}" fill="#ffffff"/>`;
     const axis = (x0, y0, x1, y1, box) => `<path d="${box ? `M${x0} ${y0}V${y1}H${x1}V${y0}` : `M${x0} ${y0}V${y1}H${x1}`}" fill="none" stroke="#000" stroke-width="${LW}"/>`;
 
     /* ---------- (a) ---------- */
-    const xl = fx(0.1), xr = fx(0.48), yt = fy(0.875), yb = fy(0.085), n = D.strips.length, hs = (yb - yt) / (n + (n - 1) * 0.22), gap = 0.22 * hs;
+    const xl = fx(0.115), xr = fx(0.485), yt = fy(0.855), yb = fy(0.1), n = D.strips.length, hs = (yb - yt) / (n + (n - 1) * 0.22), gap = 0.22 * hs;
     const X = v => xl + (v + 15) / 30 * (xr - xl);
     s += txt(xl, yt - 33, `(a) ${ppm} ppm in breath background`);
     const used = [];
@@ -262,7 +250,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       s += txt(xr - 1, top + 12.5, `×${sup(Math.round(Math.log10(e)))}`, { anchor: "end", fill: "#595959" });
     });
     s += txt((xl + xr) / 2, yb + 31, "detuning (GHz)", { anchor: "middle" });
-    s += txt(xl - 27, (yt + yb) / 2, "absorption coefficient <tspan font-style=\"italic\">α</tspan> (cm<tspan dy=\"-5\" font-size=\"8.4\">−1</tspan><tspan dy=\"5\">)</tspan>", { anchor: "middle", rot: -90 });
+    s += txt(xl - 33, (yt + yb) / 2, "absorption coefficient <tspan font-style=\"italic\">α</tspan> (cm<tspan dy=\"-5\" font-size=\"8.4\">−1</tspan><tspan dy=\"5\">)</tspan>", { anchor: "middle", rot: -90 });
     let lx = xl + 2;
     used.forEach((k, i) => {
       const band = k.endsWith("#band"), m = band ? k.slice(0, -5) : k;
@@ -272,9 +260,8 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       lx += 21 + lab.length * 6.6 + 12;
     });
 
-    /* ---------- (b) and (c): right column, heights 1.15 : 1, gap 0.42 of the mean ---------- */
-    const bl = fx(0.62), br = fx(0.865), top0 = fy(0.95), bot0 = fy(0.085), u = (bot0 - top0) / (1.15 + 1 + 0.42 * 1.075);
-    const bt = top0, bb = top0 + 1.15 * u, ct = bb + 0.42 * 1.075 * u, cb = bot0;
+    /* ---------- (b): right column ---------- */
+    const bl = fx(0.62), br = fx(0.865), bt = fy(0.94), bb = fy(0.1);
     const Tl = 1e-5, Th = 100, Al = 1e-9, Ah = 1e-3;
     const BX = t => bl + (Math.log10(t) - Math.log10(Tl)) / (Math.log10(Th) - Math.log10(Tl)) * (br - bl);
     const BY = a => bb - (Math.log10(Math.max(a, Al * 1e-3)) - Math.log10(Al)) / (Math.log10(Ah) - Math.log10(Al)) * (bb - bt);
@@ -312,38 +299,9 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     for (const p of [0, 2, 4, 6]) { const y = BY(ppbTo(10 ** p)); if (y < bt - 1 || y > bb + 1) continue; s += `<path d="M${br} ${y}h3.5" stroke="#000" stroke-width="${LW}"/>` + txt(br + 5, y + 4.2, sup(p)); }
     s += txt(br + 34, (bt + bb) / 2, `${chem("NH3")} (ppb)`, { anchor: "middle", rot: -90 });
     s += txt((bl + br) / 2, bb + 32, "averaging time <tspan font-style=\"italic\">T</tspan> (s)", { anchor: "middle" });
-    s += txt(bl - 36, (bt + bb) / 2, "NEA", { anchor: "middle", rot: -90 });
+    s += txt(bl - 36, (bt + bb) / 2, "noise-equivalent absorbance", { anchor: "middle", rot: -90 });
     s += txt(bl, bt - 7, `(b) ${chem("NH3")} noise floor`);
 
-    /* (c) the NH3 line after background removal */
-    const cppb = +(10 ** +$("cppb").value).toPrecision(2), cModes = MODES.filter(m => $("c-" + m).checked);
-    $("cppbOut").textContent = `${cppb} ppb`;
-    const xc = nh3.x_ghz, model = nh3.analyte_per_ppm.map(v => v * cppb * 1e-3 * GL), mmax = Math.max(...model);
-    const ec = 10 ** Math.floor(Math.log10(mmax)), lo = -1.5 * mmax / ec, hi = 4.2 * mmax / ec;
-    const CX = v => bl + (v + 15) / 30 * (br - bl), CY = v => cb - (v / ec - lo) / (hi - lo) * (cb - ct);
-    s += `<clipPath id="clipc"><rect x="${bl}" y="${ct}" width="${br - bl}" height="${cb - ct}"/></clipPath><g clip-path="url(#clipc)">`;
-    s += `<path d="M${bl} ${CY(0)}H${br}" stroke="#999" stroke-width="0.6"/>`;
-    const fits = [];
-    cModes.forEach(m => {
-      const nz = noiseFor(0, m, seed + 5000), y = model.map((v, i) => v + lev[m] * nz.f[i] + (shotOn ? sh * nz.w[i] : 0));
-      let num = 0, den = 0; for (let i = 0; i < y.length; i++) { num += model[i] * y[i]; den += model[i] * model[i]; }
-      fits.push([m, cppb * num / den]);
-      s += `<path d="${P(xc.map((v, i) => [CX(v), Math.max(ct - 10, Math.min(cb + 10, CY(y[i])))]))}" fill="none" stroke="${MODE_COL[m]}" stroke-width="${lw}" stroke-opacity="${op * (m === "both" ? 1 : 0.6)}" stroke-linejoin="round"/>`;
-    });
-    s += `<path d="${P(xc.map((v, i) => [CX(v), CY(model[i])]))}" fill="none" stroke="#1f77b4" stroke-width="1.4" stroke-dasharray="5.6 2.8"/>`;
-    const legC = fits.map(([m, f]) => [MODE_COL[m], `${m === "spectral" ? "λ" : m}: ${Math.round(f)} ppb`, m === "both" ? 1 : 0.6, ""]).concat([["#1f77b4", `line, ${cppb} ppb`, 1, "5.6 2.8"]]);
-    s += `<rect x="${bl + 2}" y="${ct + 2}" width="${Math.max(...legC.map(l => l[1].length)) * 6.7 + 30}" height="${14 * legC.length + 4}" fill="#fff" fill-opacity="0.9"/>`;
-    legC.forEach(([col, t, o, da], i) => {
-      const ly = ct + 14 + 14 * i;
-      s += `<path d="M${bl + 5} ${ly - 4}h16" stroke="${col}" stroke-width="${da ? 1.4 : 0.9}" stroke-opacity="${o}"${da ? ` stroke-dasharray="${da}"` : ""}/>` + txt(bl + 25, ly, t);
-    });
-    s += `</g>` + axis(bl, ct, br, cb);
-    for (const t of [-10, 0, 10]) s += `<path d="M${CX(t)} ${cb}v3.5" stroke="#000" stroke-width="${LW}"/>` + txt(CX(t), cb + 15, tickLab(t), { anchor: "middle" });
-    const span = hi - lo, step = span > 30 ? 20 : span > 15 ? 10 : span > 6 ? 5 : span > 2.5 ? 2 : 1;
-    for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) s += `<path d="M${bl} ${CY(v * ec)}h-3.5" stroke="#000" stroke-width="${LW}"/>` + txt(bl - 5, CY(v * ec) + 4.2, tickLab(v), { anchor: "end" });
-    s += txt((bl + br) / 2, cb + 31, "detuning (GHz)", { anchor: "middle" });
-    s += txt(bl - 30, (ct + cb) / 2, `absorb. (${sup(Math.round(Math.log10(ec)))})`, { anchor: "middle", rot: -90 });
-    s += txt(bl, ct - 7, `(c) ${chem("NH3")} line after background fit`);
     s += `</svg>`;
     $("sheet").innerHTML = s;
     lastSvg = s;
@@ -359,8 +317,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
 OVERLAY_BAND = {${bd}}
 T_OVERLAY, OVERLAY_ALPHA, OVERLAY_SEED = ${+T.toPrecision(3)}, ${op}, ${seed}
 ANALYTE_PPM = ${ppm}
-B_CURVES = [${bcur}]
-C_PPB, C_MODES = ${+(10 ** +$("cppb").value).toPrecision(2)}, [${MODES.filter(m => $("c-" + m).checked).map(m => `"${m}"`).join(", ")}]`;
+B_CURVES = [${bcur}]`;
   }
   async function copy(text, label) {
     try { await navigator.clipboard.writeText(text); $("copyStatus").textContent = `${label} copied.`; }

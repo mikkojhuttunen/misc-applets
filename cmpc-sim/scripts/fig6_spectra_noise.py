@@ -19,9 +19,7 @@ measurement against averaging time.
     drift; shot noise sqrt(q/(P T_cell T)) for 1 mW; the total of shot noise and the both-dither fringe. Dotted: the
     regular cell (flat facets, no index disks) with both dithers. Right axis: NH3 mixing ratio, with the HITRAN peak
     alpha of (a) and the cell's Gamma <L> (2.2 cm; stray power eps = 1e-6). Curves are labelled directly.
-(c) The NH3 line at C_PPB as absorbance Gamma <L> alpha after the H2O / CO2 background is fitted out, plus one noise
-    realisation per mode in C_MODES after T_OVERLAY; the legend gives the least-squares line amplitude of each trace.
-All text Arial 12 pt (Liberation Sans, metrically identical, where Arial is not installed); 17 cm wide.
+All text Arial 12 pt (Liberation Sans, metrically identical, where Arial is not installed); 17 cm x 12.2 cm.
 
 Writes results/figs_prelim/fig6_spectra_noise.pdf and .png."""
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "HITRAN"))
@@ -53,15 +51,13 @@ T_OVERLAY, OVERLAY_ALPHA, OVERLAY_SEED = 1.0, 0.75, 6
 ANALYTE_PPM = 1.0
 # curves of (b): none, angle, spectral, both, regular, shot, total
 B_CURVES = ["none", "angle", "spectral", "both", "regular", "shot", "total"]
-# (c): NH3 line after the background is removed, at C_PPB, with the noise of these modes after T_OVERLAY
-C_PPB, C_MODES = 1000.0, ["angle", "both"]
 MODE_STYLE = {"none": ("C4", "no dither"), "angle": ("C2", "angle"), "spectral": ("C1", "wavelength"), "both": ("k", "both")}
 LINES = [("NH$_3$", "NH3", 6528.77, "C0", "NH3"), ("CH$_4$", "CH4", 6114.652, "C0", "CH4 1.6"), ("CH$_4$", "CH4", 3017.80, "C1", "CH4 3.3"),
          ("C$_2$H$_6$", "C2H6", 2996.852, "C1", "C2H6"), ("NO", "NO", 1900.076, "C3", "NO")]
 
-fig = plt.figure(figsize=(6.69, 5.6))
-gsA = fig.add_gridspec(len(LINES), 1, hspace=0.22, left=0.1, right=0.48, top=0.875, bottom=0.085)
-gsB = fig.add_gridspec(2, 1, left=0.62, right=0.865, top=0.95, bottom=0.085, height_ratios=[1.15, 1.0], hspace=0.42)
+fig = plt.figure(figsize=(6.69, 4.8))
+gsA = fig.add_gridspec(len(LINES), 1, hspace=0.22, left=0.115, right=0.485, top=0.855, bottom=0.1)
+gsB = fig.add_gridspec(1, 1, left=0.62, right=0.865, top=0.94, bottom=0.1)
 
 # ------------------------------------------------------------------ speckle fringe of the cell of (b), for the overlay in (a)
 d = json.load(open(ROOT / "data" / "chaoslab_nh3.json"))
@@ -115,6 +111,7 @@ for k, (lab, sp, nu0, cc, key) in enumerate(LINES):
     a.set_xlim(-15, 15)
 axs[-1].set_xlabel("detuning (GHz)")
 axs[len(LINES) // 2].set_ylabel(r"absorption coefficient $\alpha$ (cm$^{-1}$)")
+axs[len(LINES) // 2].yaxis.set_label_coords(-0.17, 0.5)
 axs[0].set_title(f"(a) {ANALYTE_PPM:g} ppm in breath background", loc="left", fontsize=FS, pad=22)
 from matplotlib.lines import Line2D
 Tlab = f"{T_OVERLAY:g} s" if T_OVERLAY >= 1 else f"{T_OVERLAY * 1e3:g} ms"
@@ -131,7 +128,7 @@ for key, name, cc in SC:
 if "regular" in B_CURVES: b.loglog(T, reg["scen"]["both"]["env"], color="C0", lw=1.4, ls=":", label="both, regular cell")
 if "shot" in B_CURVES: b.loglog(T, shot, color="0.45", lw=1.0, ls="--", label="shot noise, 1 mW")
 if "total" in B_CURVES: b.loglog(T, total, color="k", lw=2.0, label="total (both + shot)")
-b.set(xlim=(T[0], T[-1]), ylim=(1e-9, 1e-3), xlabel="averaging time $T$ (s)", ylabel="NEA")
+b.set(xlim=(T[0], T[-1]), ylim=(1e-9, 1e-3), xlabel="averaging time $T$ (s)", ylabel="noise-equivalent absorbance")
 b.xaxis.labelpad = 1
 b.set_xticks([1e-4, 1e-2, 1, 1e2]); b.set_yticks([1e-9, 1e-7, 1e-5, 1e-3])
 b.grid(alpha=0.25, which="major")
@@ -151,25 +148,6 @@ curve_of = {"regular": reg["scen"]["both"]["env"], "shot": shot, "total": total,
 for key, tl, fac, text, cc in LBL:
     if key in B_CURVES:
         b.text(tl, np.interp(np.log(tl), np.log(T), curve_of[key]) * fac, text, color=cc, fontsize=FS, ha="center", va="center")
-
-# ------------------------------------------------------------------ (c) the NH3 line after background removal
-c = fig.add_subplot(gsB[1, 0])
-nuc = np.linspace(6528.77 - 0.5, 6528.77 + 0.5, 1201); xc = (nuc - 6528.77) * GHZ
-model = GL * hl.alpha(nuc, "NH3", C_PPB * 1e-9, wing_cm=WING)                 # absorbance of the line alone
-ec = 10.0 ** np.floor(np.log10(model.max()))
-fits = {}
-for j, mode in enumerate(C_MODES):
-    y = model + speckle(xc * 1e9, cur["scen"][mode]["env"][iov]) + rng.normal(0, shot[iov], xc.size)
-    fits[mode] = C_PPB * np.sum(model * y) / np.sum(model ** 2)                  # least-squares line amplitude
-    c.plot(xc, y / ec, color=MODE_STYLE[mode][0], lw=0.5, alpha=OVERLAY_ALPHA * (0.6 if mode in ("none", "angle", "spectral") else 1), zorder=2 + j,
-           label=f"{mode}: {fits[mode]:.0f} ppb")
-c.plot(xc, model / ec, color="C0", lw=1.4, ls=(0, (4, 2)), zorder=5, label=f"line, {C_PPB:g} ppb")
-c.set(xlim=(-15, 15), xlabel="detuning (GHz)", ylabel=f"absorb. (10$^{{{int(np.log10(ec))}}}$)", xticks=[-10, 0, 10])
-c.set_ylim(-1.5 * model.max() / ec, 4.2 * model.max() / ec)
-c.xaxis.labelpad = 1
-c.axhline(0, color="0.6", lw=0.6)
-c.set_title(f"(c) NH$_3$ line after background fit", loc="left", fontsize=FS)
-c.legend(loc="upper left", fontsize=FS, handlelength=1.2, labelspacing=0.1, ncol=1, borderaxespad=0.15, borderpad=0.2, handletextpad=0.4, framealpha=0.9, edgecolor="none")
 
 out = ROOT / "results" / "figs_prelim"; out.mkdir(parents=True, exist_ok=True)
 fig.savefig(out / "fig6_spectra_noise.pdf"); fig.savefig(out / "fig6_spectra_noise.png", dpi=200)

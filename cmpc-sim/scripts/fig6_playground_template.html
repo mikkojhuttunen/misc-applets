@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Carlito:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: a figure bench. Control rail on the left (stacks above on phones), the paper figure on a fixed white sheet,
    the matching Python settings underneath. */
@@ -12,7 +12,6 @@
   --c-none: #9467bd; --c-angle: #2ca02c; --c-spectral: #ff7f0e; --c-both: #111111;
   --f-ui: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  --f-fig: Carlito, Calibri, "Liberation Sans", Arial, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) { --bg: #12171c; --panel: #1a2128; --ink: #e3e8ed; --muted: #95a1ad; --line: #2b353f; --accent: #5aa6e6; --chip: #232c35;
@@ -63,7 +62,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
 <div class="wrap">
   <header>
     <h1>Fig. 6 Playground</h1>
-    <p>Try noise overlays on the HITRAN spectra of panel (a) and choose the curves of panel (b). Spectra: line-by-line Voigt from the repo's HITRAN files. Noise: the Multipass Chaos Lab's chaotic circular cell, NH₃ line, built from its traced exit paths.</p>
+    <p>Figure: 17 cm wide, all text Arial 12 pt. Try noise overlays on the HITRAN spectra of panel (a), choose the curves of panel (b) and set up the NH₃ line of panel (c). Spectra: line-by-line Voigt from the repo's HITRAN files. Noise: the Multipass Chaos Lab's chaotic circular cell, NH₃ line, built from its traced exit paths.</p>
   </header>
   <div class="main">
     <div class="rail">
@@ -105,6 +104,18 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
         <div class="checks" id="bCurves"></div>
         <label class="check"><input type="checkbox" id="bMark" checked> Mark T and the total at T</label>
       </fieldset>
+      <fieldset>
+        <legend>Panel (c): NH₃ line, background removed</legend>
+        <div class="ctl"><div class="row"><label for="cppb">NH₃ mixing ratio</label><output id="cppbOut"></output></div>
+          <input id="cppb" type="range" min="1" max="4" step="0.05" value="3"></div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="c-none"> no dither</label>
+          <label class="check"><input type="checkbox" id="c-angle" checked> angle</label>
+          <label class="check"><input type="checkbox" id="c-spectral"> wavelength</label>
+          <label class="check"><input type="checkbox" id="c-both" checked> both</label>
+        </div>
+        <p class="hint">What the detector would see of the NH₃ line once the H₂O and CO₂ background is fitted out: the line at this mixing ratio plus the noise after averaging for T. The fit is a least-squares scale of the line shape.</p>
+      </fieldset>
     </div>
     <div class="stage">
       <div class="sheetwrap"><div class="sheet" id="sheet"></div></div>
@@ -127,11 +138,12 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
   const MODES = ["none", "angle", "spectral", "both"];
   const MODE_COL = { none: "#9467bd", angle: "#2ca02c", spectral: "#ff7f0e", both: "#000000" };
   const MODE_NAME = { none: "no dither", angle: "angle dither", spectral: "wavelength dither", both: "both dithers" };
+  const MODE_SHORT = { none: "no dither", angle: "angle", spectral: "wavelength", both: "both" };
   const STRIP = { "NH3": ["NH₃", "#1f77b4"], "CH4 1.6": ["CH₄", "#1f77b4"], "CH4 3.3": ["CH₄", "#ff7f0e"], "C2H6": ["C₂H₆", "#ff7f0e"], "NO": ["NO", "#d62728"] };
   const B_ALL = [["none", "no dither"], ["angle", "angle dither"], ["spectral", "wavelength dither"], ["both", "both dithers"], ["regular", "both, regular cell"], ["shot", "shot noise"], ["total", "total"]];
   const cur = D.current, reg = D.regular, GL = cur.gamma * cur.L_mean_m * 100;
   const nh3 = D.strips[0], aNH3 = Math.max(...nh3.analyte_per_ppm);
-  const state = { ov: { "NH3": ["angle", "both"], "CH4 1.6": ["both"], "CH4 3.3": ["both"], "C2H6": ["both"], "NO": ["both"] }, band: {} };
+  const state = { ov: { "NH3": ["angle", "both"], "CH4 1.6": ["angle", "both"], "CH4 3.3": ["angle", "both"], "C2H6": ["angle", "both"], "NO": ["angle", "both"] }, band: {} };
 
   /* ---- controls ---- */
   const mtx = $("mtx");
@@ -158,7 +170,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
   $("clearAll").onclick = () => { for (const s of D.strips) state.ov[s.key] = []; state.band = {}; syncMatrix(); draw(); };
   const bc = $("bCurves");
   for (const [k, n] of B_ALL) bc.insertAdjacentHTML("beforeend", `<label class="check"><input type="checkbox" id="b-${k}" checked> ${n}</label>`);
-  for (const id of ["avgT", "alpha", "lw", "seed", "shotOn", "ppm", "bgH2O", "bgCO2", "bgCH4", "anaLine", "bMark", ...B_ALL.map(([k]) => "b-" + k)])
+  for (const id of ["avgT", "alpha", "lw", "seed", "shotOn", "ppm", "bgH2O", "bgCO2", "bgCH4", "anaLine", "bMark", "cppb", "c-none", "c-angle", "c-spectral", "c-both", ...B_ALL.map(([k]) => "b-" + k)])
     $(id).addEventListener("input", draw);
   $("reroll").onclick = () => { $("seed").value = 1 + ((+$("seed").value * 7919 + 13) % 9999); draw(); };
 
@@ -188,29 +200,31 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     const out = { f, w }; cache.set(key, out); return out;
   }
 
-  /* ---- drawing helpers ---- */
-  const W = 1000, H = 590, FS = 15, TK = 13.5;
-  const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  const P = pts => pts.map(([x, y], i) => (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1)).join("");
-  const txt = (x, y, s, o = {}) => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="${o.fs || TK}" fill="${o.fill || "#000"}" text-anchor="${o.anchor || "start"}"${o.base ? ` dominant-baseline="${o.base}"` : ""}${o.rot ? ` transform="rotate(${o.rot} ${x.toFixed(1)} ${y.toFixed(1)})"` : ""}${o.w ? ` font-weight="${o.w}"` : ""}>${s}</text>`;
-  const sup = n => `10<tspan dy="-6" font-size="${TK * 0.75}">${n < 0 ? "−" + -n : n}</tspan>`;
+  /* ---- drawing: the figure in points, 17 cm × 14.2 cm, all text Arial 12 pt (same layout as fig6_spectra_noise.py) ---- */
+  const W = 481.7, H = 403.2, FS = 12, LW = 0.8;
+  const fx = f => f * W, fy = f => (1 - f) * H;                  /* matplotlib figure fractions → points */
+  const P = pts => pts.map(([x, y], i) => (i ? "L" : "M") + x.toFixed(2) + " " + y.toFixed(2)).join("");
+  const txt = (x, y, s, o = {}) => `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${o.fs || FS}" fill="${o.fill || "#000"}" text-anchor="${o.anchor || "start"}"${o.rot ? ` transform="rotate(${o.rot} ${x.toFixed(2)} ${y.toFixed(2)})"` : ""}>${s}</text>`;
+  const sup = n => `10<tspan dy="-5" font-size="${FS * 0.7}">${n < 0 ? "−" + -n : n}</tspan>`;
+  const sub = s => `<tspan dy="3" font-size="${FS * 0.7}">${s}</tspan><tspan dy="-3">​</tspan>`;
+  const chem = s => s.replace(/([A-Za-z])([0-9])/g, (m, a, d) => a + sub(d));
+  const tickLab = v => v < 0 ? "−" + -v : String(v);
   const fmtT = T => T >= 1 ? `${+T.toPrecision(2)} s` : T >= 1e-3 ? `${+(T * 1e3).toPrecision(2)} ms` : `${+(T * 1e6).toPrecision(2)} µs`;
 
   function draw() {
-    const T = 10 ** +$("avgT").value, op = +$("alpha").value, lw = +$("lw").value, seed = Math.max(1, Math.round(+$("seed").value) || 1);
+    const T = 10 ** +$("avgT").value, op = +$("alpha").value, lw = +$("lw").value * 0.6, seed = Math.max(1, Math.round(+$("seed").value) || 1);
     const ppm = +(10 ** +$("ppm").value).toPrecision(2), shotOn = $("shotOn").checked;
     const bgOn = { H2O: $("bgH2O").checked, CO2: $("bgCO2").checked, CH4: $("bgCH4").checked };
-    $("avgTOut").textContent = fmtT(T); $("alphaOut").textContent = op.toFixed(2); $("lwOut").textContent = lw.toFixed(1); $("ppmOut").textContent = `${ppm} ppm`;
+    $("avgTOut").textContent = fmtT(T); $("alphaOut").textContent = op.toFixed(2); $("lwOut").textContent = (+$("lw").value).toFixed(1); $("ppmOut").textContent = `${ppm} ppm`;
     const sh = shotAt(T), lev = {}; for (const m of MODES) lev[m] = interpLog(cur.env[m], T);
-    let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Carlito, Calibri, 'Liberation Sans', Arial, sans-serif" role="img" aria-label="Figure 6 preview: HITRAN spectra with noise overlays, and the NH3 noise floor against averaging time">`;
+    let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Arial, 'Liberation Sans', Arimo, Helvetica, sans-serif" role="img" aria-label="Figure 6 preview: HITRAN spectra with noise overlays, the NH3 noise floor against averaging time, and the NH3 line after background removal">`;
     s += `<rect width="${W}" height="${H}" fill="#ffffff"/>`;
+    const axis = (x0, y0, x1, y1, box) => `<path d="${box ? `M${x0} ${y0}V${y1}H${x1}V${y0}` : `M${x0} ${y0}V${y1}H${x1}`}" fill="none" stroke="#000" stroke-width="${LW}"/>`;
 
     /* ---------- (a) ---------- */
-    const xl = 85, xr = 445, yt = 92, yb = 519, n = D.strips.length, hs = (yb - yt) / (n + (n - 1) * 0.18), gap = 0.18 * hs;
+    const xl = fx(0.1), xr = fx(0.48), yt = fy(0.875), yb = fy(0.085), n = D.strips.length, hs = (yb - yt) / (n + (n - 1) * 0.22), gap = 0.22 * hs;
     const X = v => xl + (v + 15) / 30 * (xr - xl);
-    const bgList = [];
-    for (const k of Object.keys(D.strips[0].bg_x)) if (bgOn[k]) bgList.push(k === "H2O" ? "6 % H₂O" : k === "CO2" ? "4.5 % CO₂" : "");
-    s += txt(xl, 30, `(a) ${ppm} ppm${bgList.filter(Boolean).length ? " in " + bgList.filter(Boolean).join(" + ") : ""}, 310 K`, { fs: FS });
+    s += txt(xl, yt - 33, `(a) ${ppm} ppm in breath background`);
     const used = [];
     D.strips.forEach((st, si) => {
       const top = yt + si * (hs + gap), bot = top + hs, x = st.x_ghz, N = x.length;
@@ -218,13 +232,13 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       for (const [g, arr] of Object.entries(st.bg)) if (bgOn[g]) for (let i = 0; i < N; i++) bg[i] += arr[i];
       const tot = an.map((v, i) => v + bg[i]), mx = Math.max(...tot, 1e-30);
       const e = 10 ** Math.floor(Math.log10(mx)), tp = mx / e, ymax = tp * 1.12;
-      const Y = v => bot - v / e / ymax * hs, cid = `clip${si}`;
-      s += `<clipPath id="${cid}"><rect x="${xl}" y="${top}" width="${xr - xl}" height="${hs}"/></clipPath><g clip-path="url(#${cid})">`;
+      const Y = v => bot - v / e / ymax * hs;
+      s += `<clipPath id="clip${si}"><rect x="${xl}" y="${top}" width="${xr - xl}" height="${hs}"/></clipPath><g clip-path="url(#clip${si})">`;
       const [nm, col] = STRIP[st.key];
       s += `<path d="${P(x.map((v, i) => [X(v), Y(bg[i])]))}L${X(15)} ${bot}L${X(-15)} ${bot}Z" fill="#d1d1d1"/>`;
       s += `<path d="${P(x.map((v, i) => [X(v), Y(tot[i])]))}${P(x.map((v, i) => [X(v), Y(bg[i])]).reverse()).replace(/^M/, "L")}Z" fill="${col}" fill-opacity="0.85"/>`;
-      s += `<path d="${P(x.map((v, i) => [X(v), Y(tot[i])]))}" fill="none" stroke="#000" stroke-width="1"/>`;
-      if ($("anaLine").checked) s += `<path d="${P(x.map((v, i) => [X(v), Y(an[i])]))}" fill="none" stroke="${col}" stroke-width="1.3" stroke-dasharray="6 3"/>`;
+      s += `<path d="${P(x.map((v, i) => [X(v), Y(tot[i])]))}" fill="none" stroke="#000" stroke-width="0.7"/>`;
+      if ($("anaLine").checked) s += `<path d="${P(x.map((v, i) => [X(v), Y(an[i])]))}" fill="none" stroke="${col}" stroke-width="0.9" stroke-dasharray="3 1.5"/>`;
       const bm = state.band[st.key];
       if (bm) {
         const sb = (shotOn ? Math.hypot(lev[bm], sh) : lev[bm]) / GL;
@@ -233,76 +247,103 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       }
       for (const m of state.ov[st.key] || []) {
         const nz = noiseFor(si, m, seed), L = lev[m];
-        const pts = x.map((v, i) => [X(v), Math.max(top - 20, Math.min(bot + 20, Y(tot[i] + (L * nz.f[i] + (shotOn ? sh * nz.w[i] : 0)) / GL)))]);
+        const pts = x.map((v, i) => [X(v), Math.max(top - 10, Math.min(bot + 10, Y(tot[i] + (L * nz.f[i] + (shotOn ? sh * nz.w[i] : 0)) / GL)))]);
         s += `<path d="${P(pts)}" fill="none" stroke="${MODE_COL[m]}" stroke-width="${lw}" stroke-opacity="${op}" stroke-linejoin="round"/>`;
         if (!used.includes(m)) used.push(m);
       }
-      s += `</g>`;
-      s += `<path d="M${xl} ${top}V${bot}H${xr}" fill="none" stroke="#000" stroke-width="1.2"/>`;
-      for (const t of [-15, -10, -5, 0, 5, 10, 15]) s += `<path d="M${X(t)} ${bot}v4" stroke="#000" stroke-width="1"/>`;
-      if (si === n - 1) for (const t of [-15, -10, -5, 0, 5, 10, 15]) s += txt(X(t), bot + 19, t < 0 ? "−" + -t : t, { anchor: "middle" });
+      s += `</g>` + axis(xl, top, xr, bot);
+      for (const t of [-10, 0, 10]) s += `<path d="M${X(t)} ${bot}v3.5" stroke="#000" stroke-width="${LW}"/>`;
+      if (si === n - 1) for (const t of [-10, 0, 10]) s += txt(X(t), bot + 15, tickLab(t), { anchor: "middle" });
       const tick = tp < 2 ? Math.floor(tp * 10) / 10 : Math.floor(tp);
-      for (const [v, l] of [[0, "0"], [tick, String(+tick.toFixed(1))]]) { const yy = bot - v / ymax * hs; s += `<path d="M${xl} ${yy}h-4" stroke="#000" stroke-width="1"/>` + txt(xl - 7, yy + 4.5, l, { anchor: "end" }); }
-      s += `<rect x="${xl + 4}" y="${top + 2}" width="${(nm.length + 9) * 7.6}" height="17" fill="#fff" fill-opacity="0.75"/>`;
-      s += txt(xl + 6, top + 15.5, `${nm} ${st.lam_um.toFixed(3)} µm`, { fill: col, fs: TK });
-      s += `<rect x="${xr - 44}" y="${top + 1}" width="43" height="16" fill="#fff" fill-opacity="0.8"/>` + txt(xr - 2, top + 13, `×${sup(Math.round(Math.log10(e)))}`, { anchor: "end", fill: "#595959", fs: 12 });
+      for (const v of [0, tick]) { const yy = bot - v / ymax * hs; s += `<path d="M${xl} ${yy}h-3.5" stroke="#000" stroke-width="${LW}"/>` + txt(xl - 6, yy + 4.2, String(+v.toFixed(1)), { anchor: "end" }); }
+      const lab = `${chem(nm)} ${st.lam_um.toFixed(2)} µm`;
+      s += `<rect x="${xl + 2}" y="${top + 1.5}" width="${(nm.length + 8) * 6.7}" height="14" fill="#fff" fill-opacity="0.75"/>`;
+      s += txt(xl + 4, top + 12.5, lab, { fill: col });
+      s += txt(xr - 1, top + 12.5, `×${sup(Math.round(Math.log10(e)))}`, { anchor: "end", fill: "#595959" });
     });
-    s += txt((xl + xr) / 2, yb + 44, "detuning (GHz)", { anchor: "middle", fs: FS });
-    s += txt(30, (yt + yb) / 2, "absorption coefficient <tspan font-style=\"italic\">α</tspan> (cm<tspan dy=\"-6\" font-size=\"11\">−1</tspan><tspan dy=\"6\">)</tspan>", { anchor: "middle", rot: -90, fs: FS });
-    /* legend of (a) */
-    let lx = xl - 2;
+    s += txt((xl + xr) / 2, yb + 31, "detuning (GHz)", { anchor: "middle" });
+    s += txt(xl - 27, (yt + yb) / 2, "absorption coefficient <tspan font-style=\"italic\">α</tspan> (cm<tspan dy=\"-5\" font-size=\"8.4\">−1</tspan><tspan dy=\"5\">)</tspan>", { anchor: "middle", rot: -90 });
+    let lx = xl + 2;
     used.forEach((k, i) => {
       const band = k.endsWith("#band"), m = band ? k.slice(0, -5) : k;
-      const lab = (band ? `±1σ ${MODE_NAME[m]}` : MODE_NAME[m]) + (i === used.length - 1 ? `, ${fmtT(T)}` : "");
-      s += band ? `<rect x="${lx}" y="${57}" width="22" height="10" fill="${MODE_COL[m]}" fill-opacity="0.15"/>` : `<path d="M${lx} 62h22" stroke="${MODE_COL[m]}" stroke-width="${Math.max(lw, 1.2)}" stroke-opacity="${op}"/>`;
-      s += txt(lx + 28, 66.5, lab, { fs: 13 });
-      lx += 28 + lab.length * 6.4 + 16;
+      const lab = (band ? `±1σ ${MODE_SHORT[m]}` : MODE_SHORT[m]) + (i === used.length - 1 ? `, ${fmtT(T)}` : "");
+      s += band ? `<rect x="${lx}" y="${yt - 22}" width="16" height="7" fill="${MODE_COL[m]}" fill-opacity="0.15"/>` : `<path d="M${lx} ${yt - 18.5}h16" stroke="${MODE_COL[m]}" stroke-width="${Math.max(lw, 0.9)}" stroke-opacity="${op}"/>`;
+      s += txt(lx + 21, yt - 14, lab);
+      lx += 21 + lab.length * 6.6 + 12;
     });
 
-    /* ---------- (b) ---------- */
-    const bl = 555, br = 920, bt = 38, bb = 519, Tl = 1e-5, Th = 100, Al = 3e-10, Ah = 1e-3;
+    /* ---------- (b) and (c): right column, heights 1.15 : 1, gap 0.42 of the mean ---------- */
+    const bl = fx(0.62), br = fx(0.865), top0 = fy(0.95), bot0 = fy(0.085), u = (bot0 - top0) / (1.15 + 1 + 0.42 * 1.075);
+    const bt = top0, bb = top0 + 1.15 * u, ct = bb + 0.42 * 1.075 * u, cb = bot0;
+    const Tl = 1e-5, Th = 100, Al = 1e-9, Ah = 1e-3;
     const BX = t => bl + (Math.log10(t) - Math.log10(Tl)) / (Math.log10(Th) - Math.log10(Tl)) * (br - bl);
     const BY = a => bb - (Math.log10(Math.max(a, Al * 1e-3)) - Math.log10(Al)) / (Math.log10(Ah) - Math.log10(Al)) * (bb - bt);
     s += `<clipPath id="clipb"><rect x="${bl}" y="${bt}" width="${br - bl}" height="${bb - bt}"/></clipPath>`;
-    for (let p = -5; p <= 2; p++) s += `<path d="M${BX(10 ** p)} ${bt}V${bb}" stroke="#000" stroke-opacity="0.12" stroke-width="1"/>`;
-    for (let p = -9; p <= -3; p++) s += `<path d="M${bl} ${BY(10 ** p)}H${br}" stroke="#000" stroke-opacity="0.12" stroke-width="1"/>`;
-    const on = k => $("b-" + k).checked, curves = [], Ts = D.T;
+    for (const p of [-4, -2, 0, 2]) s += `<path d="M${BX(10 ** p)} ${bt}V${bb}" stroke="#000" stroke-opacity="0.12" stroke-width="0.6"/>`;
+    for (const p of [-9, -7, -5, -3]) s += `<path d="M${bl} ${BY(10 ** p)}H${br}" stroke="#000" stroke-opacity="0.12" stroke-width="0.6"/>`;
+    const on = k => $("b-" + k).checked, Ts = D.T;
     const shotC = Ts.map(shotAt), totC = Ts.map((t, i) => Math.hypot(cur.env.both[i], shotC[i]));
-    const BC = [["none", cur.env.none, "#9467bd", 2.1, ""], ["angle", cur.env.angle, "#2ca02c", 2.1, ""], ["spectral", cur.env.spectral, "#ff7f0e", 2.1, ""],
-      ["both", cur.env.both, "#1f77b4", 2.1, ""], ["regular", reg.env.both, "#1f77b4", 2.1, "2 4"], ["shot", shotC, "#737373", 1.5, "6 4"], ["total", totC, "#000", 3, ""]];
-    const LEG = { none: "no dither", angle: "angle dither", spectral: "wavelength dither", both: "both dithers", regular: "both, regular cell", shot: `shot noise, ${+(D.P_in * 1e3).toPrecision(2)} mW`, total: "total (both + shot)" };
+    const BC = [["none", cur.env.none, "#9467bd", 1.4, ""], ["angle", cur.env.angle, "#2ca02c", 1.4, ""], ["spectral", cur.env.spectral, "#ff7f0e", 1.4, ""],
+      ["both", cur.env.both, "#1f77b4", 1.4, ""], ["regular", reg.env.both, "#1f77b4", 1.4, "1.4 2.6"], ["shot", shotC, "#737373", 1.0, "3.7 1.6"], ["total", totC, "#000", 2.0, ""]];
+    const ARR = Object.fromEntries(BC.map(c => [c[0], c[1]]));
+    const LBL = [["none", 1e-2, 2.6, "none", "#9467bd"], ["spectral", 1.0, 2.6, "λ", "#ff7f0e"], ["angle", 1.0, 2.6, "angle", "#2ca02c"],
+      ["shot", 3.0, 0.2, "shot", "#595959"], ["total", 3e-4, 0.15, "both", "#000"]];
     s += `<g clip-path="url(#clipb)">`;
-    for (const [k, arr, col, w, da] of BC) if (on(k)) { s += `<path d="${P(Ts.map((t, i) => [BX(t), BY(arr[i])]))}" fill="none" stroke="${col}" stroke-width="${w}"${da ? ` stroke-dasharray="${da}"` : ""} stroke-linecap="round"/>`; curves.push([k, col, w, da]); }
+    for (const [k, arr, col, w, da] of BC) if (on(k)) s += `<path d="${P(Ts.map((t, i) => [BX(t), BY(arr[i])]))}" fill="none" stroke="${col}" stroke-width="${w}"${da ? ` stroke-dasharray="${da}"` : ""}/>`;
     if ($("bMark").checked) {
-      s += `<path d="M${BX(T)} ${bt}V${bb}" stroke="#000" stroke-width="1" stroke-dasharray="3 3" stroke-opacity="0.6"/>`;
-      const tv = Math.hypot(interpLog(cur.env.both, T), sh);
-      s += `<circle cx="${BX(T)}" cy="${BY(tv)}" r="4.5" fill="#000"/>`;
+      s += `<path d="M${BX(T)} ${bt}V${bb}" stroke="#000" stroke-width="0.6" stroke-dasharray="2 2" stroke-opacity="0.6"/>`;
+      s += `<circle cx="${BX(T)}" cy="${BY(Math.hypot(interpLog(cur.env.both, T), sh))}" r="2.6" fill="#000"/>`;
     }
     s += `</g>`;
+    for (const [k, tl, fac, t, col] of LBL) if (on(k)) s += txt(BX(tl), BY(interpLog(ARR[k], tl) * fac) + 4.2, t, { anchor: "middle", fill: col });
     if ($("bMark").checked) {
-      const tv = Math.hypot(interpLog(cur.env.both, T), sh), ppbv = tv / (GL * aNH3) * 1e3;
-      const lab = `${ppbv >= 100 ? Math.round(ppbv) : +ppbv.toPrecision(2)} ppb at ${fmtT(T)}`, ax = Math.min(Math.max(BX(T), bl + 70), br - 70);
-      s += `<rect x="${ax - lab.length * 3.4 - 4}" y="${bb - 40}" width="${lab.length * 6.8 + 8}" height="19" fill="#fff" fill-opacity="0.85"/>` + txt(ax, bb - 26, lab, { anchor: "middle", fs: 13.5 });
+      const tv = Math.hypot(interpLog(cur.env.both, T), sh), ppbv = tv / (GL * aNH3) * 1e3, lab = `${ppbv >= 100 ? Math.round(ppbv) : +ppbv.toPrecision(2)} ppb`;
+      const ax = Math.max(BX(T) - 36, bl + 26), ay = Math.min(BY(tv) + 34, bb - 6);
+      s += `<path d="M${BX(T)} ${BY(tv)}L${ax + 10} ${ay - 12}" stroke="#000" stroke-width="0.6"/>` + txt(ax, ay, lab, { anchor: "middle" });
     }
-    s += `<path d="M${bl} ${bt}V${bb}H${br}V${bt}" fill="none" stroke="#000" stroke-width="1.2"/>`;
+    s += axis(bl, bt, br, bb, true);
     for (let p = -5; p <= 2; p++) {
-      s += `<path d="M${BX(10 ** p)} ${bb}v5" stroke="#000"/>`;
-      if (p % 2 === 0) s += txt(BX(10 ** p), bb + 22, sup(p), { anchor: "middle" });
-      for (let m = 2; m < 10 && p < 2; m++) s += `<path d="M${BX(m * 10 ** p)} ${bb}v2.5" stroke="#000" stroke-width="0.8"/>`;
+      s += `<path d="M${BX(10 ** p)} ${bb}v3.5" stroke="#000" stroke-width="${LW}"/>`;
+      for (let m = 2; m < 10 && p < 2; m++) s += `<path d="M${BX(m * 10 ** p)} ${bb}v2" stroke="#000" stroke-width="0.6"/>`;
     }
-    for (let p = -9; p <= -3; p++) { s += `<path d="M${bl} ${BY(10 ** p)}h-5" stroke="#000"/>` + txt(bl - 8, BY(10 ** p) + 5, sup(p), { anchor: "end" }); }
-    /* right axis: NH3 ppb */
+    for (const p of [-4, -2, 0, 2]) s += txt(BX(10 ** p), bb + 16, sup(p), { anchor: "middle" });
+    for (const p of [-9, -7, -5, -3]) s += `<path d="M${bl} ${BY(10 ** p)}h-3.5" stroke="#000" stroke-width="${LW}"/>` + txt(bl - 5, BY(10 ** p) + 4.2, sup(p), { anchor: "end" });
     const ppbTo = c => c * 1e-3 * GL * aNH3;
-    for (let p = 0; p <= 6; p++) { const y = BY(ppbTo(10 ** p)); if (y < bt - 1 || y > bb + 1) continue; s += `<path d="M${br} ${y}h5" stroke="#000"/>` + txt(br + 8, y + 5, sup(p)); }
-    s += txt(br + 55, (bt + bb) / 2, "NH<tspan dy=\"4\" font-size=\"11\">3</tspan><tspan dy=\"-4\"> (ppb)</tspan>", { anchor: "middle", rot: 90, fs: FS });
-    s += txt((bl + br) / 2, bb + 50, "averaging time <tspan font-style=\"italic\">T</tspan> (s)", { anchor: "middle", fs: FS });
-    s += txt(bl - 62, (bt + bb) / 2, "noise-equivalent absorbance", { anchor: "middle", rot: -90, fs: FS });
-    s += txt(bl, 30, "(b) NH<tspan dy=\"4\" font-size=\"11\">3</tspan><tspan dy=\"-4\"> 1531.68 nm, chaotic circular cell</tspan>", { fs: FS });
-    s += txt(br - 8, bt + 20, `Γ⟨L⟩ = ${GL.toFixed(1)} cm, ε = ${sup(Math.round(Math.log10(D.eps)))}, M² = ${Math.round(cur.M2)}`, { anchor: "end", fs: 13, fill: "#4d4d4d" });
-    curves.forEach(([k, col, w, da], i) => {
-      const y = bb - 18 - 20 * (curves.length - 1 - i) - 44;
-      s += `<path d="M${bl + 12} ${y}h30" stroke="${col}" stroke-width="${w}"${da ? ` stroke-dasharray="${da}"` : ""}/>` + txt(bl + 50, y + 4.5, LEG[k], { fs: 13 });
+    for (const p of [0, 2, 4, 6]) { const y = BY(ppbTo(10 ** p)); if (y < bt - 1 || y > bb + 1) continue; s += `<path d="M${br} ${y}h3.5" stroke="#000" stroke-width="${LW}"/>` + txt(br + 5, y + 4.2, sup(p)); }
+    s += txt(br + 34, (bt + bb) / 2, `${chem("NH3")} (ppb)`, { anchor: "middle", rot: -90 });
+    s += txt((bl + br) / 2, bb + 32, "averaging time <tspan font-style=\"italic\">T</tspan> (s)", { anchor: "middle" });
+    s += txt(bl - 36, (bt + bb) / 2, "NEA", { anchor: "middle", rot: -90 });
+    s += txt(bl, bt - 7, `(b) ${chem("NH3")} noise floor`);
+
+    /* (c) the NH3 line after background removal */
+    const cppb = +(10 ** +$("cppb").value).toPrecision(2), cModes = MODES.filter(m => $("c-" + m).checked);
+    $("cppbOut").textContent = `${cppb} ppb`;
+    const xc = nh3.x_ghz, model = nh3.analyte_per_ppm.map(v => v * cppb * 1e-3 * GL), mmax = Math.max(...model);
+    const ec = 10 ** Math.floor(Math.log10(mmax)), lo = -1.5 * mmax / ec, hi = 4.2 * mmax / ec;
+    const CX = v => bl + (v + 15) / 30 * (br - bl), CY = v => cb - (v / ec - lo) / (hi - lo) * (cb - ct);
+    s += `<clipPath id="clipc"><rect x="${bl}" y="${ct}" width="${br - bl}" height="${cb - ct}"/></clipPath><g clip-path="url(#clipc)">`;
+    s += `<path d="M${bl} ${CY(0)}H${br}" stroke="#999" stroke-width="0.6"/>`;
+    const fits = [];
+    cModes.forEach(m => {
+      const nz = noiseFor(0, m, seed + 5000), y = model.map((v, i) => v + lev[m] * nz.f[i] + (shotOn ? sh * nz.w[i] : 0));
+      let num = 0, den = 0; for (let i = 0; i < y.length; i++) { num += model[i] * y[i]; den += model[i] * model[i]; }
+      fits.push([m, cppb * num / den]);
+      s += `<path d="${P(xc.map((v, i) => [CX(v), Math.max(ct - 10, Math.min(cb + 10, CY(y[i])))]))}" fill="none" stroke="${MODE_COL[m]}" stroke-width="${lw}" stroke-opacity="${op * (m === "both" ? 1 : 0.6)}" stroke-linejoin="round"/>`;
     });
+    s += `<path d="${P(xc.map((v, i) => [CX(v), CY(model[i])]))}" fill="none" stroke="#1f77b4" stroke-width="1.4" stroke-dasharray="5.6 2.8"/>`;
+    const legC = fits.map(([m, f]) => [MODE_COL[m], `${m === "spectral" ? "λ" : m}: ${Math.round(f)} ppb`, m === "both" ? 1 : 0.6, ""]).concat([["#1f77b4", `line, ${cppb} ppb`, 1, "5.6 2.8"]]);
+    s += `<rect x="${bl + 2}" y="${ct + 2}" width="${Math.max(...legC.map(l => l[1].length)) * 6.7 + 30}" height="${14 * legC.length + 4}" fill="#fff" fill-opacity="0.9"/>`;
+    legC.forEach(([col, t, o, da], i) => {
+      const ly = ct + 14 + 14 * i;
+      s += `<path d="M${bl + 5} ${ly - 4}h16" stroke="${col}" stroke-width="${da ? 1.4 : 0.9}" stroke-opacity="${o}"${da ? ` stroke-dasharray="${da}"` : ""}/>` + txt(bl + 25, ly, t);
+    });
+    s += `</g>` + axis(bl, ct, br, cb);
+    for (const t of [-10, 0, 10]) s += `<path d="M${CX(t)} ${cb}v3.5" stroke="#000" stroke-width="${LW}"/>` + txt(CX(t), cb + 15, tickLab(t), { anchor: "middle" });
+    const span = hi - lo, step = span > 30 ? 20 : span > 15 ? 10 : span > 6 ? 5 : span > 2.5 ? 2 : 1;
+    for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) s += `<path d="M${bl} ${CY(v * ec)}h-3.5" stroke="#000" stroke-width="${LW}"/>` + txt(bl - 5, CY(v * ec) + 4.2, tickLab(v), { anchor: "end" });
+    s += txt((bl + br) / 2, cb + 31, "detuning (GHz)", { anchor: "middle" });
+    s += txt(bl - 30, (ct + cb) / 2, `absorb. (${sup(Math.round(Math.log10(ec)))})`, { anchor: "middle", rot: -90 });
+    s += txt(bl, ct - 7, `(c) ${chem("NH3")} line after background fit`);
     s += `</svg>`;
     $("sheet").innerHTML = s;
     lastSvg = s;
@@ -318,7 +359,8 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
 OVERLAY_BAND = {${bd}}
 T_OVERLAY, OVERLAY_ALPHA, OVERLAY_SEED = ${+T.toPrecision(3)}, ${op}, ${seed}
 ANALYTE_PPM = ${ppm}
-B_CURVES = [${bcur}]`;
+B_CURVES = [${bcur}]
+C_PPB, C_MODES = ${+(10 ** +$("cppb").value).toPrecision(2)}, [${MODES.filter(m => $("c-" + m).checked).map(m => `"${m}"`).join(", ")}]`;
   }
   async function copy(text, label) {
     try { await navigator.clipboard.writeText(text); $("copyStatus").textContent = `${label} copied.`; }

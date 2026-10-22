@@ -1,0 +1,680 @@
+<title>CMPC and CRIGF in 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument panel (same family as mpc-designs.html). Controls in a left rail; the 3D view, then the device's physical numbers. */
+:root {
+  --bg: #eef1f0;
+  --surface: #ffffff;
+  --ink: #142026;
+  --muted: #5a6a6f;
+  --line: #d3dcdc;
+  --accent: #1d5f86;
+  --warn: #c43d2a;
+  --view-bg: #f7f9f9;
+  --label-bg: rgba(255, 255, 255, 0.86);
+  --font-display: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+    --accent: #6cb8e6; --warn: #ff7a63; --view-bg: #0f171a; --label-bg: rgba(19, 28, 32, 0.86); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1215; --surface: #131c20; --ink: #e2eaec; --muted: #8b9ea3; --line: #243237;
+  --accent: #6cb8e6; --warn: #ff7a63; --view-bg: #0f171a; --label-bg: rgba(19, 28, 32, 0.86); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 32px; }
+.wrap { max-width: 1360px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: grid; gap: 4px; }
+h1 { font: 700 22px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 95ch; }
+.main { display: grid; grid-template-columns: minmax(270px, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.rail { display: grid; gap: 12px; }
+fieldset { margin: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 10px 12px 12px; display: grid; gap: 10px; min-width: 0; }
+legend { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+.ctl { display: grid; gap: 3px; }
+.ctl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { font-weight: 500; }
+.ctl output, .mono { font-family: var(--font-data); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.seg.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+button { font: 500 13px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; cursor: pointer; }
+button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; gap: 6px; align-items: center; }
+.check input { accent-color: var(--accent); }
+.views { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; display: grid; gap: 10px; }
+.panel h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.bar .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.viewport { position: relative; width: 100%; max-width: 100%; aspect-ratio: 16 / 10; max-height: 72vh; border-radius: 4px; overflow: hidden; background: var(--view-bg); touch-action: none; }
+@media (max-width: 640px) { .viewport { aspect-ratio: 1 / 1; } }
+.viewport canvas { display: block; width: 100%; height: 100%; }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.lab { position: absolute; left: 0; top: 0; font: 500 12px/1.2 var(--font-body); color: var(--ink); background: var(--label-bg); border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px; white-space: nowrap; transform: translate(-50%, -130%); }
+.lab::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 8px; background: var(--muted); }
+.fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; }
+.stat { display: grid; gap: 1px; }
+.stat span:first-child { color: var(--muted); font-size: 12px; }
+.stat span:last-child { font: 500 15px var(--font-data); font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; max-width: 100ch; }
+.err { color: var(--warn); font-size: 12.5px; margin: 0; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 12.5px; width: 100%; min-width: 420px; }
+th, td { padding: 4px 10px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; font-family: var(--font-body); }
+thead th { color: var(--muted); font-weight: 500; font-family: var(--font-body); }
+footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; gap: 6px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>CMPC and CRIGF in 3D</h1>
+    <p>Rotate, zoom and edit the two devices from the schematics: the chaotic multipass cell in a free-standing Si membrane, with a cutaway through its trench DBRs, and the CRIGF (DBR | phase | grating coupler | phase | DBR) on thin-film LiNbO₃. Drag to rotate, scroll or pinch to zoom, right-drag or two-finger drag to pan.</p>
+  </header>
+
+  <div class="main">
+    <div class="rail">
+      <fieldset>
+        <legend>Device</legend>
+        <div class="seg" role="group" aria-label="Device">
+          <button type="button" id="dMem" data-dev="mem" aria-pressed="true">Membrane CMPC</button>
+          <button type="button" id="dCr" data-dev="crigf" aria-pressed="false">CRIGF</button>
+        </div>
+        <div class="seg" role="group" aria-label="View" id="memViewSeg">
+          <button type="button" id="vChip" data-mview="chip" aria-pressed="true">Whole chip</button>
+          <button type="button" id="vMir" data-mview="mirror" aria-pressed="false">One mirror, to scale</button>
+        </div>
+        <div class="seg" role="group" aria-label="Range" id="crViewSeg" hidden>
+          <button type="button" id="vAll" data-cview="all" aria-pressed="false">Whole device</button>
+          <button type="button" id="vGC" data-cview="gc" aria-pressed="true">GC close-up</button>
+        </div>
+        <label class="check" for="cut"><input id="cut" type="checkbox" checked> Cutaway</label>
+        <label class="check" for="labelsOn"><input id="labelsOn" type="checkbox" checked> Labels</label>
+      </fieldset>
+
+      <fieldset id="fsMem">
+        <legend>Membrane cell</legend>
+        <div class="ctl"><div class="row"><label for="mFac">Facets</label><output id="mFacOut"></output></div>
+          <input id="mFac" type="range" min="8" max="48" step="4" value="24"></div>
+        <div class="ctl"><div class="row"><label for="mStar">Star orbit step m</label><output id="mStarOut"></output></div>
+          <input id="mStar" type="range" min="1" max="11" step="1" value="7"></div>
+        <div class="ctl"><div class="row"><label for="mPer">DBR periods</label><output id="mPerOut"></output></div>
+          <input id="mPer" type="range" min="1" max="10" step="1" value="4"></div>
+        <div class="ctl"><div class="row"><label for="mThk">Si membrane thickness</label><output id="mThkOut"></output></div>
+          <input id="mThk" type="range" min="150" max="600" step="10" value="250"></div>
+        <div class="seg" role="group" aria-label="Slab mode">
+          <button type="button" id="pTM" data-pol="TM" aria-pressed="true">TM₀ (s on walls)</button>
+          <button type="button" id="pTE" data-pol="TE" aria-pressed="false">TE₀ (p on walls)</button>
+        </div>
+        <div class="ctl"><div class="row"><label for="mLam">Wavelength</label><output id="mLamOut"></output></div>
+          <input id="mLam" type="range" min="1.2" max="8" step="0.01" value="1.55"></div>
+        <div class="ctl"><div class="row"><label for="mDiam">Cell diameter</label><output id="mDiamOut"></output></div>
+          <input id="mDiam" type="range" min="1" max="20" step="0.5" value="10"></div>
+        <div class="ctl"><div class="row"><label for="mChi">Ray angle in the close-up</label><output id="mChiOut"></output></div>
+          <input id="mChi" type="range" min="0" max="60" step="1" value="20"></div>
+      </fieldset>
+
+      <fieldset id="fsMemDraw">
+        <legend>Chip drawing (schematic)</legend>
+        <div class="ctl"><div class="row"><label for="dBand">DBR band drawn</label><output id="dBandOut"></output></div>
+          <input id="dBand" type="range" min="0.08" max="0.45" step="0.01" value="0.24"></div>
+        <div class="ctl"><div class="row"><label for="dT">Membrane thickness drawn</label><output id="dTOut"></output></div>
+          <input id="dT" type="range" min="0.01" max="0.12" step="0.005" value="0.05"></div>
+        <label class="check" for="beamOn"><input id="beamOn" type="checkbox" checked> Star orbit and input beam</label>
+        <p class="hint">A 2 µm DBR on a 5 mm cell is invisible at true scale, so the DBR band and the membrane are drawn wide. The gap : tooth ratio is the real one. Trenches stop short of the facet corners; the corner bridges hold the inner membrane.</p>
+      </fieldset>
+
+      <fieldset id="fsCr" hidden>
+        <legend>CRIGF gratings</legend>
+        <div class="ctl"><div class="row"><label for="cNGC">GC periods</label><output id="cNGCOut"></output></div>
+          <input id="cNGC" type="range" min="1" max="80" step="1" value="21"></div>
+        <div class="ctl"><div class="row"><label for="cPGC">GC period</label><output id="cPGCOut"></output></div>
+          <input id="cPGC" type="range" min="300" max="1500" step="1" value="884"></div>
+        <div class="ctl"><div class="row"><label for="cFGC">GC fill</label><output id="cFGCOut"></output></div>
+          <input id="cFGC" type="range" min="0.05" max="1" step="0.01" value="0.5"></div>
+        <div class="ctl"><div class="row"><label for="cNL">Left DBR periods</label><output id="cNLOut"></output></div>
+          <input id="cNL" type="range" min="0" max="800" step="1" value="400"></div>
+        <div class="ctl"><div class="row"><label for="cNR">Right DBR periods</label><output id="cNROut"></output></div>
+          <input id="cNR" type="range" min="0" max="800" step="1" value="400"></div>
+        <div class="ctl"><div class="row"><label for="cPD">DBR period (both)</label><output id="cPDOut"></output></div>
+          <input id="cPD" type="range" min="150" max="900" step="1" value="442"></div>
+        <div class="ctl"><div class="row"><label for="cFD">DBR fill (both)</label><output id="cFDOut"></output></div>
+          <input id="cFD" type="range" min="0.05" max="1" step="0.01" value="0.5"></div>
+        <div class="ctl"><div class="row"><label for="cPhL">Phase section left</label><output id="cPhLOut"></output></div>
+          <input id="cPhL" type="range" min="0" max="2000" step="5" value="300"></div>
+        <div class="ctl"><div class="row"><label for="cPhR">Phase section right</label><output id="cPhROut"></output></div>
+          <input id="cPhR" type="range" min="0" max="2000" step="5" value="300"></div>
+        <div class="ctl"><div class="row"><label for="cOff">GC offset (+ toward right)</label><output id="cOffOut"></output></div>
+          <input id="cOff" type="range" min="-2000" max="2000" step="5" value="0"></div>
+        <p class="err" id="cErr" hidden></p>
+      </fieldset>
+
+      <fieldset id="fsCrStack" hidden>
+        <legend>CRIGF stack</legend>
+        <div class="ctl"><div class="row"><label for="cH">Si₃N₄ tooth height</label><output id="cHOut"></output></div>
+          <input id="cH" type="range" min="10" max="300" step="1" value="47"></div>
+        <div class="ctl"><div class="row"><label for="cLN">LiNbO₃ thickness</label><output id="cLNOut"></output></div>
+          <input id="cLN" type="range" min="100" max="1000" step="10" value="300"></div>
+        <div class="ctl"><div class="row"><label for="cW">Transverse width</label><output id="cWOut"></output></div>
+          <input id="cW" type="range" min="2" max="60" step="1" value="20"></div>
+        <div class="ctl"><div class="row"><label for="cCap">Display cap, thick layers</label><output id="cCapOut"></output></div>
+          <input id="cCap" type="range" min="200" max="2000" step="50" value="600"></div>
+        <div class="ctl"><div class="row"><label for="cEx">Height exaggeration</label><output id="cExOut"></output></div>
+          <input id="cEx" type="range" min="0.2" max="4" step="0.1" value="1"></div>
+        <p class="hint">Fused silica 500 µm is drawn at the display cap; every number in the table below is physical.</p>
+      </fieldset>
+    </div>
+
+    <div class="views">
+      <section class="panel" aria-labelledby="hView">
+        <div class="bar">
+          <h2 id="hView">3D view</h2>
+          <div class="btns" role="group" aria-label="Camera">
+            <button type="button" id="camObl">Oblique</button>
+            <button type="button" id="camTop">Top</button>
+            <button type="button" id="camSide">Side</button>
+          </div>
+        </div>
+        <div class="viewport" id="vp">
+          <div class="labels" id="labels"></div>
+          <div class="fallback" id="fallback" hidden>This view needs WebGL, which this browser or frame did not provide. The numbers below still update.</div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="hNum">
+        <h2 id="hNum">Physical numbers</h2>
+        <div class="stats" id="stats"></div>
+        <div class="tablewrap" id="tableWrap"></div>
+        <p class="note" id="note"></p>
+      </section>
+
+      <footer>
+        <p>Membrane mirror: Si index (Salzberg–Villa), n<sub>eff</sub> of the air | Si | air slab mode and the oblique-incidence transfer matrix of cavity | [air gap, Si tooth] × N | air, ported from <span class="mono">math-engines</span> (as in <span class="mono">mpc-schematics/dbr_periods.py</span> and <span class="mono">mpc-designs.html</span>). 1D effective-index model: out-of-plane radiation in the gaps and roughness are not included.</p>
+        <p>CRIGF: the geometry of <span class="mono">crigf_schematic.m</span> / <span class="mono">dbr-structures/crigf_3d.py</span>. One centred tooth per cell, tooth = fill × period, section = N × period; phase lengths are gaps between section edges; a positive offset moves the GC toward the right DBR. Defaults from Hemsley et al., Opt. Express 31, 27274 (2023); the 300 nm phase sections are example values. Additive rectangular teeth on a flat stack, no etch profile or optical field.</p>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const v = id => parseFloat($(id).value);
+  const D2R = Math.PI / 180;
+
+  // ---------------------------------------------------------------- membrane mirror physics (math-engines ports)
+  const C = (re, im = 0) => ({ re, im });
+  const cadd = (a, b) => C(a.re + b.re, a.im + b.im), csub = (a, b) => C(a.re - b.re, a.im - b.im);
+  const cmul = (a, b) => C(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+  const cdiv = (a, b) => { const d = b.re * b.re + b.im * b.im; return C((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d); };
+  const cabs = a => Math.hypot(a.re, a.im);
+  const csqrt = a => { const r = cabs(a), re = Math.sqrt((r + a.re) / 2), im = Math.sqrt(Math.max((r - a.re) / 2, 0)); return C(re, a.im < 0 ? -im : im); };
+  const ccos = a => C(Math.cos(a.re) * Math.cosh(a.im), -Math.sin(a.re) * Math.sinh(a.im));
+  const csin = a => C(Math.sin(a.re) * Math.cosh(a.im), Math.cos(a.re) * Math.sinh(a.im));
+  function nSi(lam) { const l2 = (lam * 1e6) ** 2; return Math.sqrt(1 + 10.6684293 * l2 / (l2 - 0.301516485 ** 2) + 1.54133408 * l2 / (l2 - 1104.0 ** 2)); }
+  function neffSlab(lam, nf, d, pol) {
+    const k = 2 * Math.PI / lam;
+    const disp = ne => { const kx = k * Math.sqrt(Math.max(nf * nf - ne * ne, 0)), g = k * Math.sqrt(Math.max(ne * ne - 1, 0)); return kx * d - 2 * Math.atan2((pol === "TM" ? nf * nf : 1) * g, kx); };
+    let lo = 1 + 1e-12, hi = nf - 1e-12;
+    if (disp(lo) <= 0) return NaN;
+    for (let i = 0; i < 80; i++) { const m = 0.5 * (lo + hi); if (disp(m) > 0) lo = m; else hi = m; }
+    return 0.5 * (lo + hi);
+  }
+  function modeGamma(lam, nf, d, ne) { return 2 * Math.PI / lam * Math.sqrt(ne * ne - 1); }   // evanescent decay constant
+  function stackR(lam, sinIn, nIn, layers, nOut, pol) {
+    const s = nIn * Math.min(Math.abs(sinIn), 1 - 1e-9), k = 2 * Math.PI / lam;
+    const cosine = n => csqrt(C(1 - (s / n) ** 2, 1e-18));
+    const adm = n => { const c = cosine(n); return pol === "s" ? cmul(C(n), c) : cdiv(C(n), c); };
+    let m00 = C(1), m01 = C(0), m10 = C(0), m11 = C(1);
+    for (const [n, d] of layers) {
+      const q = adm(n), dl = cmul(C(k * n * d), cosine(n)), cs = ccos(dl), sn = csin(dl);
+      const l01 = cmul(C(0, -1), cdiv(sn, q)), l10 = cmul(C(0, -1), cmul(q, sn));
+      const a00 = cadd(cmul(m00, cs), cmul(m01, l10)), a01 = cadd(cmul(m00, l01), cmul(m01, cs));
+      const a10 = cadd(cmul(m10, cs), cmul(m11, l10)), a11 = cadd(cmul(m10, l01), cmul(m11, cs));
+      const sc = Math.max(cabs(a00), cabs(a01), cabs(a10), cabs(a11)) || 1;
+      m00 = C(a00.re / sc, a00.im / sc); m01 = C(a01.re / sc, a01.im / sc); m10 = C(a10.re / sc, a10.im / sc); m11 = C(a11.re / sc, a11.im / sc);
+    }
+    const qi = adm(nIn), qo = adm(nOut), x = cmul(qi, cadd(m00, cmul(m01, qo))), y = cadd(m10, cmul(m11, qo)), r = cdiv(csub(x, y), cadd(x, y));
+    return r.re * r.re + r.im * r.im;
+  }
+  function mirrorModel() {
+    const lam = v("mLam") * 1e-6, t = v("mThk") * 1e-9, n = nSi(lam), pol = S.pol, ne = neffSlab(lam, n, t, pol);
+    const dGap = lam / 4, dTooth = lam / (4 * ne);
+    const R = (N, s) => { const lay = []; for (let i = 0; i < N; i++) lay.push([1, dGap], [ne, dTooth]); return stackR(lam, s, ne, lay, 1, pol === "TE" ? "p" : "s"); };
+    return { lam, t, n, ne, pol, dGap, dTooth, R };
+  }
+
+  // ---------------------------------------------------------------- convex-polygon prisms with a cutaway
+  function area(P) { let a = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; }
+  function clip(P, a, b, c) {                          // keep a x + b y <= c
+    const out = [];
+    for (let i = 0; i < P.length; i++) {
+      const p = P[i], q = P[(i + 1) % P.length], fp = a * p[0] + b * p[1] - c, fq = a * q[0] + b * q[1] - c;
+      if (fp <= 0) out.push(p);
+      if ((fp < 0 && fq > 0) || (fp > 0 && fq < 0)) { const t = fp / (fp - fq); out.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]); }
+    }
+    return out;
+  }
+  // Removed region {x >= cx, y <= cy}; three convex pieces keep the rest with exactly matching shared edges.
+  function cutPieces(P, cut) {
+    if (!cut) return [P];
+    const { cx, cy } = cut;
+    return [clip(clip(P, -1, 0, -cx), 0, -1, -cy), clip(clip(P, 1, 0, cx), 0, -1, -cy), clip(clip(P, 1, 0, cx), 0, 1, cy)]
+      .filter(Q => Q.length >= 3 && Math.abs(area(Q)) > 1e-12);
+  }
+  class Builder {
+    constructor() { this.prisms = []; }
+    add(P, z0, z1, col, secCol, cut) {
+      for (let Q of cutPieces(P, cut)) {
+        if (area(Q) < 0) Q = Q.slice().reverse();
+        this.prisms.push({ P: Q, z0, z1, col, secCol });
+      }
+    }
+    build(isSection) {
+      const pos = [], nor = [], col = [], segs = [];
+      const push = (p, n, c) => { pos.push(p[0], p[1], p[2]); nor.push(n[0], n[1], n[2]); col.push(c.r, c.g, c.b); };
+      const K = x => Math.round(x * 1e6), ek = (p, q, z0, z1) => { const a = `${K(p[0])},${K(p[1])}`, b = `${K(q[0])},${K(q[1])}`; return (a < b ? a + "|" + b : b + "|" + a) + `|${K(z0)}|${K(z1)}`; };
+      const shared = new Map();                        // side walls two coplanar pieces share are interior: not drawn
+      for (const { P, z0, z1 } of this.prisms) for (let i = 0; i < P.length; i++) { const k = ek(P[i], P[(i + 1) % P.length], z0, z1); shared.set(k, (shared.get(k) || 0) + 1); }
+      for (const { P, z0, z1, col: c0, secCol } of this.prisms) {
+        const c = new THREE.Color(c0), cs = new THREE.Color(secCol || c0);
+        for (let i = 1; i < P.length - 1; i++) {
+          push([P[0][0], P[0][1], z1], [0, 0, 1], c); push([P[i][0], P[i][1], z1], [0, 0, 1], c); push([P[i + 1][0], P[i + 1][1], z1], [0, 0, 1], c);
+          push([P[0][0], P[0][1], z0], [0, 0, -1], c); push([P[i + 1][0], P[i + 1][1], z0], [0, 0, -1], c); push([P[i][0], P[i][1], z0], [0, 0, -1], c);
+        }
+        for (let i = 0; i < P.length; i++) {
+          const p = P[i], q = P[(i + 1) % P.length], dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy);
+          if (L < 1e-12) continue;
+          segs.push({ p, q, z: z1 }, { p, q, z: z0 });
+          if (shared.get(ek(p, q, z0, z1)) > 1) continue;
+          const n = [dy / L, -dx / L, 0], cc = isSection && isSection(p, q) ? cs : c;
+          const P0 = [p[0], p[1], z0], Q0 = [q[0], q[1], z0], Q1 = [q[0], q[1], z1], P1 = [p[0], p[1], z1];
+          push(P0, n, cc); push(Q0, n, cc); push(Q1, n, cc); push(P0, n, cc); push(Q1, n, cc); push(P1, n, cc);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+      g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+      return { mesh: g, lines: outlineLines(segs, this.prisms) };
+    }
+  }
+  // Outline: an edge is drawn where exactly one prism has it (edges shared by two coplanar pieces are interior),
+  // plus vertical edges where the drawn outline turns.
+  function outlineLines(segs, prisms) {
+    const K = x => Math.round(x * 1e6);
+    const groups = new Map();
+    for (const { p, q, z } of segs) {
+      let dx = q[0] - p[0], dy = q[1] - p[1]; const L = Math.hypot(dx, dy); dx /= L; dy /= L;
+      if (dx < -1e-9 || (Math.abs(dx) <= 1e-9 && dy < 0)) { dx = -dx; dy = -dy; }
+      const off = -dy * p[0] + dx * p[1], key = `${K(z)}|${K(dx)}|${K(dy)}|${K(off)}`;
+      const s0 = dx * p[0] + dy * p[1], s1 = dx * q[0] + dy * q[1];
+      if (!groups.has(key)) groups.set(key, { dx, dy, off, z, iv: [] });
+      groups.get(key).iv.push([Math.min(s0, s1), Math.max(s0, s1)]);
+    }
+    const out = [], ends = new Map();
+    const addEnd = (x, y, z, dx, dy) => { const k = `${K(x)}|${K(y)}|${K(z)}`; if (!ends.has(k)) ends.set(k, []); ends.get(k).push([dx, dy]); };
+    for (const g of groups.values()) {
+      const ev = [];
+      for (const [a, b] of g.iv) { ev.push([a, 1], [b, -1]); }
+      ev.sort((u, w) => u[0] - w[0] || u[1] - w[1]);
+      let cnt = 0, start = null;
+      const emit = (a, b) => {
+        if (b - a < 1e-9) return;
+        const P = s => [g.dx * s - g.dy * g.off, g.dy * s + g.dx * g.off];
+        const A = P(a), B = P(b);
+        out.push(A[0], A[1], g.z, B[0], B[1], g.z);
+        addEnd(A[0], A[1], g.z, g.dx, g.dy); addEnd(B[0], B[1], g.z, g.dx, g.dy);
+      };
+      for (let i = 0; i < ev.length; i++) {
+        const [s, d] = ev[i], prev = cnt; cnt += d;
+        if (prev === 1 && cnt !== 1) emit(start, s);
+        if (cnt === 1 && prev !== 1) start = s;
+      }
+    }
+    for (const { P, z0, z1 } of prisms) {
+      for (const p of P) {
+        const e = ends.get(`${K(p[0])}|${K(p[1])}|${K(z1)}`);
+        if (!e || e.length < 2) continue;
+        let corner = false;
+        for (let i = 1; i < e.length && !corner; i++) if (Math.abs(e[0][0] * e[i][1] - e[0][1] * e[i][0]) > 1e-6) corner = true;
+        if (corner) out.push(p[0], p[1], z0, p[0], p[1], z1);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(out, 3));
+    return g;
+  }
+  function ribbon(pts, z, w, out) {                    // flat strip along a 2D polyline segment list
+    for (let i = 0; i < pts.length; i += 2) {
+      const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy);
+      if (L < 1e-9) continue;
+      const nx = -dy / L * w / 2, ny = dx / L * w / 2;
+      out.push(a[0] - nx, a[1] - ny, z, b[0] - nx, b[1] - ny, z, b[0] + nx, b[1] + ny, z, a[0] - nx, a[1] - ny, z, b[0] + nx, b[1] + ny, z, a[0] + nx, a[1] + ny, z);
+    }
+  }
+
+  // ---------------------------------------------------------------- colours (world materials, same in both themes)
+  const COL = { si: "#8fa3c4", siSec: "#cdd8ea", handle: "#9a9fa6", handleSec: "#c8ccd1", box: "#e3d29a", boxSec: "#f1e7c6",
+    beam: "#d0352b", port: "#1f8a4c", field: "#8a4fc8",
+    layers: ["#c7cccc", "#91ada6", "#d4bf9e", "#b8a3c2"], layersSec: ["#e2e6e6", "#c2d4cf", "#e8dcc8", "#d9cde0"],
+    dbr: "#21855f", dbrSec: "#73bc9f", gc: "#e87a29", gcSec: "#f4b787" };
+
+  // ---------------------------------------------------------------- scene builders
+  const S = { dev: "mem", mview: "chip", cview: "gc", pol: "TM" };
+  function memChip() {
+    const N = v("mFac"), Np = v("mPer"), m = Math.min(v("mStar"), Math.floor((N - 1) / 2)), M = mirrorModel();
+    const band = v("dBand"), t = v("dT"), g = band / Np * M.dGap / (M.dGap + M.dTooth), tw = band / Np - g;
+    const tb = 0.045, th = 0.30, L = 1.75, win = 1.38, und = 1.46, bw = 0.028, wp = 0.10;
+    const a0 = Math.cos(Math.PI / N), sec = 1 / Math.cos(Math.PI / N), cut = $("cut").checked ? { cx: 0, cy: 0 } : null;
+    const B = new Builder();
+    const at = (A, phi) => [A * sec * Math.cos(phi), A * sec * Math.sin(phi)];
+    const wedge = (A1, A2, k) => { const th0 = 2 * Math.PI * k / N, pm = th0 - Math.PI / N, pp = th0 + Math.PI / N; return [at(A1, pm), at(A2, pm), at(A2, pp), at(A1, pp)]; };
+    const port = Math.floor(N / 2);
+    const inner = []; for (let k = 0; k < N; k++) inner.push(at(a0, 2 * Math.PI * k / N - Math.PI / N));
+    B.add(inner, 0, t, COL.si, COL.siSec, cut);
+    for (let k = 0; k < N; k++) {
+      const th0 = 2 * Math.PI * k / N, pm = th0 - Math.PI / N, pp = th0 + Math.PI / N;
+      for (let j = 0; j < Np; j++) {
+        const A = a0 + j * (g + tw);
+        B.add(wedge(A + g, A + g + tw, k), 0, t, COL.si, COL.siSec, cut);                 // tooth
+        const gq = wedge(A, A + g, k);                                                     // gap: membrane only at bridges / port
+        B.add(clip(gq, -Math.sin(pm), Math.cos(pm), bw / 2), 0, t, COL.si, COL.siSec, cut);
+        B.add(clip(gq, Math.sin(pp), -Math.cos(pp), bw / 2), 0, t, COL.si, COL.siSec, cut);
+        if (k === port) {
+          const tx = -Math.sin(th0), ty = Math.cos(th0);
+          B.add(clip(clip(gq, tx, ty, wp / 2), -tx, -ty, wp / 2), 0, t, COL.si, COL.siSec, cut);
+        }
+      }
+      let outer = wedge(a0 + Np * (g + tw), 6, k);
+      outer = clip(clip(clip(clip(outer, 1, 0, L), -1, 0, L), 0, 1, L), 0, -1, L);
+      B.add(outer, 0, t, COL.si, COL.siSec, cut);
+    }
+    const frame = w => [[[-L, -L], [L, -L], [L, -w], [-L, -w]], [[-L, w], [L, w], [L, L], [-L, L]], [[-L, -w], [-w, -w], [-w, w], [-L, w]], [[w, -w], [L, -w], [L, w], [w, w]]];
+    for (const R of frame(und)) B.add(R, -tb, 0, COL.box, COL.boxSec, cut);
+    for (const R of frame(win)) B.add(R, -tb - th, -tb, COL.handle, COL.handleSec, cut);
+    const isSec = cut ? (p, q) => (Math.abs(p[0]) < 1e-9 && Math.abs(q[0]) < 1e-9 && Math.max(p[1], q[1]) <= 1e-9) ||
+      (Math.abs(p[1]) < 1e-9 && Math.abs(q[1]) < 1e-9 && Math.min(p[0], q[0]) >= -1e-9) : null;
+    // beams
+    const segs = [], inCut = (x, y) => cut && x > 0 && y < 0;
+    const mid = k => { const a = 2 * Math.PI * (((k % N) + N) % N) / N; return [a0 * Math.cos(a), a0 * Math.sin(a)]; };
+    const keepSeg = (a, b, out) => {
+      const ts = [0, 1];
+      if ((a[0] < 0) !== (b[0] < 0)) ts.push(a[0] / (a[0] - b[0]));
+      if ((a[1] < 0) !== (b[1] < 0)) ts.push(a[1] / (a[1] - b[1]));
+      ts.sort((x, y) => x - y);
+      const P = s => [a[0] + s * (b[0] - a[0]), a[1] + s * (b[1] - a[1])];
+      for (let i = 0; i < ts.length - 1; i++) { const m_ = P((ts[i] + ts[i + 1]) / 2); if (!inCut(m_[0], m_[1])) out.push(P(ts[i]), P(ts[i + 1])); }
+    };
+    let k = port;
+    for (let i = 0; i < N; i++) { keepSeg(mid(k), mid(k + m), segs); k += m; }
+    const p0 = mid(port), p1 = mid(port + m), dl = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), d0 = [(p1[0] - p0[0]) / dl, (p1[1] - p0[1]) / dl];
+    const inSegs = [[p0[0] - 0.7 * d0[0], p0[1] - 0.7 * d0[1]], p0];
+    const labels = [
+      { text: `trench DBR, ${Np} periods (drawn wide)`, p: [...at(a0 + band / 2, 2 * Math.PI * Math.round(N / 4) / N), t] },
+      { text: "input port (no DBR)", p: [...p0.map((x, i) => x - 0.35 * d0[i]), t] },
+      { text: `Si membrane, ${v("mThk")} nm`, p: [-0.5, 0.25, t] },
+      { text: "buried oxide", p: [-L * 0.45, -L, -tb / 2] },
+      { text: "Si handle", p: [-L * 0.85, -L, -tb - th / 2] },
+      { text: "released over the backside window", p: [0.7, 0.7, -tb - th] },
+    ];
+    if (!cut) labels.pop();
+    return { B, isSec, segs, inSegs, beamZ: t + 0.002, beamW: 0.012, labels, info: { M, N, Np, m, t, band } };
+  }
+  function memMirror() {
+    const M = mirrorModel(), um = 1e6, t = M.t * um, g = M.dGap * um, tw = M.dTooth * um, Np = v("mPer");
+    const cav = 1.8, Ly = 2.4, tail = 0.9, z0 = -t / 2, z1 = t / 2, B = new Builder();
+    B.add([[-cav, 0], [0, 0], [0, Ly], [-cav, Ly]], z0, z1, COL.si, COL.siSec, null);
+    let x = 0; const teeth = [];
+    for (let j = 0; j < Np; j++) { x += g; B.add([[x, 0], [x + tw, 0], [x + tw, Ly], [x, Ly]], z0, z1, COL.si, COL.siSec, null); teeth.push(x); x += tw; }
+    B.add([[x + tail, 0], [x + tail + 0.5, 0], [x + tail + 0.5, Ly], [x + tail, Ly]], z0, z1, COL.si, COL.siSec, null);
+    const isSec = (p, q) => Math.abs(p[1]) < 1e-9 && Math.abs(q[1]) < 1e-9;
+    const chi = v("mChi") * D2R, yh = Ly * 0.55, Lr = cav * 0.85;
+    const segs = [[-Lr, yh - Lr * Math.tan(chi)], [0, yh], [0, yh], [-Lr, yh + Lr * Math.tan(chi)]];
+    // mode profile |H|^2 (TM) or |E|^2 (TE) across the membrane, drawn on the cut face
+    const lam = M.lam, k = 2 * Math.PI / lam, kap = k * Math.sqrt(M.n * M.n - M.ne * M.ne), gam = k * Math.sqrt(M.ne * M.ne - 1), half = M.t / 2;
+    const prof = [], zmax = half + 3 / gam;
+    for (let i = 0; i <= 200; i++) {
+      const z = -zmax + 2 * zmax * i / 200, f = Math.abs(z) <= half ? Math.cos(kap * z) : Math.cos(kap * half) * Math.exp(-gam * (Math.abs(z) - half));
+      prof.push([-cav * 0.5 - 0.8 * f * f, -0.002, z * um]);
+    }
+    const labels = [
+      { text: `air gap ${(g * 1e3).toFixed(0)} nm`, p: [g / 2, 0, z0] },
+      { text: `Si tooth ${(tw * 1e3).toFixed(0)} nm`, p: [teeth[0] + tw / 2, 0, z1] },
+      { text: `membrane ${(t * 1e3).toFixed(0)} nm, n_eff ${M.ne.toFixed(3)}`, p: [-cav * 0.75, Ly * 0.8, z1] },
+      { text: `${M.pol}₀ ray, χ = ${v("mChi")}°`, p: [-Lr * 0.6, yh - Lr * 0.6 * Math.tan(chi), z1] },
+      { text: `|${M.pol === "TM" ? "H" : "E"}|² across the membrane`, p: [-cav * 0.5 - 0.8, -0.002, 0] },
+    ];
+    return { B, isSec, segs, inSegs: [], beamZ: z1 + 0.002, beamW: 0.03, prof, labels, info: { M, Np } };
+  }
+  function crigfModel() {
+    const c = { NGC: v("cNGC"), pGC: v("cPGC") / 1e3, fGC: v("cFGC"), NL: v("cNL"), NR: v("cNR"), pL: v("cPD") / 1e3, pR: v("cPD") / 1e3,
+      fL: v("cFD"), fR: v("cFD"), phL: v("cPhL") / 1e3, phR: v("cPhR") / 1e3, off: v("cOff") / 1e3, W: v("cW"), h: v("cH") / 1e3,
+      names: ["Fused silica", "LiNbO3"], thick: [500, v("cLN") / 1e3], cap: v("cCap") / 1e3 };
+    let err = "";
+    if (c.phL + c.off < 0 || c.phR - c.off < 0) {                       // crigf_schematic.m: -phaseL <= offset <= phaseR
+      err = `Offset must satisfy −phase L ≤ offset ≤ phase R; clamped to ${c.off < 0 ? -c.phL * 1e3 : c.phR * 1e3} nm.`;
+      c.off = Math.max(-c.phL, Math.min(c.phR, c.off));
+    }
+    c.err = err;
+    c.lengths = [c.NL * c.pL, c.phL + c.off, c.NGC * c.pGC, c.phR - c.off, c.NR * c.pR];
+    c.edges = [0]; for (const L of c.lengths) c.edges.push(c.edges[c.edges.length - 1] + L);
+    c.total = c.edges[5];
+    c.teeth = [];
+    const counts = [c.NL, c.NGC, c.NR], per = [c.pL, c.pGC, c.pR], fill = [c.fL, c.fGC, c.fR], starts = [c.edges[0], c.edges[2], c.edges[4]];
+    for (let j = 0; j < 3; j++) for (let i = 0; i < counts[j]; i++) { const a = starts[j] + i * per[j] + (1 - fill[j]) * per[j] / 2; c.teeth.push([a, a + fill[j] * per[j], j]); }
+    c.dt = c.thick.map(x => Math.min(x, c.cap));
+    c.zedge = [-c.dt.reduce((a, b) => a + b, 0)]; for (const d of c.dt) c.zedge.push(c.zedge[c.zedge.length - 1] + d); c.zedge[c.zedge.length - 1] = 0;
+    return c;
+  }
+  function crigfScene() {
+    const c = crigfModel(), zspan = c.zedge[c.zedge.length - 1] - c.zedge[0] + c.h, ex = v("cEx");
+    let x0, x1, sx, sy, sz;
+    if (S.cview === "all") { x0 = 0; x1 = c.total; sx = 5 / c.total; sy = 1.5 / c.W; sz = 1 / zspan * ex; }
+    else { x0 = Math.max(0, c.edges[2] - 1.5 - 6 * c.pL); x1 = Math.min(c.total, c.edges[3] + 1.5 + 6 * c.pR); sx = sy = 3 / (x1 - x0); sz = 0.55 / zspan * ex; }
+    const xc = 0.5 * (c.edges[2] + c.edges[3]);
+    const cut = $("cut").checked ? { cx: xc * sx, cy: c.W / 2 * sy } : null;
+    const B = new Builder();
+    const rect = (a, b) => [[a * sx, 0], [b * sx, 0], [b * sx, c.W * sy], [a * sx, c.W * sy]];
+    for (let k = 0; k < c.dt.length; k++) B.add(rect(x0, x1), c.zedge[k] * sz, c.zedge[k + 1] * sz, COL.layers[k % 4], COL.layersSec[k % 4], cut);
+    for (const [a, b, j] of c.teeth) {
+      if (b <= x0 || a >= x1) continue;
+      B.add(rect(Math.max(a, x0), Math.min(b, x1)), 0, c.h * sz, j === 1 ? COL.gc : COL.dbr, j === 1 ? COL.gcSec : COL.dbrSec, cut);
+    }
+    const isSec = cut ? (p, q) => (Math.abs(p[1] - cut.cy) < 1e-9 && Math.abs(q[1] - cut.cy) < 1e-9 && Math.min(p[0], q[0]) >= cut.cx - 1e-9) ||
+      (Math.abs(p[0] - cut.cx) < 1e-9 && Math.abs(q[0] - cut.cx) < 1e-9 && Math.max(p[1], q[1]) <= cut.cy + 1e-9) : null;
+    const top = c.h * sz, labels = [];
+    const vis = x => x >= x0 && x <= x1;
+    const ym = c.W * 0.85 * sy;
+    if (vis(c.edges[0] + c.lengths[0] / 2) && c.NL) labels.push({ text: `left DBR, ${c.NL} × ${(c.pL * 1e3).toFixed(0)} nm`, p: [(c.edges[0] + c.lengths[0] / 2) * sx, ym, top] });
+    else if (c.NL) labels.push({ text: "left DBR", p: [(x0 + Math.min(x1, c.edges[1])) / 2 * sx, ym, top] });
+    labels.push({ text: `GC, ${c.NGC} × ${(c.pGC * 1e3).toFixed(0)} nm`, p: [(c.edges[2] + c.lengths[2] * 0.25) * sx, ym, top] });
+    if (c.NR) labels.push({ text: S.cview === "all" ? `right DBR, ${c.NR} × ${(c.pR * 1e3).toFixed(0)} nm` : "right DBR", p: [(S.cview === "all" ? c.edges[4] + c.lengths[4] / 2 : (Math.max(x0, c.edges[4]) + x1) / 2) * sx, ym, top] });
+    for (let k = 0; k < c.dt.length; k++) labels.push({ text: c.names[k] + (c.dt[k] < c.thick[k] ? " (capped)" : ""), p: [x1 * sx, (cut ? c.W / 2 : 0) * sy, (c.zedge[k] + c.zedge[k + 1]) / 2 * sz] });
+    if (S.cview === "gc") labels.push({ text: `phase L ${(c.lengths[1] * 1e3).toFixed(0)} nm`, p: [(c.edges[1] + c.lengths[1] / 2) * sx, c.W * sy, 0] });
+    return { B, isSec, segs: [], inSegs: [], labels, info: { c, zx: sz / sx } };
+  }
+
+  // ---------------------------------------------------------------- three.js view
+  const vp = $("vp");
+  let renderer = null, scene, camera, controls, group, needFit = true;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    vp.insertBefore(renderer.domElement, vp.firstChild);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(30, 1, 0.001, 1000);
+    camera.up.set(0, 0, 1);
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = false;
+    controls.addEventListener("change", render);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f96, 0.72));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.55); sun.position.set(-0.5, -0.8, 1.4); scene.add(sun);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.18); fill.position.set(0.8, 0.6, 0.4); scene.add(fill);
+  } catch (e) { renderer = null; $("fallback").hidden = false; }
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  let labelEls = [], labelPts = [];
+  function setLabels(list) {
+    const host = $("labels"); host.innerHTML = ""; labelEls = []; labelPts = [];
+    if (!$("labelsOn").checked) return;
+    for (const L of list) { const d = document.createElement("div"); d.className = "lab"; d.textContent = L.text; host.appendChild(d); labelEls.push(d); labelPts.push(new THREE.Vector3(...L.p)); }
+  }
+  function render() {
+    if (!renderer) return;
+    renderer.render(scene, camera);
+    const w = vp.clientWidth, h = vp.clientHeight;
+    labelPts.forEach((p, i) => {
+      const q = p.clone().project(camera), el = labelEls[i];
+      el.hidden = q.z > 1 || q.z < -1;
+      el.style.left = `${((q.x + 1) / 2 * w).toFixed(1)}px`; el.style.top = `${((1 - q.y) / 2 * h).toFixed(1)}px`;
+    });
+  }
+  function resize() {
+    if (!renderer) return;
+    const w = vp.clientWidth, h = vp.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); render();
+  }
+  function fit(view) {
+    if (!group) return;
+    const box = new THREE.Box3().setFromObject(group), c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
+    const dir = view === "top" ? new THREE.Vector3(0, -0.0001, 1) : view === "side" ? new THREE.Vector3(0.0001, -1, 0.06) :
+      (S.dev === "crigf" ? new THREE.Vector3(Math.cos(-62 * D2R) * Math.cos(26 * D2R), Math.sin(-62 * D2R) * Math.cos(26 * D2R), Math.sin(26 * D2R))
+        : new THREE.Vector3(Math.cos(-45 * D2R) * Math.cos(32 * D2R), Math.sin(-45 * D2R) * Math.cos(32 * D2R), Math.sin(32 * D2R)));
+    const dist = r / Math.sin(camera.fov * D2R / 2) * 0.72 * Math.max(1, 1.45 / camera.aspect);
+    controls.target.copy(c); camera.position.copy(c.clone().add(dir.normalize().multiplyScalar(dist)));
+    camera.near = dist / 200; camera.far = dist * 20; camera.updateProjectionMatrix(); controls.update(); render();
+  }
+
+  function rebuild() {
+    const desc = S.dev === "crigf" ? crigfScene() : S.mview === "mirror" ? memMirror() : memChip();
+    if (renderer) {
+      if (group) { scene.remove(group); group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
+      group = new THREE.Group();
+      const { mesh, lines } = desc.B.build(desc.isSec);
+      group.add(new THREE.Mesh(mesh, new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })));
+      group.add(new THREE.LineSegments(lines, new THREE.LineBasicMaterial({ color: 0x1b2328, transparent: true, opacity: 0.55 })));
+      const showBeam = S.dev === "mem" && (S.mview === "mirror" || $("beamOn").checked);
+      if (showBeam) {
+        for (const [pts, colr, w] of [[desc.segs, COL.beam, desc.beamW], [desc.inSegs, COL.port, desc.beamW * 1.8]]) {
+          if (!pts.length) continue;
+          const arr = []; ribbon(pts, desc.beamZ, w, arr);
+          const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(arr, 3));
+          group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: colr, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })));
+        }
+      }
+      if (desc.prof) {
+        const g = new THREE.BufferGeometry().setFromPoints(desc.prof.map(p => new THREE.Vector3(...p)));
+        group.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: COL.field })));
+      }
+      scene.add(group);
+      scene.background = new THREE.Color(css("--view-bg") || "#f7f9f9");
+      setLabels(desc.labels);
+      if (needFit) { fit("oblique"); needFit = false; } else render();
+    }
+    info(desc);
+  }
+
+  // ---------------------------------------------------------------- numbers panel
+  const stat = (k, val) => `<div class="stat"><span>${k}</span><span>${val}</span></div>`;
+  const nm = x => `${(x * 1e9).toFixed(0)} nm`;
+  function info(desc) {
+    const leg = $("legend"), st = $("stats"), tw = $("tableWrap"), note = $("note");
+    if (S.dev === "crigf") {
+      const c = desc.info.c, L = c.lengths;
+      $("cErr").hidden = !c.err; $("cErr").textContent = c.err;
+      leg.innerHTML = `<span><i class="sw" style="background:${COL.dbr}"></i>DBR teeth</span><span><i class="sw" style="background:${COL.gc}"></i>grating coupler teeth</span><span><i class="sw" style="background:${COL.layers[1]}"></i>LiNbO₃</span><span><i class="sw" style="background:${COL.layers[0]}"></i>fused silica</span><span>lighter shade: cut face</span>`;
+      st.innerHTML = stat("Total length", `${c.total.toFixed(3)} µm`) + stat("Transverse width", `${c.W} µm`) +
+        stat("Actual phase L / R", `${(L[1] * 1e3).toFixed(0)} / ${(L[3] * 1e3).toFixed(0)} nm`) + stat("Teeth drawn", c.teeth.length) +
+        stat("Height vs length", `×${desc.info.zx.toFixed(desc.info.zx < 10 ? 1 : 0)}`);
+      tw.innerHTML = `<table><thead><tr><th>Section</th><th>Periods</th><th>Pitch</th><th>Tooth width</th><th>Length</th></tr></thead><tbody>
+        <tr><td>Left DBR</td><td>${c.NL}</td><td>${(c.pL * 1e3).toFixed(0)} nm</td><td>${(c.fL * c.pL * 1e3).toFixed(0)} nm</td><td>${L[0].toFixed(3)} µm</td></tr>
+        <tr><td>Phase section L</td><td>–</td><td>–</td><td>–</td><td>${(L[1] * 1e3).toFixed(0)} nm</td></tr>
+        <tr><td>Grating coupler</td><td>${c.NGC}</td><td>${(c.pGC * 1e3).toFixed(0)} nm</td><td>${(c.fGC * c.pGC * 1e3).toFixed(0)} nm</td><td>${L[2].toFixed(3)} µm</td></tr>
+        <tr><td>Phase section R</td><td>–</td><td>–</td><td>–</td><td>${(L[3] * 1e3).toFixed(0)} nm</td></tr>
+        <tr><td>Right DBR</td><td>${c.NR}</td><td>${(c.pR * 1e3).toFixed(0)} nm</td><td>${(c.fR * c.pR * 1e3).toFixed(0)} nm</td><td>${L[4].toFixed(3)} µm</td></tr>
+        </tbody></table>`;
+      note.textContent = `Layers, bottom to top (true thickness): fused silica ${c.thick[0]} µm (drawn ${(c.dt[0] * 1e3).toFixed(0)} nm), LiNbO₃ ${(c.thick[1] * 1e3).toFixed(0)} nm; Si₃N₄ teeth ${(c.h * 1e3).toFixed(0)} nm. GC offset ${(c.off * 1e3).toFixed(0)} nm (positive: toward the right DBR). Geometry only: it does not predict the optical phase.`;
+      return;
+    }
+    $("cErr").hidden = true;
+    const M = desc.info.M, Np = desc.info.Np;
+    let N99 = null; for (let k = 1; k <= 40; k++) if (M.R(k, 0) >= 0.99) { N99 = k; break; }
+    const R0 = M.R(Np, 0), tir = Math.asin(1 / M.ne) / D2R;
+    const sg = Array.from({ length: 101 }, (_, i) => i / 100 * 0.999);
+    const Rmin = Math.min(...sg.map(s => M.R(Np, s)));
+    leg.innerHTML = S.mview === "chip"
+      ? `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>star orbit {${desc.info.N}/${desc.info.m}}</span><span><i class="sw" style="background:${COL.port}"></i>input beam</span><span>lighter shade: cut face</span>`
+      : `<span><i class="sw" style="background:${COL.si}"></i>Si (to scale, µm)</span><span><i class="sw" style="background:${COL.beam}"></i>incident and reflected slab-mode ray</span><span><i class="sw" style="background:${COL.field}"></i>mode intensity across the membrane</span>`;
+    st.innerHTML = stat("n_Si", M.n.toFixed(4)) + stat(`n_eff ${M.pol}₀`, isFinite(M.ne) ? M.ne.toFixed(4) : "cut off") + stat("Air gap / tooth", `${nm(M.dGap)} / ${nm(M.dTooth)}`) +
+      stat("Mirror depth", `${((M.dGap + M.dTooth) * Np * 1e6).toFixed(2)} µm`) + stat(`R at 0°, N = ${Np}`, R0.toFixed(4)) +
+      stat("Worst angle R", Rmin < 1e-3 ? "≈ 0 (Brewster)" : Rmin.toFixed(4)) + stat("Periods for R ≥ 0.99 at 0°", N99 ?? "> 40") + stat("TIR at first gap above", `${tir.toFixed(1)}°`);
+    if (S.mview === "chip") {
+      const R = v("mDiam") / 2 * 1e-3;
+      tw.innerHTML = `<table><thead><tr><th>Drawn exaggeration</th><th>Factor</th></tr></thead><tbody>
+        <tr><td>Membrane thickness (vs cell radius)</td><td>×${(desc.info.t / (M.t / R)).toFixed(0)}</td></tr>
+        <tr><td>DBR band width (vs cell radius)</td><td>×${(desc.info.band / ((M.dGap + M.dTooth) * Np / R)).toFixed(0)}</td></tr></tbody></table>`;
+    } else tw.innerHTML = "";
+    note.textContent = M.pol === "TE"
+      ? "TE₀ meets the trench walls p-polarised: every Si/air interface has the same Brewster angle, so the stack is transparent there whatever the period count. cmpc-sim uses TM₀, or a three-index stack (mirror_design.py)."
+      : `TM₀ is s-polarised on the walls: R rises with angle and is total above ${tir.toFixed(1)}°, so normal incidence is the worst case. Lossless 1D model; cmpc-sim adds 3×10⁻⁴ per bounce for out-of-plane radiation and roughness.`;
+  }
+
+  // ---------------------------------------------------------------- controls
+  const LAB = {
+    mFac: x => x, mStar: x => `${Math.min(x, Math.floor((v("mFac") - 1) / 2))} (χ = ${(90 - 180 * Math.min(x, Math.floor((v("mFac") - 1) / 2)) / v("mFac")).toFixed(1)}°)`,
+    mPer: x => x, mThk: x => `${x} nm`, mLam: x => `${x.toFixed(2)} µm`, mDiam: x => `${x} mm`, mChi: x => `${x}°`,
+    dBand: x => `${(x * 100).toFixed(0)} % of radius`, dT: x => `${(x * 100).toFixed(1)} % of radius`,
+    cNGC: x => x, cPGC: x => `${x} nm`, cFGC: x => x.toFixed(2), cNL: x => x, cNR: x => x, cPD: x => `${x} nm`, cFD: x => x.toFixed(2),
+    cPhL: x => `${x} nm`, cPhR: x => `${x} nm`, cOff: x => `${x} nm`, cH: x => `${x} nm`, cLN: x => `${x} nm`, cW: x => `${x} µm`,
+    cCap: x => `${x} nm`, cEx: x => `×${x.toFixed(1)}`,
+  };
+  function labels() { for (const id in LAB) { const o = $(id + "Out"); if (o) o.textContent = LAB[id](v(id)); } }
+  let raf = 0;
+  function update() { labels(); cancelAnimationFrame(raf); raf = requestAnimationFrame(rebuild); }
+  for (const id in LAB) $(id).addEventListener("input", update);
+  for (const id of ["cut", "labelsOn", "beamOn"]) $(id).addEventListener("change", update);
+  const press = (sel, attr, val) => { for (const b of document.querySelectorAll(sel)) b.setAttribute("aria-pressed", String(b.dataset[attr] === val)); };
+  for (const b of document.querySelectorAll("[data-dev]")) b.addEventListener("click", () => {
+    S.dev = b.dataset.dev; press("[data-dev]", "dev", S.dev);
+    const mem = S.dev === "mem";
+    $("fsMem").hidden = !mem; $("fsMemDraw").hidden = !mem || S.mview !== "chip"; $("memViewSeg").hidden = !mem;
+    $("fsCr").hidden = mem; $("fsCrStack").hidden = mem; $("crViewSeg").hidden = mem;
+    needFit = true; update();
+  });
+  for (const b of document.querySelectorAll("[data-mview]")) b.addEventListener("click", () => {
+    S.mview = b.dataset.mview; press("[data-mview]", "mview", S.mview); $("fsMemDraw").hidden = S.mview !== "chip"; needFit = true; update();
+  });
+  for (const b of document.querySelectorAll("[data-cview]")) b.addEventListener("click", () => { S.cview = b.dataset.cview; press("[data-cview]", "cview", S.cview); needFit = true; update(); });
+  for (const b of document.querySelectorAll("[data-pol]")) b.addEventListener("click", () => { S.pol = b.dataset.pol; press("[data-pol]", "pol", S.pol); update(); });
+  $("camObl").addEventListener("click", () => fit("oblique"));
+  $("camTop").addEventListener("click", () => fit("top"));
+  $("camSide").addEventListener("click", () => fit("side"));
+  if ("ResizeObserver" in window) new ResizeObserver(resize).observe(vp); else window.addEventListener("resize", resize);
+  const retheme = () => { if (renderer) { scene.background = new THREE.Color(css("--view-bg") || "#f7f9f9"); render(); } };
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme); } catch (e) { /* older browsers */ }
+  new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  labels(); resize(); rebuild();
+})();
+</script>

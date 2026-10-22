@@ -59,7 +59,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; display: grid; gap: 10px; }
 .panel h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
 .bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
-.bar .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.bar .btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.exportbar { justify-content: flex-start; gap: 6px 14px; }
+.sel { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12.5px; }
+.sel select { font: 12.5px var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; }
+.status { color: var(--muted); font-size: 12px; min-width: 0; }
 .viewport { position: relative; width: 100%; max-width: 100%; aspect-ratio: 16 / 10; max-height: 72vh; border-radius: 4px; overflow: hidden; background: var(--view-bg); touch-action: none; }
 @media (max-width: 640px) { .viewport { aspect-ratio: 1 / 1; } }
 .viewport canvas { display: block; width: 100%; height: 100%; }
@@ -224,6 +228,16 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
             <button type="button" id="camTop">Top</button>
             <button type="button" id="camSide">Side</button>
           </div>
+        </div>
+        <div class="bar exportbar">
+          <div class="btns" role="group" aria-label="Export">
+            <button type="button" id="expPng">Export PNG</button>
+            <button type="button" id="expPdf">Export PDF</button>
+            <label class="sel" for="expScale">Resolution
+              <select id="expScale"><option value="2">2×</option><option value="3" selected>3×</option><option value="4">4×</option></select></label>
+            <label class="check" for="expWhite"><input id="expWhite" type="checkbox" checked> White background</label>
+          </div>
+          <span class="status" id="expStatus" role="status" aria-live="polite">Exports the current camera view; press Oblique first for the standard view.</span>
         </div>
         <div class="viewport" id="vp">
           <div class="labels" id="labels"></div>
@@ -910,6 +924,84 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
   });
   for (const b of document.querySelectorAll("[data-cview]")) b.addEventListener("click", () => { S.cview = b.dataset.cview; press("[data-cview]", "cview", S.cview); needFit = true; update(); });
   for (const b of document.querySelectorAll("[data-pol]")) b.addEventListener("click", () => { S.pol = b.dataset.pol; press("[data-pol]", "pol", S.pol); update(); });
+
+  // ---------------------------------------------------------------- export (PNG / PDF of the current view)
+  let dlNs;                                            // claude.ai downloads capability (null outside the viewer)
+  const dlReady = (async () => { try { dlNs = window.claude && window.claude.use ? await window.claude.use("downloads") : null; } catch (e) { dlNs = null; } return dlNs; })();
+  function snapshot(scale, white) {
+    const w = vp.clientWidth, h = vp.clientHeight, W = Math.round(w * scale), H = Math.round(h * scale);
+    const bg = scene.background, pr = renderer.getPixelRatio();
+    if (white) scene.background = new THREE.Color("#ffffff");
+    renderer.setPixelRatio(1); renderer.setSize(W, H, false);
+    renderer.render(scene, camera);
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const c = cv.getContext("2d");
+    c.fillStyle = white ? "#ffffff" : (css("--view-bg") || "#ffffff"); c.fillRect(0, 0, W, H);
+    c.drawImage(renderer.domElement, 0, 0, W, H);
+    if ($("labelsOn").checked) {                        // the HTML labels, drawn into the image
+      const fs = 12 * scale, pad = 5 * scale;
+      c.font = `500 ${fs}px "Instrument Sans", "Segoe UI", system-ui, sans-serif`; c.textBaseline = "middle";
+      labelPts.forEach((p, i) => {
+        const q = p.clone().project(camera); if (q.z > 1 || q.z < -1) return;
+        const x = (q.x + 1) / 2 * W, y = (1 - q.y) / 2 * H, txt = labelEls[i].textContent, tw = c.measureText(txt).width;
+        const bh = fs + 2 * pad * 0.6, by = y - 8 * scale - bh;
+        c.strokeStyle = "#5a6a6f"; c.lineWidth = scale; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - 8 * scale); c.stroke();
+        c.fillStyle = "rgba(255,255,255,0.92)"; c.strokeStyle = "#c5cfcf";
+        c.beginPath(); c.rect(x - tw / 2 - pad, by, tw + 2 * pad, bh); c.fill(); c.stroke();
+        c.fillStyle = "#142026"; c.fillText(txt, x - tw / 2, by + bh / 2);
+      });
+    }
+    scene.background = bg; renderer.setPixelRatio(pr); resize();
+    return cv;
+  }
+  function jpegPdf(jpeg, wPx, hPx, dpi) {              // one-page PDF holding a JPEG (DCTDecode), page sized at dpi
+    const enc = new TextEncoder(), parts = [], offs = [];
+    let len = 0;
+    const add = x => { const b = typeof x === "string" ? enc.encode(x) : x; parts.push(b); len += b.length; };
+    const wPt = (wPx / dpi * 72).toFixed(2), hPt = (hPx / dpi * 72).toFixed(2);
+    const content = `q ${wPt} 0 0 ${hPt} 0 0 cm /Im0 Do Q\n`;
+    add("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+    const obj = (n, body) => { offs[n] = len; add(`${n} 0 obj\n`); for (const b of [].concat(body)) add(b); add("\nendobj\n"); };
+    obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+    obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${wPt} ${hPt}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+    obj(4, [`<< /Type /XObject /Subtype /Image /Width ${wPx} /Height ${hPx} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`, jpeg, "\nendstream"]);
+    obj(5, `<< /Length ${content.length} >>\nstream\n${content}endstream`);
+    const xref = len;
+    add(`xref\n0 6\n0000000000 65535 f \n${[1, 2, 3, 4, 5].map(n => String(offs[n]).padStart(10, "0") + " 00000 n \n").join("")}`);
+    add(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    return new Blob(parts, { type: "application/pdf" });
+  }
+  const toBlob = (cv, type, q) => new Promise(res => cv.toBlob(res, type, q));
+  async function offer(filename, blob) {
+    const st = $("expStatus");
+    await dlReady;
+    if (dlNs) {
+      try { await dlNs.save({ filename, data: blob }); st.textContent = `Saved ${filename}.`; }
+      catch (e) { st.textContent = e && e.code === "declined" ? "Save cancelled." : e && e.code === "rate_limited" ? "A save prompt is already open; try again in a moment." : `Could not save (${(e && e.code) || "unavailable"}).`; }
+      return;
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    st.textContent = `Downloaded ${filename}.`;
+  }
+  function exportName(ext) {
+    const base = S.dev === "her" ? `integrated-herriott-N${v("hN")}-M${Math.min(v("hM"), Math.ceil(v("hN") / 2) - 1)}`
+      : S.dev === "crigf" ? `crigf-${S.cview === "all" ? "device" : "gc-closeup"}`
+      : S.mview === "mirror" ? `cmpc-dbr-${v("mPer")}periods-to-scale` : `cmpc-chip-${v("mFac")}facets`;
+    return `${base}.${ext}`;
+  }
+  async function doExport(fmt) {
+    if (!renderer) { $("expStatus").textContent = "Export needs WebGL, which this view does not have."; return; }
+    const scale = parseFloat($("expScale").value), white = $("expWhite").checked;
+    $("expStatus").textContent = "Rendering…";
+    const cv = snapshot(scale, white);
+    if (fmt === "png") return offer(exportName("png"), await toBlob(cv, "image/png"));
+    const jpg = new Uint8Array(await (await toBlob(cv, "image/jpeg", 0.95)).arrayBuffer());
+    return offer(exportName("pdf"), jpegPdf(jpg, cv.width, cv.height, 96 * scale));
+  }
+  $("expPng").addEventListener("click", () => doExport("png"));
+  $("expPdf").addEventListener("click", () => doExport("pdf"));
   $("camObl").addEventListener("click", () => fit("oblique"));
   $("camTop").addEventListener("click", () => fit("top"));
   $("camSide").addEventListener("click", () => fit("side"));

@@ -111,12 +111,12 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       <div class="panel">
         <h2>Figure size</h2>
         <div class="sizes">
-          <div class="ctl"><div class="row"><label for="figW">Width</label><output id="figWOut"></output></div><input id="figW" type="range" min="14" max="26" step="0.1" value="18"></div>
-          <div class="ctl"><div class="row"><label for="figH">Height</label><output id="figHOut"></output></div><input id="figH" type="range" min="7" max="15" step="0.1" value="9.5"></div>
+          <div class="ctl"><div class="row"><label for="figW">Width</label><output id="figWOut"></output></div><input id="figW" type="range" min="14" max="26" step="0.1" value="22"></div>
+          <div class="ctl"><div class="row"><label for="figH">Height</label><output id="figHOut"></output></div><input id="figH" type="range" min="5" max="15" step="0.1" value="7.6"></div>
           <div class="ctl"><div class="row"><label for="aShare">Width share of (a)</label><output id="aShareOut"></output></div><input id="aShare" type="range" min="0.4" max="0.75" step="0.01" value="0.6"></div>
           <div class="ctl"><div class="row"><label for="head">Strip headroom in (a)</label><output id="headOut"></output></div><input id="head" type="range" min="1.05" max="2" step="0.05" value="1.4"></div>
         </div>
-        <div class="btns"><button type="button" id="szA">17 × 12.2 cm</button><button type="button" id="szB">18 × 9.5 cm</button><button type="button" id="szC">18 × 8.5 cm</button><button type="button" id="szD">22 × 9 cm</button></div>
+        <div class="btns"><button type="button" id="szA">17 × 12.2 cm</button><button type="button" id="szB">22 × 7.6 cm</button><button type="button" id="szC">18 × 8.5 cm</button><button type="button" id="szD">22 × 9 cm</button></div>
       </div>
       <div class="panel">
         <h2>Settings for fig6_spectra_noise.py</h2>
@@ -172,7 +172,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
   for (const id of ["avgT", "alpha", "lw", "seed", "shotOn", "ppm", "bgH2O", "bgCO2", "bgCH4", "anaLine", "bMark", "figW", "figH", "aShare", "head", ...B_ALL.map(([k]) => "b-" + k)])
     $(id).addEventListener("input", draw);
   const setSize = (w, h) => { $("figW").value = w; $("figH").value = h; draw(); };
-  $("szA").onclick = () => setSize(17, 12.2); $("szB").onclick = () => setSize(18, 9.5); $("szC").onclick = () => setSize(18, 8.5); $("szD").onclick = () => setSize(22, 9);
+  $("szA").onclick = () => setSize(17, 12.2); $("szB").onclick = () => setSize(22, 7.6); $("szC").onclick = () => setSize(18, 8.5); $("szD").onclick = () => setSize(22, 9);
   $("reroll").onclick = () => { $("seed").value = 1 + ((+$("seed").value * 7919 + 13) % 9999); draw(); };
 
   /* ---- numerics ---- */
@@ -202,12 +202,14 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
   }
 
   /* ---- drawing: the figure in points, all text Arial 12 pt; margins fixed in points (same layout as fig6_spectra_noise.py) ---- */
-  const FS = 12, LW = 0.8, ML = 0.78 * 72, GAP = 0.92 * 72, MR = 0.92 * 72, MT_A = 0.70 * 72, MB = 0.48 * 72;
+  const FS = 12, LW = 0.8, ML = 45.2, GAP = 67.7, MR = 39, MT_A = 17.1, MB = 30.5;          /* margins [pt] */
+  const mctx = document.createElement("canvas").getContext("2d");
+  const tw = t => { mctx.font = `${FS}px Arial, "Liberation Sans", Arimo, Helvetica, sans-serif`; return mctx.measureText(t).width; };   /* text width [pt] */
   let W = 0, H = 0;
   const P = pts => pts.map(([x, y], i) => (i ? "L" : "M") + x.toFixed(2) + " " + y.toFixed(2)).join("");
   const txt = (x, y, s, o = {}) => `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${o.fs || FS}" fill="${o.fill || "#000"}" text-anchor="${o.anchor || "start"}"${o.rot ? ` transform="rotate(${o.rot} ${x.toFixed(2)} ${y.toFixed(2)})"` : ""}>${s}</text>`;
-  const sup = n => `10<tspan dy="-5" font-size="${FS * 0.7}">${n < 0 ? "−" + -n : n}</tspan>`;
-  const sub = s => `<tspan dy="3" font-size="${FS * 0.7}">${s}</tspan><tspan dy="-3">​</tspan>`;
+  const sup = n => `10<tspan baseline-shift="super" font-size="${FS * 0.7}">${n < 0 ? "−" + -n : n}</tspan>`;
+  const sub = s => `<tspan baseline-shift="sub" font-size="${FS * 0.7}">${s}</tspan>`;
   const chem = s => s.replace(/([A-Za-z])([0-9])/g, (m, a, d) => a + sub(d));
   const tickLab = v => v < 0 ? "−" + -v : String(v);
   const fmtT = T => T >= 1 ? `${+T.toPrecision(2)} s` : T >= 1e-3 ? `${+(T * 1e3).toPrecision(2)} ms` : `${+(T * 1e6).toPrecision(2)} µs`;
@@ -230,7 +232,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     /* ---------- (a) ---------- */
     const xl = ML, xr = ML + WA, yt = MT_A, yb = H - MB, n = D.strips.length, hs = (yb - yt) / (n + (n - 1) * 0.22), gap = 0.22 * hs;
     const X = v => xl + (v + 15) / 30 * (xr - xl);
-    s += txt(xl, yt - 33, `(a) ${ppm} ppm in breath background`);
+    s += txt(21.8, yt - 6, `(a) ${ppm} ppm in breath background`);
     const used = [];
     D.strips.forEach((st, si) => {
       const top = yt + si * (hs + gap), bot = top + hs, x = st.x_ghz, N = x.length;
@@ -259,7 +261,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       }
       s += `</g>` + axis(xl, top, xr, bot);
       for (const t of [-10, 0, 10]) s += `<path d="M${X(t)} ${bot}v3.5" stroke="#000" stroke-width="${LW}"/>`;
-      if (si === n - 1) for (const t of [-10, 0, 10]) s += txt(X(t), bot + 15, tickLab(t), { anchor: "middle" });
+      if (si === n - 1) for (const t of [-10, 0, 10]) s += txt(X(t), bot + 15.6, tickLab(t), { anchor: "middle" });
       const tick = tp < 2 ? Math.floor(tp * 10) / 10 : Math.floor(tp);
       for (const v of [0, tick]) { const yy = bot - v / ymax * hs; s += `<path d="M${xl} ${yy}h-3.5" stroke="#000" stroke-width="${LW}"/>` + txt(xl - 6, yy + 4.2, String(+v.toFixed(1)), { anchor: "end" }); }
       const lab = `${chem(nm)} ${st.lam_um.toFixed(2)} µm`;
@@ -267,16 +269,20 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       s += txt(xl + 4, top + 12.5, lab, { fill: col });
       s += txt(xr - 1, top + 12.5, `×${sup(Math.round(Math.log10(e)))}`, { anchor: "end", fill: "#595959" });
     });
-    s += txt((xl + xr) / 2, yb + 31, "detuning (GHz)", { anchor: "middle" });
-    s += txt(xl - 33, (yt + yb) / 2, "absorption coefficient <tspan font-style=\"italic\">α</tspan> (cm<tspan dy=\"-5\" font-size=\"8.4\">−1</tspan><tspan dy=\"5\">)</tspan>", { anchor: "middle", rot: -90 });
-    let lx = xl + 2;
-    used.forEach((k, i) => {
+    s += txt((xl + xr) / 2, yb + 26.5, "Detuning (GHz)", { anchor: "middle" });
+    s += txt(xl - 34, (yt + yb) / 2, "Absorption coefficient <tspan font-style=\"italic\">α</tspan> (cm<tspan baseline-shift=\"super\" font-size=\"8.4\">−1</tspan>)", { anchor: "middle", rot: -90 });
+    /* legend of (a): short line keys on the title line, right-aligned with the axes */
+    const items = used.map((k, i) => {
       const band = k.endsWith("#band"), m = band ? k.slice(0, -5) : k;
-      const lab = (band ? `±1σ ${MODE_SHORT[m]}` : MODE_SHORT[m]) + (i === used.length - 1 ? `, ${fmtT(T)}` : "");
-      s += band ? `<rect x="${lx}" y="${yt - 22}" width="16" height="7" fill="${MODE_COL[m]}" fill-opacity="0.15"/>` : `<path d="M${lx} ${yt - 18.5}h16" stroke="${MODE_COL[m]}" stroke-width="${Math.max(lw, 0.9)}" stroke-opacity="${op}"/>`;
-      s += txt(lx + 21, yt - 14, lab);
-      lx += 21 + lab.length * 6.6 + 12;
+      return { band, m, lab: (band ? `±1σ ${MODE_SHORT[m]}` : MODE_SHORT[m]) + (i === used.length - 1 ? `, ${fmtT(T)}` : "") };
     });
+    const KEY = 9.4, KGAP = 2, IGAP = 9;
+    let lx = xr - items.reduce((a, it) => a + KEY + KGAP + tw(it.lab), 0) - IGAP * Math.max(items.length - 1, 0);
+    for (const it of items) {
+      s += it.band ? `<rect x="${lx}" y="${yt - 13}" width="${KEY}" height="6" fill="${MODE_COL[it.m]}" fill-opacity="0.15"/>` : `<path d="M${lx} ${yt - 10}h${KEY}" stroke="${MODE_COL[it.m]}" stroke-width="${Math.max(lw, 0.9)}" stroke-opacity="${op}"/>`;
+      s += txt(lx + KEY + KGAP, yt - 6, it.lab);
+      lx += KEY + KGAP + tw(it.lab) + IGAP;
+    }
 
     /* ---------- (b): right column ---------- */
     const bl = ML + WA + GAP, br = W - MR, bt = MT_A, bb = H - MB;
@@ -291,8 +297,9 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     const BC = [["none", cur.env.none, "#9467bd", 1.4, ""], ["angle", cur.env.angle, "#2ca02c", 1.4, ""], ["spectral", cur.env.spectral, "#e377c2", 1.4, ""],
       ["both", cur.env.both, "#1f77b4", 1.4, ""], ["regular", reg.env.both, "#1f77b4", 1.4, "1.4 2.6"], ["shot", shotC, "#737373", 1.0, "3.7 1.6"], ["total", totC, "#000", 2.0, ""]];
     const ARR = Object.fromEntries(BC.map(c => [c[0], c[1]]));
-    const LBL = [["none", 1e-2, 2.6, "none", "#9467bd"], ["spectral", 1.0, 2.6, "λ", "#e377c2"], ["angle", 1.0, 2.6, "angle", "#2ca02c"],
-      ["shot", 3.0, 0.2, "shot", "#595959"], ["total", 3e-4, 0.15, "both", "#000"]];
+    /* direct labels: [curve, T of the label centre, factor above (>1) or below (<1) the curve, text, colour] */
+    const LBL = [["none", 0.13, 2.2, "none", "#9467bd"], ["spectral", 0.6, 2.6, "λ", "#e377c2"], ["angle", 1.0, 2.5, "angle", "#2ca02c"],
+      ["shot", 3.1, 0.2, "shot", "#595959"], ["total", 3.6, 2.0, "both", "#000"]];
     s += `<g clip-path="url(#clipb)">`;
     for (const [k, arr, col, w, da] of BC) if (on(k)) s += `<path d="${P(Ts.map((t, i) => [BX(t), BY(arr[i])]))}" fill="none" stroke="${col}" stroke-width="${w}"${da ? ` stroke-dasharray="${da}"` : ""}/>`;
     if ($("bMark").checked) {
@@ -303,22 +310,22 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
     for (const [k, tl, fac, t, col] of LBL) if (on(k)) s += txt(BX(tl), BY(interpLog(ARR[k], tl) * fac) + 4.2, t, { anchor: "middle", fill: col });
     if ($("bMark").checked) {
       const tv = Math.hypot(interpLog(cur.env.both, T), sh), ppbv = tv / (GL * aNH3) * 1e3, lab = `${ppbv >= 100 ? Math.round(ppbv) : +ppbv.toPrecision(2)} ppb`;
-      const ax = Math.max(BX(T) - 36, bl + 26), ay = Math.min(BY(tv) + 34, bb - 6);
-      s += `<path d="M${BX(T)} ${BY(tv)}L${ax + 10} ${ay - 12}" stroke="#000" stroke-width="0.6"/>` + txt(ax, ay, lab, { anchor: "middle" });
+      const ax = Math.max(BX(T) - 36.8, bl + 30), ay = Math.min(BY(tv) + 34.3, bb - 4);
+      s += `<path d="M${BX(T)} ${BY(tv)}L${ax + 14} ${ay - 11}" stroke="#000" stroke-width="0.6"/>` + txt(ax, ay, lab, { anchor: "middle" });
     }
     s += axis(bl, bt, br, bb, true);
     for (let p = -5; p <= 2; p++) {
       s += `<path d="M${BX(10 ** p)} ${bb}v3.5" stroke="#000" stroke-width="${LW}"/>`;
       for (let m = 2; m < 10 && p < 2; m++) s += `<path d="M${BX(m * 10 ** p)} ${bb}v2" stroke="#000" stroke-width="0.6"/>`;
     }
-    for (const p of [-4, -2, 0, 2]) s += txt(BX(10 ** p), bb + 16, sup(p), { anchor: "middle" });
+    for (const p of [-4, -2, 0, 2]) s += txt(BX(10 ** p), bb + 15.6, sup(p), { anchor: "middle" });
     for (const p of [-9, -7, -5, -3]) s += `<path d="M${bl} ${BY(10 ** p)}h-3.5" stroke="#000" stroke-width="${LW}"/>` + txt(bl - 5, BY(10 ** p) + 4.2, sup(p), { anchor: "end" });
     const ppbTo = c => c * 1e-3 * GL * aNH3;
     for (const p of [0, 2, 4, 6]) { const y = BY(ppbTo(10 ** p)); if (y < bt - 1 || y > bb + 1) continue; s += `<path d="M${br} ${y}h3.5" stroke="#000" stroke-width="${LW}"/>` + txt(br + 5, y + 4.2, sup(p)); }
     s += txt(br + 34, (bt + bb) / 2, `${chem("NH3")} (ppb)`, { anchor: "middle", rot: -90 });
-    s += txt((bl + br) / 2, bb + 32, "averaging time <tspan font-style=\"italic\">T</tspan> (s)", { anchor: "middle" });
-    s += txt(bl - 36, (bt + bb) / 2, "noise-equivalent absorbance", { anchor: "middle", rot: -90 });
-    s += txt(bl, bt - 7, `(b) ${chem("NH3")} noise floor`);
+    s += txt((bl + br) / 2, bb + 26.5, "Averaging time <tspan font-style=\"italic\">T</tspan> (s)", { anchor: "middle" });
+    s += txt(bl - 37, (bt + bb) / 2, "Noise-equivalent absorbance", { anchor: "middle", rot: -90 });
+    s += txt(bl, bt - 6, `(b) ${chem("NH3")} noise floor`);
 
     s += `</svg>`;
     $("sheet").innerHTML = s;

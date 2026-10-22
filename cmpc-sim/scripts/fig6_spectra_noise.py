@@ -37,7 +37,7 @@ FONT = "Arial" if any(f.name == "Arial" for f in fm.fontManager.ttflist) else "L
 FS = 12                                                                                             # every text in the figure, pt
 plt.rcParams.update({"font.family": FONT, "mathtext.fontset": "custom", "mathtext.rm": FONT, "mathtext.it": FONT + ":italic",
                      "mathtext.bf": FONT + ":bold", "font.size": FS, "axes.labelsize": FS, "xtick.labelsize": FS, "ytick.labelsize": FS,
-                     "legend.fontsize": FS, "axes.titlesize": FS,
+                     "legend.fontsize": FS, "axes.titlesize": FS, "xtick.major.pad": 1.5, "ytick.major.pad": 1.5,
                      "pdf.fonttype": 42, "axes.spines.right": False, "axes.spines.top": False, "axes.linewidth": 0.8})
 ROOT = Path(__file__).resolve().parents[1]
 GHZ = 29.9792458                                                      # GHz per cm^-1
@@ -51,7 +51,7 @@ OVERLAY_BAND = {}
 T_OVERLAY, OVERLAY_ALPHA, OVERLAY_SEED = 1.0, 0.75, 6
 ANALYTE_PPM = 1.0
 # figure size [cm] and the share of the panel width that goes to (a)
-FIG_W_CM, FIG_H_CM, A_SHARE = 18.0, 9.5, 0.6
+FIG_W_CM, FIG_H_CM, A_SHARE = 22.0, 7.6, 0.6
 HEADROOM = 1.4                    # y range of each strip in (a) as a multiple of its peak: room for the labels
 # curves of (b): none, angle, spectral, both, regular, shot, total
 B_CURVES = ["none", "angle", "spectral", "both", "regular", "shot", "total"]
@@ -60,7 +60,7 @@ LINES = [("NH$_3$", "NH3", 6528.77, "C0", "NH3"), ("CH$_4$", "CH4", 6114.652, "C
          ("C$_2$H$_6$", "C2H6", 2996.852, "C1", "C2H6"), ("NO", "NO", 1900.076, "C3", "NO")]
 
 FW, FH = FIG_W_CM / 2.54, FIG_H_CM / 2.54
-ML, GAP, MR, MT_A, MB = 0.78, 0.92, 0.92, 0.70, 0.48          # margins [in]: left, between panels, right, top (both panels), bottom
+ML, GAP, MR, MT_A, MB = 45.2 / 72, 67.7 / 72, 39 / 72, 17.1 / 72, 30.5 / 72   # margins [in]: left, between panels, right, top (both panels), bottom
 WA = (FW - ML - GAP - MR) * A_SHARE                                          # width of (a) [in]
 fig = plt.figure(figsize=(FW, FH))
 gsA = fig.add_gridspec(len(LINES), 1, hspace=0.22, left=ML / FW, right=(ML + WA) / FW, top=1 - MT_A / FH, bottom=MB / FH)
@@ -115,17 +115,17 @@ for k, (lab, sp, nu0, cc, key) in enumerate(LINES):
     i = int(np.argmax(an)); tab.append(dict(line=f"{sp} {1e4 / nu0:.3f} um", nu_cm=float(nu[i]), alpha_per_ppm_cm=float(an[i]) / ANALYTE_PPM,
                                          background_at_line_cm=float(bg[i]), background_max_scan_cm=float(bg.max())))
     a.tick_params(labelbottom=k == len(LINES) - 1, length=2.5)
-    a.set_xlim(-15, 15)
-axs[-1].set_xlabel("detuning (GHz)")
-axs[len(LINES) // 2].set_ylabel(r"absorption coefficient $\alpha$ (cm$^{-1}$)")
-axs[len(LINES) // 2].yaxis.set_label_coords(-0.42 / WA, 0.5)
-axs[0].set_title(f"(a) {ANALYTE_PPM:g} ppm in breath background", loc="left", fontsize=FS, pad=22)
+    a.set_xlim(-15, 15); a.set_xticks([-10, 0, 10])
+axs[-1].set_xlabel("Detuning (GHz)", labelpad=0)
+axs[len(LINES) // 2].set_ylabel(r"Absorption coefficient $\alpha$ (cm$^{-1}$)")
+axs[len(LINES) // 2].yaxis.set_label_coords(-26 / 72 / WA, 0.5)
+fig.text(21.8 / 72 / FW, 1 - (MT_A - 6 / 72) / FH, f"(a) {ANALYTE_PPM:g} ppm in breath background", fontsize=FS, va="baseline")
 from matplotlib.lines import Line2D
 Tlab = f"{T_OVERLAY:g} s" if T_OVERLAY >= 1 else f"{T_OVERLAY * 1e3:g} ms"
 order = [m for m in MODE_STYLE if m in used]
 axs[0].legend([Line2D([], [], color=MODE_STYLE[m][0], lw=0.9, alpha=OVERLAY_ALPHA) for m in order],
-              [MODE_STYLE[m][1] + (f", {Tlab}" if i == len(order) - 1 else "") for i, m in enumerate(order)], loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=2, frameon=False,
-              fontsize=FS, handlelength=1.5, columnspacing=1.0, borderaxespad=0.1)
+              [MODE_STYLE[m][1] + (f", {Tlab}" if i == len(order) - 1 else "") for i, m in enumerate(order)], loc="lower right", bbox_to_anchor=(1.0, 1.0), ncol=len(order), frameon=False,
+              fontsize=FS, handlelength=0.8, handletextpad=0.2, columnspacing=0.75, borderaxespad=0, borderpad=0)
 
 # ------------------------------------------------------------------ (b) noise floor against averaging time
 b = fig.add_subplot(gsB[0, 0])
@@ -135,22 +135,24 @@ for key, name, cc in SC:
 if "regular" in B_CURVES: b.loglog(T, reg["scen"]["both"]["env"], color="C0", lw=1.4, ls=":", label="both, regular cell")
 if "shot" in B_CURVES: b.loglog(T, shot, color="0.45", lw=1.0, ls="--", label="shot noise, 1 mW")
 if "total" in B_CURVES: b.loglog(T, total, color="k", lw=2.0, label="total (both + shot)")
-b.set(xlim=(T[0], T[-1]), ylim=(1e-9, 1e-3), xlabel="averaging time $T$ (s)", ylabel="noise-equivalent absorbance")
-b.xaxis.labelpad = 1
+b.set(xlim=(T[0], T[-1]), ylim=(1e-9, 1e-3), xlabel="Averaging time $T$ (s)", ylabel="Noise-equivalent absorbance")
+b.xaxis.labelpad = 0
+b.yaxis.set_label_coords(-41 / 72 / ((FW - ML - GAP - MR) * (1 - A_SHARE)), 0.5)
 b.set_xticks([1e-4, 1e-2, 1, 1e2]); b.set_yticks([1e-9, 1e-7, 1e-5, 1e-3])
 b.grid(alpha=0.25, which="major")
-b.set_title("(b) NH$_3$ noise floor", loc="left", fontsize=FS)
+fig.text((ML + WA + GAP) / FW, 1 - (MT_A - 6 / 72) / FH, "(b) NH$_3$ noise floor", fontsize=FS, va="baseline")
 a_nh3 = tab[0]["alpha_per_ppm_cm"]
 ppb = lambda A: A / (GL * a_nh3) * 1e3
-r = b.secondary_yaxis("right", functions=(ppb, lambda c: c * GL * a_nh3 * 1e-3)); r.set_ylabel("NH$_3$ (ppb)")
+r = b.secondary_yaxis("right", functions=(ppb, lambda c: c * GL * a_nh3 * 1e-3)); r.set_ylabel("NH$_3$ (ppb)", labelpad=1)
 r.set_yticks([1e0, 1e2, 1e4, 1e6])
 r.spines["right"].set_visible(True)
+b.axvline(1.0, color="k", lw=0.6, ls=(0, (2, 2)), alpha=0.6)
 b.plot([1.0], [total[i1]], "ko", ms=4)
-b.annotate(f"{ppb(total[i1]):.0f} ppb", (1.0, total[i1]), xytext=(0.02, 1e-8), ha="center", fontsize=FS,
+b.annotate(f"{ppb(total[i1]):.0f} ppb", (1.0, total[i1]), xytext=(-36.8, -34.3), textcoords="offset points", ha="center", va="baseline", fontsize=FS,
            arrowprops=dict(arrowstyle="-", lw=0.6, color="k"))
 # direct labels instead of a legend: (curve key, T where the label sits, factor above (>1) or below (<1) the curve, text)
-LBL = [("none", 1e-2, 2.6, "none", "C4"), ("spectral", 1.0, 2.6, "λ", "C6"), ("angle", 1.0, 2.6, "angle", "C2"),
-       ("shot", 3.0, 0.2, "shot", "0.35"), ("total", 3e-4, 0.15, "both", "k")]
+LBL = [("none", 0.13, 2.2, "none", "C4"), ("spectral", 0.6, 2.6, "λ", "C6"), ("angle", 1.0, 2.5, "angle", "C2"),
+       ("shot", 3.1, 0.2, "shot", "0.35"), ("total", 3.6, 2.0, "both", "k")]
 curve_of = {"regular": reg["scen"]["both"]["env"], "shot": shot, "total": total, **{k: cur["scen"][k]["env"] for k in ("none", "angle", "spectral", "both")}}
 for key, tl, fac, text, cc in LBL:
     if key in B_CURVES:

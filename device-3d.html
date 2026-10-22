@@ -702,7 +702,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
   function herriottScene() {
     const h = herriottModel(), { M, R, d, D, y0, wp, Np, A, sx } = h;
     const band = v("hBand"), g = band / Np * M.dGap / (M.dGap + M.dTooth), tw = band / Np - g;
-    const t = 0.05, ts = 0.6 * t, tb = 0.04, th_ = 0.28, X0 = -2.2, X1 = d + 0.9, Y1 = D + 1.0, Xc = d / 2;
+    const t = 0.05, ts = 0.6 * t, tb = 0.04, th_ = 0.28, X0 = -0.8, X1 = d + 0.4, Y1 = D + 0.45, Xc = d / 2;
     const cut = $("cut").checked ? { cx: Xc, cy: 0 } : null, B = new Builder();
     // membrane in strips of Y: solid intervals along X bounded by the mirror surfaces and the trench arcs
     const ys = new Set(); const nY = 48; for (let i = 0; i <= nY; i++) ys.add(+(-D + 2 * D * i / nY).toFixed(12));
@@ -723,7 +723,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     }
     B.add([[X0, -Y1], [X1, -Y1], [X1, -D], [X0, -D]], 0, t, COL.si, COL.siSec, cut);
     B.add([[X0, D], [X1, D], [X1, Y1], [X0, Y1]], 0, t, COL.si, COL.siSec, cut);
-    const wx0 = -0.7, wx1 = d + 0.55, wy = D + 0.55, u_ = 0.06;
+    const wx0 = -0.42, wx1 = d + 0.24, wy = D + 0.22, u_ = 0.05;
     const frame = (a0, a1, b) => [[[X0, -Y1], [X1, -Y1], [X1, -b], [X0, -b]], [[X0, b], [X1, b], [X1, Y1], [X0, Y1]], [[X0, -b], [a0, -b], [a0, b], [X0, b]], [[a1, -b], [X1, -b], [X1, b], [a1, b]]];
     for (const Q of frame(wx0 - u_, wx1 + u_, wy + u_)) B.add(Q, -tb, 0, COL.box, COL.boxSec, cut);
     for (const Q of frame(wx0, wx1, wy)) B.add(Q, -tb - th_, -tb, COL.handle, COL.handleSec, cut);
@@ -733,7 +733,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     for (const [u, kind] of [[[-h.inDir[0], -h.inDir[1]], "in"], [h.exitDir, "out"]]) {
       if (kind === "out" && h.exit !== "port") continue;
       const w = [-u[1], u[0]], st = [p0[0] + u[0] * (band + 0.03), p0[1] + u[1] * (band + 0.03)];
-      const P = (s_, hh) => [st[0] + s_ * u[0] + hh * w[0], st[1] + s_ * u[1] + hh * w[1]], w1 = wp, w2 = 0.35 * wp, lt = 0.55;
+      const P = (s_, hh) => [st[0] + s_ * u[0] + hh * w[0], st[1] + s_ * u[1] + hh * w[1]], w1 = wp, w2 = 0.35 * wp, lt = 0.3;
       const c1 = kind === "out" ? COL.outStrip : COL.strip, c2 = kind === "out" ? COL.outStripSec : COL.stripSec;
       B.add(sq([P(0, -w1 / 2), P(lt, -w2 / 2), P(lt, w2 / 2), P(0, w1 / 2)]), t, t + ts, c1, c2, cut);
       B.add(sq([P(lt, -w2 / 2), P(8, -w2 / 2), P(8, w2 / 2), P(lt, w2 / 2)]), t, t + ts, c1, c2, cut);
@@ -774,7 +774,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       .concat(cut ? scatterMolecules(9, 9, [Xc, -1.1 * A, d - 0.15, 0], (x, y) => (x > Xc + 0.06 && x < Xc + 0.45) || (y < -0.06 && y > -0.45),
         [[-reach - 0.4 * bM, -0.75 * bM, 1], [-0.6, -0.25, 0.8]], [-reach - 0.4 * bM, 0], bM) : []);
     const cloudPieces = cutPieces([[0.02, -1.15 * A], [d - 0.02, -1.15 * A], [d - 0.02, 1.15 * A], [0.02, 1.15 * A]], cut);
-    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, cloud: { pieces: cloudPieces, z: t, reach }, beamZ: t + 0.002, beamW: 0.008, labels, info: { h, t } };
+    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, cloud: { pieces: cloudPieces, z: t, reach }, framing: { target: [d * 0.5, -0.05 * Y1, 0], radius: 0.43 * Math.hypot(X1 - X0, 2 * Y1) }, beamZ: t + 0.002, beamW: 0.008, labels, info: { h, t } };
   }
   function crigfModel() {
     const c = { NGC: v("cNGC"), pGC: v("cPGC") / 1e3, fGC: v("cFGC"), NL: v("cNL"), NR: v("cNR"), pL: v("cPD") / 1e3, pR: v("cPD") / 1e3,
@@ -826,7 +826,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
 
   // ---------------------------------------------------------------- three.js view
   const vp = $("vp");
-  let renderer = null, scene, camera, controls, group, needFit = true;
+  let renderer = null, scene, camera, controls, group, needFit = true, framing = null;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -866,9 +866,11 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
   }
   function fit(view) {
     if (!group) return;
-    const box = new THREE.Box3().setFromObject(group), c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
+    const box = new THREE.Box3().setFromObject(group);
+    let c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
+    if (framing) { c = new THREE.Vector3(...framing.target); r = framing.radius; }   // e.g. the Herriott cell, not the molecules below it
     const dir = view === "top" ? new THREE.Vector3(0, -0.0001, 1) : view === "side" ? new THREE.Vector3(0.0001, -1, 0.06) :
-      S.dev === "her" ? new THREE.Vector3(Math.cos(-68 * D2R) * Math.cos(34 * D2R), Math.sin(-68 * D2R) * Math.cos(34 * D2R), Math.sin(34 * D2R)) :
+      S.dev === "her" ? new THREE.Vector3(Math.cos(-72 * D2R) * Math.cos(37 * D2R), Math.sin(-72 * D2R) * Math.cos(37 * D2R), Math.sin(37 * D2R)) :
       (S.dev === "crigf" ? new THREE.Vector3(Math.cos(-62 * D2R) * Math.cos(26 * D2R), Math.sin(-62 * D2R) * Math.cos(26 * D2R), Math.sin(26 * D2R))
         : new THREE.Vector3(Math.cos(-45 * D2R) * Math.cos(32 * D2R), Math.sin(-45 * D2R) * Math.cos(32 * D2R), Math.sin(32 * D2R)));
     const dist = r / Math.sin(camera.fov * D2R / 2) * 0.72 * Math.max(1, 1.45 / camera.aspect);
@@ -903,6 +905,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       }
       scene.add(group);
       scene.background = new THREE.Color(css("--view-bg") || "#f7f9f9");
+      framing = desc.framing || null;
       setLabels(desc.labels);
       if (needFit) { fit("oblique"); needFit = false; } else render();
     }

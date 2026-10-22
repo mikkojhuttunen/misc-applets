@@ -301,10 +301,10 @@ def herriott(a):
     g = band / Np * c.dbr.d_gap / (c.dbr.d_gap + c.dbr.d_tooth)
     tooth = band / Np - g
     t, tb, th = 0.05, 0.04, 0.28
-    X0, X1, Y1 = -2.2, d + 0.9, D + 1.0
+    X0, X1, Y1 = -0.8, d + 0.4, D + 0.45
     chipsq = box(X0, -Y1, X1, Y1)
-    win = box(-0.7, -(D + 0.55), d + 0.55, D + 0.55)
-    undercut = box(-0.76, -(D + 0.61), d + 0.61, D + 0.61)
+    win = box(-0.42, -(D + 0.22), d + 0.24, D + 0.22)
+    undercut = box(-0.47, -(D + 0.27), d + 0.29, D + 0.27)
     Xc = d / 2
     cut = box(Xc, -Y1 - 1, X1 + 1, 0)
 
@@ -333,7 +333,7 @@ def herriott(a):
             continue
         v = np.array([-u[1], u[0]])
         st = p0 + u * (band + 0.03)
-        w1, w2, lt = wp, wp * 0.35, 0.55
+        w1, w2, lt = wp, wp * 0.35, 0.3
         far = st + 6 * u
         guides.append(unary_union([Polygon([st - w1 / 2 * v, st + lt * u - w2 / 2 * v, st + lt * u + w2 / 2 * v, st + w1 / 2 * v]),
                                    Polygon([st + lt * u - w2 / 2 * v, far - w2 / 2 * v, far + w2 / 2 * v, st + lt * u + w2 / 2 * v])]))
@@ -404,15 +404,15 @@ def herriott(a):
     mol_notes(ax, to_px, mols, a)
     bud = c.budget(tr)
     ang = np.degrees(np.arccos(np.clip(-tr["in_dir"] @ tr["exit_dir"], -1, 1)))
-    annotate(ax, to_px, [-band / 2, 0.9 * D, t], [-0.6, Y1 + 0.9, t], f"mirror 1: curved trench DBR, {Np} periods\n(R = {R:g} mm, drawn wide)")
-    annotate(ax, to_px, [d + band / 2, 0.6 * D, t], [d + 0.9, Y1 + 0.4, t], "mirror 2")
-    annotate(ax, to_px, [p0[0] - 0.02, p0[1], t], [-1.6, -Y1 - 0.9, t], f"centre port: no DBR over {wp * 1e3:.0f} µm", COL["port"])
-    annotate(ax, to_px, [*(beams_io[0][1] + beams_io[0][2] * 0.8), t + ts], [-2.9, -0.4, t],
+    annotate(ax, to_px, [-band / 2, 0.9 * D, t], [0.5, Y1 + 0.15, t + 0.12], f"mirror 1: curved trench DBR, {Np} periods\n(R = {R:g} mm, drawn wide)")
+    annotate(ax, to_px, [d + band / 2, 0.6 * D, t], [d + 0.6, Y1 + 0.3, t + 0.3], "mirror 2")
+    annotate(ax, to_px, [p0[0] - 0.02, p0[1], t], [-1.3, -Y1 - 0.3, t], f"centre port: no DBR over {wp * 1e3:.0f} µm", COL["port"])
+    annotate(ax, to_px, [*(beams_io[0][1] + beams_io[0][2] * 0.8), t + ts], [-1.9, 0.35, t],
              f"tapered strip-loaded waveguides,\ninput and output {ang:.0f}° apart", COL["strip_ink"])
-    annotate(ax, to_px, [d * 0.3, 0.2 * A, t], [d * 0.5, Y1 + 1.4, t],
+    annotate(ax, to_px, [d * 0.3, 0.2 * A, t], [d * 0.55, Y1 + 0.5, t + 0.5],
              f"{tr['n_hits'] + 1} passes, M = {c.M}: path {tr['path'] * 100:.1f} cm, out {bud['T_out'] * 100:.0f} %", COL["beam"])
-    annotate(ax, to_px, [d + 0.02, 0, t / 2], [X1 + 0.9, 0.4, 0], "section through mirror 2")
-    annotate(ax, to_px, [d * 0.75, 0, -tb - th], [X1 + 0.5, -1.6, -0.5], "backside window: membrane released")
+    annotate(ax, to_px, [d + 0.02, 0, t / 2], [X1 + 0.5, 0.1, -0.15], "section through mirror 2")
+    annotate(ax, to_px, [d * 0.75, 0, -tb - th], [d * 0.55, -Y1 - 0.5, -0.55], "backside window: membrane released")
     ax.text(0.0, 1.03, f"Integrated Herriott cell in a free-standing Si membrane (schematic, not to scale): N = {c.N}, "
             f"M = {c.M}, φ = {c.phase:g}°, d = {d:.2f} mm", transform=ax.transAxes, va="bottom", fontsize=12,
             color=COL["ink"], fontweight="bold")

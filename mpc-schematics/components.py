@@ -2,7 +2,8 @@
 
 If a component SVG exists in the components folder (default mpc-schematics/components/, or $GWOPTICS_DIR), it is
 used: exported from Alexander Franzen's ComponentLibrary (https://www.gwoptics.org/ComponentLibrary/, CC BY-NC 3.0,
-attribution required, non-commercial). Expected file names: laser.svg, isolator.svg, lens.svg, photodiode.svg
+attribution required, non-commercial). Expected file names: laser.svg, isolator.svg, lens.svg, photodiode.svg,
+photodiode_ref.svg
 (see components/README.md for how to export them). Otherwise a vector stand-in in the same style is drawn: shaded
 3D laser head, cylindrical Faraday isolator with its arrow, biconvex lens, photodiode can.
 
@@ -47,10 +48,17 @@ def _svg(name, px=900):
     return img
 
 
+BY_HEIGHT = {"lens"}                                     # size given as the aperture (height), not the width
+
+
 def place(ax, name, x, y, w, angle=0.0, z=5):
+    """Draw component `name` centred at (x, y); w is its width (its height for lenses). Returns the height."""
     img = _svg(name)
     if img is not None:
-        h = w * img.shape[0] / img.shape[1]
+        if name in BY_HEIGHT:
+            w, h = w * img.shape[1] / img.shape[0], w
+        else:
+            h = w * img.shape[0] / img.shape[1]
         tr = transforms.Affine2D().rotate_deg_around(x, y, angle) + ax.transData
         ax.imshow(img, extent=(x - w / 2, x + w / 2, y - h / 2, y + h / 2), transform=tr, zorder=z, interpolation="lanczos")
         _used["library"] = True
@@ -121,4 +129,4 @@ def _photodiode(ax, x, y, w, angle, z):
     return h
 
 
-STANDINS = {"laser": _laser, "isolator": _isolator, "lens": _lens, "photodiode": _photodiode}
+STANDINS = {"laser": _laser, "isolator": _isolator, "lens": _lens, "photodiode": _photodiode, "photodiode_ref": _photodiode}

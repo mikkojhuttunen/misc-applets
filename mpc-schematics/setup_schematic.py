@@ -138,12 +138,12 @@ def figure(kind, a):
     ax.axis("off")
     # ------------------------------------------------------------ bulk: laser, driver, isolator, fibre
     yb = 4.57                                              # free-space beam height (chip input)
-    components.place(ax, "laser", 1.05, yb, 1.75)
-    ax.text(1.05, yb - 0.62, "Laser", ha="center", va="top", fontsize=11, fontweight="bold", color=C["ink"])
-    ax.text(1.05, yb - 0.9, "bulk DFB / ICL, CW", ha="center", va="top", fontsize=8.5, color=C["muted"])
+    hl = components.place(ax, "laser", 1.05, yb, 1.6)
+    ax.text(1.05, yb - hl / 2 - 0.08, "Laser", ha="center", va="top", fontsize=11, fontweight="bold", color=C["ink"])
+    ax.text(1.05, yb - hl / 2 - 0.36, "bulk DFB / ICL, CW", ha="center", va="top", fontsize=8.5, color=C["muted"])
     box(ax, 0.1, 6.4, 2.3, 1.05, "Laser driver", "current + TEC")
     box(ax, 0.1, 8.05, 2.3, 0.95, "Function generator", "dither waveforms", fs=10)
-    elec(ax, [[1.25, 6.4], [1.25, 5.05]], "frequency dither (current)")
+    elec(ax, [[1.25, 6.4], [1.25, yb + hl / 2]], "frequency dither (current)")
     elec(ax, [[1.25, 8.05], [1.25, 7.45]])
     # free space: laser -> isolator -> lens focusing onto the edge coupler
     ax.plot([2.05, 2.62], [yb, yb], color=C["fs"], lw=2.4, zorder=3)
@@ -225,15 +225,15 @@ def figure(kind, a):
         det_y.append(2.35)
     det_y_ref = cy0 + 0.35
 
-    def detector(yt, title, sub):
+    def detector(yt, title, sub, ref=False):
         """Edge coupler -> diverging beam -> collecting lens -> focused onto a bulk photodiode."""
         ax.add_patch(Polygon([[xe, yt - 0.03], [14.95, yt - 0.11], [14.95, yt + 0.11], [xe, yt + 0.03]], fc=C["fs"], ec="none", alpha=0.85, zorder=3))
         ax.add_patch(Polygon([[14.95, yt - 0.11], [15.45, yt - 0.02], [15.45, yt + 0.02], [14.95, yt + 0.11]], fc=C["fs"], ec="none", alpha=0.85, zorder=3))
         components.place(ax, "lens", 14.95, yt, 0.42)
-        components.place(ax, "photodiode", 15.75, yt, 0.62)
+        components.place(ax, "photodiode_ref" if ref else "photodiode", 15.68, yt, 0.4)
         ax.text(16.15, yt + 0.12, title, ha="left", va="center", fontsize=9.5, fontweight="bold", color=C["ink"])
         ax.text(16.15, yt - 0.18, sub, ha="left", va="center", fontsize=8.2, color=C["muted"])
-    detector(det_y_ref, "Reference detector", "power normalisation")
+    detector(det_y_ref, "Reference detector", "power normalisation", ref=True)
     for i, yt in enumerate(det_y):
         ax.add_patch(Polygon([[xe - 0.5, yt - 0.04], [xe, yt - 0.18], [xe, yt + 0.18], [xe - 0.5, yt + 0.04]], fc=C["wg_out"], ec="none", zorder=3))
         detector(yt, f"Detector {i + 1}", "bulk InGaAs / MCT")

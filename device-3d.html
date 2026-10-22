@@ -114,6 +114,8 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
         <label class="check" for="cut"><input id="cut" type="checkbox" checked> Cutaway</label>
         <label class="check" for="labelsOn"><input id="labelsOn" type="checkbox"> Labels</label>
         <label class="check" for="glowOn"><input id="glowOn" type="checkbox" checked> Guided field on the cut faces</label>
+        <label class="check" for="molOn"><input id="molOn" type="checkbox" checked> Gas molecules and evanescent field</label>
+        <label class="check" for="pillarOn"><input id="pillarOn" type="checkbox" checked> CMPC: central support pillar</label>
       </fieldset>
 
       <fieldset id="fsMem">
@@ -469,7 +471,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
 
   // ---------------------------------------------------------------- colours (world materials, same in both themes)
   const COL = { si: "#8fa3c4", siSec: "#cdd8ea", handle: "#9a9fa6", handleSec: "#c8ccd1", box: "#e3d29a", boxSec: "#f1e7c6",
-    beam: "#d0352b", port: "#1f8a4c", field: "#8a4fc8", out: "#7a3fb0", strip: "#d4a63c", stripSec: "#ead39b",
+    beam: "#d0352b", port: "#1f8a4c", field: "#8a4fc8", out: "#9fc3ff", outStrip: "#24459a", outStripSec: "#8ea2d6", strip: "#d4a63c", stripSec: "#ead39b", carrier: "#b9cfc9", carrierSec: "#dbe8e4",
     layers: ["#c7cccc", "#91ada6", "#d4bf9e", "#b8a3c2"], layersSec: ["#e2e6e6", "#c2d4cf", "#e8dcc8", "#d9cde0"],
     dbr: "#21855f", dbrSec: "#73bc9f", gc: "#e87a29", gcSec: "#f4b787" };
 
@@ -514,16 +516,22 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     // tapered strip-loaded waveguides: wide (port width) at the DBR, single-mode width further out, to the chip edge
     const ts = 0.6 * t, w1 = wp, w2 = 0.035, lt = 0.32, sq = Q => clip(clip(clip(clip(Q, 1, 0, L), -1, 0, L), 0, 1, L), 0, -1, L);
     const bandR = Np * (g + tw);
-    const guide = (st, u) => {
+    const guide = (st, u, out = false) => {
       const w = [-u[1], u[0]], P = (s, h) => [st[0] + s * u[0] + h * w[0], st[1] + s * u[1] + h * w[1]];
-      B.add(sq([P(0, -w1 / 2), P(lt, -w2 / 2), P(lt, w2 / 2), P(0, w1 / 2)]), t, t + ts, COL.strip, COL.stripSec, cut);
-      B.add(sq([P(lt, -w2 / 2), P(5, -w2 / 2), P(5, w2 / 2), P(lt, w2 / 2)]), t, t + ts, COL.strip, COL.stripSec, cut);
+      const c1 = out ? COL.outStrip : COL.strip, c2 = out ? COL.outStripSec : COL.stripSec;
+      B.add(sq([P(0, -w1 / 2), P(lt, -w2 / 2), P(lt, w2 / 2), P(0, w1 / 2)]), t, t + ts, c1, c2, cut);
+      B.add(sq([P(lt, -w2 / 2), P(5, -w2 / 2), P(5, w2 / 2), P(lt, w2 / 2)]), t, t + ts, c1, c2, cut);
     };
     const cosIn = Math.abs(d0[0] * p0[0] + d0[1] * p0[1]) / a0, uIn = [-d0[0], -d0[1]];
     const sIn = [p0[0] + uIn[0] * (bandR / cosIn + 0.01), p0[1] + uIn[1] * (bandR / cosIn + 0.01)];
     guide(sIn, uIn);
-    const outStarts = outK.map(k => { const u = [Math.cos(2 * Math.PI * k / N), Math.sin(2 * Math.PI * k / N)]; const st = [u[0] * (a0 + bandR + 0.01), u[1] * (a0 + bandR + 0.01)]; guide(st, u); return [st, u]; });
+    const outStarts = outK.map(k => { const u = [Math.cos(2 * Math.PI * k / N), Math.sin(2 * Math.PI * k / N)]; const st = [u[0] * (a0 + bandR + 0.01), u[1] * (a0 + bandR + 0.01)]; guide(st, u, true); return [st, u]; });
     const frame = w => [[[-L, -L], [L, -L], [L, -w], [-L, -w]], [[-L, w], [L, w], [L, L], [-L, L]], [[-L, -w], [-w, -w], [-w, w], [-L, w]], [[w, -w], [L, -w], [L, w], [w, w]]];
+    if ($("pillarOn").checked) {                     // central pillar (handle + oxide) standing on a bonded carrier
+      const rp = 0.07, pil = []; for (let i = 0; i < 32; i++) pil.push([rp * Math.cos(2 * Math.PI * i / 32), rp * Math.sin(2 * Math.PI * i / 32)]);
+      B.add(pil, -tb - th, -tb, COL.handle, COL.handleSec, cut); B.add(pil, -tb, 0, COL.box, COL.boxSec, cut);
+      B.add([[-L, -L], [L, -L], [L, L], [-L, L]], -tb - th - 0.07, -tb - th, COL.carrier, COL.carrierSec, cut);
+    }
     for (const R of frame(und)) B.add(R, -tb, 0, COL.box, COL.boxSec, cut);
     for (const R of frame(win)) B.add(R, -tb - th, -tb, COL.handle, COL.handleSec, cut);
     const isSec = cut ? (p, q) => (Math.abs(p[0]) < 1e-9 && Math.abs(q[0]) < 1e-9 && Math.max(p[1], q[1]) <= 1e-9) ||
@@ -560,7 +568,14 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       const af = (s, z) => 0.62 * mp.f((z - t / 2) / sc) * (s <= a0 ? 1 : Math.exp(-3 * (s - a0) / bandR));
       glow = [glowGrid([0, -2e-4], [1, 0], Rm, -ext, t + ext, af), glowGrid([2e-4, 0], [0, -1], Rm, -ext, t + ext, af)];
     }
-    return { B, isSec, segs, inSegs, inBand, outSegs, glow, beamZ: t + 0.002, beamW: 0.012, labels, info: { M, N, Np, m, t, band, nOut, nOutPorts } };
+    const reach = isFinite(M.ne) ? modeProfile(M).tail * t / M.t : 0.04, bM = 0.042, cellIn = (x, y) => {
+      for (let k = 0; k < N; k++) { const a_ = 2 * Math.PI * k / N; if (x * Math.cos(a_) + y * Math.sin(a_) > a0 - 0.08) return false; } return true; };
+    const mols = scatterMolecules(7, 26, [-a0, -a0, a0, a0], (x, y) => cellIn(x, y) && !(cut && x > -0.06 && y < 0.06) && Math.hypot(x, y) > 0.12,
+        [[t + 0.75 * bM, t + reach + 0.4 * bM, 1], [t + 0.2, t + 0.55, 1.4]], [t, t + reach + 0.4 * bM], bM)
+      .concat(cut ? scatterMolecules(11, 8, [0, -a0, a0, 0], (x, y) => cellIn(x, y) && ((x > 0.05 && x < 0.32) || (y < -0.05 && y > -0.32)) && Math.hypot(x, y) > 0.15,
+        [[-reach - 0.4 * bM, -0.75 * bM, 1], [-0.5, -0.2, 0.8]], [-reach - 0.4 * bM, 0], bM) : []);
+    const cloudPieces = cutPieces(inner.map(p => [p[0] * 0.99, p[1] * 0.99]), cut);
+    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, cloud: { pieces: cloudPieces, z: t, reach }, beamZ: t + 0.002, beamW: 0.012, labels, info: { M, N, Np, m, t, band, nOut, nOutPorts } };
   }
   function memMirror() {
     const M = mirrorModel(), um = 1e6, t = M.t * um, g = M.dGap * um, tw = M.dTooth * um, outMir = $("mOutMir").checked, Np = outMir ? Math.max(1, Math.min(v("mOutN"), v("mPer") - 1)) : v("mPer");
@@ -593,6 +608,68 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     return { B, isSec, segs, inSegs: [], glow, beamZ: z1 + 0.002, beamW: 0.03, prof, labels, info: { M, Np } };
   }
 
+
+  // ---------------------------------------------------------------- schematic gas molecules (ball and stick)
+  const CPK = { C: "#3d3d3d", H: "#f4f4f4", O: "#d33a2c", N: "#3a5bd9" }, RADM = { C: 0.40, H: 0.27, O: 0.38, N: 0.39 };
+  const TT = [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]].map(v_ => v_.map(c => c / Math.sqrt(3)));
+  const WW = 104.5 / 2 * D2R, AA = 68 * D2R;
+  const SHAPES = {
+    CH4: [["C", [0, 0, 0]], ...TT.map(v_ => ["H", v_])],
+    CO2: [["C", [0, 0, 0]], ["O", [1, 0, 0]], ["O", [-1, 0, 0]]],
+    H2O: [["O", [0, 0, 0]], ["H", [Math.cos(WW), Math.sin(WW), 0]], ["H", [Math.cos(WW), -Math.sin(WW), 0]]],
+    NH3: [["N", [0, 0, 0]], ...[0, 120, 240].map(p => ["H", [Math.sin(AA) * Math.cos(p * D2R), Math.sin(AA) * Math.sin(p * D2R), -Math.cos(AA)]])],
+  };
+  function seeded(seed) { let a_ = seed >>> 0; return () => { a_ = (a_ + 0x6D2B79F5) >>> 0; let t_ = a_; t_ = Math.imul(t_ ^ (t_ >>> 15), t_ | 1); t_ ^= t_ + Math.imul(t_ ^ (t_ >>> 7), t_ | 61); return ((t_ ^ (t_ >>> 14)) >>> 0) / 4294967296; }; }
+  // n molecules over bbox [x0, y0, x1, y1] where inside(x, y); heights from bands [[z0, z1, weight]]; sensed if z in sensed band
+  function scatterMolecules(seed, n, bb, inside, bands, sensedBand, b) {
+    const r = seeded(seed), out = [], kinds = Object.keys(SHAPES), wsum = bands.reduce((s_, z) => s_ + z[2], 0);
+    for (let tries = 0; out.length < n && tries < 400 * n; tries++) {
+      const x = bb[0] + r() * (bb[2] - bb[0]), y = bb[1] + r() * (bb[3] - bb[1]);
+      if (!inside(x, y)) continue;
+      let u = r() * wsum, band = bands[0]; for (const z of bands) { if (u < z[2]) { band = z; break; } u -= z[2]; }
+      const z = band[0] + r() * (band[1] - band[0]);
+      if (out.some(m_ => Math.hypot(x - m_.c[0], y - m_.c[1]) < 2.6 * b && Math.abs(z - m_.c[2]) < 2.6 * b)) continue;
+      const q = new THREE.Quaternion(r() - 0.5, r() - 0.5, r() - 0.5, r() - 0.5).normalize();
+      out.push({ kind: kinds[Math.floor(r() * kinds.length)], c: [x, y, z], q, b, sensed: z >= sensedBand[0] && z <= sensedBand[1] });
+    }
+    return out;
+  }
+  function moleculeMeshes(mols) {
+    const g = new THREE.Group(), sph = new THREE.SphereGeometry(1, 18, 12), atoms = { C: [], H: [], O: [], N: [] }, bonds = [], halos = [];
+    for (const m_ of mols) {
+      const C0 = new THREE.Vector3(...m_.c), pts = SHAPES[m_.kind].map(([el, p]) => [el, new THREE.Vector3(...p).applyQuaternion(m_.q).multiplyScalar(m_.b).add(C0)]);
+      for (const [el, p] of pts) atoms[el].push([p, RADM[el] * m_.b]);
+      for (const [, p] of pts.slice(1)) bonds.push(pts[0][1].x, pts[0][1].y, pts[0][1].z, p.x, p.y, p.z);
+      if (m_.sensed) halos.push([C0, 1.6 * m_.b]);
+    }
+    const mat4 = new THREE.Matrix4();
+    for (const el in atoms) {
+      if (!atoms[el].length) continue;
+      const im = new THREE.InstancedMesh(sph, new THREE.MeshPhongMaterial({ color: CPK[el], shininess: 60 }), atoms[el].length);
+      atoms[el].forEach(([p, rad], i) => im.setMatrixAt(i, mat4.compose(p, new THREE.Quaternion(), new THREE.Vector3(rad, rad, rad))));
+      g.add(im);
+    }
+    const bg = new THREE.BufferGeometry(); bg.setAttribute("position", new THREE.Float32BufferAttribute(bonds, 3));
+    g.add(new THREE.LineSegments(bg, new THREE.LineBasicMaterial({ color: 0x6b7378 })));
+    if (halos.length) {
+      const hm = new THREE.InstancedMesh(sph, new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, opacity: 0.2, depthWrite: false }), halos.length);
+      halos.forEach(([p, rad], i) => hm.setMatrixAt(i, mat4.compose(p, new THREE.Quaternion(), new THREE.Vector3(rad, rad, rad))));
+      g.add(hm);
+    }
+    return g;
+  }
+  function cloudMeshes(cl) {                         // evanescent field above the cell: stacked faint sheets, intensity ~ exp(-2γh)
+    const g = new THREE.Group();
+    for (let k = 0; k < 5; k++) {
+      const h_ = (k + 0.5) / 5 * cl.reach, op = 0.06 * Math.exp(-3 * h_ / cl.reach);
+      for (const P of cl.pieces) {
+        const sh = new THREE.Shape(P.map(p => new THREE.Vector2(p[0], p[1])));
+        const mesh = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide }));
+        mesh.position.z = cl.z + h_; g.add(mesh);
+      }
+    }
+    return g;
+  }
   function herriottModel() {
     const M = mirrorModel(), R = v("hR"), N = v("hN"), Mt = Math.min(v("hM"), Math.ceil(N / 2) - 1), A = v("hA"), ph = v("hPh") * D2R, Np = v("hPer");
     const th = 2 * Math.PI * Mt / N, d = R * (1 - Math.cos(th)), D = 1.4 * A;
@@ -657,8 +734,9 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       if (kind === "out" && h.exit !== "port") continue;
       const w = [-u[1], u[0]], st = [p0[0] + u[0] * (band + 0.03), p0[1] + u[1] * (band + 0.03)];
       const P = (s_, hh) => [st[0] + s_ * u[0] + hh * w[0], st[1] + s_ * u[1] + hh * w[1]], w1 = wp, w2 = 0.35 * wp, lt = 0.55;
-      B.add(sq([P(0, -w1 / 2), P(lt, -w2 / 2), P(lt, w2 / 2), P(0, w1 / 2)]), t, t + ts, COL.strip, COL.stripSec, cut);
-      B.add(sq([P(lt, -w2 / 2), P(8, -w2 / 2), P(8, w2 / 2), P(lt, w2 / 2)]), t, t + ts, COL.strip, COL.stripSec, cut);
+      const c1 = kind === "out" ? COL.outStrip : COL.strip, c2 = kind === "out" ? COL.outStripSec : COL.stripSec;
+      B.add(sq([P(0, -w1 / 2), P(lt, -w2 / 2), P(lt, w2 / 2), P(0, w1 / 2)]), t, t + ts, c1, c2, cut);
+      B.add(sq([P(lt, -w2 / 2), P(8, -w2 / 2), P(8, w2 / 2), P(lt, w2 / 2)]), t, t + ts, c1, c2, cut);
       io.push([kind, st, u]);
     }
     const isSec = cut ? (p, q) => (Math.abs(p[0] - Xc) < 1e-9 && Math.abs(q[0] - Xc) < 1e-9 && Math.max(p[1], q[1]) <= 1e-9) ||
@@ -690,7 +768,13 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       { text: "tapered strip-loaded waveguides", p: io.length ? [io[0][1][0] + io[0][2][0] * 0.9, io[0][1][1] + io[0][2][1] * 0.9, t + ts] : [X0, 0, t] },
       { text: `${h.pts.length - 1} passes, path ${(h.path / 10).toFixed(1)} cm`, p: [d * 0.3, 0.2 * A, t] },
     ];
-    return { B, isSec, segs, inSegs, inBand, outSegs, glow, beamZ: t + 0.002, beamW: 0.008, labels, info: { h, t } };
+    const reach = isFinite(M.ne) ? modeProfile(M).tail * t / M.t : 0.04, bM = 0.06;
+    const mols = scatterMolecules(5, 28, [0.15, -1.1 * A, d - 0.15, 1.1 * A], (x, y) => !(cut && x > Xc - 0.08 && y < 0.08),
+        [[t + 0.75 * bM, t + reach + 0.4 * bM, 1], [t + 0.25, t + 0.7, 1.4]], [t, t + reach + 0.4 * bM], bM)
+      .concat(cut ? scatterMolecules(9, 9, [Xc, -1.1 * A, d - 0.15, 0], (x, y) => (x > Xc + 0.06 && x < Xc + 0.45) || (y < -0.06 && y > -0.45),
+        [[-reach - 0.4 * bM, -0.75 * bM, 1], [-0.6, -0.25, 0.8]], [-reach - 0.4 * bM, 0], bM) : []);
+    const cloudPieces = cutPieces([[0.02, -1.15 * A], [d - 0.02, -1.15 * A], [d - 0.02, 1.15 * A], [0.02, 1.15 * A]], cut);
+    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, cloud: { pieces: cloudPieces, z: t, reach }, beamZ: t + 0.002, beamW: 0.008, labels, info: { h, t } };
   }
   function crigfModel() {
     const c = { NGC: v("cNGC"), pGC: v("cPGC") / 1e3, fGC: v("cFGC"), NL: v("cNL"), NR: v("cNR"), pL: v("cPD") / 1e3, pR: v("cPD") / 1e3,
@@ -811,6 +895,8 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
         }
       }
       if (desc.glow && $("glowOn").checked) for (const g of desc.glow) group.add(new THREE.Mesh(g, glowMaterial()));
+      if (desc.cloud && $("glowOn").checked && $("molOn").checked) group.add(cloudMeshes(desc.cloud));
+      if (desc.mols && $("molOn").checked) group.add(moleculeMeshes(desc.mols));
       if (desc.prof) {
         const g = new THREE.BufferGeometry().setFromPoints(desc.prof.map(p => new THREE.Vector3(...p)));
         group.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: COL.field })));
@@ -849,7 +935,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     if (S.dev === "her") {
       const h = desc.info.h, M = h.M, deg = x => (x / D2R).toFixed(1);
       const angIO = h.exit === "port" ? Math.acos(Math.max(-1, Math.min(1, -(h.inDir[0] * h.exitDir[0] + h.inDir[1] * h.exitDir[1])))) / D2R : NaN;
-      leg.innerHTML = `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.beam}"></i>ray path (exact)</span><span><i class="sw" style="background:${COL.port}"></i>input</span><span><i class="sw" style="background:${COL.out}"></i>output</span><span><i class="sw" style="background:${COL.strip}"></i>strip-loaded waveguide</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span>`;
+      leg.innerHTML = `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.beam}"></i>ray path (exact)</span><span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span><span><i class="sw" style="background:${COL.outStrip}"></i>output waveguide</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span>`;
       st.innerHTML = stat("Spacing d", `${h.d.toFixed(3)} mm`) + stat("θ per pass", `${deg(h.th)}°`) + stat("Exit", h.exit === "port" ? `port after ${h.pts.length - 1} passes` : h.exit === "edge" ? "lost past a mirror edge" : "not found") +
         stat("Path", `${(h.path / 10).toFixed(2)} cm`) + stat("Input/output angle", isFinite(angIO) ? `${angIO.toFixed(1)}°` : "–") +
         stat("Incidence angles", h.ang.length ? `${deg(Math.min(...h.ang))}–${deg(Math.max(...h.ang))}°` : "–") +
@@ -869,7 +955,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     const sg = Array.from({ length: 101 }, (_, i) => i / 100 * 0.999);
     const Rmin = Math.min(...sg.map(s => M.R(Np, s)));
     leg.innerHTML = S.mview === "chip"
-      ? `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>star orbit {${desc.info.N}/${desc.info.m}}</span><span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>strip-loaded waveguide</span><span><i class="sw" style="background:${COL.out}"></i>output</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span><span>lighter shade: cut face</span>`
+      ? `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>star orbit {${desc.info.N}/${desc.info.m}}</span><span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span><span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span><span>lighter shade: cut face</span>`
       : `<span><i class="sw" style="background:${COL.si}"></i>Si (to scale, µm)</span><span><i class="sw" style="background:${COL.beam}"></i>incident and reflected slab-mode ray</span><span><i class="sw" style="background:${COL.field}"></i>mode intensity across the membrane</span>`;
     st.innerHTML = stat("n_Si", M.n.toFixed(4)) + stat(`n_eff ${M.pol}₀`, isFinite(M.ne) ? M.ne.toFixed(4) : "cut off") + stat("Air gap / tooth", `${nm(M.dGap)} / ${nm(M.dTooth)}`) +
       stat("Mirror depth", `${((M.dGap + M.dTooth) * Np * 1e6).toFixed(2)} µm`) + stat(`R at 0°, N = ${Np}`, R0.toFixed(4)) +
@@ -909,7 +995,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
   let raf = 0;
   function update() { labels(); cancelAnimationFrame(raf); raf = requestAnimationFrame(rebuild); }
   for (const id in LAB) $(id).addEventListener("input", update);
-  for (const id of ["cut", "labelsOn", "beamOn", "mOutMir", "glowOn", "hBeamOn"]) $(id).addEventListener("change", update);
+  for (const id of ["cut", "labelsOn", "beamOn", "mOutMir", "glowOn", "hBeamOn", "molOn", "pillarOn"]) $(id).addEventListener("change", update);
   const press = (sel, attr, val) => { for (const b of document.querySelectorAll(sel)) b.setAttribute("aria-pressed", String(b.dataset[attr] === val)); };
   for (const b of document.querySelectorAll("[data-dev]")) b.addEventListener("click", () => {
     S.dev = b.dataset.dev; press("[data-dev]", "dev", S.dev);

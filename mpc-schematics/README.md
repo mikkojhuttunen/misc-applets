@@ -53,4 +53,15 @@ python membrane_3d.py herriott --R 5 --N 22 --M 5 --A 0.5   3D cutaway: curved D
 
 In one transverse dimension the launch phase matters: with φ = 0 (port at the pattern edge, the usual 3D choice) the pattern is symmetric in n and the exit ray retraces the input (1.2° apart for the defaults), so the output couples back into the input waveguide. φ = 90° puts the port at the mirror centre and separates input and output by ≈ 2A sin θ / d (13° for the defaults). Spherical aberration of circular mirrors grows with (A/R)²: at A/R = 0.2 the beam misses the centre port after N passes; aspheric DBR arcs or a smaller A/R fix it.
 
+## Gas molecules and the evanescent field
+
+`membrane_3d.py` draws schematic gas molecules (ball and stick CH₄, CO₂, H₂O, NH₃; `molecules.py`) above and below the cells, a faint red haze above the cell for the evanescent field (stacked translucent sheets, opacity ∝ intensity, out to three intensity decay lengths), and a red halo on every molecule inside that layer: those absorb, the ones further out do not. `--no-molecules`, `--molecules 26`, `--mol-seed 3`. The CMPC chip also gets a central support pillar (handle + oxide, `--pillar 0.07`, 0 for none) in the dark core of the star orbit, standing on a bonded carrier wafer (the backside window goes through the handle). Output ports and waveguides are dark blue, the input waveguide gold.
+
+`evanescent_sensing.py` explains the sensing on its own, in vector graphics: a to-scale cross-section through the membrane with the mode intensity, the intensity decay length δ = 1/(2γ) (71 nm for Si 250 nm TM₀ at 1.55 µm) and molecules inside and outside the field; the mode profile with Γ (α_mode = Γ α_gas, 0.64 here); Γ against membrane thickness for TE₀ and TM₀ (thinner membranes put more of the mode in the gas; thin TM₀ membranes reach Γ > 1 because E_z jumps by n_Si² at the surface).
+
+```
+python evanescent_sensing.py
+python evanescent_sensing.py --thickness 220 --pol TE
+```
+
 The interactive version is [`../mpc-designs.html`](../mpc-designs.html).

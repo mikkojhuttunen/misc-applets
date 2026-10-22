@@ -36,7 +36,7 @@ import cmpc_sim as cs  # noqa: E402
 OUT = HERE / "figs"
 OUT.mkdir(exist_ok=True)
 COL = dict(si="#8fa3c4", si_sec="#c9d4e6", handle="#9a9fa6", handle_sec="#c8ccd1", box="#e8d9a8", box_sec="#f3ead0",
-           beam="#d0352b", port="#1f8a4c", strip="#d4a63c", strip_sec="#ead39b", strip_ink="#8a6a12", out="#7a3fb0", field="#7a3fb0", ink="#1b2328")
+           beam="#d0352b", port="#1f8a4c", strip="#d4a63c", strip_sec="#ead39b", strip_ink="#8a6a12", out="#1d3f8f", out_strip="#24459a", out_strip_sec="#8ea2d6", out_beam="#9fc3ff", carrier="#b9cfc9", carrier_sec="#dbe8e4", field="#7a3fb0", ink="#1b2328")
 plt.rcParams.update({"font.size": 10, "font.family": ["Inter", "DejaVu Sans"]})
 
 
@@ -44,6 +44,15 @@ def annotate(ax, to_px, P_anchor, P_text, text, color=COL["ink"], ha="center", *
     a, t = np.ravel(to_px(np.atleast_2d(P_anchor))), np.ravel(to_px(np.atleast_2d(P_text)))
     ax.annotate(text, (a[0], a[1]), (t[0], t[1]), ha=ha, va="center", color=color, fontsize=10,
                 arrowprops=dict(arrowstyle="-", color=color, lw=0.8, shrinkA=2, shrinkB=0), annotation_clip=False, **kw)
+
+
+def mol_notes(ax, to_px, mols, a):
+    """Key for the molecules and the evanescent cloud, under the title."""
+    if not mols:
+        return
+    ax.text(0.0, 1.005, "Gas molecules (CH₄, CO₂, H₂O, NH₃; schematic): red halo = inside the evanescent field of the guided "
+            "mode (red haze above the cell and tails on the cut faces), absorbs; no halo = farther out, no interaction",
+            transform=ax.transAxes, va="bottom", fontsize=9.5, color="#7a2a20")
 
 
 def chip(a):
@@ -122,12 +131,34 @@ def chip(a):
         r = s_ * Rm
         return 0.62 * np.interp(z, xf, If / If.max()) * np.where(r <= a0, 1.0, np.exp(-3 * (r - a0) / (band - a0)))
     sc_glow = [([0, -1e-4, -ext], [Rm, 0, 0], [0, 0, t + 2 * ext]), ([1e-4, 0, -ext], [0, -Rm, 0], [0, 0, t + 2 * ext])]
-    strips = unary_union([gd[0] for gd in guides]).intersection(chipsq).difference(cut)
-    sc.prism(strips, t, t + ts, COL["strip"], on_cut, COL["strip_sec"])
+    sc.prism(guides[0][0].intersection(chipsq).difference(cut), t, t + ts, COL["strip"], on_cut, COL["strip_sec"])
+    if len(guides) > 1:                                   # output ports and their waveguides: dark blue
+        sc.prism(unary_union([gd[0] for gd in guides[1:]]).intersection(chipsq).difference(cut), t, t + ts,
+                 COL["out_strip"], on_cut, COL["out_strip_sec"])
+    # central support pillar: Si handle and oxide left standing under the cell centre by the backside etch; it sits in
+    # the dark core of the star orbit (chords stay a0 cos(π m / N) from the centre)
+    pillar = Point(0, 0).buffer(a.pillar, 48).difference(cut)
+    tcar = 0.07
+    if a.pillar > 0:                                      # the window goes through the handle: the pillar stands on a bonded carrier
+        sc.prism(chipsq.difference(cut), -tb - th - tcar, -tb - th, COL["carrier"], on_cut, COL["carrier_sec"])
+        sc.prism(pillar, -tb - th, -tb, COL["handle"], on_cut, COL["handle_sec"])
+        sc.prism(pillar, -tb, 0, COL["box"], on_cut, COL["box_sec"])
 
     if not a.no_glow:
         for O, U, V in sc_glow:
             sc.glow(O, U, V, glow_alpha)
+    mols = []
+    if not a.no_molecules:                               # gas molecules; red halo = inside the evanescent field
+        from molecules import scatter, cloud
+        rng = np.random.default_rng(a.mol_seed)
+        b = 0.042
+        if not a.no_glow:
+            cloud(sc, ngon(a0 - 0.01, N).difference(cut), t, ext)
+        top = ngon(a0 - 0.08, N).difference(cut.buffer(0.06)).difference(Point(0, 0).buffer(0.12))
+        sb = (t, t + ext + 0.4 * b)
+        mols += scatter(sc, top, [(t + 0.75 * b, sb[1], 1.0), (t + 0.2, t + 0.55, 1.4)], a.molecules, b, rng, sb)
+        near = ngon(a0 - 0.08, N).intersection(unary_union([box(0.05, -2, 0.32, -0.05), box(0.05, -0.32, 2, -0.05)])).difference(Point(0, 0).buffer(a.pillar + 0.08))
+        mols += scatter(sc, near, [(-sb[1] + t, -0.75 * b, 1.0), (-0.5, -0.2, 0.8)], max(4, a.molecules // 3), b, rng, (-sb[1] + t, 0))
     # star orbit {N/m} through the facet midpoints, starting at the port, on the membrane surface
     keep = mem.buffer(1e-6).union(ngon(a0, N)).difference(cut)
     for seg in zip(mids[:-1], mids[1:]):
@@ -145,7 +176,7 @@ def chip(a):
         if e.is_empty:
             continue
         xy = np.asarray(e.coords)
-        sc.line(np.c_[xy, np.full(len(xy), t + ts + 1e-3)], COL["out"], width=2.0)
+        sc.line(np.c_[xy, np.full(len(xy), t + ts + 1e-3)], COL["out_beam"], width=2.0)
         outs.append((xy[0], xy[-1]))
 
     img, to_px = sc.render(width=a.width)
@@ -158,6 +189,7 @@ def chip(a):
     for st, en in outs:
         A_, B_ = to_px(np.atleast_2d(np.r_[st + 0.6 * (en - st), t + ts])), to_px(np.atleast_2d(np.r_[en, t + ts]))
         ax.annotate("", (B_[0][0], B_[1][0]), (A_[0][0], A_[1][0]), arrowprops=dict(arrowstyle="-|>", color=COL["out"], lw=2))
+    mol_notes(ax, to_px, mols, a)
     k1 = N * 3 // 8
     fm = a0 * np.array([np.cos(2 * np.pi * k1 / N), np.sin(2 * np.pi * k1 / N)])
     annotate(ax, to_px, np.r_[fm * (a0 + 0.12) / a0, t], [-0.9, 2.15, t], f"etched-trench DBR on every facet ({Np} periods, drawn wide)")
@@ -169,13 +201,17 @@ def chip(a):
         D = cs.DBR(n_tooth=mode.neff, lam_design=a.lam * 1e-6, N=n_out, m_gap=1, m_tooth=1, slab_pol=a.pol, bounce_loss=0)
         T0 = 1 - float(D.R(a.lam * 1e-6, np.array(0.0)))
         annotate(ax, to_px, np.r_[(a0 + 0.5 * (band - a0)) * u, t], [0.6, 2.55, t],
-                 f"output ports: {n_out} of {Np} periods, T(0°) = {T0 * 100:.0f} %\n(no output above the {np.degrees(np.arcsin(1 / mode.neff)):.0f}° TIR angle)", COL["out"])
+                 f"output ports (dark blue): {n_out} of {Np} periods, T(0°) = {T0 * 100:.0f} %\n(no output above the {np.degrees(np.arcsin(1 / mode.neff)):.0f}° TIR angle)", COL["out"])
     annotate(ax, to_px, np.r_[0.15, 0.55, t], [1.2, 2.25, t], f"star orbit {{{N}/{m}}} in the membrane", COL["beam"])
     annotate(ax, to_px, [0.9, -0.02, t / 2], [2.45, 0.9, 0.0], "section through the DBR\n(gaps and teeth)")
     annotate(ax, to_px, [0.45, 0, t], [2.6, 0.2, -0.25], f"free-standing Si membrane\n(thickness ×{t / 250e-9 * 5e-3:.0f})")
     annotate(ax, to_px, [1.6, 0, -tb / 2], [2.7, -0.6, -0.4], "buried oxide")
     annotate(ax, to_px, [1.6, 0, -tb - th / 2], [2.6, -1.4, -0.6], "Si handle")
     annotate(ax, to_px, [0, -1.0, -tb - th], [0.4, -2.6, -0.65], "backside window: membrane released")
+    if a.pillar > 0:
+        annotate(ax, to_px, [0.02, -0.01, -tb - th * 0.45], [1.5, -2.35, -0.45],
+                 "central support pillar (Si handle + oxide),\nin the dark core of the star orbit")
+        annotate(ax, to_px, [-1.2, -L, -tb - th - 0.035], [-1.6, -2.6, -0.7], "bonded carrier wafer under the handle")
     b0 = 2 * np.pi * (N * 5 // 8) / N - np.pi / N
     annotate(ax, to_px, [(a0 + 0.1) * np.cos(b0) / np.cos(np.pi / N), (a0 + 0.1) * np.sin(b0) / np.cos(np.pi / N), t],
              [-2.6, -1.3, t], "corner bridges carry the cell\n(trenches stop short of the corners)")
@@ -309,13 +345,27 @@ def herriott(a):
     sc.prism(chipsq.difference(undercut).difference(cut), -tb, 0, COL["box"], on_cut, COL["box_sec"])
     mem = chipsq.difference(slots).difference(cut)
     sc.prism(mem, 0, t, COL["si"], on_cut, COL["si_sec"])
-    sc.prism(unary_union(guides).intersection(chipsq).difference(cut), t, t + ts, COL["strip"], on_cut, COL["strip_sec"])
+    sc.prism(guides[0].intersection(chipsq).difference(cut), t, t + ts, COL["strip"], on_cut, COL["strip_sec"])
+    if len(guides) > 1:                                   # output waveguide: dark blue
+        sc.prism(guides[1].intersection(chipsq).difference(cut), t, t + ts, COL["out_strip"], on_cut, COL["out_strip_sec"])
 
+    mode_g = cs.membrane_mode("Si", a.thickness * 1e-9, a.lam * 1e-6, a.pol, with_group_index=False)
+    xf, If = cs.field_profile(mode_g, 1.5)
+    zsc = t / (a.thickness * 1e-9)
+    ext = (xf.max() - a.thickness * 1e-9 / 2) * zsc
+    mols = []
+    if not a.no_molecules:                               # gas molecules; red halo = inside the evanescent field
+        from molecules import scatter, cloud
+        rng = np.random.default_rng(a.mol_seed)
+        b = 0.06
+        if not a.no_glow:
+            cloud(sc, box(0.02, -1.15 * A, d - 0.02, 1.15 * A).difference(cut), t, ext)
+        top = box(0.15, -1.1 * A, d - 0.15, 1.1 * A).difference(cut.buffer(0.08))
+        sb = (t, t + ext + 0.4 * b)
+        mols += scatter(sc, top, [(t + 0.75 * b, sb[1], 1.0), (t + 0.25, t + 0.7, 1.4)], a.molecules, b, rng, sb)
+        near = unary_union([box(Xc + 0.06, -1.1 * A, Xc + 0.45, -0.06), box(Xc + 0.06, -0.45, d - 0.15, -0.06)])
+        mols += scatter(sc, near, [(-sb[1] + t, -0.75 * b, 1.0), (-0.6, -0.25, 0.8)], max(4, a.molecules // 3), b, rng, (-sb[1] + t, 0))
     if not a.no_glow:                                     # guided-mode intensity on the cut faces
-        mode_g = cs.membrane_mode("Si", a.thickness * 1e-9, a.lam * 1e-6, a.pol, with_group_index=False)
-        xf, If = cs.field_profile(mode_g, 1.5)
-        zsc = t / (a.thickness * 1e-9)
-        ext = (xf.max() - a.thickness * 1e-9 / 2) * zsc
         prof = lambda tt: np.interp((-ext + tt * (t + 2 * ext) - t / 2) / zsc, xf, If / If.max())
         L1 = d + band - Xc
         sc.glow([Xc, -1e-4, -ext], [L1, 0, 0], [0, 0, t + 2 * ext],
@@ -335,7 +385,7 @@ def herriott(a):
     for kind, st, u in beams_io:
         e = LineString([st, st + 6 * u]).intersection(chipsq.difference(cut))
         xy = np.asarray(e.coords)
-        col = COL["port"] if kind == "in" else COL["out"]
+        col = COL["port"] if kind == "in" else COL["out_beam"]
         sc.line(np.c_[xy, np.full(len(xy), t + ts + 1e-3)], col, width=2.0)
         sc.line([[*st, t + 1e-3], [*p0, t + 1e-3]], col, width=2.0)
         io_px.append((kind, xy[0], xy[-1]))
@@ -351,6 +401,7 @@ def herriott(a):
         if kind == "out":
             A_, B_ = B_, A_
         ax.annotate("", (B_[0][0], B_[1][0]), (A_[0][0], A_[1][0]), arrowprops=dict(arrowstyle="-|>", color=col, lw=2))
+    mol_notes(ax, to_px, mols, a)
     bud = c.budget(tr)
     ang = np.degrees(np.arccos(np.clip(-tr["in_dir"] @ tr["exit_dir"], -1, 1)))
     annotate(ax, to_px, [-band / 2, 0.9 * D, t], [-0.6, Y1 + 0.9, t], f"mirror 1: curved trench DBR, {Np} periods\n(R = {R:g} mm, drawn wide)")
@@ -386,6 +437,10 @@ if __name__ == "__main__":
     ap.add_argument("--elev", type=float, default=30.0)
     ap.add_argument("--width", type=int, default=1800, help="image width in pixels")
     ap.add_argument("--no-glow", action="store_true", help="omit the guided-mode glow on the cut faces")
+    ap.add_argument("--no-molecules", action="store_true", help="omit the gas molecules")
+    ap.add_argument("--molecules", type=int, default=26, help="molecules above the cell (a third as many below)")
+    ap.add_argument("--mol-seed", type=int, default=3)
+    ap.add_argument("--pillar", type=float, default=0.07, help="CMPC: radius of the central support pillar (cell radius = 1; 0: none)")
     ap.add_argument("--R", type=float, default=5.0, help="Herriott: mirror radius, mm")
     ap.add_argument("--N", type=int, default=22, help="Herriott: passes to re-entry")
     ap.add_argument("--M", type=int, default=5, help="Herriott: turns")

@@ -33,6 +33,8 @@ class Scene:
         self.faces = []        # (rings [exterior, holes...] as (n, 3) arrays, normal, rgb, group)
         self.lines = []        # (points (n, 3), rgb, width_px, depth_tested)
         self.glows = []        # (origin, U, V, alpha(s, t) on [0, 1]^2, rgb): translucent overlays, depth tested
+        self.spheres = []      # (centre, radius, rgb): shaded, depth-buffered discs (atoms)
+        self.sheets = []       # (planar polygon (n, 3), alpha, rgb): translucent flat polygons, depth tested
 
     # ------------------------------------------------------------------ geometry
     def face(self, rings, color, normal=None, group=None):
@@ -74,6 +76,13 @@ class Scene:
         """Translucent parallelogram origin + s U + t V (s, t in [0, 1]) with opacity alpha(s, t) (vectorised), drawn
         over the faces where it is not hidden behind them; e.g. a guided-mode intensity on a cut face."""
         self.glows.append((np.asarray(origin, float), np.asarray(U, float), np.asarray(V, float), alpha, np.array(to_rgb(color))))
+
+    def sphere(self, centre, radius, color):
+        self.spheres.append((np.asarray(centre, float), float(radius), np.array(to_rgb(color))))
+
+    def sheet(self, pts, alpha, color="#ff2a1a"):
+        """Translucent planar polygon (e.g. one layer of an evanescent-field cloud) with constant opacity."""
+        self.sheets.append((np.asarray(pts, float), float(alpha), np.array(to_rgb(color))))
 
     def line(self, pts, color, width=2.0, depth_test=True):
         self.lines.append((np.asarray(pts, float), np.array(to_rgb(color)), width, depth_test))
@@ -129,6 +138,51 @@ class Scene:
             shade = self.ambient + (1 - self.ambient) * max(n @ self.light, 0.0)
             img[y0:y1, x0:x1][upd] = np.clip(col * shade, 0, 1)
             ib[y0:y1, x0:x1][upd] = fid
+        # spheres: shaded discs with the exact sphere depth, written into the depth and id buffers
+        for i, (Cs, r, col) in enumerate(self.spheres):
+            cx, cy, cw = (np.ravel(q)[0] for q in to_px(Cs[None]))
+            rp = r * s
+            x0, y0 = max(int(cx - rp) - 1, 0), max(int(cy - rp) - 1, 0)
+            x1, y1 = min(int(cx + rp) + 2, W), min(int(cy + rp) + 2, H)
+            if x1 <= x0 or y1 <= y0:
+                continue
+            yy, xx = np.mgrid[y0:y1, x0:x1]
+            du, dv = (xx - cx) / s, -(yy - cy) / s
+            rho2 = du * du + dv * dv
+            inside = rho2 <= r * r
+            dz = np.sqrt(np.maximum(r * r - rho2, 0))
+            w = cw + dz
+            sub = zb[y0:y1, x0:x1]
+            upd = inside & (w > sub)
+            nrm = (du[..., None] * self.right + dv[..., None] * self.up + dz[..., None] * self.d) / r
+            lam = np.clip(nrm @ self.light, 0, 1)
+            spec = np.clip(nrm @ ((self.light + self.d) / np.linalg.norm(self.light + self.d)), 0, 1) ** 24
+            shade = np.clip(col * (self.ambient + (1 - self.ambient) * lam)[..., None] + 0.35 * spec[..., None], 0, 1)
+            sub[upd] = w[upd]
+            img[y0:y1, x0:x1][upd] = shade[upd]
+            ib[y0:y1, x0:x1][upd] = len(self.faces) + i
+        # translucent flat polygons
+        for Pts, alpha, col in self.sheets:
+            pr = np.c_[to_px(Pts)[:2]]
+            x0, y0 = np.maximum(np.floor(pr.min(0)).astype(int), 0)
+            x1, y1 = np.minimum(np.ceil(pr.max(0)).astype(int) + 1, [W, H])
+            if x1 <= x0 or y1 <= y0:
+                continue
+            m = Image.new("L", (x1 - x0, y1 - y0), 0)
+            ImageDraw.Draw(m).polygon([tuple(p) for p in pr - [x0, y0]], fill=1)
+            mask = np.asarray(m, bool)
+            n = np.cross(Pts[1] - Pts[0], Pts[2] - Pts[0])
+            n = n / np.linalg.norm(n)
+            nd = n @ self.d
+            if abs(nd) < 1e-9:
+                continue
+            c = n @ Pts[0]
+            yy, xx = np.mgrid[y0:y1, x0:x1]
+            uu, vv = xx / s + u0, v1 - yy / s
+            w = (c - uu * (n @ self.right) - vv * (n @ self.up)) / nd
+            vis = mask & (w >= zb[y0:y1, x0:x1] - 1e-4 * span)
+            sub = img[y0:y1, x0:x1]
+            sub[vis] = sub[vis] * (1 - alpha) + col * alpha
         # translucent overlays (after the faces, before the outlines)
         for O, U, V, alpha, col in self.glows:
             corners = np.array([O, O + U, O + U + V, O + V])

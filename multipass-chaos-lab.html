@@ -295,7 +295,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
           <span><i class="sw" style="background:var(--s-spec)"></i>spectral dither only</span><span><i class="sw" style="background:var(--s-both)"></i>both</span>
           <span>thin: exact boxcar · bold: lobe-averaged · dashed: static floor · grey dotted: angle-sampling floor (angle only, both) · coloured dotted: the comparison cell (lobe-averaged) · red: target</span>
         </div>
-        <p class="hint">Residual fringe 2√ε V(T)/√M² (about absorbance) of the exit light against a stray copy, after a boxcar average over T. Each curve falls once T spans the dither periods and levels off at the static floor, which only deeper or chaotic dithers, or the fringe drift, lower. Where the exit phase is chaotic the floor sits at the angle-sampling floor and is an upper bound.</p>
+        <p class="hint">Residual fringe 2√ε V(T)/√M² (about absorbance) of the exit light against a stray copy, after a boxcar average over T. Each curve falls once T spans the dither periods and levels off at the static floor, which only deeper or chaotic dithers, or the fringe drift, lower. Each angle sample is weighted by how far the exit phase stays coherent over its share of the dither (exact Filon integral where smooth, random-phase estimate where scrambled), so strongly chaotic exits resolve to far lower floors than plain sampling; where a plateau still meets the grey dotted sampling floor it is an upper bound.</p>
       </section>
 
       <section class="panel">
@@ -305,7 +305,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
           <div class="sub"><h3>B · Static residual fringe by dither</h3><canvas class="chart" id="hBar" aria-label="Static residual fringe of the regular, index-free and current Herriott cell"></canvas></div>
         </div>
         <div class="sub"><h3>A and B · Static residual fringe by dither</h3><canvas class="chart wide" id="bBar" aria-label="Static residual fringe of both cells, regular, index-free and current"></canvas></div>
-        <p class="hint">What is left after infinitely long averaging (no drift), 2√ε V/√M², for the regular design (flat facets, ideal mirrors, no index disks), the same cell without its index disks (geometry perturbations kept) and the current cell. All three figures share one y axis; in the combined figure the opacity marks the variant (faint: regular, half: without index disks, full: current). “≤”: at the angle-sampling floor, an upper bound. The no-dither level differs between variants by their speckle averaging √M².</p>
+        <p class="hint">What is left after infinitely long averaging (no drift), 2√ε V/√M², for the regular design (flat facets, ideal mirrors, no index disks), the same cell without its index disks (geometry perturbations kept) and the current cell. All three figures share one y axis; in the combined figure the opacity marks the variant (faint: regular, half: without index disks, full: current). “≤”: within 3× the angle-sampling floor (the scatter of the random-phase estimate), an upper bound; other values are resolved. The no-dither level differs between variants by their speckle averaging √M².</p>
         <div class="btns"><label class="check" for="scPar">Scan</label><select id="scPar" aria-label="Index parameter to scan"><option value="ctr_dn" selected>central disk Δn</option><option value="ctr_r">central disk radius</option><option value="n_inc">number of random inclusions</option><option value="inc_dn">random inclusion |Δn|</option></select>
           <button id="scBtn" type="button">Run the inclusion scan</button><span class="status" id="scStatus">Both cells, all other settings as in the rail; reduced ray budget; about half a minute.</span></div>
         <div class="duo">
@@ -354,7 +354,8 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
           <li><b>Input beam</b>: B, the eigenmode of the ideal Herriott cell at the window; A, a Gaussian beam with its waist at the port. Port-to-port statistics use an n × n grid of rays from its Wigner function, each reflection multiplying by R.</li>
           <li><b>Chaos</b>: twin rays 10⁻⁹ rad apart (Lyapunov fit); finite-time Lyapunov exponent and MEGNO ⟨Y⟩ from a twin renormalised at every hit through walls and index disks (⟨Y⟩ → 0–2 regular, > 4 chaotic after 300 hits). Flat facets do not stretch the twin: their mixing comes from splitting at corners.</li>
           <li><b>Fringe</b>: the exit pass of the centre ray interferes with a stray copy whose path is shorter by a share of the exit path (stray setting); the copy follows the wavelength but not the angle. With the angle dither θ(t) at f_θ and the wavelength dither at f_λ (whole Hz) the term e^{i k(t) D(θ(t))} is periodic in both; an FFT over Na traced angle samples and the harmonics of the wavelength waveform at depth x = k₀ D Δλ/λ₀ give its components at m f_θ + n f_λ (equal frequencies summed; above 5 kHz pooled in 1/200-decade bins). The 0 Hz component is the static floor; a boxcar of length T weights the others by sinc(Ω T/2) (bold: lobe average 1/√(1 + 2z²)); a fringe drift ω_d shifts every frequency. Residual = 2√ε V/√M² with the speckle-averaging option.</li>
-          <li><b>Sampling floor</b>: where the exit phase jumps between neighbouring angle samples (chaos, ray splitting), the floor cannot be resolved below about √π/(2√Na) (Na = 1024, 2048, 8192 by budget); the plateau there is an upper bound. The wavelength part is exact (tabulated harmonics, interpolated in x).</li>
+          <li><b>Angle samples and their intervals</b>: Na = 4096, 8192 or 32768 angle samples by budget (1024 in sweeps and scans), each standing for its dither interval Δθ. One probe ray at θ + Δθ tells whether the exit phase is smooth over the interval (same path): then the interval integral is Filon's, exact for a linear phase, weight sinc(Δφ/2). If the path changes inside, seven log-scale bisections (down to 10⁻¹³ rad) find the coherence width h over which the path and the phase (|Δφ| &lt; 1) hold; the interval then holds Δθ/h independent phasors and contributes a random term of rms √(h/Δθ). These weights enter the slow angle harmonics (|m| ≤ 8, the 0 Hz static floor first); the faster harmonics keep the point samples, whose power is the instantaneous fringe.</li>
+          <li><b>Sampling floor</b>: the random terms leave √(Σ (h/Δθ) |y|²)/Na (y: the sample's fringe term, with the wavelength kernel when both dithers run), far below the plain random-sampling floor √π/(2√Na) when the exit phase is scrambled on fine scales (strong chaos); a static floor at this level is a statistical estimate, an upper bound. Regular and mildly chaotic exits (smooth phase) are resolved exactly. The wavelength part is exact (tabulated harmonics, interpolated in x).</li>
           <li><b>Speckle diversity</b>: a fixed grid of frozen Gaussians (width = input radius) over offset and angle is traced once to the output port; a launch dither δ reweights them by ⟨g|E_in(δ)⟩, a wavelength step changes their phases k·OPL. Their fields add on exit channels of one mode (Δy Δ(n sin χ) = λ₀). Over the dither cycle (24 angle × 16 wavelength samples) G = Σ_t E_t E_t^†, N_eff = (tr G)²/‖G‖²_F, and the speckle contrast after averaging is 1/√N_eff of the frozen one. Approximations: no Herman–Kluk prefactor, no Gouy phase, beamlets as wide as the beam.</li>
           <li><b>Absorption</b>: A per ppm = 100 α Γ ⟨L⟩ with α of the strongest listed line; shot-noise NEC √(2qB/(P T))/A at 1 Hz, fringe NEC = 2√ε V_det/A.</li>
           <li><b>PDF export</b>: the PDF button on each figure redraws it as vector paths into a page of the same size (light theme) with the text in an embedded subset of DejaVu Sans Mono (Latin, Greek, super- and subscripts); jsPDF 2.5.1 is loaded from cdnjs on the first export, so exporting needs a network connection.</li>
@@ -1566,7 +1567,7 @@ const DitherLab = (() => {
     ctr_dn: 0, ctr_r: 150e-6, ctr_x: 0, ctr_y: 0, n_inc: 0, inc_ring: 1, inc_radius: 50e-6, inc_dn: 0.005, inc_sign: "both", inc_seed: 1,
     wavelength: 1.6537e-6, n_eff: 2, R_mirror: 0.995, gamma: 0.2, species: "CH4", P_in: 1e-3, f_parasitic: 1e-6, bandwidth: 1,
     dither: 2e-3, waveform: "sine", f_theta: 1000, dlam: 20e-12, lwave: "triangle", f_lambda: 1297, stray: 1, speckle_avg: 1,
-    n_u: 24, n_v: 72, n_samp: 2048, n_ftle: 300, chaos_grid: 0, map_n: 7, n_side: 12, pass_cap: 200, poin_s: 36, poin_p: 12, poin_hits: 150,
+    n_u: 24, n_v: 72, n_samp: 8192, n_ftle: 300, chaos_grid: 0, map_n: 7, n_side: 12, pass_cap: 200, poin_s: 36, poin_p: 12, poin_hits: 150,
   };
   const SPECIES = G.SPECIES;
 
@@ -1842,7 +1843,8 @@ const DitherLab = (() => {
     const pf = G.mediumPaths(mc, mc.cell.sIn), base = pf([theta], nPass).L[0][nPass - 1] * mc.n0;
     if (!Number.isFinite(base)) throw new Error("the centre ray does not reach the exit pass");
     const Lref = (1 - o.stray) * base, s = wave(Na, o.waveform);
-    const L = Na > 1 ? pf(Array.from(s, v => theta + A * v), nPass).L.map(r => r[nPass - 1]) : [base / mc.n0];
+    const th = Array.from(s, v => theta + A * v), P = nPass - 1, tr = Na > 1 ? pf(th, nPass) : null;
+    const L = tr ? tr.L.map(r => r[P]) : [base / mc.n0], ID = tr ? tr.ids.map(r => r[P]) : [0];
     const zr = new Float64Array(Na), zi = new Float64Array(Na), xs = new Float64Array(Na);
     let lost = 0, xlo = Infinity, xhi = -Infinity;
     for (let i = 0; i < Na; i++) {
@@ -1851,6 +1853,40 @@ const DitherLab = (() => {
       const D = v * mc.n0 - Lref, ph = k0 * D;
       zr[i] = Math.cos(ph); zi[i] = Math.sin(ph); xs[i] = k0 * D * o.dlam / lam;
       if (xs[i] < xlo) xlo = xs[i]; if (xs[i] > xhi) xhi = xs[i];
+    }
+    /* coherence of the exit phase over each sample's dither interval Δθ_i (the angle it stands for). Same path at
+       θ_i + Δθ_i: the phase is smooth, the interval integral is Filon's, weight sinc(Δφ/2) at the midpoint phase. Path
+       changes inside: the phase is scrambled beyond a coherence width h (largest probe step, bisected on a log scale
+       down to 1e-13 rad, with the same path and |Δφ| < 1); the interval then holds Δθ/h random phasors of width h and
+       contributes a random term of rms √(h/Δθ). Those terms set the sampling floor √(Σ h/Δθ)/Na. */
+    const wr = new Float64Array(Na), wi = new Float64Array(Na), H = new Float64Array(Na), dth = new Float64Array(Na), fScr = new Float64Array(Na);
+    let scr = [], floorSum = 0, nScr = 0, nRes = 0;
+    if (Na > 1) {
+      for (let i = 0; i < Na; i++) {
+        const t = (i + 0.5) / Na, dsdt = o.waveform === "sine" ? TAU * Math.abs(Math.cos(TAU * t)) : 2;
+        dth[i] = Math.max(A * dsdt / Na, A * (TAU / Na) ** 2 / 2);
+      }
+      const pr = pf(Array.from(th, (v, i) => v + dth[i]), nPass);
+      for (let i = 0; i < Na; i++) {
+        if (!zr[i] && !zi[i]) continue;
+        const L2 = pr.L[i][P];
+        if (Number.isFinite(L2) && pr.ids[i][P] === ID[i]) {
+          const dp = k0 * mc.n0 * (L2 - L[i]), x = 0.5 * dp, sc = Math.abs(x) < 1e-8 ? 1 : Math.sin(x) / x;
+          wr[i] = sc * Math.cos(x); wi[i] = sc * Math.sin(x); nRes++;
+        } else scr.push(i);
+      }
+      const coherent = (i, L2, id2) => Number.isFinite(L2) && id2 === ID[i] && Math.abs(k0 * mc.n0 * (L2 - L[i])) < 1;
+      const lo = new Float64Array(Na).fill(-13), hi = new Float64Array(Na);
+      for (const i of scr) hi[i] = Math.log10(dth[i]);
+      for (let it = 0; it < 7 && scr.length; it++) {               /* invariant: coherent at 10^lo, not at 10^hi */
+        const mid = scr.map(i => 0.5 * (lo[i] + hi[i])), r = pf(scr.map((i, q) => th[i] + 10 ** mid[q]), nPass);
+        scr.forEach((i, q) => { if (coherent(i, r.L[q][P], r.ids[q][P])) lo[i] = mid[q]; else hi[i] = mid[q]; });
+      }
+      for (let i = 0; i < Na; i++) {
+        if ((!zr[i] && !zi[i]) || wr[i] || wi[i]) continue;
+        H[i] = 10 ** lo[i]; const f = Math.min(H[i] / dth[i], 1);
+        wr[i] = Math.sqrt(f); fScr[i] = f; floorSum += f; nScr++;
+      }
     }
     const D0 = base - Lref, x0 = k0 * D0 * o.dlam / lam;
     if (!(xhi >= xlo)) { xlo = xhi = x0; }
@@ -1867,6 +1903,7 @@ const DitherLab = (() => {
     };
     const collect = (useAngle, useLam) => {
       const comp = new Map(), add = (F, r, i) => { const c = comp.get(F); if (c) { c[0] += r; c[1] += i; } else comp.set(F, [r, i]); };
+      let sf = 0;                                       /* sampling floor of this scenario: Σ f |y|² over the scrambled samples */
       const ns = useLam ? nmx : 0;
       for (let n = -ns; n <= ns; n++) {
         if (!useAngle) {
@@ -1874,15 +1911,20 @@ const DitherLab = (() => {
           add(n * fl, pr * br - pi * bi, pr * bi + pi * br);
           continue;
         }
-        const yr = new Float64Array(Na), yi = new Float64Array(Na);
+        /* point samples for the fast harmonics (their power is the instantaneous fringe); coherence-weighted samples for
+           the angle harmonics |m| ≤ 8, where the interval integral matters (the 0 Hz static floor first of all) */
+        const yr = new Float64Array(Na), yi = new Float64Array(Na), ur = new Float64Array(Na), ui = new Float64Array(Na);
         for (let i = 0; i < Na; i++) {
           if (!zr[i] && !zi[i]) continue;
           const [br, bi] = useLam ? bAt(xs[i], n) : [n ? 0 : 1, 0];
           yr[i] = zr[i] * br - zi[i] * bi; yi[i] = zr[i] * bi + zi[i] * br;
+          ur[i] = yr[i] * wr[i] - yi[i] * wi[i]; ui[i] = yr[i] * wi[i] + yi[i] * wr[i];
+          if (n === 0) sf += fScr[i] * (yr[i] * yr[i] + yi[i] * yi[i]);
         }
-        if (Na > 1) fft(yr, yi);
+        if (Na > 1) { fft(yr, yi); fft(ur, ui); }
         for (let k = 0; k < Na; k++) {
-          const m = k < Na / 2 ? k : k - Na, ph = -Math.PI * m / Na, cr = Math.cos(ph), ci = Math.sin(ph), r = yr[k] / Na, ii = yi[k] / Na;
+          const m = k < Na / 2 ? k : k - Na, ph = -Math.PI * m / Na, cr = Math.cos(ph), ci = Math.sin(ph), low = Na > 1 && Math.abs(m) <= 8;
+          const r = (low ? ur[k] : yr[k]) / Na, ii = (low ? ui[k] : yi[k]) / Na;
           add(m * fa + n * fl, r * cr - ii * ci, r * ci + ii * cr);
         }
       }
@@ -1899,13 +1941,14 @@ const DitherLab = (() => {
       }
       for (const [p, pf] of bins.values()) { F.push(pf / p); P.push(p); }
       const c0 = comp.get(0);
-      return { F, P, floor: c0 ? Math.hypot(c0[0], c0[1]) : 0, total: tot };
+      return { F, P, floor: c0 ? Math.hypot(c0[0], c0[1]) : 0, total: tot, sfloor: Math.sqrt(sf) / Na };
     };
-    const useA = Na > 1, sampFloor = useA ? Math.sqrt(Math.PI) / (2 * Math.sqrt(Na - lost || 1)) : 0, spectral = dl ? collect(false, true) : null;
-    /* with both dithers every angle sample carries the wavelength kernel K(x) ≈ K(x0), so the sampling floor scales with it */
-    return { none: { F: [0], P: [1], floor: 1, total: 1 }, angle: useA ? collect(true, false) : null, spectral,
-      both: useA || dl ? collect(useA, dl) : null, OPD: D0, OPL0: base, x_lambda: x0, Na, lost: lost / Na, sampFloor,
-      sampFloorBoth: useA ? sampFloor * (spectral ? spectral.floor : 1) : 0, fa, fl };
+    const useA = Na > 1, spectral = dl ? collect(false, true) : null, angle = useA ? collect(true, false) : null, both = useA || dl ? collect(useA, dl) : null;
+    const sampFloor = angle ? angle.sfloor : 0;
+    /* sampling floor of each scenario: √(Σ f |y|²)/Na over the scrambled samples (y with the wavelength kernel for both) */
+    return { none: { F: [0], P: [1], floor: 1, total: 1 }, angle, spectral, both, OPD: D0, OPL0: base, x_lambda: x0, Na, lost: lost / Na, sampFloor,
+      smooth: useA ? nRes / Na : 1, scrambled: useA ? nScr / Na : 0, cohWidth: nScr ? Math.exp(Array.from(H).filter(v => v > 0).reduce((a, v) => a + Math.log(v), 0) / nScr) : NaN,
+      sampFloorBoth: useA && both ? both.sfloor : 0, fa, fl };
   }
   /* rms residual fringe after a boxcar of length T (exact, or lobe-averaged envelope), with a fringe drift ω_d (rad/s) */
   function residual(spec, T, drift = 0, envelope = false) {
@@ -2130,7 +2173,7 @@ const DitherLab = (() => {
   function sweep(param, opts, onRow) {
     const sp = SWEEPS[opts.cell === "circle" ? "circle" : "herriott"][param];
     if (!sp) throw new Error(`cannot sweep ${param}`);
-    const base = Object.assign({}, DEFAULTS, opts, { n_u: Math.min(opts.n_u || 16, 16), n_v: Math.min(opts.n_v || 48, 48), n_samp: 800, n_side: 8 });
+    const base = Object.assign({}, DEFAULTS, opts, { n_u: Math.min(opts.n_u || 16, 16), n_v: Math.min(opts.n_v || 48, 48), n_samp: 1024, n_side: 8 });
     if (sp.need) for (const [k, v] of Object.entries(sp.need)) if (!base[k]) base[k] = v;
     const rows = [];
     for (const v of sp.values) {
@@ -2152,9 +2195,9 @@ const DitherLab = (() => {
   const Pl = PlanarEngine, G = GasEngine, D = DitherLab;
   const LAMS = { CH4: 1653.7262586923987e-9, NH3: 1531.6844239947554e-9, CO2: 1572.3344606971416e-9, H2O: 1528.9584734878601e-9 };
   const BUD = {
-    fast: { n_samp: 1024, n_u: 16, n_v: 48, n_side: 10, poin_s: 30, poin_p: 10, poin_hits: 120, map_n: 5 },
-    normal: { n_samp: 2048, n_u: 24, n_v: 72, n_side: 12, poin_s: 40, poin_p: 14, poin_hits: 180, map_n: 7 },
-    fine: { n_samp: 8192, n_u: 32, n_v: 120, n_side: 16, poin_s: 64, poin_p: 20, poin_hits: 260, map_n: 9 },
+    fast: { n_samp: 4096, n_u: 16, n_v: 48, n_side: 10, poin_s: 30, poin_p: 10, poin_hits: 120, map_n: 5 },
+    normal: { n_samp: 8192, n_u: 24, n_v: 72, n_side: 12, poin_s: 40, poin_p: 14, poin_hits: 180, map_n: 7 },
+    fine: { n_samp: 32768, n_u: 32, n_v: 120, n_side: 16, poin_s: 64, poin_p: 20, poin_hits: 260, map_n: 9 },
   };
   const CELLS = ["circle", "herriott"], NAME = { circle: "A · circular", herriott: "B · Herriott" };
 
@@ -2625,8 +2668,8 @@ onmessage = e => {
       const v = barVal(r, s, p), x = X(i + 0.5) - bw * n / 2 + j * bw;
       if (!(v > 0)) return;
       g.fillStyle = col; g.globalAlpha = 0.9 * a; g.fillRect(x + 1, Y(Math.max(v, lo)), bw - 2, Y(lo) - Y(Math.max(v, lo))); g.globalAlpha = 1;
-      if (bw >= 30) label(g, `${v <= 1.5 * barFloor(r, s, p) ? "≤" : ""}${sci(v, 2)}`, x + bw / 2, Y(Math.max(v, lo)) - 3, css("--ink"), "center", "bottom", 400);
-      else if (v <= 1.5 * barFloor(r, s, p)) label(g, "≤", x + bw / 2, Y(Math.max(v, lo)) - 3, css("--ink"), "center", "bottom", 400);
+      if (bw >= 30) label(g, `${v <= 3 * barFloor(r, s, p) ? "≤" : ""}${sci(v, 2)}`, x + bw / 2, Y(Math.max(v, lo)) - 3, css("--ink"), "center", "bottom", 400);
+      else if (v <= 3 * barFloor(r, s, p)) label(g, "≤", x + bw / 2, Y(Math.max(v, lo)) - 3, css("--ink"), "center", "bottom", 400);
     }));
     line(g, [[X(0), Y(Math.max(p.target, lo))], [X(nc), Y(Math.max(p.target, lo))]], css("--bad"), 1.2);
     let lx = X(0), ly = 12;
@@ -2704,7 +2747,7 @@ onmessage = e => {
       const chaotic = r.f_launch >= 0.5, best = SCEN.slice(1).map(([k]) => [k, residualAt(r, p, k)]).filter(([, v]) => Number.isFinite(v)).sort((a, b) => a[1] - b[1])[0];
       const both = residualAt(r, p, "both"), meets = both <= p.target;
       lines.push(`<div><b>${NAME[key]}</b>: ${chaotic ? "<b>chaotic</b>" : "regular"} launch (${fmt(100 * r.f_launch, 0)} % of the launch rays in the chaotic sea, FTLE ${sig(r.lam_ftle, 2)} per hit); ${fmt(100 * r.T, 0)} % detected after ${fmt(100 * r.L_mean, 1)} cm. After ${p.T >= 1 ? sig(p.T, 2) + " s" : sig(p.T * 1e3, 2) + " ms"} with both dithers the residual fringe is <b>${sci(both, 2)}</b> (${meets ? "meets" : "above"} the target ${sci(p.target, 2)})${best ? `; best scenario: ${best[0]}` : ""}. The dither averages over N_eff = <b>${fmt(r.N_eff, 1)}</b> speckle patterns (${fmt(r.M_spat, 1)} exit modes in use).</div>`);
-      if (r.spec && r.spec.both && r.spec.sampFloorBoth > 0 && r.spec.both.floor <= 2 * r.spec.sampFloorBoth) lines.push(`<div class="note">${NAME[key]}: the static floor with both dithers (${sci(r.spec.both.floor, 2)}) is at its angle-sampling floor (${sci(r.spec.sampFloorBoth, 2)}): the exit phase is chaotic over the angle dither, so this plateau is an upper bound; the fine budget lowers it.</div>`);
+      if (r.spec && r.spec.both && r.spec.sampFloorBoth > 0 && r.spec.both.floor <= 3 * r.spec.sampFloorBoth) lines.push(`<div class="note">${NAME[key]}: the static floor with both dithers (${sci(r.spec.both.floor, 2)}) is at its angle-sampling floor (${sci(r.spec.sampFloorBoth, 2)}): the exit phase is scrambled finer than the probes resolve for ${fmt(100 * r.spec.scrambled, 0)} % of the dither (coherence width ~${sci(r.spec.cohWidth, 1)} rad), so this plateau is an upper bound; the fine budget lowers it.</div>`);
       if (key === "herriott" && r.exit_pass < 0) lines.push(`<div class="note">The Herriott centre ray no longer returns to the window within the trace: the perturbations broke re-entrance.</div>`);
     }
     $("verdict").innerHTML = lines.join("");
@@ -2726,7 +2769,9 @@ onmessage = e => {
       ["Median finite-time Lyapunov exponent", r => sig(r.lam_ftle, 3)], ["Median MEGNO ⟨Y⟩ (2: regular)", r => fmt(r.Y_launch, 2)],
       ["grp", "Fringe: static floor V (T → ∞, no drift)"],
       ["No dither", () => "1"], ["Angle dither only", r => sci(r.V_theta, 3)], ["Spectral dither only", r => sci(r.V_lambda, 3)], ["Both", r => sci(r.V_joint, 3)],
-      ["Angle-sampling floor: angle only / both", r => `${sci(r.V_floor, 2)} / ${r.spec ? sci(r.spec.sampFloorBoth, 2) : "–"}`], ["Stray-path difference, wavelength depth x", r => `${fmt(r.OPD * 100, 1)} cm, ${fmt(r.x_lambda, 1)} rad`],
+      ["Angle-sampling floor: angle only / both", r => `${sci(r.V_floor, 2)} / ${r.spec ? sci(r.spec.sampFloorBoth, 2) : "–"}`],
+      ["Exit phase over the dither: smooth / scrambled", r => r.spec ? `${fmt(100 * r.spec.smooth, 0)} / ${fmt(100 * r.spec.scrambled, 0)} %` : "–"],
+      ["Coherence width of the scrambled exit phase", r => r.spec && Number.isFinite(r.spec.cohWidth) ? `${sci(r.spec.cohWidth, 2)} rad` : "–"], ["Stray-path difference, wavelength depth x", r => `${fmt(r.OPD * 100, 1)} cm, ${fmt(r.x_lambda, 1)} rad`],
       ["Residual after T, both (lobe-averaged)", r => sci(residualAt(r, p, "both"), 2)], ["Fringe suppression, both (static)", r => `${fmt(-20 * Math.log10(Math.max(r.V_det, 1e-15)), 1)} dB`],
       ["grp", "Visibility: static floor V, angle / spectral / both"],
       ["Regular cell", (r) => { const q = refOf(r.kind, "regular"); return q && !q.error ? `${sci(q.V_theta, 2)} / ${sci(q.V_lambda, 2)} / ${sci(q.V_joint, 2)}` : "…"; }],

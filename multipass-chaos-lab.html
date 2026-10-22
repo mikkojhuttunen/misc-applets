@@ -190,8 +190,11 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
           <input id="ctrX" type="range" min="-500" max="500" step="5" value="0"></div>
         <div class="ctl"><div class="row"><label for="ctrY">Central disk offset y</label><output id="ctrYOut"></output></div>
           <input id="ctrY" type="range" min="-500" max="500" step="5" value="0"></div>
-        <div class="ctl"><div class="row"><label for="nInc">Random inclusions</label><output id="nIncOut"></output></div>
-          <input id="nInc" type="range" min="0" max="40" step="1" value="0"></div>
+        <div class="ctl"><div class="row"><label for="nIncC">Random inclusions, circular cell</label><output id="nIncCOut"></output></div>
+          <input id="nIncC" type="range" min="0" max="40" step="1" value="8"></div>
+        <label class="check"><input id="incRing" type="checkbox" checked> only where the launch rays go (outside the caustic a sin θ)</label>
+        <div class="ctl"><div class="row"><label for="nIncH">Random inclusions, Herriott cell</label><output id="nIncHOut"></output></div>
+          <input id="nIncH" type="range" min="0" max="40" step="1" value="0"></div>
         <div class="ctl"><div class="row"><label for="incR">Inclusion radius</label><output id="incROut"></output></div>
           <input id="incR" type="range" min="10" max="200" step="5" value="50"></div>
         <div class="ctl"><div class="row"><label for="incDn">Inclusion |Δn|</label><output id="incDnOut"></output></div>
@@ -200,8 +203,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; }
           <select id="incSign"><option value="both" selected>random ±</option><option value="plus">all higher</option><option value="minus">all lower</option></select></div>
         <div class="ctl"><div class="row"><label for="incSeed">Placement seed</label><output id="incSeedOut"></output></div>
           <input id="incSeed" type="range" min="1" max="30" step="1" value="1"></div>
-        <label class="check"><input id="incC" type="checkbox" checked> in the circular cell</label>
-        <label class="check"><input id="incH" type="checkbox" checked> in the Herriott cell</label>
+        <p class="hint">A ray launched at θ from the normal never comes closer to the centre of a circular cell than a sin θ (the caustic, dotted in the view), so a disk at the centre is missed; disks in the ring between the caustic and the wall sit on the beam path, as the central disk does in the Herriott cell.</p>
       </fieldset>
 
       <fieldset>
@@ -1561,7 +1563,7 @@ const DitherLab = (() => {
     f_tilt_rms: 0, f_curv_rms: 0, f_seed: 1, f_sel: 0, f_sel_tilt: 0, f_sel_curv: 0,
     L: 10e-3, W: 1.5e-3, N: 14, M: 3, distinct: 1, port_width: 0, walls: 1,
     dR1: 0, dR2: 0, tilt1: 0, tilt2: 0, eps4: 0, ripple_a: 0, ripple_period: 0.5e-3, ripple_phase: 0, retune: 1,
-    ctr_dn: 0, ctr_r: 150e-6, ctr_x: 0, ctr_y: 0, n_inc: 0, inc_radius: 50e-6, inc_dn: 0.005, inc_sign: "both", inc_seed: 1,
+    ctr_dn: 0, ctr_r: 150e-6, ctr_x: 0, ctr_y: 0, n_inc: 0, inc_ring: 1, inc_radius: 50e-6, inc_dn: 0.005, inc_sign: "both", inc_seed: 1,
     wavelength: 1.6537e-6, n_eff: 2, R_mirror: 0.995, gamma: 0.2, species: "CH4", P_in: 1e-3, f_parasitic: 1e-6, bandwidth: 1,
     dither: 2e-3, waveform: "sine", f_theta: 1000, dlam: 20e-12, lwave: "triangle", f_lambda: 1297, stray: 1, speckle_avg: 1,
     n_u: 24, n_v: 72, n_samp: 2048, n_ftle: 300, chaos_grid: 0, map_n: 7, n_side: 12, pass_cap: 200, poin_s: 36, poin_p: 12, poin_hits: 150,
@@ -1626,8 +1628,25 @@ const DitherLab = (() => {
 
   /* index perturbations: the disk at the cell centre (ctr_dn, ctr_r, offset ctr_x, ctr_y) and random inclusions
      (GasEngine.placeInclusions); random disks touching the central one are dropped */
+  /* circular cell: random disks only in the ring the launch rays cross, between the caustic r_c = a sin θ (a: apothem,
+     θ: launch angle) and the wall, uniform in area, non-overlapping (mulberry32 stream as GasEngine.placeInclusions) */
+  function ringInclusions(cell, o) {
+    const m = cell.meta, R = o.inc_radius, gap = 0.5 * R, a = m.r * (m.nFacets ? Math.cos(Math.PI / m.nFacets) : 1);
+    const rIn = a * Math.sin(Math.abs(o.c_theta)) + R + gap, rOut = 0.97 * a - R - gap, u = Pl.mulberry32(o.inc_seed), out = { cx: [], cy: [], r: [], dn: [] };
+    if (rOut <= rIn) throw new Error("no room for inclusions between the caustic and the wall: lower the launch angle or the inclusion radius");
+    for (let tries = 0; out.cx.length < o.n_inc && tries < 400 * o.n_inc; tries++) {
+      const rho = Math.sqrt(rIn * rIn + (rOut * rOut - rIn * rIn) * u()), ph = 2 * Math.PI * u(), x = rho * Math.cos(ph), y = rho * Math.sin(ph);
+      let clash = false;
+      for (let i = 0; i < out.cx.length; i++) if ((x - out.cx[i]) ** 2 + (y - out.cy[i]) ** 2 < (2 * R + gap) ** 2) { clash = true; break; }
+      if (clash) continue;
+      const sg = o.inc_sign === "both" ? (u() < 0.5 ? -1 : 1) : o.inc_sign === "plus" ? 1 : -1;
+      out.cx.push(x); out.cy.push(y); out.r.push(R); out.dn.push(sg * o.inc_dn);
+    }
+    return out;
+  }
   function inclusions(cell, o) {
-    const inc = o.n_inc ? G.placeInclusions(cell, o.n_inc, o.inc_radius, o.inc_dn, o.inc_sign, o.inc_seed) : { cx: [], cy: [], r: [], dn: [] };
+    const inc = !o.n_inc ? { cx: [], cy: [], r: [], dn: [] } : o.cell === "circle" && o.inc_ring ? ringInclusions(cell, o)
+      : G.placeInclusions(cell, o.n_inc, o.inc_radius, o.inc_dn, o.inc_sign, o.inc_seed);
     if (o.ctr_dn && o.ctr_r > 0) {
       const m = cell.meta, x0 = o.ctr_x, y0 = o.ctr_y, R = o.ctr_r;
       const fits = m.kind === "circle" ? Math.hypot(x0, y0) + R < 0.97 * m.r * (m.nFacets ? Math.cos(Math.PI / m.nFacets) : 1)
@@ -2123,7 +2142,7 @@ const DitherLab = (() => {
     return { param, values: sp.values, rows };
   }
 
-  return { DEFAULTS, SWEEPS, circularCell, herriottCell, inclusions, setup, step, ftle, chaosMap, twin, poincare, wave, kernel, fft, waveHarmonics, fringeSpectrum, residual,
+  return { DEFAULTS, SWEEPS, circularCell, herriottCell, ringInclusions, inclusions, setup, step, ftle, chaosMap, twin, poincare, wave, kernel, fft, waveHarmonics, fringeSpectrum, residual,
     speckleTrace, weights, phases, field, nEff, statesFor, speckle, analyse, regular, noIndex, sweep };
 })();
 /* engine:end */
@@ -2140,7 +2159,7 @@ const DitherLab = (() => {
   const CELLS = ["circle", "herriott"], NAME = { circle: "A · circular", herriott: "B · Herriott" };
 
   function P() {
-    const dlv = +$("dL").value, drv = +$("drift").value, ch = $("incC").checked, hh = $("incH").checked, nInc = +$("nInc").value;
+    const dlv = +$("dL").value, drv = +$("drift").value;
     const common = Object.assign({ wavelength: LAMS[$("sp").value], species: $("sp").value, n_eff: +$("neff").value, R_mirror: +$("Rm").value, gamma: +$("gam").value,
       P_in: 1e-3 * 10 ** +$("Pin").value, dither: +$("dA").value * 1e-3, waveform: $("dWave").value, f_theta: +$("fA").value,
       dlam: dlv <= 0.005 ? 0 : 10 ** dlv * 1e-12, lwave: $("lWave").value, f_lambda: +$("fL").value, stray: +$("stray").value,
@@ -2150,11 +2169,11 @@ const DitherLab = (() => {
     const circle = Object.assign({}, common, { cell: "circle", c_radius: +$("cR").value * 1e-3, n_facets: nf < 3 ? 0 : nf, facet_curv: +$("cFc").value,
       c_theta: +$("cTh").value * Math.PI / 180, c_port: +$("cPw").value * 1e-6, c_waist: +$("cWa").value * 1e-6, out_frac: +$("cOf").value,
       same_port: $("cSame").checked ? 1 : 0, f_tilt_rms: +$("cTilt").value * 1e-3, f_curv_rms: +$("cCurv").value, f_seed: +$("cSeed").value,
-      f_sel: +$("cSel").value, f_sel_tilt: +$("cSelT").value * 1e-3, f_sel_curv: +$("cSelC").value, ctr_dn: +$("cDn").value, ctr_r: +$("cDr").value * 1e-6, n_inc: ch ? nInc : 0 });
+      f_sel: +$("cSel").value, f_sel_tilt: +$("cSelT").value * 1e-3, f_sel_curv: +$("cSelC").value, ctr_dn: +$("cDn").value, ctr_r: +$("cDr").value * 1e-6, n_inc: +$("nIncC").value, inc_ring: $("incRing").checked ? 1 : 0 });
     const herriott = Object.assign({}, common, { cell: "herriott", L: +$("hL").value * 1e-3, W: +$("hW").value * 1e-3, N: +$("hN").value,
       M: Math.min(+$("hM").value, +$("hN").value / 2 - 1), distinct: $("hDist").checked ? 1 : 0, port_width: +$("hPw").value * 1e-6, walls: $("hWalls").checked ? 1 : 0,
       retune: $("hRet").checked ? 1 : 0, dR1: +$("hDR1").value / 100, dR2: +$("hDR2").value / 100, tilt1: +$("hT1").value * 1e-3, tilt2: +$("hT2").value * 1e-3,
-      eps4: +$("hE4").value, ripple_a: +$("hRa").value * 1e-6, ripple_period: +$("hRl").value * 1e-3, ctr_dn: +$("hDn").value, ctr_r: +$("hDr").value * 1e-6, n_inc: hh ? nInc : 0 });
+      eps4: +$("hE4").value, ripple_a: +$("hRa").value * 1e-6, ripple_period: +$("hRl").value * 1e-3, ctr_dn: +$("hDn").value, ctr_r: +$("hDr").value * 1e-6, n_inc: +$("nIncH").value });
     return { circle, herriott, drift: drv <= -3 ? 0 : 10 ** drv, T: 10 ** +$("avgT").value, target: 10 ** +$("tgt").value, eps: 10 ** +$("fp").value };
   }
 
@@ -2356,6 +2375,10 @@ onmessage = e => {
     const c = S.mc.cell, m = c.meta, fig = $("figure").checked, [g, w, h] = fit(cv);
     const R = m.r * (fig ? 1.02 : 1.1), s = Math.min(w, h) / 2 / R, X = x => w / 2 + x * s, Y = y => h / 2 - y * s;
     drawInclusions(g, S.mc, X, Y, s, s);
+    if (!fig) {                                         /* caustic of the launch: a sin θ */
+      const rc = m.r * (m.nFacets ? Math.cos(Math.PI / m.nFacets) : 1) * Math.sin(Math.abs(p.circle.c_theta));
+      g.setLineDash([2, 4]); g.strokeStyle = css("--muted"); g.lineWidth = 1; g.beginPath(); g.arc(X(0), Y(0), rc * s, 0, 2 * Math.PI); g.stroke(); g.setLineDash([]);
+    }
     const nb = +$("nBeams").value, A = p.circle.dither, th = r && !r.error ? r.theta : S.theta, cols = BEAM_COLS();
     const bm = beams(S, th, A, nb, +$("nHits").value);
     g.lineJoin = "round"; g.lineCap = "round";
@@ -2819,18 +2842,18 @@ onmessage = e => {
     set("hE4", (+$("hE4").value).toFixed(3)); set("hRa", `${(+$("hRa").value).toFixed(2)} µm`);
     set("hRl", `${(+$("hRl").value).toFixed(2)} mm · K = ${(8 * Math.PI ** 2 * p.herriott.ripple_a * p.herriott.L / p.herriott.ripple_period ** 2).toFixed(2)}`);
     set("hDn", (+$("hDn").value).toFixed(4)); set("hDr", `${$("hDr").value} µm`);
-    set("ctrX", `${$("ctrX").value} µm`); set("ctrY", `${$("ctrY").value} µm`); set("nInc", $("nInc").value); set("incR", `${$("incR").value} µm`);
+    set("ctrX", `${$("ctrX").value} µm`); set("ctrY", `${$("ctrY").value} µm`); set("nIncC", $("nIncC").value); set("nIncH", $("nIncH").value); set("incR", `${$("incR").value} µm`);
     set("incDn", sig(p.circle.inc_dn, 2)); set("incSeed", $("incSeed").value);
     set("neff", (+$("neff").value).toFixed(2)); set("Rm", (+$("Rm").value).toFixed(4)); set("gam", (+$("gam").value).toFixed(2)); set("Pin", `${sig(p.circle.P_in * 1e3, 2)} mW`);
     set("dA", `${(+$("dA").value).toFixed(2)} mrad`); set("dL", p.circle.dlam ? `${sig(p.circle.dlam * 1e12, 3)} pm (${sig(p.circle.dlam * 299792458 / p.circle.wavelength ** 2 / 1e9, 3)} GHz)` : "off");
     set("stray", (+$("stray").value).toFixed(2)); set("fp", sci(p.eps, 2)); set("drift", p.drift ? `${sig(p.drift, 2)} rad/s` : "none");
     set("avgT", p.T >= 1 ? `${sig(p.T, 3)} s` : p.T >= 1e-3 ? `${sig(p.T * 1e3, 3)} ms` : `${sig(p.T * 1e6, 3)} µs`); set("tgt", sci(p.target, 2));
     const nf = +$("cNf").value; $("cSel").max = Math.max(0, (nf < 3 ? 24 : nf) - 1);
-    ["incR", "incDn", "incSign", "incSeed"].forEach(id => { $(id).disabled = !+$("nInc").value; });
+    ["incR", "incDn", "incSign", "incSeed"].forEach(id => { $(id).disabled = !+$("nIncC").value && !+$("nIncH").value; }); $("incRing").disabled = !+$("nIncC").value;
   }
   let timer = null;
   const HEAVY = ["cR", "cNf", "cFc", "cTh", "cPw", "cWa", "cOf", "cSame", "cTilt", "cCurv", "cSeed", "cSel", "cSelT", "cSelC", "cDn", "cDr", "hL", "hW", "hN", "hM", "hPw", "hDist", "hWalls", "hRet",
-    "hDR1", "hDR2", "hT1", "hT2", "hE4", "hRa", "hRl", "hDn", "hDr", "ctrX", "ctrY", "nInc", "incR", "incDn", "incSign", "incSeed", "incC", "incH", "sp", "neff", "Rm", "gam", "Pin",
+    "hDR1", "hDR2", "hT1", "hT2", "hE4", "hRa", "hRl", "hDn", "hDr", "ctrX", "ctrY", "nIncC", "nIncH", "incRing", "incR", "incDn", "incSign", "incSeed", "sp", "neff", "Rm", "gam", "Pin",
     "dA", "dWave", "fA", "dL", "lWave", "fL", "stray", "spk", "bud"];
   const LIGHT = ["fp", "drift", "avgT", "tgt", "nBeams", "nHits", "band", "stretch", "figure", "cmpSel"];
   function update() { sync(); res = { circle: null, herriott: null }; drawAll(); clearTimeout(timer); timer = setTimeout(request, 200); }

@@ -1,0 +1,252 @@
+{
+ "generated": {
+  "script": "cmpc-sim/scripts/fig6_spectra_noise.py",
+  "date": "2026-10-22T21:05:50",
+  "git_commit": "4a25855",
+  "outputs": [
+   "fig6_spectra_noise.pdf",
+   "fig6_spectra_noise.png"
+  ]
+ },
+ "figure": {
+  "width_cm": 22.0,
+  "height_cm": 7.6,
+  "a_width_share": 0.6,
+  "strip_headroom": 1.4,
+  "font": "Liberation Sans",
+  "font_size_pt": 12,
+  "margins_pt": {
+   "left": 45.2,
+   "between": 67.7,
+   "right": 39.0,
+   "top": 17.1,
+   "bottom": 30.5
+  },
+  "png_dpi": 200
+ },
+ "panel_a": {
+  "spectra": {
+   "method": "line-by-line Voigt from cached HITRAN records (HITRAN/hitran_lbl.py), natural abundance",
+   "temperature_K": 310.0,
+   "pressure_atm": 1.0,
+   "line_wing_cutoff_cm": 25.0,
+   "wing_pedestal_subtracted": true,
+   "scan_full_width_cm": 1.0,
+   "scan_full_width_GHz": 29.9792458,
+   "grid_points": 1201,
+   "analyte_ppm": 1.0,
+   "background_mole_fractions": {
+    "H2O": 0.06,
+    "CO2": 0.045,
+    "CH4 (non-CH4 strips, where cached)": 1.9e-06
+   }
+  },
+  "noise_overlay": {
+   "averaging_time_s": 1.0,
+   "opacity": 0.75,
+   "seed": 6,
+   "white_shot_noise": true,
+   "model": "sum over the cell's detected exit paths L_k of sqrt(W_k) cos(2 pi nu n_eff L_k / c + random phase), scaled to the rms residual of panel (b) at the averaging time, divided by Gamma <L>",
+   "mode_colours": {
+    "none": "C4",
+    "angle": "C2",
+    "spectral": "C6",
+    "both": "k"
+   }
+  },
+  "strips": [
+   {
+    "key": "NH3",
+    "species": "NH3",
+    "nu_center_cm": 6528.77,
+    "lambda_um": 1.5316820779411742,
+    "colour": "C0",
+    "peak_nu_cm": 6528.774166666667,
+    "alpha_per_ppm_cm": 2.2656522977454855e-07,
+    "background_at_line_cm": 1.0537932680248972e-06,
+    "background_gases": [
+     "H2O",
+     "CO2"
+    ],
+    "noise_overlays": [
+     "angle",
+     "both"
+    ],
+    "band": null,
+    "hitran_files": [
+     "HITRAN/hitran_data/CO2_6480_6620.data",
+     "HITRAN/hitran_data/H2O_6480_6620.data",
+     "HITRAN/hitran_data/NH3_6480_6620.data"
+    ]
+   },
+   {
+    "key": "CH4 1.6",
+    "species": "CH4",
+    "nu_center_cm": 6114.652,
+    "lambda_um": 1.6354160465714156,
+    "colour": "C0",
+    "peak_nu_cm": 6114.652833333334,
+    "alpha_per_ppm_cm": 1.5476510393032686e-07,
+    "background_at_line_cm": 2.0158977160974685e-08,
+    "background_gases": [
+     "H2O",
+     "CO2"
+    ],
+    "noise_overlays": [
+     "angle",
+     "both"
+    ],
+    "band": null,
+    "hitran_files": [
+     "HITRAN/hitran_data/CH4_6040_6180.data",
+     "HITRAN/hitran_data/CO2_6040_6180.data",
+     "HITRAN/hitran_data/H2O_6040_6180.data"
+    ]
+   },
+   {
+    "key": "CH4 3.3",
+    "species": "CH4",
+    "nu_center_cm": 3017.8,
+    "lambda_um": 3.3136722115448336,
+    "colour": "C1",
+    "peak_nu_cm": 3017.8,
+    "alpha_per_ppm_cm": 3.6136895437582834e-05,
+    "background_at_line_cm": 8.837855429074212e-06,
+    "background_gases": [
+     "H2O",
+     "CO2"
+    ],
+    "noise_overlays": [
+     "angle",
+     "both"
+    ],
+    "band": null,
+    "hitran_files": [
+     "HITRAN/hitran_data/CH4_2950_3100.data",
+     "HITRAN/hitran_data/CO2_2950_3100.data",
+     "HITRAN/hitran_data/H2O_2950_3100.data"
+    ]
+   },
+   {
+    "key": "C2H6",
+    "species": "C2H6",
+    "nu_center_cm": 2996.852,
+    "lambda_um": 3.3368347853013764,
+    "colour": "C1",
+    "peak_nu_cm": 2996.8528333333334,
+    "alpha_per_ppm_cm": 3.317467160856552e-05,
+    "background_at_line_cm": 1.0719943111599259e-05,
+    "background_gases": [
+     "H2O",
+     "CO2",
+     "CH4"
+    ],
+    "noise_overlays": [
+     "angle",
+     "both"
+    ],
+    "band": null,
+    "hitran_files": [
+     "HITRAN/hitran_data/C2H6_2880_3000.data",
+     "HITRAN/hitran_data/CH4_2950_3100.data",
+     "HITRAN/hitran_data/CO2_2880_3000.data",
+     "HITRAN/hitran_data/CO2_2950_3100.data",
+     "HITRAN/hitran_data/H2O_2880_3000.data",
+     "HITRAN/hitran_data/H2O_2950_3100.data"
+    ]
+   },
+   {
+    "key": "NO",
+    "species": "NO",
+    "nu_center_cm": 1900.076,
+    "lambda_um": 5.262947376841768,
+    "colour": "C3",
+    "peak_nu_cm": 1900.0751666666667,
+    "alpha_per_ppm_cm": 1.6345572289327283e-05,
+    "background_at_line_cm": 4.301729715521943e-05,
+    "background_gases": [
+     "H2O",
+     "CO2"
+    ],
+    "noise_overlays": [
+     "angle",
+     "both"
+    ],
+    "band": null,
+    "hitran_files": [
+     "HITRAN/hitran_data/CO2_1860_1930.data",
+     "HITRAN/hitran_data/H2O_1860_1930.data",
+     "HITRAN/hitran_data/NO_1860_1930.data"
+    ]
+   }
+  ]
+ },
+ "panel_b": {
+  "curves": [
+   "none",
+   "angle",
+   "spectral",
+   "both",
+   "regular",
+   "shot",
+   "total"
+  ],
+  "marked_time_s": 1.0,
+  "cell": {
+   "source": "Multipass Chaos Lab (claude.ai artifact TLZGwP3Q27qcztDTy5qJGT), DitherLab engine",
+   "kind": "circular, chaotic (index inclusions)",
+   "radius_m": 0.002,
+   "facets": 24,
+   "launch_deg": 20.0,
+   "n_eff": 2,
+   "mirror_R": 0.995,
+   "Gamma": 0.2,
+   "L_mean_cm": 11.126207749408657,
+   "Gamma_L_cm": 2.2252415498817313,
+   "transmission": 0.2237452783871819,
+   "speckle_grains_M2": 314.3182283308637,
+   "inclusions": {
+    "n": 16,
+    "radius_m": 5e-05,
+    "dn": 0.01,
+    "sign": "both",
+    "seed": 1
+   }
+  },
+  "regular_reference": "same cell, flat facets, no inclusions",
+  "dithers": {
+   "angle": {
+    "amplitude_rad": 0.002,
+    "waveform": "sine",
+    "rate_Hz": 1000
+   },
+   "wavelength": {
+    "amplitude_m": 1.9952623149688796e-11,
+    "waveform": "triangle",
+    "rate_Hz": 1297
+   }
+  },
+  "stray_light": {
+   "power_fraction_eps": 1e-06,
+   "path_share": 1,
+   "fringe_drift_rad_s": 0.1
+  },
+  "averaging": "boxcar of length T, lobe-averaged; residual 2 sqrt(eps) V(T) / sqrt(M2)",
+  "shot_noise": {
+   "input_power_W": 0.001,
+   "formula": "sqrt(q / (P_in T_cell T))"
+  },
+  "ppb_axis": {
+   "line": "NH3 6528.77 cm^-1",
+   "alpha_per_ppm_cm": 2.2656522977454855e-07
+  }
+ },
+ "results": {
+  "nec_ppb_at_1s": {
+   "total": 229.10936676516377,
+   "shot": 53.84654416386439,
+   "fringe_both": 222.69183106064608,
+   "fringe_both_regular": 1101.3036529829533
+  }
+ }
+}

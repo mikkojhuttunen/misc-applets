@@ -121,7 +121,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       <div class="panel">
         <h2>Settings for fig6_spectra_noise.py</h2>
         <pre id="py"></pre>
-        <div class="btns"><button type="button" id="copyPy">Copy settings</button><button type="button" id="saveSvg">Download SVG</button><span class="status" id="copyStatus"></span></div>
+        <div class="btns"><button type="button" id="copyPy">Copy settings</button><button type="button" id="saveSvg">Download SVG</button><button type="button" id="saveSet">Download settings (.json)</button><span class="status" id="copyStatus"></span></div>
         <p class="hint">Paste the settings over the block of the same names near the top of <span class="mono">cmpc-sim/scripts/fig6_spectra_noise.py</span>, then run <span class="mono">make fig6</span>. The background-gas checkboxes are preview only. The script draws its own noise realisation with the same statistics, so the wiggles differ in detail from this preview.</p>
       </div>
     </div>
@@ -354,6 +354,48 @@ B_CURVES = [${bcur}]`;
   /* SVG download through the viewer's save dialog (downloads capability); the file carries its physical size in cm */
   let downloads = null;
   (async () => { try { downloads = await window.claude?.use?.("downloads"); } catch { downloads = null; } })();
+  /* every setting behind the current figure, in the same structure as the script's fig6_settings.json */
+  function settingsNow() {
+    const T = 10 ** +$("avgT").value, ppm = +(10 ** +$("ppm").value).toPrecision(2), c = D.chaos.circle;
+    const bgOn = { H2O: $("bgH2O").checked, CO2: $("bgCO2").checked, CH4: $("bgCH4").checked };
+    const tv = Math.hypot(interpLog(cur.env.both, 1), shotAt(1)), ppbAt1 = a => a / (GL * aNH3) * 1e3;
+    return {
+      generated: { tool: "Fig. 6 Playground (claude.ai artifact DAmsoaZKBYVnf72pbmD68f)", date: new Date().toISOString().slice(0, 19), outputs: [`fig6_${$("figW").value}x${$("figH").value}cm.svg`] },
+      figure: { width_cm: +$("figW").value, height_cm: +$("figH").value, a_width_share: +$("aShare").value, strip_headroom: +$("head").value,
+        font: "Arial", font_size_pt: FS, margins_pt: { left: ML, between: GAP, right: MR, top: MT_A, bottom: MB } },
+      panel_a: {
+        spectra: { method: "line-by-line Voigt from cached HITRAN records (HITRAN/hitran_lbl.py), natural abundance", temperature_K: 310, pressure_atm: 1,
+          line_wing_cutoff_cm: 25, wing_pedestal_subtracted: true, scan_full_width_cm: 1, scan_full_width_GHz: 29.9792458, grid_points: nh3.x_ghz.length,
+          analyte_ppm: ppm, background_mole_fractions: Object.fromEntries(Object.entries(D.strips[0].bg_x).filter(([g]) => bgOn[g])), dashed_analyte_line: $("anaLine").checked },
+        noise_overlay: { averaging_time_s: +T.toPrecision(3), opacity: +$("alpha").value, trace_width: +$("lw").value, seed: Math.max(1, Math.round(+$("seed").value) || 1),
+          white_shot_noise: $("shotOn").checked, model: "sum over the cell's detected exit paths L_k of sqrt(W_k) cos(2 pi nu n_eff L_k / c + random phase), scaled to the rms residual of panel (b) at the averaging time, divided by Gamma <L>",
+          mode_colours: MODE_COL },
+        strips: D.strips.map(st => ({ key: st.key, species: st.species, nu_center_cm: st.nu0, lambda_um: st.lam_um, colour: STRIP[st.key][1],
+          alpha_per_ppm_cm: Math.max(...st.analyte_per_ppm), background_gases: Object.keys(st.bg).filter(g => bgOn[g]),
+          noise_overlays: state.ov[st.key] || [], band: state.band[st.key] || null, hitran_files: st.hitran_files })),
+      },
+      panel_b: {
+        curves: B_ALL.filter(([k]) => $("b-" + k).checked).map(([k]) => k), marked_time_s: $("bMark").checked ? +T.toPrecision(3) : null,
+        cell: { source: D.chaos.source, kind: "circular, chaotic (index inclusions)", radius_m: c.c_radius, facets: c.n_facets, launch_deg: c.c_theta * 180 / Math.PI,
+          n_eff: D.n_eff, mirror_R: c.R_mirror, Gamma: cur.gamma, L_mean_cm: cur.L_mean_m * 100, Gamma_L_cm: GL, transmission: cur.T_trans, speckle_grains_M2: cur.M2,
+          inclusions: { n: c.n_inc, radius_m: c.inc_radius, dn: c.inc_dn, sign: c.inc_sign, seed: c.inc_seed } },
+        regular_reference: "same cell, flat facets, no inclusions",
+        dithers: { angle: { amplitude_rad: c.dither, waveform: c.waveform, rate_Hz: c.f_theta }, wavelength: { amplitude_m: c.dlam, waveform: c.lwave, rate_Hz: c.f_lambda } },
+        stray_light: { power_fraction_eps: c.f_parasitic, path_share: c.stray, fringe_drift_rad_s: D.chaos.drift_rad_s },
+        averaging: "boxcar of length T, lobe-averaged; residual 2 sqrt(eps) V(T) / sqrt(M2)",
+        shot_noise: { input_power_W: D.P_in, formula: "sqrt(q / (P_in T_cell T))" },
+        ppb_axis: { line: "NH3 6528.77 cm^-1", alpha_per_ppm_cm: aNH3 },
+      },
+      results: { nec_ppb_at_1s: { total: ppbAt1(tv), shot: ppbAt1(shotAt(1)), fringe_both: ppbAt1(interpLog(cur.env.both, 1)), fringe_both_regular: ppbAt1(interpLog(reg.env.both, 1)) } },
+      script_settings: $("py").textContent,
+    };
+  }
+  $("saveSet").onclick = async () => {
+    const filename = `fig6_settings_${$("figW").value}x${$("figH").value}cm.json`;
+    if (!downloads) { $("copyStatus").textContent = "Downloads are not available in this view; open the artifact in claude.ai."; return; }
+    try { await downloads.save({ filename, data: JSON.stringify(settingsNow(), null, 1) }); $("copyStatus").textContent = `Saved ${filename}.`; }
+    catch (e) { const c = e && e.code; $("copyStatus").textContent = c === "declined" ? "Download cancelled." : c === "rate_limited" ? "A save dialog is already open; try again in a moment." : "Downloads are not available in this view."; }
+  };
   $("saveSvg").onclick = async () => {
     const fw = +$("figW").value, fh = +$("figH").value;
     const svg = '<?xml version="1.0" encoding="UTF-8"?>\n' + lastSvg.replace("<svg ", `<svg width="${fw}cm" height="${fh}cm" `);

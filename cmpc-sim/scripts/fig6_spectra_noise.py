@@ -22,7 +22,7 @@ measurement against averaging time.
 All text Arial 12 pt (Liberation Sans, metrically identical, where Arial is not installed); size FIG_W_CM x FIG_H_CM, margins
 fixed in inches so the text keeps its spacing at any size.
 
-Writes results/figs_prelim/fig6_spectra_noise.pdf and .png."""
+Writes results/figs_prelim/fig6_spectra_noise.pdf and .png, and fig6_settings.json with every setting behind them."""
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "HITRAN"))
 import json
 from pathlib import Path
@@ -163,5 +163,53 @@ fig.savefig(out / "fig6_spectra_noise.pdf"); fig.savefig(out / "fig6_spectra_noi
 json.dump(dict(lines=tab, cell=dict(Gamma=cur["gamma"], L_mean_cm=cur["L_mean_m"] * 100, T_cell=cur["T_trans"], M2=cur["M2"]),
                nec_ppb_1s=dict(total=ppb(total[i1]), shot=ppb(shot[i1]), fringe_both=ppb(both[i1]),
                                fringe_both_regular=ppb(reg["scen"]["both"]["env"][i1]))), open(out / "fig6_spectra_noise.json", "w"), indent=1)
+
+# ------------------------------------------------------------------ every setting behind the figure, with provenance
+import datetime, subprocess
+try:
+    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or None
+except OSError:
+    commit = None
+cs = d["settings"]["circle"]
+strips = []
+for (lab, sp, nu0, cc, key), t in zip(LINES, tab):
+    gases = [sp] + list(BG) + (["CH4"] if sp != "CH4" and hl.find_tables("CH4", nu0 - 0.5, nu0 + 0.5) else [])
+    strips.append(dict(key=key, species=sp, nu_center_cm=nu0, lambda_um=1e4 / nu0, colour=cc, peak_nu_cm=t["nu_cm"],
+                       alpha_per_ppm_cm=t["alpha_per_ppm_cm"], background_at_line_cm=t["background_at_line_cm"],
+                       background_gases=gases[1:], noise_overlays=OVERLAY.get(key, []), band=OVERLAY_BAND.get(key),
+                       hitran_files=sorted({str(f.relative_to(ROOT.parent)) for g in gases for f in hl.find_tables(g, nu0 - 0.5, nu0 + 0.5)})))
+settings = dict(
+    generated=dict(script="cmpc-sim/scripts/fig6_spectra_noise.py", date=datetime.datetime.now().isoformat(timespec="seconds"), git_commit=commit,
+                   outputs=["fig6_spectra_noise.pdf", "fig6_spectra_noise.png"]),
+    figure=dict(width_cm=FIG_W_CM, height_cm=FIG_H_CM, a_width_share=A_SHARE, strip_headroom=HEADROOM, font=FONT, font_size_pt=FS,
+                margins_pt=dict(left=ML * 72, between=GAP * 72, right=MR * 72, top=MT_A * 72, bottom=MB * 72), png_dpi=200),
+    panel_a=dict(
+        spectra=dict(method="line-by-line Voigt from cached HITRAN records (HITRAN/hitran_lbl.py), natural abundance",
+                     temperature_K=310.0, pressure_atm=1.0, line_wing_cutoff_cm=WING, wing_pedestal_subtracted=True,
+                     scan_full_width_cm=1.0, scan_full_width_GHz=1.0 * GHZ, grid_points=1201, analyte_ppm=ANALYTE_PPM,
+                     background_mole_fractions={**BG, "CH4 (non-CH4 strips, where cached)": CH4_AMBIENT}),
+        noise_overlay=dict(averaging_time_s=T_OVERLAY, opacity=OVERLAY_ALPHA, seed=OVERLAY_SEED, white_shot_noise=True,
+                           model="sum over the cell's detected exit paths L_k of sqrt(W_k) cos(2 pi nu n_eff L_k / c + random phase), "
+                                 "scaled to the rms residual of panel (b) at the averaging time, divided by Gamma <L>",
+                           mode_colours={k: v[0] for k, v in MODE_STYLE.items()}),
+        strips=strips),
+    panel_b=dict(
+        curves=B_CURVES, marked_time_s=1.0,
+        cell=dict(source=d["settings"]["source"], kind="circular, chaotic (index inclusions)", radius_m=cs["c_radius"], facets=cs["n_facets"],
+                  launch_deg=float(np.degrees(cs["c_theta"])), n_eff=n_eff, mirror_R=cs["R_mirror"], Gamma=cur["gamma"],
+                  L_mean_cm=cur["L_mean_m"] * 100, Gamma_L_cm=GL, transmission=cur["T_trans"], speckle_grains_M2=cur["M2"],
+                  inclusions=dict(n=cs["n_inc"], radius_m=cs["inc_radius"], dn=cs["inc_dn"], sign=cs["inc_sign"], seed=cs["inc_seed"])),
+        regular_reference="same cell, flat facets, no inclusions",
+        dithers=dict(angle=dict(amplitude_rad=cs["dither"], waveform=cs["waveform"], rate_Hz=cs["f_theta"]),
+                     wavelength=dict(amplitude_m=cs["dlam"], waveform=cs["lwave"], rate_Hz=cs["f_lambda"])),
+        stray_light=dict(power_fraction_eps=cs["f_parasitic"], path_share=cs["stray"], fringe_drift_rad_s=d["settings"]["drift_rad_s"]),
+        averaging="boxcar of length T, lobe-averaged; residual 2 sqrt(eps) V(T) / sqrt(M2)",
+        shot_noise=dict(input_power_W=P_in, formula="sqrt(q / (P_in T_cell T))"),
+        ppb_axis=dict(line="NH3 6528.77 cm^-1", alpha_per_ppm_cm=a_nh3)),
+    results=dict(nec_ppb_at_1s=dict(total=ppb(total[i1]), shot=ppb(shot[i1]), fringe_both=ppb(both[i1]),
+                                    fringe_both_regular=ppb(reg["scen"]["both"]["env"][i1]))),
+)
+json.dump(settings, open(out / "fig6_settings.json", "w"), indent=1, ensure_ascii=False)
+print("settings:", out / "fig6_settings.json")
 for t in tab: print("%-14s %.3f cm-1  alpha/ppm=%.2e  background at line=%.2e" % (t["line"], t["nu_cm"], t["alpha_per_ppm_cm"], t["background_at_line_cm"]))
 print("NH3 NEC at 1 s: total %.0f ppb (shot %.0f, fringe %.0f; regular cell fringe %.0f)" % (ppb(total[i1]), ppb(shot[i1]), ppb(both[i1]), ppb(reg["scen"]["both"]["env"][i1])))

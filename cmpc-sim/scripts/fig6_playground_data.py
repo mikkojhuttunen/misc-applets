@@ -21,13 +21,17 @@ for key, sp, nu0, _ in LINES:
         if (g == "CH4" and sp == "CH4") or not hl.find_tables(g, nu.min(), nu.max()):
             continue
         bg[g] = r(hl.alpha(nu, g, xg, wing_cm=WING))
-    strips.append(dict(key=key, species=sp, nu0=nu0, lam_um=1e4 / nu0, x_ghz=r((nu - nu0) * GHZ),
+    files = sorted({str(f.relative_to(ROOT.parent)) for g in [sp, *bg] for f in hl.find_tables(g, nu.min(), nu.max())})
+    strips.append(dict(key=key, species=sp, nu0=nu0, lam_um=1e4 / nu0, x_ghz=r((nu - nu0) * GHZ), hitran_files=files,
                        analyte_per_ppm=r(hl.alpha(nu, sp, 1e-6, wing_cm=WING)), bg=bg, bg_x=BG))
 d = json.load(open(ROOT / "data" / "chaoslab_nh3.json"))
 cell = lambda c: dict(gamma=c["gamma"], L_mean_m=c["L_mean_m"], T_trans=c["T_trans"], M2=c["M2"], Ls_m=r(c["Ls_m"]), Ws=r(c["Ws"]),
                       env={k: r(v["env"]) for k, v in c["scen"].items()}, floor={k: v["floor"] for k, v in c["scen"].items()})
 out = dict(strips=strips, T=r(d["T"]), P_in=d["settings"]["circle"]["P_in"], n_eff=d["settings"]["circle"]["n_eff"],
-           eps=d["settings"]["circle"]["f_parasitic"], current=cell(d["cells"]["circle_current"]), regular=cell(d["cells"]["circle_regular"]))
+           eps=d["settings"]["circle"]["f_parasitic"], current=cell(d["cells"]["circle_current"]), regular=cell(d["cells"]["circle_regular"]),
+           chaos=dict(source=d["settings"]["source"], drift_rad_s=d["settings"]["drift_rad_s"],
+                      circle={k: d["settings"]["circle"][k] for k in ("c_radius", "n_facets", "c_theta", "R_mirror", "dither", "waveform", "f_theta",
+                                                                       "dlam", "lwave", "f_lambda", "f_parasitic", "stray", "n_inc", "inc_radius", "inc_dn", "inc_sign", "inc_seed")}))
 p = ROOT / "results" / "figs_prelim" / "fig6_playground_data.json"; p.write_text(json.dumps(out, separators=(",", ":")))
 print(p, p.stat().st_size // 1024, "kB")
 tpl = Path(__file__).with_name("fig6_playground_template.html").read_text()

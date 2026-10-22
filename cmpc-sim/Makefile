@@ -9,4 +9,4 @@ multibeam:       ; $(PY) scripts/multibeam_nir.py && $(PY) scripts/make_prelim_f
 single-port:     ; $(PY) scripts/single_port_scan.py && $(PY) scripts/single_port_scan_ge.py && $(PY) scripts/single_port_figs.py
 proposal-figs:   ; $(PY) scripts/make_prelim_figs.py && $(PY) scripts/make_prelim_figs2.py
 lines-mir:       ; $(PY) scripts/fetch_hitran.py mir && $(PY) scripts/select_lines.py NO 1880 1920
-fig6:            ; $(PY) scripts/fig6_spectra_noise.py           # HITRAN spectra + NH3 noise floor (data/chaoslab_nh3.json from scripts/chaoslab_nh3.js)
+fig6:            ; $(PY) scripts/fig6_spectra_noise.py && $(PY) scripts/fig6_playground_data.py   # HITRAN spectra + NH3 noise floor, and the Fig. 6 Playground page

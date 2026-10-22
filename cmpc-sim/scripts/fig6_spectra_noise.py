@@ -8,8 +8,10 @@ measurement against averaging time.
     sees; coloured dashed: the analyte alone. Overlaid, one illustrative realisation of the stray-light speckle fringe
     of the cell of (b) on top of the total, converted to alpha with its Gamma <L>: the fringe is a sum of etalon terms,
     one per detected exit path L_k of the cell (weights W_k from the Chaos Lab tracing), sqrt(W_k) cos(2 pi nu n_eff
-    L_k / c + phi_k) with random phases, scaled to the rms level of (b): purple, undithered (static floor); black, both
-    dithers after 1 s (plus white shot noise); purple band: +-1 sigma of the undithered fringe. The mid-IR strips assume the same cell and absorbance noise.
+    L_k / c + phi_k) with random phases, scaled to the rms level of (b) after averaging for T_OVERLAY, plus white shot
+    noise. Which dither modes are drawn on which strip is set by OVERLAY (the Fig. 6 Playground artifact writes it):
+    none (purple), angle (green), spectral (orange), both (black); "band" adds a +-1 sigma band of a mode. The mid-IR
+    strips assume the same cell and absorbance noise.
 (b) Noise-equivalent absorbance of the circular multipass cell (A) of the Multipass Chaos Lab artifact, NH3 line at
     1531.68 nm, from its DitherLab engine (data/chaoslab_nh3.json, made by scripts/chaoslab_nh3.js): the residual
     stray-light fringe 2 sqrt(eps) V(T)/sqrt(M^2) after a boxcar average of length T (lobe-averaged), with no dither,
@@ -38,8 +40,16 @@ WING = 25.0                      # line wings cut at 25 cm^-1, pedestal subtract
 Q_E = 1.602176634e-19
 BG = {"H2O": 0.06, "CO2": 0.045}
 CH4_AMBIENT = 1.9e-6
-LINES = [("NH$_3$", "NH3", 6528.77, "C0"), ("CH$_4$", "CH4", 6114.652, "C0"), ("CH$_4$", "CH4", 3017.80, "C1"),
-         ("C$_2$H$_6$", "C2H6", 2996.852, "C1"), ("NO", "NO", 1900.076, "C3")]
+# noise overlays in (a): per strip, the dither modes drawn (none, angle, spectral, both); optional "band": mode for a +-1 sigma band
+OVERLAY = {"NH3": ["angle", "both"], "CH4 1.6": ["both"], "CH4 3.3": ["both"], "C2H6": ["both"], "NO": ["both"]}
+OVERLAY_BAND = {}
+T_OVERLAY, OVERLAY_ALPHA, OVERLAY_SEED = 1.0, 0.75, 6
+ANALYTE_PPM = 1.0
+# curves of (b): none, angle, spectral, both, regular, shot, total
+B_CURVES = ["none", "angle", "spectral", "both", "regular", "shot", "total"]
+MODE_STYLE = {"none": ("C4", "no dither"), "angle": ("C2", "angle dither"), "spectral": ("C1", "wavelength dither"), "both": ("k", "both dithers")}
+LINES = [("NH$_3$", "NH3", 6528.77, "C0", "NH3"), ("CH$_4$", "CH4", 6114.652, "C0", "CH4 1.6"), ("CH$_4$", "CH4", 3017.80, "C1", "CH4 3.3"),
+         ("C$_2$H$_6$", "C2H6", 2996.852, "C1", "C2H6"), ("NO", "NO", 1900.076, "C3", "NO")]
 
 fig = plt.figure(figsize=(6.69, 3.95))
 gsA = fig.add_gridspec(len(LINES), 1, hspace=0.18, left=0.085, right=0.445, top=0.845, bottom=0.12)
@@ -50,11 +60,11 @@ d = json.load(open(ROOT / "data" / "chaoslab_nh3.json"))
 T = np.array(d["T"]); cur, reg = d["cells"]["circle_current"], d["cells"]["circle_regular"]
 P_in, n_eff = d["settings"]["circle"]["P_in"], d["settings"]["circle"]["n_eff"]
 GL = cur["gamma"] * cur["L_mean_m"] * 100                                                     # Gamma <L> [cm]
-i1 = int(np.argmin(abs(T - 1.0)))
+i1 = int(np.argmin(abs(T - 1.0))); iov = int(np.argmin(abs(np.log(T / T_OVERLAY))))
 shot = np.sqrt(Q_E / (P_in * cur["T_trans"] * T))                     # boxcar of length T: noise bandwidth 1/(2T)
 both = np.array(cur["scen"]["both"]["env"]); total = np.hypot(both, shot)
 Lk, Wk = np.array(cur["Ls_m"]), np.array(cur["Ws"])
-rng = np.random.default_rng(6)
+rng = np.random.default_rng(OVERLAY_SEED)
 
 
 def speckle(dnu_hz, rms):
@@ -65,10 +75,11 @@ def speckle(dnu_hz, rms):
 
 # ------------------------------------------------------------------ (a) spectra
 tab, axs = [], []
-for k, (lab, sp, nu0, cc) in enumerate(LINES):
+used = []
+for k, (lab, sp, nu0, cc, key) in enumerate(LINES):
     a = fig.add_subplot(gsA[k, 0], sharex=axs[0] if axs else None); axs.append(a)
     nu = np.linspace(nu0 - 0.5, nu0 + 0.5, 1201); x = (nu - nu0) * GHZ
-    an = hl.alpha(nu, sp, 1e-6, wing_cm=WING); bg = sum(hl.alpha(nu, g, xg, wing_cm=WING) for g, xg in BG.items())
+    an = hl.alpha(nu, sp, ANALYTE_PPM * 1e-6, wing_cm=WING); bg = sum(hl.alpha(nu, g, xg, wing_cm=WING) for g, xg in BG.items())
     if sp != "CH4" and hl.find_tables("CH4", nu.min(), nu.max()):
         bg = bg + hl.alpha(nu, "CH4", CH4_AMBIENT, wing_cm=WING)
     tot = an + bg
@@ -77,35 +88,41 @@ for k, (lab, sp, nu0, cc) in enumerate(LINES):
     a.fill_between(x, bg / e, tot / e, color=cc, lw=0, alpha=0.85)
     a.plot(x, tot / e, "k", lw=0.7); a.plot(x, an / e, color=cc, lw=0.9, ls=(0, (3, 1.5)))
     dnu = x * 1e9
-    s0 = cur["scen"]["none"]["floor"] / GL
-    a.fill_between(x, (tot - s0) / e, (tot + s0) / e, color="C4", alpha=0.13, lw=0, zorder=2.5)
-    a.plot(x, (tot + speckle(dnu, cur["scen"]["none"]["floor"]) / GL) / e, color="C4", lw=0.6, alpha=0.5, zorder=3)
-    a.plot(x, (tot + (speckle(dnu, both[i1]) + rng.normal(0, shot[i1], x.size)) / GL) / e, color="k", lw=0.5, alpha=0.75, zorder=4)
+    if key in OVERLAY_BAND:
+        sb = np.hypot(cur["scen"][OVERLAY_BAND[key]]["env"][iov], shot[iov]) / GL
+        a.fill_between(x, (tot - sb) / e, (tot + sb) / e, color=MODE_STYLE[OVERLAY_BAND[key]][0], alpha=0.13, lw=0, zorder=2.5)
+    for j, mode in enumerate(OVERLAY.get(key, [])):
+        lev = cur["scen"][mode]["env"][iov]
+        a.plot(x, (tot + (speckle(dnu, lev) + rng.normal(0, shot[iov], x.size)) / GL) / e, color=MODE_STYLE[mode][0],
+               lw=0.5, alpha=OVERLAY_ALPHA, zorder=3 + j)
+        if mode not in used: used.append(mode)
     a.set_ylim(0, top * 1.12); a.set_yticks([0, np.floor(top * 10) / 10 if top < 2 else np.floor(top)])
     a.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
     a.text(1.0, 0.98, f"×10$^{{{int(np.log10(e))}}}$", transform=a.transAxes, ha="right", va="top", fontsize=8, color="0.35")
     a.text(0.015, 0.97, f"{lab} {1e4 / nu0:.3f} µm", transform=a.transAxes, ha="left", va="top", fontsize=9, color=cc,
            bbox=dict(fc="w", ec="none", alpha=0.75, pad=0.3))
-    i = int(np.argmax(an)); tab.append(dict(line=f"{sp} {1e4 / nu0:.3f} um", nu_cm=float(nu[i]), alpha_per_ppm_cm=float(an[i]),
+    i = int(np.argmax(an)); tab.append(dict(line=f"{sp} {1e4 / nu0:.3f} um", nu_cm=float(nu[i]), alpha_per_ppm_cm=float(an[i]) / ANALYTE_PPM,
                                          background_at_line_cm=float(bg[i]), background_max_scan_cm=float(bg.max())))
     a.tick_params(labelbottom=k == len(LINES) - 1, length=2.5)
     a.set_xlim(-15, 15)
 axs[-1].set_xlabel("detuning (GHz)")
 axs[len(LINES) // 2].set_ylabel(r"absorption coefficient $\alpha$ (cm$^{-1}$)")
-axs[0].set_title("(a) 1 ppm in 6 % H$_2$O + 4.5 % CO$_2$, 310 K", loc="left", fontsize=10, pad=24)
+axs[0].set_title(f"(a) {ANALYTE_PPM:g} ppm in 6 % H$_2$O + 4.5 % CO$_2$, 310 K", loc="left", fontsize=10, pad=24)
 from matplotlib.lines import Line2D
-axs[0].legend([(matplotlib.patches.Patch(color="C4", alpha=0.13, lw=0), Line2D([], [], color="C4", lw=1.0, alpha=0.6)), Line2D([], [], color="k", lw=0.8, alpha=0.75)],
-              ["speckle ±1σ, no dither", "both dithers, 1 s"], loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=2, frameon=False,
+Tlab = f"{T_OVERLAY:g} s" if T_OVERLAY >= 1 else f"{T_OVERLAY * 1e3:g} ms"
+order = [m for m in MODE_STYLE if m in used]
+axs[0].legend([Line2D([], [], color=MODE_STYLE[m][0], lw=0.9, alpha=OVERLAY_ALPHA) for m in order],
+              [MODE_STYLE[m][1] + (f", {Tlab}" if i == len(order) - 1 else "") for i, m in enumerate(order)], loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=2, frameon=False,
               fontsize=8.5, handlelength=1.5, columnspacing=1.0, borderaxespad=0.1)
 
 # ------------------------------------------------------------------ (b) noise floor against averaging time
 b = fig.add_subplot(gsB[0, 0])
 SC = [("none", "no dither", "C4"), ("angle", "angle dither", "C2"), ("spectral", "wavelength dither", "C1"), ("both", "both dithers", "C0")]
 for key, name, cc in SC:
-    b.loglog(T, cur["scen"][key]["env"], color=cc, lw=1.4, label=name)
-b.loglog(T, reg["scen"]["both"]["env"], color="C0", lw=1.4, ls=":", label="both, regular cell")
-b.loglog(T, shot, color="0.45", lw=1.0, ls="--", label="shot noise, 1 mW")
-b.loglog(T, total, color="k", lw=2.0, label="total (both + shot)")
+    if key in B_CURVES: b.loglog(T, cur["scen"][key]["env"], color=cc, lw=1.4, label=name)
+if "regular" in B_CURVES: b.loglog(T, reg["scen"]["both"]["env"], color="C0", lw=1.4, ls=":", label="both, regular cell")
+if "shot" in B_CURVES: b.loglog(T, shot, color="0.45", lw=1.0, ls="--", label="shot noise, 1 mW")
+if "total" in B_CURVES: b.loglog(T, total, color="k", lw=2.0, label="total (both + shot)")
 b.set(xlim=(T[0], T[-1]), ylim=(3e-10, 1e-3), xlabel="averaging time $T$ (s)", ylabel="noise-equivalent absorbance")
 b.grid(alpha=0.25, which="major")
 b.set_title("(b) NH$_3$ 1531.68 nm, chaotic circular cell", loc="left", fontsize=10)

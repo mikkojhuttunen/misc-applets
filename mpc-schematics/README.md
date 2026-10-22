@@ -25,4 +25,19 @@ Facet tilts and curvature sags are a few µm over a 1.3 mm facet, so they are in
 
 Smallest number of periods N with R ≥ target for a Si membrane (n_eff from `slab_waveguide`, Salzberg–Villa Si index), deep-etched trench DBR (`bragg_grating.TrenchDBR`, exact oblique transfer matrix) and shallow partial-etch gratings (coupled-mode κ and transfer matrix). Columns: normal incidence, the star {24/7} angle, the uniform-sin χ average (fully chaotic cell), the worst angle, and the power-weighted R_eff traced in the curved 24-facet cell (`cell_mirror`). Lossless 1D effective-index model: out-of-plane radiation in the air gaps, roughness and TE↔TM conversion are not included (cmpc-sim lumps them into a 3×10⁻⁴ per-bounce loss).
 
+## membrane_3d.py (3D, oblique view)
+
+```
+python membrane_3d.py                    membrane_chip_3d.png/.pdf and membrane_dbr_3d.png/.pdf into figs/
+python membrane_3d.py chip --facets 12 --periods 3 --azim -40 --elev 26
+python membrane_3d.py dbr --thickness 300 --pol TM --chi 15
+```
+
+| Figure | Content |
+|---|---|
+| `membrane_chip_3d` | schematic, not to scale: Si handle, buried oxide and the Si device layer released over a backside window; the segmented cell with a trench DBR on every facet, corner bridges, an input port with no DBR, the star orbit, and a cutaway quadrant through the stack and the DBR |
+| `membrane_dbr_3d` | to scale: membrane thickness, air gaps and teeth from `cmpc_sim.membrane_mode` and `cmpc_sim.DBR`, the incident and reflected slab-mode ray, and the |H|² (TM) or |E|² (TE) profile across the membrane on the cut face |
+
+Rendering is done by `render3d.py`, a small z-buffered renderer (orthographic camera, Lambert shading, polygons with holes, prisms extruded from shapely polygons, depth-tested lines, 2× supersampling). It needs only numpy, Pillow, shapely and matplotlib, and draws occlusion correctly where mplot3d's painter's algorithm does not. The corner bridges are a drawing assumption (something has to hold the inner membrane once the trenches are etched through); the simulations do not model them.
+
 The interactive version is [`../mpc-designs.html`](../mpc-designs.html).

@@ -121,7 +121,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
       <div class="panel">
         <h2>Settings for fig6_spectra_noise.py</h2>
         <pre id="py"></pre>
-        <div class="btns"><button type="button" id="copyPy">Copy settings</button><button type="button" id="copySvg">Copy figure as SVG</button><span class="status" id="copyStatus"></span></div>
+        <div class="btns"><button type="button" id="copyPy">Copy settings</button><button type="button" id="saveSvg">Download SVG</button><span class="status" id="copyStatus"></span></div>
         <p class="hint">Paste the settings over the block of the same names near the top of <span class="mono">cmpc-sim/scripts/fig6_spectra_noise.py</span>, then run <span class="mono">make fig6</span>. The background-gas checkboxes are preview only. The script draws its own noise realisation with the same statistics, so the wiggles differ in detail from this preview.</p>
       </div>
     </div>
@@ -344,7 +344,20 @@ B_CURVES = [${bcur}]`;
     catch { $("copyStatus").textContent = "Copying is blocked here; select the text and copy it."; const r = document.createRange(); r.selectNodeContents($("py")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
   }
   $("copyPy").onclick = () => copy($("py").textContent, "Settings");
-  $("copySvg").onclick = () => copy(lastSvg, "SVG");
+  /* SVG download through the viewer's save dialog (downloads capability); the file carries its physical size in cm */
+  let downloads = null;
+  (async () => { try { downloads = await window.claude?.use?.("downloads"); } catch { downloads = null; } })();
+  $("saveSvg").onclick = async () => {
+    const fw = +$("figW").value, fh = +$("figH").value;
+    const svg = '<?xml version="1.0" encoding="UTF-8"?>\n' + lastSvg.replace("<svg ", `<svg width="${fw}cm" height="${fh}cm" `);
+    const filename = `fig6_${fw}x${fh}cm.svg`;
+    if (!downloads) { $("copyStatus").textContent = "Downloads are not available in this view; open the artifact in claude.ai."; return; }
+    try { await downloads.save({ filename, data: new Blob([svg], { type: "image/svg+xml" }) }); $("copyStatus").textContent = `Saved ${filename}.`; }
+    catch (e) {
+      const c = e && e.code;
+      $("copyStatus").textContent = c === "declined" ? "Download cancelled." : c === "rate_limited" ? "A save dialog is already open; try again in a moment." : "Downloads are not available in this view.";
+    }
+  };
   syncMatrix();
   draw();
 })();

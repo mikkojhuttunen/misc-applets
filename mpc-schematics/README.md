@@ -64,4 +64,13 @@ python evanescent_sensing.py
 python evanescent_sensing.py --thickness 220 --pol TE
 ```
 
+## setup_schematic.py (system top view)
+
+Whole setup in one vector figure, for the CMPC and for the integrated Herriott cell: bulk laser with its driver (frequency dither by current modulation) and an isolator, fibre to an edge coupler, an on-chip tap to a reference detector (power normalisation), the on-chip dither section (phase-dither heater on the input, a 1×2 splitter into two heated arms that recombine side by side at the input port to steer the launch angle), the cell on its released window, dark-blue output-port waveguides to edge couplers, fibres to bulk detectors, and the function generator and lock-in / DAQ with their electrical connections. Positions are schematic, not a layout.
+
+```
+python setup_schematic.py                     figs/setup_cmpc.pdf, figs/setup_herriott.pdf (+ png)
+python setup_schematic.py cmpc --outputs 3
+```
+
 The interactive version is [`../mpc-designs.html`](../mpc-designs.html).

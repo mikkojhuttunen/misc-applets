@@ -21,7 +21,7 @@ for (const [name, o] of [['circle', circle], ['herriott', herriott]]) for (const
   const sp = r.spec, amp = 2 * Math.sqrt(oo.f_parasitic) / Math.sqrt(r.grains || 1), sc = {};
   for (const k of ['none', 'angle', 'spectral', 'both']) if (sp[k]) sc[k] = { floor: amp * sp[k].floor, env: Ts.map(T => amp * D.residual(sp[k], T, drift, true)), exact: Ts.map(T => amp * D.residual(sp[k], T, drift, false)) };
   out.cells[name + '_' + v] = { T_trans: r.T, L_mean_m: r.L_mean, M2: r.M2, grains: r.grains, gamma: oo.gamma, n_pass: r.n_pass, stretch: r.stretch, lam_ftle: r.lam_ftle,
-    samp_floor: amp * sp.sampFloor, samp_floor_both: amp * sp.sampFloorBoth, A_ppm_artifact: r.A_ppm, nec_shot_artifact_ppm: r.nec_shot, scen: sc };
+    samp_floor: amp * sp.sampFloor, Ls_m: Array.from(r.Ls || []), Ws: Array.from(r.Ws || []), sigma_opl_m: r.sigma_opl, opl_mean_m: r.speckle ? r.speckle.opl_mean : null, dlam_c_m: r.dlam_c, samp_floor_both: amp * sp.sampFloorBoth, A_ppm_artifact: r.A_ppm, nec_shot_artifact_ppm: r.nec_shot, scen: sc };
   console.error(name, v, ((Date.now() - t0) / 1e3).toFixed(1) + ' s', 'T=', r.T.toFixed(3), 'L=', (r.L_mean * 100).toFixed(1), 'cm M2=', r.M2.toFixed(1), 'floors', Object.entries(sc).map(([k, x]) => k + ':' + x.floor.toExponential(2)).join(' '));
 }
 fs.writeFileSync(path.join(__dirname, '..', 'data', 'chaoslab_nh3.json'), JSON.stringify(out));

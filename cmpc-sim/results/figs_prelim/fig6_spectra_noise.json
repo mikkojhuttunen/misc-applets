@@ -25,8 +25,8 @@
    "line": "C2H6 3.337 um",
    "nu_cm": 2996.8528333333334,
    "alpha_per_ppm_cm": 3.317467160856552e-05,
-   "background_at_line_cm": 1.06613184855507e-05,
-   "background_max_scan_cm": 2.9630406733461834e-05
+   "background_at_line_cm": 1.0719943111599259e-05,
+   "background_max_scan_cm": 2.9670885133857853e-05
   },
   {
    "line": "NO 5.263 um",

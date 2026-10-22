@@ -87,15 +87,16 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
 <div class="wrap">
   <header>
     <h1>CMPC and CRIGF in 3D</h1>
-    <p>Rotate, zoom and edit the two devices from the schematics: the chaotic multipass cell in a free-standing Si membrane, with a cutaway through its trench DBRs, and the CRIGF (DBR | phase | grating coupler | phase | DBR) on thin-film LiNbO₃. Drag to rotate, scroll or pinch to zoom, right-drag or two-finger drag to pan.</p>
+    <p>Rotate, zoom and edit the devices from the schematics: the chaotic multipass cell in a free-standing Si membrane, with a cutaway through its trench DBRs, an integrated Herriott cell with curved trench-DBR mirrors, and the CRIGF (DBR | phase | grating coupler | phase | DBR) on thin-film LiNbO₃. Drag to rotate, scroll or pinch to zoom, right-drag or two-finger drag to pan.</p>
   </header>
 
   <div class="main">
     <div class="rail">
       <fieldset>
         <legend>Device</legend>
-        <div class="seg" role="group" aria-label="Device">
-          <button type="button" id="dMem" data-dev="mem" aria-pressed="true">Membrane CMPC</button>
+        <div class="seg three" role="group" aria-label="Device">
+          <button type="button" id="dMem" data-dev="mem" aria-pressed="true">CMPC</button>
+          <button type="button" id="dHer" data-dev="her" aria-pressed="false">Herriott</button>
           <button type="button" id="dCr" data-dev="crigf" aria-pressed="false">CRIGF</button>
         </div>
         <div class="seg" role="group" aria-label="View" id="memViewSeg">
@@ -125,6 +126,34 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
           <input id="mOutN" type="range" min="0" max="9" step="1" value="2">
           <p class="hint">Fewer periods over the port width let part of the light through into a tapered strip-loaded waveguide.</p></div>
         <label class="check" for="mOutMir"><input id="mOutMir" type="checkbox"> Close-up shows the output-port mirror</label>
+        <div class="ctl"><div class="row"><label for="mDiam">Cell diameter</label><output id="mDiamOut"></output></div>
+          <input id="mDiam" type="range" min="1" max="20" step="0.5" value="10"></div>
+        <div class="ctl"><div class="row"><label for="mChi">Ray angle in the close-up</label><output id="mChiOut"></output></div>
+          <input id="mChi" type="range" min="0" max="60" step="1" value="20"></div>
+      </fieldset>
+
+      <fieldset id="fsHer" hidden>
+        <legend>Integrated Herriott cell</legend>
+        <div class="ctl"><div class="row"><label for="hR">Mirror radius R</label><output id="hROut"></output></div>
+          <input id="hR" type="range" min="1" max="20" step="0.5" value="5"></div>
+        <div class="ctl"><div class="row"><label for="hN">Passes to re-entry N</label><output id="hNOut"></output></div>
+          <input id="hN" type="range" min="6" max="60" step="1" value="22"></div>
+        <div class="ctl"><div class="row"><label for="hM">Turns M</label><output id="hMOut"></output></div>
+          <input id="hM" type="range" min="1" max="29" step="1" value="5"></div>
+        <div class="ctl"><div class="row"><label for="hA">Pattern half-width A</label><output id="hAOut"></output></div>
+          <input id="hA" type="range" min="0.1" max="2" step="0.05" value="0.5"></div>
+        <div class="ctl"><div class="row"><label for="hPh">Launch phase φ</label><output id="hPhOut"></output></div>
+          <input id="hPh" type="range" min="0" max="90" step="1" value="90">
+          <p class="hint">Spots x<sub>n</sub> = A cos(nθ + φ). At 0° (port at the edge) the exit ray retraces the input; 90° puts the port at the mirror centre and opens a V between input and output.</p></div>
+        <div class="ctl"><div class="row"><label for="hPer">DBR periods</label><output id="hPerOut"></output></div>
+          <input id="hPer" type="range" min="1" max="10" step="1" value="4"></div>
+        <div class="ctl"><div class="row"><label for="hBand">DBR band drawn</label><output id="hBandOut"></output></div>
+          <input id="hBand" type="range" min="0.08" max="0.5" step="0.01" value="0.22"></div>
+        <label class="check" for="hBeamOn"><input id="hBeamOn" type="checkbox" checked> Ray path and input/output beams</label>
+      </fieldset>
+
+      <fieldset id="fsMode">
+        <legend>Membrane and guided mode</legend>
         <div class="ctl"><div class="row"><label for="mThk">Si membrane thickness</label><output id="mThkOut"></output></div>
           <input id="mThk" type="range" min="150" max="600" step="10" value="250"></div>
         <div class="seg" role="group" aria-label="Slab mode">
@@ -133,10 +162,6 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
         </div>
         <div class="ctl"><div class="row"><label for="mLam">Wavelength</label><output id="mLamOut"></output></div>
           <input id="mLam" type="range" min="1.2" max="8" step="0.01" value="1.55"></div>
-        <div class="ctl"><div class="row"><label for="mDiam">Cell diameter</label><output id="mDiamOut"></output></div>
-          <input id="mDiam" type="range" min="1" max="20" step="0.5" value="10"></div>
-        <div class="ctl"><div class="row"><label for="mChi">Ray angle in the close-up</label><output id="mChiOut"></output></div>
-          <input id="mChi" type="range" min="0" max="60" step="1" value="20"></div>
       </fieldset>
 
       <fieldset id="fsMemDraw">
@@ -216,6 +241,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
 
       <footer>
         <p>Membrane mirror: Si index (Salzberg–Villa), n<sub>eff</sub> of the air | Si | air slab mode and the oblique-incidence transfer matrix of cavity | [air gap, Si tooth] × N | air, ported from <span class="mono">math-engines</span> (as in <span class="mono">mpc-schematics/dbr_periods.py</span> and <span class="mono">mpc-designs.html</span>). 1D effective-index model: out-of-plane radiation in the gaps and roughness are not included.</p>
+        <p>Integrated Herriott cell: as <span class="mono">mpc-schematics/herriott_planar.py</span>; d = R(1 − cos 2πM/N), launch slope for x<sub>n</sub> = A cos(nθ + φ), exact 2D trace, trench-DBR reflectance per hit. Drawn with real cell dimensions in mm and an exaggerated DBR band and membrane thickness.</p>
         <p>CRIGF: the geometry of <span class="mono">crigf_schematic.m</span> / <span class="mono">dbr-structures/crigf_3d.py</span>. One centred tooth per cell, tooth = fill × period, section = N × period; phase lengths are gaps between section edges; a positive offset moves the GC toward the right DBR. Defaults from Hemsley et al., Opt. Express 31, 27274 (2023); the 300 nm phase sections are example values. Additive rectangular teeth on a flat stack, no etch profile or optical field.</p>
       </footer>
     </div>
@@ -302,9 +328,9 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     build(isSection) {
       const pos = [], nor = [], col = [], segs = [];
       const push = (p, n, c) => { pos.push(p[0], p[1], p[2]); nor.push(n[0], n[1], n[2]); col.push(c.r, c.g, c.b); };
-      const K = x => Math.round(x * 1e6), ek = (p, q, z0, z1) => { const a = `${K(p[0])},${K(p[1])}`, b = `${K(q[0])},${K(q[1])}`; return (a < b ? a + "|" + b : b + "|" + a) + `|${K(z0)}|${K(z1)}`; };
-      const shared = new Map();                        // side walls two coplanar pieces share are interior: not drawn
-      for (const { P, z0, z1 } of this.prisms) for (let i = 0; i < P.length; i++) { const k = ek(P[i], P[(i + 1) % P.length], z0, z1); shared.set(k, (shared.get(k) || 0) + 1); }
+      // Side walls: only the parts of an edge that no other piece covers (opposite direction, same line and height)
+      // are drawn; walls between coplanar neighbours are interior. Works for partial overlaps (T-junctions) too.
+      const K = x => Math.round(x * 1e6), groups = new Map();
       for (const { P, z0, z1, col: c0, secCol } of this.prisms) {
         const c = new THREE.Color(c0), cs = new THREE.Color(secCol || c0);
         for (let i = 1; i < P.length - 1; i++) {
@@ -312,13 +338,30 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
           push([P[0][0], P[0][1], z0], [0, 0, -1], c); push([P[i + 1][0], P[i + 1][1], z0], [0, 0, -1], c); push([P[i][0], P[i][1], z0], [0, 0, -1], c);
         }
         for (let i = 0; i < P.length; i++) {
-          const p = P[i], q = P[(i + 1) % P.length], dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy);
+          const p = P[i], q = P[(i + 1) % P.length];
+          let dx = q[0] - p[0], dy = q[1] - p[1]; const L = Math.hypot(dx, dy);
           if (L < 1e-12) continue;
           segs.push({ p, q, z: z1 }, { p, q, z: z0 });
-          if (shared.get(ek(p, q, z0, z1)) > 1) continue;
           const n = [dy / L, -dx / L, 0], cc = isSection && isSection(p, q) ? cs : c;
-          const P0 = [p[0], p[1], z0], Q0 = [q[0], q[1], z0], Q1 = [q[0], q[1], z1], P1 = [p[0], p[1], z1];
-          push(P0, n, cc); push(Q0, n, cc); push(Q1, n, cc); push(P0, n, cc); push(Q1, n, cc); push(P1, n, cc);
+          dx /= L; dy /= L; let fwd = true;
+          if (dx < -1e-9 || (Math.abs(dx) <= 1e-9 && dy < 0)) { dx = -dx; dy = -dy; fwd = false; }
+          const off = -dy * p[0] + dx * p[1], key = `${K(z0)}|${K(z1)}|${K(dx)}|${K(dy)}|${K(off)}`;
+          const s0 = dx * p[0] + dy * p[1], s1 = dx * q[0] + dy * q[1];
+          if (!groups.has(key)) groups.set(key, { dx, dy, off, z0, z1, e: [] });
+          groups.get(key).e.push({ a: Math.min(s0, s1), b: Math.max(s0, s1), fwd, n, cc });
+        }
+      }
+      for (const G of groups.values()) {
+        const br = [...new Set(G.e.flatMap(e => [e.a, e.b]))].sort((x, y) => x - y);
+        const P = s_ => [G.dx * s_ - G.dy * G.off, G.dy * s_ + G.dx * G.off];
+        for (let i = 0; i < br.length - 1; i++) {
+          const lo = br[i], hi = br[i + 1];
+          if (hi - lo < 1e-12) continue;
+          const m_ = (lo + hi) / 2, cov = G.e.filter(e => e.a <= m_ && e.b >= m_);
+          if (cov.length !== 1) continue;
+          const e = cov[0], A_ = P(lo), B_ = P(hi), p = e.fwd ? A_ : B_, q = e.fwd ? B_ : A_;
+          const P0 = [p[0], p[1], G.z0], Q0 = [q[0], q[1], G.z0], Q1 = [q[0], q[1], G.z1], P1 = [p[0], p[1], G.z1];
+          push(P0, e.n, e.cc); push(Q0, e.n, e.cc); push(Q1, e.n, e.cc); push(P0, e.n, e.cc); push(Q1, e.n, e.cc); push(P1, e.n, e.cc);
         }
       }
       const g = new THREE.BufferGeometry();
@@ -535,6 +578,106 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       (s, z) => 0.55 * mp.f(z / um) * (s <= cav ? 1 : Math.exp(-3 * (s - cav) / Math.max(xEnd, 1e-9))), 140, 40)];
     return { B, isSec, segs, inSegs: [], glow, beamZ: z1 + 0.002, beamW: 0.03, prof, labels, info: { M, Np } };
   }
+
+  function herriottModel() {
+    const M = mirrorModel(), R = v("hR"), N = v("hN"), Mt = Math.min(v("hM"), Math.ceil(N / 2) - 1), A = v("hA"), ph = v("hPh") * D2R, Np = v("hPer");
+    const th = 2 * Math.PI * Mt / N, d = R * (1 - Math.cos(th)), D = 1.4 * A;
+    const y0 = A * Math.cos(ph), slope0 = (-A * Math.sin(ph) / Math.sqrt(d / (2 * R - d)) - y0) / R;
+    const lamMm = M.lam * 1e3 / M.ne, gg = 1 - d / R, w = Math.sqrt(lamMm * d / Math.PI / Math.sqrt(1 - gg * gg));
+    let sp = Infinity; for (let n = 2; n < N; n += 2) { const s_ = Math.abs(A * Math.cos(n * th + ph) - y0); if (s_ > 1e-9 * A) sp = Math.min(sp, s_); }
+    const wp = Math.min(6 * w, 0.8 * sp);
+    const C = k => (k === 0 ? [R, 0] : [d - R, 0]);
+    const sx = (k, y, r = R) => { const s_ = (k === 0 ? R : r) - Math.sqrt(Math.max(r * r - y * y, 0)); return k === 0 ? R - Math.sqrt(Math.max(r * r - y * y, 0)) : d - R + Math.sqrt(Math.max(r * r - y * y, 0)); };
+    let p = [sx(0, y0), y0], u = [1, slope0]; const nu = Math.hypot(u[0], u[1]); u = [u[0] / nu, u[1] / nu];
+    const inDir = u.slice(), pts = [p.slice()], ang = [], mir = []; let exit = "trapped", k = 1;
+    for (let it = 0; it < 4 * N; it++) {
+      const c = C(k), o = [p[0] - c[0], p[1] - c[1]], b = o[0] * u[0] + o[1] * u[1], disc = b * b - (o[0] * o[0] + o[1] * o[1] - R * R);
+      if (disc < 0) { exit = "edge"; break; }
+      const sq = Math.sqrt(disc); let t = Infinity;
+      for (const tt of [-b - sq, -b + sq]) if (tt > 1e-12 * R && (p[0] + tt * u[0] - c[0]) * (k === 1 ? 1 : -1) > 0) t = Math.min(t, tt);
+      if (!isFinite(t)) { exit = "edge"; break; }
+      p = [p[0] + t * u[0], p[1] + t * u[1]]; pts.push(p.slice());
+      if (Math.abs(p[1]) > D) { exit = "edge"; break; }
+      if (k === 0 && Math.abs(p[1] - y0) <= wp / 2) { exit = "port"; break; }
+      const n = [(c[0] - p[0]) / R, (c[1] - p[1]) / R], un = u[0] * n[0] + u[1] * n[1];
+      ang.push(Math.acos(Math.min(1, Math.abs(un)))); mir.push(k);
+      u = [u[0] - 2 * un * n[0], u[1] - 2 * un * n[1]]; k = 1 - k;
+    }
+    let path = 0; for (let i = 1; i < pts.length; i++) path += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    let I = 1, Leff = 0; ang.forEach((a, i) => { Leff += I * Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]); I *= M.R(Np, Math.sin(a)); });
+    const Rs = ang.map(a => M.R(Np, Math.sin(a)));
+    return { M, R, N, Mt, A, ph, Np, th, d, D, y0, w, wp, sx, pts, ang, mir, exit, inDir, exitDir: u, path, Tout: I, Leff, Rs };
+  }
+  function herriottScene() {
+    const h = herriottModel(), { M, R, d, D, y0, wp, Np, A, sx } = h;
+    const band = v("hBand"), g = band / Np * M.dGap / (M.dGap + M.dTooth), tw = band / Np - g;
+    const t = 0.05, ts = 0.6 * t, tb = 0.04, th_ = 0.28, X0 = -2.2, X1 = d + 0.9, Y1 = D + 1.0, Xc = d / 2;
+    const cut = $("cut").checked ? { cx: Xc, cy: 0 } : null, B = new Builder();
+    // membrane in strips of Y: solid intervals along X bounded by the mirror surfaces and the trench arcs
+    const ys = new Set(); const nY = 48; for (let i = 0; i <= nY; i++) ys.add(+(-D + 2 * D * i / nY).toFixed(12));
+    ys.add(0); if (Math.abs(y0 - wp / 2) < D) ys.add(+(y0 - wp / 2).toFixed(12)); if (Math.abs(y0 + wp / 2) < D) ys.add(+(y0 + wp / 2).toFixed(12));
+    const Ys = [...ys].sort((a, b) => a - b);
+    const cur = (k, off) => y => sx(k, y, R + off);                    // trench boundary at radial offset off behind mirror k
+    const quad = (fa, fb, ya, yb) => [[fa(ya), ya], [fb(ya), ya], [fb(yb), yb], [fa(yb), yb]];
+    const L0 = () => X0, L1 = () => X1, bandOff = Np * (g + tw);
+    for (let i = 0; i < Ys.length - 1; i++) {
+      const ya = Ys[i], yb = Ys[i + 1], ym = (ya + yb) / 2, port = Math.abs(ym - y0) <= wp / 2;
+      const add = (fa, fb) => B.add(quad(fa, fb, ya, yb), 0, t, COL.si, COL.siSec, cut);
+      add(L0, cur(0, bandOff));
+      if (port) add(cur(0, bandOff), cur(0, 0));
+      else for (let j = 0; j < Np; j++) add(cur(0, (j + 1) * (g + tw)), cur(0, j * (g + tw) + g));
+      add(cur(0, 0), cur(1, 0));
+      for (let j = 0; j < Np; j++) add(cur(1, j * (g + tw) + g), cur(1, (j + 1) * (g + tw)));
+      add(cur(1, bandOff), L1);
+    }
+    B.add([[X0, -Y1], [X1, -Y1], [X1, -D], [X0, -D]], 0, t, COL.si, COL.siSec, cut);
+    B.add([[X0, D], [X1, D], [X1, Y1], [X0, Y1]], 0, t, COL.si, COL.siSec, cut);
+    const wx0 = -0.7, wx1 = d + 0.55, wy = D + 0.55, u_ = 0.06;
+    const frame = (a0, a1, b) => [[[X0, -Y1], [X1, -Y1], [X1, -b], [X0, -b]], [[X0, b], [X1, b], [X1, Y1], [X0, Y1]], [[X0, -b], [a0, -b], [a0, b], [X0, b]], [[a1, -b], [X1, -b], [X1, b], [a1, b]]];
+    for (const Q of frame(wx0 - u_, wx1 + u_, wy + u_)) B.add(Q, -tb, 0, COL.box, COL.boxSec, cut);
+    for (const Q of frame(wx0, wx1, wy)) B.add(Q, -tb - th_, -tb, COL.handle, COL.handleSec, cut);
+    // waveguides behind mirror 1
+    const sq = Q => clip(clip(clip(clip(Q, 1, 0, X1), -1, 0, -X0), 0, 1, Y1), 0, -1, Y1);
+    const p0 = h.pts[0], io = [];
+    for (const [u, kind] of [[[-h.inDir[0], -h.inDir[1]], "in"], [h.exitDir, "out"]]) {
+      if (kind === "out" && h.exit !== "port") continue;
+      const w = [-u[1], u[0]], st = [p0[0] + u[0] * (band + 0.03), p0[1] + u[1] * (band + 0.03)];
+      const P = (s_, hh) => [st[0] + s_ * u[0] + hh * w[0], st[1] + s_ * u[1] + hh * w[1]], w1 = wp, w2 = 0.35 * wp, lt = 0.55;
+      B.add(sq([P(0, -w1 / 2), P(lt, -w2 / 2), P(lt, w2 / 2), P(0, w1 / 2)]), t, t + ts, COL.strip, COL.stripSec, cut);
+      B.add(sq([P(lt, -w2 / 2), P(8, -w2 / 2), P(8, w2 / 2), P(lt, w2 / 2)]), t, t + ts, COL.strip, COL.stripSec, cut);
+      io.push([kind, st, u]);
+    }
+    const isSec = cut ? (p, q) => (Math.abs(p[0] - Xc) < 1e-9 && Math.abs(q[0] - Xc) < 1e-9 && Math.max(p[1], q[1]) <= 1e-9) ||
+      (Math.abs(p[1]) < 1e-9 && Math.abs(q[1]) < 1e-9 && Math.min(p[0], q[0]) >= Xc - 1e-9) : null;
+    // beams
+    const inCut = (x, y) => cut && x > Xc && y < 0;
+    const keepSeg = (a, b, out) => {
+      const ts_ = [0, 1];
+      if ((a[0] < Xc) !== (b[0] < Xc)) ts_.push((a[0] - Xc) / (a[0] - b[0]));
+      if ((a[1] < 0) !== (b[1] < 0)) ts_.push(a[1] / (a[1] - b[1]));
+      ts_.sort((x, y) => x - y);
+      const P = s_ => [a[0] + s_ * (b[0] - a[0]), a[1] + s_ * (b[1] - a[1])];
+      for (let i = 0; i < ts_.length - 1; i++) { const m_ = P((ts_[i] + ts_[i + 1]) / 2); if (!inCut(m_[0], m_[1])) out.push(P(ts_[i]), P(ts_[i + 1])); }
+    };
+    const segs = []; for (let i = 0; i < h.pts.length - 1; i++) keepSeg(h.pts[i], h.pts[i + 1], segs);
+    const toEdge = (st, u) => { let s_ = 20; for (const [c, dd] of [[X1 - st[0], u[0]], [X0 - st[0], u[0]], [Y1 - st[1], u[1]], [-Y1 - st[1], u[1]]]) if (Math.abs(dd) > 1e-9 && c / dd > 0) s_ = Math.min(s_, c / dd); return [st[0] + s_ * u[0], st[1] + s_ * u[1]]; };
+    const inSegs = [], inBand = [], outSegs = [];
+    for (const [kind, st, u] of io) { (kind === "in" ? inSegs : outSegs).push(toEdge(st, u), st); inBand.push(st, p0); }
+    let glow = null;
+    if (cut && isFinite(M.ne)) {
+      const mp = modeProfile(M), sc = t / M.t, ext = mp.tail * sc, L1g = d + band - Xc, L2g = 1.25 * A;
+      glow = [glowGrid([Xc, -2e-4], [1, 0], L1g, -ext, t + ext, (s_, z) => 0.62 * mp.f((z - t / 2) / sc) * (Xc + s_ <= d ? 1 : Math.exp(-3 * (Xc + s_ - d) / band))),
+              glowGrid([Xc + 2e-4, 0], [0, -1], L2g, -ext, t + ext, (s_, z) => 0.62 * mp.f((z - t / 2) / sc) * (s_ <= A ? 1 : Math.exp(-4 * (s_ - A) / A)))];
+    }
+    const labels = [
+      { text: `mirror 1, curved trench DBR, ${Np} periods (drawn wide)`, p: [-band / 2, 0.9 * D, t] },
+      { text: "mirror 2", p: [d + band / 2, 0.6 * D, t] },
+      { text: `centre port, no DBR over ${(wp * 1e3).toFixed(0)} µm`, p: [p0[0], p0[1], t] },
+      { text: "tapered strip-loaded waveguides", p: io.length ? [io[0][1][0] + io[0][2][0] * 0.9, io[0][1][1] + io[0][2][1] * 0.9, t + ts] : [X0, 0, t] },
+      { text: `${h.pts.length - 1} passes, path ${(h.path / 10).toFixed(1)} cm`, p: [d * 0.3, 0.2 * A, t] },
+    ];
+    return { B, isSec, segs, inSegs, inBand, outSegs, glow, beamZ: t + 0.002, beamW: 0.008, labels, info: { h, t } };
+  }
   function crigfModel() {
     const c = { NGC: v("cNGC"), pGC: v("cPGC") / 1e3, fGC: v("cFGC"), NL: v("cNL"), NR: v("cNR"), pL: v("cPD") / 1e3, pR: v("cPD") / 1e3,
       fL: v("cFD"), fR: v("cFD"), phL: v("cPhL") / 1e3, phR: v("cPhR") / 1e3, off: v("cOff") / 1e3, W: v("cW"), h: v("cH") / 1e3,
@@ -627,6 +770,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     if (!group) return;
     const box = new THREE.Box3().setFromObject(group), c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
     const dir = view === "top" ? new THREE.Vector3(0, -0.0001, 1) : view === "side" ? new THREE.Vector3(0.0001, -1, 0.06) :
+      S.dev === "her" ? new THREE.Vector3(Math.cos(-68 * D2R) * Math.cos(34 * D2R), Math.sin(-68 * D2R) * Math.cos(34 * D2R), Math.sin(34 * D2R)) :
       (S.dev === "crigf" ? new THREE.Vector3(Math.cos(-62 * D2R) * Math.cos(26 * D2R), Math.sin(-62 * D2R) * Math.cos(26 * D2R), Math.sin(26 * D2R))
         : new THREE.Vector3(Math.cos(-45 * D2R) * Math.cos(32 * D2R), Math.sin(-45 * D2R) * Math.cos(32 * D2R), Math.sin(32 * D2R)));
     const dist = r / Math.sin(camera.fov * D2R / 2) * 0.72 * Math.max(1, 1.45 / camera.aspect);
@@ -635,14 +779,14 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
   }
 
   function rebuild() {
-    const desc = S.dev === "crigf" ? crigfScene() : S.mview === "mirror" ? memMirror() : memChip();
+    const desc = S.dev === "crigf" ? crigfScene() : S.dev === "her" ? herriottScene() : S.mview === "mirror" ? memMirror() : memChip();
     if (renderer) {
       if (group) { scene.remove(group); group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
       group = new THREE.Group();
       const { mesh, lines } = desc.B.build(desc.isSec);
       group.add(new THREE.Mesh(mesh, new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })));
       group.add(new THREE.LineSegments(lines, new THREE.LineBasicMaterial({ color: 0x1b2328, transparent: true, opacity: 0.55 })));
-      const showBeam = S.dev === "mem" && (S.mview === "mirror" || $("beamOn").checked);
+      const showBeam = (S.dev === "mem" && (S.mview === "mirror" || $("beamOn").checked)) || (S.dev === "her" && $("hBeamOn").checked);
       if (showBeam) {
         const zs = desc.beamZ + (desc.info.t || 0) * 0.6;
         for (const [pts, colr, w, z] of [[desc.segs, COL.beam, desc.beamW, desc.beamZ], [desc.inSegs || [], COL.port, desc.beamW * 1.8, zs], [desc.inBand || [], COL.port, desc.beamW * 1.8, desc.beamZ], [desc.outSegs || [], COL.out, desc.beamW * 1.8, zs]]) {
@@ -688,6 +832,23 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
       return;
     }
     $("cErr").hidden = true;
+    if (S.dev === "her") {
+      const h = desc.info.h, M = h.M, deg = x => (x / D2R).toFixed(1);
+      const angIO = h.exit === "port" ? Math.acos(Math.max(-1, Math.min(1, -(h.inDir[0] * h.exitDir[0] + h.inDir[1] * h.exitDir[1])))) / D2R : NaN;
+      leg.innerHTML = `<span><i class="sw" style="background:${COL.si}"></i>Si membrane</span><span><i class="sw" style="background:${COL.beam}"></i>ray path (exact)</span><span><i class="sw" style="background:${COL.port}"></i>input</span><span><i class="sw" style="background:${COL.out}"></i>output</span><span><i class="sw" style="background:${COL.strip}"></i>strip-loaded waveguide</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span>`;
+      st.innerHTML = stat("Spacing d", `${h.d.toFixed(3)} mm`) + stat("θ per pass", `${deg(h.th)}°`) + stat("Exit", h.exit === "port" ? `port after ${h.pts.length - 1} passes` : h.exit === "edge" ? "lost past a mirror edge" : "not found") +
+        stat("Path", `${(h.path / 10).toFixed(2)} cm`) + stat("Input/output angle", isFinite(angIO) ? `${angIO.toFixed(1)}°` : "–") +
+        stat("Incidence angles", h.ang.length ? `${deg(Math.min(...h.ang))}–${deg(Math.max(...h.ang))}°` : "–") +
+        stat("Mode radius (in-plane)", `${(h.w * 1e3).toFixed(1)} µm`) + stat("Port gap", `${(h.wp * 1e3).toFixed(0)} µm`) +
+        stat("DBR R per hit", h.Rs.length ? `${Math.min(...h.Rs).toFixed(4)}–${Math.max(...h.Rs).toFixed(4)}` : "–") +
+        stat("Power out", `${(h.Tout * 100).toFixed(1)} %`) + stat("Absorption path Σ I ℓ", `${(h.Leff / 10).toFixed(2)} cm`);
+      tw.innerHTML = "";
+      let msg = `Exact 2D trace between circular mirrors (radius ${h.R} mm, aperture ±${h.D.toFixed(2)} mm); each hit applies the trench-DBR reflectance at its angle (${M.pol}₀, ${h.Np} periods, lossless 1D model).`;
+      if (h.exit !== "port") msg += " The beam does not return to the port: spherical aberration of circular mirrors grows with (A/R)²; reduce A or raise R (or use aspheric DBR arcs).";
+      else if (angIO < 3) msg += " Input and output nearly coincide (φ near 0): the exit ray retraces the input path, so the output couples back into the input waveguide.";
+      note.textContent = msg;
+      return;
+    }
     const M = desc.info.M, Np = desc.info.Np;
     let N99 = null; for (let k = 1; k <= 40; k++) if (M.R(k, 0) >= 0.99) { N99 = k; break; }
     const R0 = M.R(Np, 0), tir = Math.asin(1 / M.ne) / D2R;
@@ -728,18 +889,20 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     cNGC: x => x, cPGC: x => `${x} nm`, cFGC: x => x.toFixed(2), cNL: x => x, cNR: x => x, cPD: x => `${x} nm`, cFD: x => x.toFixed(2),
     cPhL: x => `${x} nm`, cPhR: x => `${x} nm`, cOff: x => `${x} nm`, cH: x => `${x} nm`, cLN: x => `${x} nm`, cW: x => `${x} µm`,
     cCap: x => `${x} nm`, cEx: x => `×${x.toFixed(1)}`,
+    hR: x => `${x} mm`, hN: x => x, hM: x => Math.min(x, Math.ceil(v("hN") / 2) - 1), hA: x => `${x.toFixed(2)} mm`, hPh: x => `${x}°`, hPer: x => x, hBand: x => `${x.toFixed(2)} mm`,
   };
   function labels() { for (const id in LAB) { const o = $(id + "Out"); if (o) o.textContent = LAB[id](v(id)); } }
   let raf = 0;
   function update() { labels(); cancelAnimationFrame(raf); raf = requestAnimationFrame(rebuild); }
   for (const id in LAB) $(id).addEventListener("input", update);
-  for (const id of ["cut", "labelsOn", "beamOn", "mOutMir", "glowOn"]) $(id).addEventListener("change", update);
+  for (const id of ["cut", "labelsOn", "beamOn", "mOutMir", "glowOn", "hBeamOn"]) $(id).addEventListener("change", update);
   const press = (sel, attr, val) => { for (const b of document.querySelectorAll(sel)) b.setAttribute("aria-pressed", String(b.dataset[attr] === val)); };
   for (const b of document.querySelectorAll("[data-dev]")) b.addEventListener("click", () => {
     S.dev = b.dataset.dev; press("[data-dev]", "dev", S.dev);
-    const mem = S.dev === "mem";
+    const mem = S.dev === "mem", her = S.dev === "her", cr = S.dev === "crigf";
     $("fsMem").hidden = !mem; $("fsMemDraw").hidden = !mem || S.mview !== "chip"; $("memViewSeg").hidden = !mem;
-    $("fsCr").hidden = mem; $("fsCrStack").hidden = mem; $("crViewSeg").hidden = mem;
+    $("fsHer").hidden = !her; $("fsMode").hidden = cr;
+    $("fsCr").hidden = !cr; $("fsCrStack").hidden = !cr; $("crViewSeg").hidden = !cr;
     needFit = true; update();
   });
   for (const b of document.querySelectorAll("[data-mview]")) b.addEventListener("click", () => {

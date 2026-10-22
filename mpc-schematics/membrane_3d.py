@@ -2,7 +2,8 @@
 etched-trench DBR mirrors, with a cutaway, and a to-scale close-up of one DBR.
 
     python membrane_3d.py                       both figures into figs/ (PNG and PDF)
-    python membrane_3d.py chip                  chip | dbr
+    python membrane_3d.py chip                  chip | dbr | herriott
+    python membrane_3d.py herriott --R 5 --N 22 --M 5 --A 0.5 --phase 90
     python membrane_3d.py --facets 12 --periods 3 --azim -40 --elev 28
 
 chip   schematic, NOT to scale: membrane thickness, trench widths and the DBR band are exaggerated so they are visible
@@ -250,9 +251,128 @@ def dbr(a):
     plt.close(fig)
 
 
+def herriott(a):
+    """Integrated Herriott cell in the membrane: two curved trench-DBR mirrors, centre port with a V of tapered
+    strip-loaded waveguides, exact ray path, cutaway through mirror 2 and the cell. Lengths in mm (drawn)."""
+    from herriott_planar import PlanarHerriott
+    c = PlanarHerriott(R=a.R * 1e-3, N=a.N, M=a.M, A=a.A * 1e-3, phase=a.phase, lam=a.lam * 1e-6,
+                       thickness=a.thickness * 1e-9, pol=a.pol, periods=a.periods)
+    tr = c.trace()
+    mm = 1e3
+    R, d, A, D, y0, wp = c.R * mm, c.d * mm, c.A * mm, c.D * mm, c.y0 * mm, c.wp * mm
+    Np = a.periods
+    band = 0.22                                           # drawn DBR band (real ~2.3 µm)
+    g = band / Np * c.dbr.d_gap / (c.dbr.d_gap + c.dbr.d_tooth)
+    tooth = band / Np - g
+    t, tb, th = 0.05, 0.04, 0.28
+    X0, X1, Y1 = -2.2, d + 0.9, D + 1.0
+    chipsq = box(X0, -Y1, X1, Y1)
+    win = box(-0.7, -(D + 0.55), d + 0.55, D + 0.55)
+    undercut = box(-0.76, -(D + 0.61), d + 0.61, D + 0.61)
+    Xc = d / 2
+    cut = box(Xc, -Y1 - 1, X1 + 1, 0)
+
+    def on_cut(p_, q_, tol=1e-9):
+        return (abs(p_[0] - Xc) < tol and abs(q_[0] - Xc) < tol and max(p_[1], q_[1]) <= tol) or \
+               (abs(p_[1]) < tol and abs(q_[1]) < tol and min(p_[0], q_[0]) >= Xc - tol)
+
+    # trenches: arcs concentric with each mirror, behind it, over the aperture |Y| <= D
+    slots = []
+    for k, (cx, side) in enumerate(((R, -1), (d - R, 1))):
+        lim = box(-50, -D, cx, D) if side < 0 else box(cx, -D, 50, D)
+        for j in range(Np):
+            r0 = R + j * (g + tooth)
+            ring = Point(cx, 0).buffer(r0 + g, 512).difference(Point(cx, 0).buffer(r0, 512)).intersection(lim)
+            if k == 0:
+                ring = ring.difference(box(-50, y0 - wp / 2, 50, y0 + wp / 2))
+            slots.append(ring)
+    slots = unary_union(slots)
+
+    # waveguides behind mirror 1: input along the launch direction, output along the exit direction
+    P = tr["points"] * mm
+    p0 = P[0]
+    guides, beams_io = [], []
+    for u, kind in ((-tr["in_dir"], "in"), (tr["exit_dir"], "out")):
+        if kind == "out" and tr["exit"] != "port":
+            continue
+        v = np.array([-u[1], u[0]])
+        st = p0 + u * (band + 0.03)
+        w1, w2, lt = wp, wp * 0.35, 0.55
+        far = st + 6 * u
+        guides.append(unary_union([Polygon([st - w1 / 2 * v, st + lt * u - w2 / 2 * v, st + lt * u + w2 / 2 * v, st + w1 / 2 * v]),
+                                   Polygon([st + lt * u - w2 / 2 * v, far - w2 / 2 * v, far + w2 / 2 * v, st + lt * u + w2 / 2 * v])]))
+        beams_io.append((kind, st, u))
+    ts = 0.6 * t
+
+    sc = Scene(azim=a.azim - 30, elev=a.elev + 4)
+    sc.prism(chipsq.difference(win).difference(cut), -tb - th, -tb, COL["handle"], on_cut, COL["handle_sec"])
+    sc.prism(chipsq.difference(undercut).difference(cut), -tb, 0, COL["box"], on_cut, COL["box_sec"])
+    mem = chipsq.difference(slots).difference(cut)
+    sc.prism(mem, 0, t, COL["si"], on_cut, COL["si_sec"])
+    sc.prism(unary_union(guides).intersection(chipsq).difference(cut), t, t + ts, COL["strip"], on_cut, COL["strip_sec"])
+
+    if not a.no_glow:                                     # guided-mode intensity on the cut faces
+        mode_g = cs.membrane_mode("Si", a.thickness * 1e-9, a.lam * 1e-6, a.pol, with_group_index=False)
+        xf, If = cs.field_profile(mode_g, 1.5)
+        zsc = t / (a.thickness * 1e-9)
+        ext = (xf.max() - a.thickness * 1e-9 / 2) * zsc
+        prof = lambda tt: np.interp((-ext + tt * (t + 2 * ext) - t / 2) / zsc, xf, If / If.max())
+        L1 = d + band - Xc
+        sc.glow([Xc, -1e-4, -ext], [L1, 0, 0], [0, 0, t + 2 * ext],
+                lambda s_, tt: 0.62 * prof(tt) * np.where(Xc + s_ * L1 <= d, 1.0, np.exp(-3 * (Xc + s_ * L1 - d) / band)))
+        L2 = 1.25 * A
+        sc.glow([Xc + 1e-4, 0, -ext], [0, -L2, 0], [0, 0, t + 2 * ext],
+                lambda s_, tt: 0.62 * prof(tt) * np.where(s_ * L2 <= A, 1.0, np.exp(-4 * (s_ * L2 - A) / A)))
+
+    keep = chipsq.difference(cut)
+    for i in range(len(P) - 1):
+        piece = LineString(P[i:i + 2]).intersection(keep)
+        for ls in getattr(piece, "geoms", [piece]):
+            if ls.length > 0 and ls.geom_type == "LineString":
+                xy = np.asarray(ls.coords)
+                sc.line(np.c_[xy, np.full(len(xy), t + 1e-3)], COL["beam"], width=1.1)
+    io_px = []
+    for kind, st, u in beams_io:
+        e = LineString([st, st + 6 * u]).intersection(chipsq.difference(cut))
+        xy = np.asarray(e.coords)
+        col = COL["port"] if kind == "in" else COL["out"]
+        sc.line(np.c_[xy, np.full(len(xy), t + ts + 1e-3)], col, width=2.0)
+        sc.line([[*st, t + 1e-3], [*p0, t + 1e-3]], col, width=2.0)
+        io_px.append((kind, xy[0], xy[-1]))
+
+    img, to_px = sc.render(width=a.width)
+    fig = plt.figure(figsize=(img.shape[1] / 150, img.shape[0] / 150), dpi=150)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.imshow(img)
+    ax.set_axis_off()
+    for kind, s0, s1 in io_px:
+        col = COL["port"] if kind == "in" else COL["out"]
+        A_, B_ = (to_px(np.atleast_2d(np.r_[s1, t + ts])), to_px(np.atleast_2d(np.r_[s0 + 0.3 * (s1 - s0), t + ts])))
+        if kind == "out":
+            A_, B_ = B_, A_
+        ax.annotate("", (B_[0][0], B_[1][0]), (A_[0][0], A_[1][0]), arrowprops=dict(arrowstyle="-|>", color=col, lw=2))
+    bud = c.budget(tr)
+    ang = np.degrees(np.arccos(np.clip(-tr["in_dir"] @ tr["exit_dir"], -1, 1)))
+    annotate(ax, to_px, [-band / 2, 0.9 * D, t], [-0.6, Y1 + 0.9, t], f"mirror 1: curved trench DBR, {Np} periods\n(R = {R:g} mm, drawn wide)")
+    annotate(ax, to_px, [d + band / 2, 0.6 * D, t], [d + 0.9, Y1 + 0.4, t], "mirror 2")
+    annotate(ax, to_px, [p0[0] - 0.02, p0[1], t], [-1.6, -Y1 - 0.9, t], f"centre port: no DBR over {wp * 1e3:.0f} µm", COL["port"])
+    annotate(ax, to_px, [*(beams_io[0][1] + beams_io[0][2] * 0.8), t + ts], [-2.9, -0.4, t],
+             f"tapered strip-loaded waveguides,\ninput and output {ang:.0f}° apart", COL["strip_ink"])
+    annotate(ax, to_px, [d * 0.3, 0.2 * A, t], [d * 0.5, Y1 + 1.4, t],
+             f"{tr['n_hits'] + 1} passes, M = {c.M}: path {tr['path'] * 100:.1f} cm, out {bud['T_out'] * 100:.0f} %", COL["beam"])
+    annotate(ax, to_px, [d + 0.02, 0, t / 2], [X1 + 0.9, 0.4, 0], "section through mirror 2")
+    annotate(ax, to_px, [d * 0.75, 0, -tb - th], [X1 + 0.5, -1.6, -0.5], "backside window: membrane released")
+    ax.text(0.0, 1.03, f"Integrated Herriott cell in a free-standing Si membrane (schematic, not to scale): N = {c.N}, "
+            f"M = {c.M}, φ = {c.phase:g}°, d = {d:.2f} mm", transform=ax.transAxes, va="bottom", fontsize=12,
+            color=COL["ink"], fontweight="bold")
+    for ext_ in ("png", "pdf"):
+        fig.savefig(OUT / f"membrane_herriott_3d.{ext_}", dpi=150, bbox_inches="tight", pad_inches=0.15)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("figs", nargs="*", default=["chip", "dbr"])
+    ap.add_argument("figs", nargs="*", default=["chip", "dbr", "herriott"])
     ap.add_argument("--facets", type=int, default=24)
     ap.add_argument("--star", type=int, default=7)
     ap.add_argument("--periods", type=int, default=4)
@@ -266,7 +386,12 @@ if __name__ == "__main__":
     ap.add_argument("--elev", type=float, default=30.0)
     ap.add_argument("--width", type=int, default=1800, help="image width in pixels")
     ap.add_argument("--no-glow", action="store_true", help="omit the guided-mode glow on the cut faces")
+    ap.add_argument("--R", type=float, default=5.0, help="Herriott: mirror radius, mm")
+    ap.add_argument("--N", type=int, default=22, help="Herriott: passes to re-entry")
+    ap.add_argument("--M", type=int, default=5, help="Herriott: turns")
+    ap.add_argument("--A", type=float, default=0.5, help="Herriott: pattern half-width, mm")
+    ap.add_argument("--phase", type=float, default=90.0, help="Herriott: launch phase, deg (90: centre port)")
     args = ap.parse_args()
     for f in args.figs:
-        {"chip": chip, "dbr": dbr}[f](args)
+        {"chip": chip, "dbr": dbr, "herriott": herriott}[f](args)
         print("wrote", f)

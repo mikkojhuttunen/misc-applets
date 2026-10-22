@@ -41,4 +41,16 @@ python membrane_3d.py chip --outputs 3 --out-periods 1
 
 Rendering is done by `render3d.py`, a small z-buffered renderer (orthographic camera, Lambert shading, polygons with holes, prisms extruded from shapely polygons, depth-tested lines, 2× supersampling). It needs only numpy, Pillow, shapely and matplotlib, and draws occlusion correctly where mplot3d's painter's algorithm does not. The corner bridges are a drawing assumption (something has to hold the inner membrane once the trenches are etched through); the simulations do not model them.
 
+## herriott_planar.py (integrated Herriott cell)
+
+In-plane Herriott cell in the membrane: two concave curved trench-DBR mirrors (radius R) at d = R (1 − cos 2πM/N), injected through a gap in mirror 1 for the spot pattern x_n = A cos(nθ + φ). The trace is exact (circular mirrors), and every hit applies the trench-DBR reflectance at its angle (`cmpc_sim.DBR`), giving the throughput and the absorption-weighted path.
+
+```
+python herriott_planar.py                                   R = 5 mm, N = 22, M = 5, A = 0.5 mm, φ = 90°
+python herriott_planar.py --phase 0                         classic edge port
+python membrane_3d.py herriott --R 5 --N 22 --M 5 --A 0.5   3D cutaway: curved DBR mirrors, centre port, V of tapered waveguides
+```
+
+In one transverse dimension the launch phase matters: with φ = 0 (port at the pattern edge, the usual 3D choice) the pattern is symmetric in n and the exit ray retraces the input (1.2° apart for the defaults), so the output couples back into the input waveguide. φ = 90° puts the port at the mirror centre and separates input and output by ≈ 2A sin θ / d (13° for the defaults). Spherical aberration of circular mirrors grows with (A/R)²: at A/R = 0.2 the beam misses the centre port after N passes; aspheric DBR arcs or a smaller A/R fix it.
+
 The interactive version is [`../mpc-designs.html`](../mpc-designs.html).

@@ -78,6 +78,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12px; }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .note { color: var(--muted); font-size: 12.5px; margin: 0; max-width: 100ch; }
+.figimg { display: block; width: 100%; height: auto; background: #ffffff; border: 1px solid var(--line); border-radius: 4px; }
 .err { color: var(--warn); font-size: 12.5px; margin: 0; }
 .tablewrap { overflow-x: auto; }
 table + table { margin-top: 10px; }
@@ -253,6 +254,27 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
         <div class="stats" id="stats"></div>
         <div class="tablewrap" id="tableWrap"></div>
         <p class="note" id="note"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="hFig">
+        <div class="bar">
+          <h2 id="hFig">2D figures</h2>
+          <div class="btns" role="group" aria-label="Figure">
+            <button type="button" data-fig="setup_cmpc" aria-pressed="true">Setup: CMPC</button>
+            <button type="button" data-fig="setup_herriott" aria-pressed="false">Setup: Herriott</button>
+            <button type="button" data-fig="evanescent_sensing" aria-pressed="false">Evanescent sensing</button>
+            <button type="button" data-fig="herriott_planar" aria-pressed="false">Planar Herriott</button>
+          </div>
+        </div>
+        <div class="bar exportbar">
+          <div class="btns" role="group" aria-label="Download figure">
+            <button type="button" id="figPng">Download PNG</button>
+            <button type="button" id="figPdf">Download PDF</button>
+          </div>
+          <span class="status" id="figStatus" role="status" aria-live="polite">Pre-rendered by the Python scripts in <span class="mono">mpc-schematics/</span>; the PDF is vector.</span>
+        </div>
+        <img class="figimg" id="figImg" src="figs/setup_cmpc.png" alt="">
+        <p class="note" id="figNote"></p>
       </section>
 
       <footer>
@@ -1068,8 +1090,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     return new Blob(parts, { type: "application/pdf" });
   }
   const toBlob = (cv, type, q) => new Promise(res => cv.toBlob(res, type, q));
-  async function offer(filename, blob) {
-    const st = $("expStatus");
+  async function offer(filename, blob, st = $("expStatus")) {
     await dlReady;
     if (dlNs) {
       try { await dlNs.save({ filename, data: blob }); st.textContent = `Saved ${filename}.`; }
@@ -1095,6 +1116,29 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
     const jpg = new Uint8Array(await (await toBlob(cv, "image/jpeg", 0.95)).arrayBuffer());
     return offer(exportName("pdf"), jpegPdf(jpg, cv.width, cv.height, 96 * scale));
   }
+  // ---------------------------------------------------------------- 2D figures (published next to this page)
+  const FIGS = {
+    setup_cmpc: ["Top view of the whole system: bulk laser, isolator and lens into the edge coupler, on-chip dither section, CMPC, dark-blue output-port waveguides to bulk photodiodes, reference tap. setup_schematic.py cmpc", "Setup schematic, CMPC"],
+    setup_herriott: ["The same setup with the integrated Herriott cell; one centre output port. setup_schematic.py herriott", "Setup schematic, integrated Herriott cell"],
+    evanescent_sensing: ["Why the evanescent field does the sensing: to-scale cross-section with molecules, TM₀ mode profile with the confinement factor Γ, and Γ against membrane thickness. evanescent_sensing.py", "Evanescent-field sensing explainer"],
+    herriott_planar: ["Planar Herriott cell: spot pattern, exact 2D trace and loss budget for R = 5 mm, N = 22, M = 5. herriott_planar.py", "Planar Herriott cell design"],
+  };
+  let fig = "setup_cmpc";
+  function showFig(k) {
+    fig = k; press("[data-fig]", "fig", k);
+    $("figImg").src = `figs/${k}.png`; $("figImg").alt = FIGS[k][1]; $("figNote").textContent = FIGS[k][0];
+  }
+  for (const b of document.querySelectorAll("[data-fig]")) b.addEventListener("click", () => showFig(b.dataset.fig));
+  async function figDownload(ext) {
+    const st = $("figStatus"); st.textContent = "Fetching…";
+    try {
+      const r = await fetch(`figs/${fig}.${ext}`); if (!r.ok) throw new Error(r.status);
+      await offer(`${fig}.${ext}`, await r.blob(), st);
+    } catch (e) { st.textContent = `Could not fetch ${fig}.${ext}.`; }
+  }
+  $("figPng").addEventListener("click", () => figDownload("png"));
+  $("figPdf").addEventListener("click", () => figDownload("pdf"));
+  showFig(fig);
   $("expPng").addEventListener("click", () => doExport("png"));
   $("expPdf").addEventListener("click", () => doExport("pdf"));
   $("camObl").addEventListener("click", () => fit("oblique"));

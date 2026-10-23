@@ -64,13 +64,18 @@ python evanescent_sensing.py
 python evanescent_sensing.py --thickness 220 --pol TE
 ```
 
-## combined_figure.py (one-row overview, panels a–d)
+## combined_figure.py (overview figures, panels a–e)
 
-(a) the CMPC chip and (b) the integrated Herriott cell as oblique 3D renders without labels (`membrane_3d.py --bare`), (c) the evanescent-field cross-section and (d) Γ against membrane thickness from `evanescent_sensing.py`, side by side at journal width. The 3D panels are embedded at full resolution; (c) and (d) are vector.
+Two layouts at journal width (183 mm by default), each written as PDF, SVG and PNG:
+
+- `row`: one row with (a) the CMPC chip, (b) the integrated Herriott cell, (c) the evanescent-field cross-section and (d) Γ against membrane thickness → `figs/combined_overview.*`
+- `setup`: (a) and (b) on top; (c), (d) and (e), the system top view of `setup_schematic.py`, below → `figs/combined_setup.*`
+
+(a) and (b) are the 3D renders without labels (`membrane_3d.py --bare`), embedded at full resolution; (c)–(e) are vector. Panel (e) is the full schematic drawn smaller, with text and lines scaled with it; the script prints its smallest text size (about 2 pt at 183 mm), so use a larger `--width` if it has to be read in print.
 
 ```
-python combined_figure.py                     figs/combined_overview.pdf, .svg, .png (183 mm wide, star {24/11})
-python combined_figure.py --width 250 --star 7 --font 8
+python combined_figure.py                     both layouts, star {24/11}
+python combined_figure.py setup --width 250 --setup-kind herriott
 python combined_figure.py --no-render         reuse the last 3D renders (fast)
 ```
 
@@ -81,6 +86,7 @@ Whole setup in one vector figure, for the CMPC and for the integrated Herriott c
 ```
 python setup_schematic.py                     figs/setup_cmpc.pdf, figs/setup_herriott.pdf (+ png)
 python setup_schematic.py cmpc --outputs 3
+python setup_schematic.py --no-modules        without the red light-source and blue detection blocks
 ```
 
 The interactive version is [`../mpc-designs.html`](../mpc-designs.html).

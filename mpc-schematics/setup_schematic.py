@@ -4,6 +4,7 @@ output-port waveguides.
     python setup_schematic.py                  both variants: figs/setup_cmpc.{pdf,png}, figs/setup_herriott.{pdf,png}
     python setup_schematic.py cmpc             cmpc | herriott
     python setup_schematic.py --outputs 3      CMPC output ports (1-3)
+    python setup_schematic.py --no-modules     without the red light-source and blue detection blocks
 
 Light path: laser (bulk, with its driver) -> isolator -> lens -> edge coupler -> tap coupler (a few % to a reference
 detector for power normalisation) -> dither section -> cell input port -> cell -> output ports (dark blue) -> output
@@ -130,12 +131,27 @@ def herriott_cell(ax, x0, y0, d, D, R):
     return np.array([x0, y0])
 
 
-def figure(kind, a):
-    fig, ax = plt.subplots(figsize=(16, 8.4), dpi=130)
-    ax.set_xlim(-0.2, 18.45)
-    ax.set_ylim(-0.6, 9.3)
+XLIM, YLIM = (-0.2, 18.5), (-0.6, 9.3)
+MOD = dict(src=("#e8574a", "#c0392b", "#a12a1f"), det=("#3a62c4", "#1d3f8f", "#1d3f8f"))   # fill, edge, text
+
+
+def module(ax, x0, y0, x1, y1, kind, label):
+    """Shaded, framed block of bulk parts (red: light source, blue: detection) with its name in the bottom right corner."""
+    fc, ec, ink = MOD[kind]
+    ax.add_patch(FancyBboxPatch((x0, y0), x1 - x0, y1 - y0, boxstyle="round,pad=0,rounding_size=0.15", fc=fc, alpha=0.09, ec="none", zorder=0.5))
+    ax.add_patch(FancyBboxPatch((x0, y0), x1 - x0, y1 - y0, boxstyle="round,pad=0,rounding_size=0.15", fc="none", ec=ec, lw=1.8, zorder=0.6))
+    ax.text(x1 - 0.12, y0 + 0.1, label, ha="right", va="bottom", fontsize=10, fontweight="bold", color=ink, zorder=6)
+
+
+def draw(ax, kind, a, title=True, legend=True, attribution=True):
+    """The whole schematic into ax (data units: the chip is 10 x 7.15)."""
+    ax.set_xlim(*XLIM)
+    ax.set_ylim(*YLIM)
     ax.set_aspect("equal")
     ax.axis("off")
+    if getattr(a, "modules", True):
+        module(ax, -0.1, 3.3, 4.27, 9.15, "src", "LIGHT SOURCE")
+        module(ax, 14.58, -0.05, 18.45, 9.15, "det", "DETECTION")
     # ------------------------------------------------------------ bulk: laser, driver, isolator, fibre
     yb = 4.57                                              # free-space beam height (chip input)
     hl = components.place(ax, "laser", 1.05, yb, 1.6)
@@ -251,27 +267,62 @@ def figure(kind, a):
     lg = [("input waveguide (strip-loaded)", C["wg_in"], "-"), ("output-port waveguides", C["wg_out"], "-"), ("reference tap", C["wg_ref"], "-"),
           ("free-space beam (bulk optics)", C["fs"], "-"), ("ray path in the cell", C["beam"], "-"), ("electrical", C["elec"], (0, (4, 2.5))),
           ("heater (thermo-optic)", C["heater"], "-")]
-    for i, (lab, col, ls) in enumerate(lg):
+    for i, (lab, col, ls) in enumerate(lg if legend else []):
         y = 2.85 - 0.34 * i
         ax.plot([0.15, 0.6], [y, y], color=col, lw=2.4, ls=ls)
         ax.text(0.7, y, lab, fontsize=8.5, va="center", color=C["ink"])
-    title = "CMPC" if kind == "cmpc" else "integrated Herriott cell"
-    ax.text(-0.1, 9.25, f"Setup, top view: bulk laser and detectors, on-chip dithering, {title} (schematic, not to scale)",
-            fontsize=13, fontweight="bold", va="bottom", color=C["ink"])
-    if components.used_library():
-        ax.text(18.1, -0.55, components.ATTRIBUTION, ha="right", va="bottom", fontsize=7, color=C["muted"])
+    cell = "CMPC" if kind == "cmpc" else "integrated Herriott cell"
+    if title:
+        ax.text(-0.1, 9.3, f"Setup, top view: bulk laser and detectors, on-chip dithering, {cell} (schematic, not to scale)",
+                fontsize=13, fontweight="bold", va="bottom", color=C["ink"])
+    if attribution and components.used_library():
+        ax.text(18.45, -0.55, components.ATTRIBUTION, ha="right", va="top", fontsize=7, color=C["muted"])
+
+
+def inch_per_unit(ax):
+    """Drawn size of one data unit (equal aspect)."""
+    ax.apply_aspect()
+    bb = ax.get_position().transformed(ax.figure.transFigure)
+    return min(bb.width / (XLIM[1] - XLIM[0]), bb.height / (YLIM[1] - YLIM[0])) / ax.figure.dpi
+
+
+def scale_artists(ax, k):
+    """Scale text, line widths, markers and arrow heads by k: the schematic drawn smaller keeps its proportions."""
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    from matplotlib.text import Text
+    for c in ax.get_children():
+        if isinstance(c, Text):
+            c.set_fontsize(c.get_fontsize() * k)
+        elif isinstance(c, Line2D):
+            c.set_linewidth(c.get_linewidth() * k)
+            c.set_markersize(c.get_markersize() * k)
+        elif isinstance(c, Patch):
+            c.set_linewidth(c.get_linewidth() * k)
+            if isinstance(c, FancyArrowPatch):
+                c.set_mutation_scale(c.get_mutation_scale() * k)
+
+
+def figure(kind, a):
+    fig, ax = plt.subplots(figsize=(16, 8.4), dpi=130)
+    draw(ax, kind, a)
     OUT.mkdir(exist_ok=True)
     for ext in ("pdf", "png"):
         fig.savefig(OUT / f"setup_{kind}.{ext}", bbox_inches="tight", pad_inches=0.15)
     plt.close(fig)
 
 
-if __name__ == "__main__":
+def parser():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("kinds", nargs="*", default=["cmpc", "herriott"])
     ap.add_argument("--outputs", type=int, default=2, help="CMPC output ports (1-3)")
     ap.add_argument("--out-angles", type=float, nargs="+", default=[45, -45, 0], help="CMPC output-port facet angles, deg")
-    a = ap.parse_args()
+    ap.add_argument("--no-modules", dest="modules", action="store_false", help="omit the light-source (red) and detection (blue) blocks")
+    return ap
+
+
+if __name__ == "__main__":
+    a = parser().parse_args()
     for k in a.kinds:
         figure(k, a)
         print("wrote", OUT / f"setup_{k}.pdf")

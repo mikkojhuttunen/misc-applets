@@ -6,8 +6,8 @@ setup   two rows: (a) and (b) on top; (c), (d) and (e) the system top view of se
         red block, sensing chip, detection in the blue block) below      -> figs/combined_setup.{pdf,svg,png}
 
 (a) and (b) are the oblique renders of membrane_3d.py without labels (embedded raster, full resolution); (c), (d) and
-(e) are vector. (e) is the simplified schematic by default (block names I-III only; see setup_schematic.py for the
-colour coding to describe in the caption); --setup-style full draws the labelled schematic, scaled down with its
+(e) are vector. (e) is the simplified schematic by default (I Source, II Gas sensor, III Detection; designed at the
+183 mm panel size, text in fixed point sizes); --setup-style full draws the labelled schematic, scaled down with its
 text (the smallest size is printed; use a larger --width for bigger text).
 
     python combined_figure.py                         both layouts, 183 mm wide (double column), CMPC star {24/11}
@@ -112,8 +112,8 @@ def setup_layout(a, img_a, img_b, md):
     asp1 = [img_a.shape[1] / img_a.shape[0], img_b.shape[1] / img_b.shape[0]]
     H1 = (W - gap) / sum(asp1)
     simple = a.setup_style == "simple"
-    XL, YL = (ss.XLIM_S, ss.YLIM_S) if simple else (ss.XLIM, ss.YLIM)
-    margin = 1.3                                           # data units left of the schematic for the panel label
+    XL, YL = ((0, ss.SX), (0, ss.SY)) if simple else (ss.XLIM, ss.YLIM)
+    margin = 0.0 if simple else 1.3                        # data units left of the schematic for the panel label
     ex = (XL[1] - XL[0] + margin) / (YL[1] - YL[0])
     asp2 = [1.1, 0.75, ex]
     H2 = (W - 2 * gap - left_d) / sum(asp2)
@@ -136,17 +136,15 @@ def setup_layout(a, img_a, img_b, md):
     panel_c(fig, axes[2], md, a)
     panel_d(axes[3], md)
     ae = axes[4]
-    sa = ss.parser().parse_args([a.setup_kind, "--star", str(a.star)])
-    ref = plt.figure(figsize=(16, 8.4), dpi=130)             # the scale the standalone schematic is designed at
-    k = H2 / (YL[1] - YL[0]) / ss.inch_per_unit(ref.add_subplot(111, xlim=ss.XLIM, ylim=ss.YLIM, aspect="equal"))
-    plt.close(ref)
-    if simple:
-        names = ss.draw_simple(ae, a.setup_kind, sa)
-        ae.set_xlim(XL[0] - margin, XL[1])
-        ss.scale_artists(ae, k)
-        for t in names:                                    # block names at the figure's font size, not scaled
-            t.set_fontsize(a.font)
+    sa = ss.parser().parse_args([a.setup_kind, "--star", str(a.setup_star)])
+    if simple:                                             # designed at this size: lines follow the width, text stays in pt
+        k = H2 / ss.SY / ss.SIPU
+        ss.draw_simple(ae, a.setup_kind, sa, font=a.font, panel_label=True)
+        ss.scale_artists(ae, k, text=False)
     else:
+        ref = plt.figure(figsize=(16, 8.4), dpi=130)         # the scale the standalone schematic is designed at
+        k = H2 / (YL[1] - YL[0]) / ss.inch_per_unit(ref.add_subplot(111, xlim=ss.XLIM, ylim=ss.YLIM, aspect="equal"))
+        plt.close(ref)
         ss.draw(ae, a.setup_kind, sa, title=False, legend=True, attribution=False)
         ae.set_xlim(XL[0] - margin, XL[1])
         ss.scale_artists(ae, k)
@@ -155,7 +153,7 @@ def setup_layout(a, img_a, img_b, md):
     if components.used_library():
         fig.text(1.0, 0.0, components.ATTRIBUTION, ha="right", va="bottom", fontsize=max(a.font - 2.5, 4), color="#5a6a6f")
     save(fig, "combined_setup", a)
-    print(f"(e) drawn at {k:.2f} of the standalone size: smallest text {smallest:.1f} pt")
+    print(f"(e) lines at {k:.2f} of the design size, smallest text {smallest:.1f} pt")
 
 
 def main():
@@ -168,7 +166,8 @@ def main():
     ap.add_argument("--seed", type=int, default=4, help="molecule placement in (c)")
     ap.add_argument("--font", type=float, default=7, help="font size, pt")
     ap.add_argument("--setup-style", default="simple", choices=("simple", "full"),
-                    help="panel (e): simple (block names I-III only, details in the caption) or the full labelled schematic")
+                    help="panel (e): simple (blocks I Source, II Gas sensor, III Detection) or the full labelled schematic")
+    ap.add_argument("--setup-star", type=int, default=7, help="CMPC star orbit step drawn in panel (e)")
     ap.add_argument("--setup-kind", default="cmpc", choices=("cmpc", "herriott"), help="cell drawn in panel (e)")
     ap.add_argument("--no-render", action="store_true", help="reuse the 3D renders from the last run")
     a = ap.parse_args()

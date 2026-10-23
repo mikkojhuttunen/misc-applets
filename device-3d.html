@@ -123,7 +123,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
         <div class="ctl"><div class="row"><label for="mFac">Facets</label><output id="mFacOut"></output></div>
           <input id="mFac" type="range" min="8" max="48" step="4" value="24"></div>
         <div class="ctl"><div class="row"><label for="mStar">Star orbit step m</label><output id="mStarOut"></output></div>
-          <input id="mStar" type="range" min="1" max="11" step="1" value="7"></div>
+          <input id="mStar" type="range" min="1" max="11" step="1" value="11"></div>
         <div class="ctl"><div class="row"><label for="mPer">DBR periods</label><output id="mPerOut"></output></div>
           <input id="mPer" type="range" min="1" max="10" step="1" value="4"></div>
         <div class="ctl"><div class="row"><label for="mOuts">Output ports</label><output id="mOutsOut"></output></div>
@@ -997,6 +997,12 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
   function labels() { for (const id in LAB) { const o = $(id + "Out"); if (o) o.textContent = LAB[id](v(id)); } }
   let raf = 0;
   function update() { labels(); cancelAnimationFrame(raf); raf = requestAnimationFrame(rebuild); }
+  // star step m runs 1 .. floor((N-1)/2); a value at the top follows the top when the facet count changes
+  $("mFac").addEventListener("input", () => {
+    const st = $("mStar"), atTop = +st.value >= +st.max;
+    st.max = Math.floor((v("mFac") - 1) / 2);
+    if (atTop || +st.value > +st.max) st.value = st.max;
+  });
   for (const id in LAB) $(id).addEventListener("input", update);
   for (const id of ["cut", "labelsOn", "beamOn", "mOutMir", "glowOn", "hBeamOn", "molOn", "pillarOn"]) $(id).addEventListener("change", update);
   const press = (sel, attr, val) => { for (const b of document.querySelectorAll(sel)) b.setAttribute("aria-pressed", String(b.dataset[attr] === val)); };

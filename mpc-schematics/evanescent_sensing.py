@@ -49,48 +49,39 @@ def molecule(ax, kind, x, z, b, ang, sx, sensed):
         ax.add_patch(matplotlib.patches.Ellipse((px, pz), 2 * RAD[el] * b * sx, 2 * RAD[el] * b, fc=CPK[el], ec="#2b3135", lw=0.5, zorder=5))
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--thickness", type=float, default=250, help="membrane, nm")
-    ap.add_argument("--pol", default="TM", choices=("TE", "TM"))
-    ap.add_argument("--lam", type=float, default=1.55, help="µm")
-    ap.add_argument("--seed", type=int, default=4)
-    a = ap.parse_args()
-    lam, t = a.lam * 1e-6, a.thickness * 1e-9
-    m = cs.membrane_mode("Si", t, lam, a.pol, with_group_index=False)
-    um = 1e6
-    gam = m.gamma_ev                                      # field decay constant in the gas (1/m)
-    delta = 1 / (2 * gam)                                 # intensity decay length
+def mode_data(thickness_nm=250, pol="TM", lam_um=1.55):
+    """Slab mode, intensity profile and decay lengths shared by the panels (lengths in m, profile x in µm)."""
+    lam, t = lam_um * 1e-6, thickness_nm * 1e-9
+    m = cs.membrane_mode("Si", t, lam, pol, with_group_index=False)
+    delta = 1 / (2 * m.gamma_ev)                          # intensity decay length; gamma_ev is the field decay constant
     x, I = cs.field_profile(m, 10.0, 2001)
-    I = I / I.max()
-    zmax = (t / 2 + 9 * delta) * um
-    fieldname = "|H|²" if a.pol == "TM" else "|E|²"
+    return dict(m=m, t=t, lam=lam, pol=pol, thickness=thickness_nm, lam_um=lam_um, delta=delta, x=x, I=I / I.max(),
+                zmax=(t / 2 + 9 * delta) * 1e6)
 
-    OUT.mkdir(exist_ok=True)
-    fig = plt.figure(figsize=(15, 5.4), dpi=130)
-    gs = fig.add_gridspec(1, 3, width_ratios=[2.5, 0.8, 1.25], wspace=0.28)
-    ax = fig.add_subplot(gs[0])
-    L = 4.0
+
+def cross_section(fig, ax, md, seed=4, L=4.0, text=True, n_in=5, n_out=4):
+    """Panel 1: membrane cross-section (heights to scale), intensity shading, δ and 3δ lines, molecules."""
+    um, t, delta, zmax, m = 1e6, md["t"], md["delta"], md["zmax"], md["m"]
     zz = np.linspace(-zmax, zmax, 600)
-    Iz = np.interp(zz / um, x, I, left=0, right=0)
+    Iz = np.interp(zz / um, md["x"], md["I"], left=0, right=0)
     rgba = np.zeros((len(zz), 2, 4))
     rgba[..., :3] = matplotlib.colors.to_rgb("#ff2a1a")
     rgba[..., 3] = (0.75 * Iz ** 0.35)[:, None]                 # compressed scale so the tails show
     ax.imshow(rgba, extent=(0, L, -zmax, zmax), origin="lower", aspect="auto", zorder=1, interpolation="bilinear")
     ax.add_patch(Rectangle((0, -t / 2 * um), L, t * um, fc="#8fa3c4", ec="#1f4e79", lw=1.0, alpha=0.75, zorder=2))
     for sgn in (1, -1):
-        zl = sgn * (t / 2 + delta) * um
-        ax.axhline(zl, color="#c0392b", ls="--", lw=0.9, zorder=2)
-        z3 = sgn * (t / 2 + 3 * delta) * um
-        ax.axhline(z3, color="#c0392b", ls=":", lw=0.8, zorder=2)
-    ax.text(L - 0.03, (t / 2 + delta) * um + 0.01, f"δ = 1/(2γ) = {delta * 1e9:.0f} nm (intensity /e)", ha="right", va="bottom", color="#a12a1f", fontsize=9)
-    ax.text(L - 0.03, (t / 2 + 3 * delta) * um + 0.01, "3δ: intensity down to 5 %", ha="right", va="bottom", color="#a12a1f", fontsize=9)
+        ax.axhline(sgn * (t / 2 + delta) * um, color="#c0392b", ls="--", lw=0.9, zorder=2)
+        ax.axhline(sgn * (t / 2 + 3 * delta) * um, color="#c0392b", ls=":", lw=0.8, zorder=2)
     ax.add_patch(FancyArrowPatch((0.25, 0), (1.35, 0), arrowstyle="-|>", mutation_scale=14, color="#1b2328", lw=1.6, zorder=6))
-    ax.text(0.27, 0.012, f"guided {a.pol}₀ mode, n_eff = {m.neff:.3f}", fontsize=9, va="bottom", zorder=6)
-    ax.text(L / 2, -t / 2 * um + 0.01, f"Si membrane, {a.thickness:.0f} nm", ha="center", va="bottom", fontsize=9, color="#12324f", zorder=6)
+    if text:
+        ax.text(L - 0.03, (t / 2 + delta) * um + 0.01, f"δ = 1/(2γ) = {delta * 1e9:.0f} nm (intensity /e)", ha="right", va="bottom", color="#a12a1f", fontsize=9)
+        ax.text(L - 0.03, (t / 2 + 3 * delta) * um + 0.01, "3δ: intensity down to 5 %", ha="right", va="bottom", color="#a12a1f", fontsize=9)
+        ax.text(0.27, 0.012, f"guided {md['pol']}₀ mode, n_eff = {m.neff:.3f}", fontsize=9, va="bottom", zorder=6)
+        ax.text(L / 2, -t / 2 * um + 0.01, f"Si membrane, {md['thickness']:.0f} nm", ha="center", va="bottom", fontsize=9, color="#12324f", zorder=6)
     # molecules: enlarged, half inside the evanescent layer, half beyond it
-    rng = np.random.default_rng(a.seed)
+    rng = np.random.default_rng(seed)
     b = 0.035 * zmax / 0.6
+    ax.set(xlim=(0, L), ylim=(-zmax, zmax))
     # keep atoms round: data aspect correction (x span L over panel width, z span 2 zmax over panel height)
     fig.canvas.draw()
     bb = ax.get_window_extent()
@@ -98,7 +89,7 @@ def main():
     placed = []
     kinds = list(SHAPES2D)
     for side in (1, -1):
-        for zone, n in (("in", 5), ("out", 4)):
+        for zone, n in (("in", n_in), ("out", n_out)):
             for _ in range(n):
                 for _try in range(200):
                     xm = rng.uniform(0.25, 2.55 if zone == "in" else L - 0.25)
@@ -110,36 +101,63 @@ def main():
                         break
                 placed.append((xm, zm))
                 molecule(ax, kinds[rng.integers(4)], xm, zm, b, rng.uniform(0, np.pi), sx, zone == "in")
-    ax.set(xlim=(0, L), ylim=(-zmax, zmax), xlabel="along the membrane (µm, schematic)", ylabel="height z (µm, to scale)",
-           title="Evanescent-field sensing: only molecules inside the red layer absorb")
-    ax.text(0.01, 0.01, "molecules enlarged ~1000×; halo = inside the field; shading = intensity (compressed scale)", transform=ax.transAxes, fontsize=8.5, color="#4a565c")
 
-    a2 = fig.add_subplot(gs[1], sharey=ax)
+
+def mode_profile(ax, md):
+    """Panel 2: intensity across the membrane, gas part shaded, Γ."""
+    um, x, I, t, m = 1e6, md["x"], md["I"], md["t"], md["m"]
     inside = np.abs(x) <= t / 2
-    a2.fill_betweenx(x * um, 0, np.where(inside, I, np.nan), color="#8fa3c4", alpha=0.8, lw=0)
-    a2.fill_betweenx(x * um, 0, np.where(~inside, I, np.nan), color="#ff2a1a", alpha=0.45, lw=0)
-    a2.plot(I, x * um, color="#7a2a20", lw=1.4)
-    a2.set(xlabel=f"{fieldname} (norm.)", xlim=(0, 1.08), title="Mode profile")
-    a2.text(0.5, 0.97, f"Γ = {m.Gamma:.2f}:\nα_mode = Γ α_gas", transform=a2.transAxes, ha="center", va="top", fontsize=9.5, color="#a12a1f")
-    plt.setp(a2.get_yticklabels(), visible=False)
+    ax.fill_betweenx(x * um, 0, np.where(inside, I, np.nan), color="#8fa3c4", alpha=0.8, lw=0)
+    ax.fill_betweenx(x * um, 0, np.where(~inside, I, np.nan), color="#ff2a1a", alpha=0.45, lw=0)
+    ax.plot(I, x * um, color="#7a2a20", lw=1.4)
+    ax.set(xlabel=f"{'|H|²' if md['pol'] == 'TM' else '|E|²'} (norm.)", xlim=(0, 1.08), title="Mode profile")
+    ax.text(0.5, 0.97, f"Γ = {m.Gamma:.2f}:\nα_mode = Γ α_gas", transform=ax.transAxes, ha="center", va="top", fontsize=9.5, color="#a12a1f")
 
-    a3 = fig.add_subplot(gs[2])
+
+def gamma_curves(ax, md, text=True, lw=1.8):
+    """Panel 3: Γ against membrane thickness for TM0 and TE0, the design point marked."""
     d = np.linspace(100, 600, 51) * 1e-9
     for pol, col in (("TM", "#c0392b"), ("TE", "#1f4e79")):
-        G = [cs.membrane_mode("Si", di, lam, pol, with_group_index=False).Gamma for di in d]
-        a3.plot(d * 1e9, G, color=col, lw=1.8, label=f"{pol}₀")
-    a3.plot([a.thickness], [m.Gamma], "o", color="#1b2328", ms=6, zorder=5)
-    a3.annotate(f"this design\nΓ = {m.Gamma:.2f}", (a.thickness, m.Gamma), (a.thickness + 55, m.Gamma - 0.05), fontsize=9,
-                arrowprops=dict(arrowstyle="-", lw=0.8))
-    a3.set(xlabel="Si membrane thickness (nm)", ylabel="Γ (modal absorption / gas absorption)", ylim=(0, None),
-           title=f"Thinner membrane, more field in the gas ({a.lam:g} µm)")
-    a3.legend(frameon=False)
-    a3.grid(alpha=0.25)
-    a3.text(0.40, 0.80, "Γ > 1 for thin TM₀ membranes: E_z jumps by\nn_Si² at the surface, so the gas side carries\nthe stronger field. Cost of going thinner:\nn_eff → 1 (weaker DBR contrast, mode spreads\nfar out) and more surface-roughness loss",
-             transform=a3.transAxes, fontsize=8.5, color="#4a565c", va="top")
+        G = [cs.membrane_mode("Si", di, md["lam"], pol, with_group_index=False).Gamma for di in d]
+        ax.plot(d * 1e9, G, color=col, lw=lw, label=f"{pol}₀")
+    G0 = md["m"].Gamma
+    ax.plot([md["thickness"]], [G0], "o", color="#1b2328", ms=6 if text else 4, zorder=5)
+    ax.set_ylim(0, None)
+    ax.grid(alpha=0.25)
+    if text:
+        ax.annotate(f"this design\nΓ = {G0:.2f}", (md["thickness"], G0), (md["thickness"] + 55, G0 - 0.05), fontsize=9,
+                    arrowprops=dict(arrowstyle="-", lw=0.8))
+        ax.set(xlabel="Si membrane thickness (nm)", ylabel="Γ (modal absorption / gas absorption)",
+               title=f"Thinner membrane, more field in the gas ({md['lam_um']:g} µm)")
+        ax.legend(frameon=False)
+        ax.text(0.40, 0.80, "Γ > 1 for thin TM₀ membranes: E_z jumps by\nn_Si² at the surface, so the gas side carries\nthe stronger field. Cost of going thinner:\nn_eff → 1 (weaker DBR contrast, mode spreads\nfar out) and more surface-roughness loss",
+                transform=ax.transAxes, fontsize=8.5, color="#4a565c", va="top")
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--thickness", type=float, default=250, help="membrane, nm")
+    ap.add_argument("--pol", default="TM", choices=("TE", "TM"))
+    ap.add_argument("--lam", type=float, default=1.55, help="µm")
+    ap.add_argument("--seed", type=int, default=4)
+    a = ap.parse_args()
+    md = mode_data(a.thickness, a.pol, a.lam)
+    OUT.mkdir(exist_ok=True)
+    fig = plt.figure(figsize=(15, 5.4), dpi=130)
+    gs = fig.add_gridspec(1, 3, width_ratios=[2.5, 0.8, 1.25], wspace=0.28)
+    ax = fig.add_subplot(gs[0])
+    cross_section(fig, ax, md, a.seed)
+    ax.set(xlabel="along the membrane (µm, schematic)", ylabel="height z (µm, to scale)",
+           title="Evanescent-field sensing: only molecules inside the red layer absorb")
+    ax.text(0.01, 0.01, "molecules enlarged ~1000×; halo = inside the field; shading = intensity (compressed scale)", transform=ax.transAxes, fontsize=8.5, color="#4a565c")
+    a2 = fig.add_subplot(gs[1], sharey=ax)
+    mode_profile(a2, md)
+    plt.setp(a2.get_yticklabels(), visible=False)
+    gamma_curves(fig.add_subplot(gs[2]), md)
     for ext in ("png", "pdf"):
         fig.savefig(OUT / f"evanescent_sensing.{ext}", bbox_inches="tight")
-    print(f"{a.pol}0 {a.thickness:.0f} nm: n_eff {m.neff:.4f}, Gamma {m.Gamma:.3f}, delta (intensity) {delta * 1e9:.1f} nm -> {OUT / 'evanescent_sensing.png'}")
+    m = md["m"]
+    print(f"{a.pol}0 {a.thickness:.0f} nm: n_eff {m.neff:.4f}, Gamma {m.Gamma:.3f}, delta (intensity) {md['delta'] * 1e9:.1f} nm -> {OUT / 'evanescent_sensing.png'}")
 
 
 if __name__ == "__main__":

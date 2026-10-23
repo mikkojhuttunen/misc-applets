@@ -64,6 +64,16 @@ python evanescent_sensing.py
 python evanescent_sensing.py --thickness 220 --pol TE
 ```
 
+## combined_figure.py (one-row overview, panels a–d)
+
+(a) the CMPC chip and (b) the integrated Herriott cell as oblique 3D renders without labels (`membrane_3d.py --bare`), (c) the evanescent-field cross-section and (d) Γ against membrane thickness from `evanescent_sensing.py`, side by side at journal width. The 3D panels are embedded at full resolution; (c) and (d) are vector.
+
+```
+python combined_figure.py                     figs/combined_overview.pdf, .svg, .png (183 mm wide, star {24/11})
+python combined_figure.py --width 250 --star 7 --font 8
+python combined_figure.py --no-render         reuse the last 3D renders (fast)
+```
+
 ## setup_schematic.py (system top view)
 
 Whole setup in one vector figure, for the CMPC and for the integrated Herriott cell: bulk laser with its driver (frequency dither by current modulation) and an isolator, fibre to an edge coupler, an on-chip tap to a reference detector (power normalisation), the on-chip dither section (phase-dither heater on the input, a 1×2 splitter into two heated arms that recombine side by side at the input port to steer the launch angle), the cell on its released window, dark-blue output-port waveguides to edge couplers, fibres to bulk detectors, and the function generator and lock-in / DAQ with their electrical connections. Positions are schematic, not a layout. The bulk optics (laser, isolator, lenses, photodiodes) are drawn from gwoptics ComponentLibrary SVGs in `components/` when present (`components.py`, export instructions and license in `components/README.md`; the attribution line is added to the figure automatically), otherwise from vector stand-ins in the same style.

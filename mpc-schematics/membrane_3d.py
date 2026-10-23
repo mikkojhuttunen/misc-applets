@@ -55,6 +55,14 @@ def mol_notes(ax, to_px, mols, a):
             transform=ax.transAxes, va="bottom", fontsize=9.5, color="#7a2a20")
 
 
+def save_bare(fig, name):
+    """Image and port arrows only (no labels or title): the panels of combined_figure.py."""
+    f = OUT / f"{name}_bare.png"
+    fig.savefig(f, dpi=150, bbox_inches="tight", pad_inches=0.0)
+    plt.close(fig)
+    return f
+
+
 def chip(a):
     N, Np, m = a.facets, a.periods, a.star
     t, g = 0.05, 0.040                                   # exaggerated membrane thickness and air-gap width (cell radius 1)
@@ -189,6 +197,8 @@ def chip(a):
     for st, en in outs:
         A_, B_ = to_px(np.atleast_2d(np.r_[st + 0.6 * (en - st), t + ts])), to_px(np.atleast_2d(np.r_[en, t + ts]))
         ax.annotate("", (B_[0][0], B_[1][0]), (A_[0][0], A_[1][0]), arrowprops=dict(arrowstyle="-|>", color=COL["out"], lw=2))
+    if a.bare:
+        return save_bare(fig, "membrane_chip_3d")
     mol_notes(ax, to_px, mols, a)
     k1 = N * 3 // 8
     fm = a0 * np.array([np.cos(2 * np.pi * k1 / N), np.sin(2 * np.pi * k1 / N)])
@@ -401,6 +411,8 @@ def herriott(a):
         if kind == "out":
             A_, B_ = B_, A_
         ax.annotate("", (B_[0][0], B_[1][0]), (A_[0][0], A_[1][0]), arrowprops=dict(arrowstyle="-|>", color=col, lw=2))
+    if a.bare:
+        return save_bare(fig, "membrane_herriott_3d")
     mol_notes(ax, to_px, mols, a)
     bud = c.budget(tr)
     ang = np.degrees(np.arccos(np.clip(-tr["in_dir"] @ tr["exit_dir"], -1, 1)))
@@ -421,7 +433,7 @@ def herriott(a):
     plt.close(fig)
 
 
-if __name__ == "__main__":
+def parser():
     ap = argparse.ArgumentParser()
     ap.add_argument("figs", nargs="*", default=["chip", "dbr", "herriott"])
     ap.add_argument("--facets", type=int, default=24)
@@ -446,7 +458,12 @@ if __name__ == "__main__":
     ap.add_argument("--M", type=int, default=5, help="Herriott: turns")
     ap.add_argument("--A", type=float, default=0.5, help="Herriott: pattern half-width, mm")
     ap.add_argument("--phase", type=float, default=90.0, help="Herriott: launch phase, deg (90: centre port)")
-    args = ap.parse_args()
+    ap.add_argument("--bare", action="store_true", help="no labels or title; writes figs/<name>_bare.png")
+    return ap
+
+
+if __name__ == "__main__":
+    args = parser().parse_args()
     for f in args.figs:
         {"chip": chip, "dbr": dbr, "herriott": herriott}[f](args)
         print("wrote", f)

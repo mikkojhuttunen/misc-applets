@@ -71,7 +71,12 @@ Two layouts at journal width (183 mm by default), each written as PDF, SVG and P
 - `row`: one row with (a) the CMPC chip, (b) the integrated Herriott cell, (c) the evanescent-field cross-section and (d) Γ against membrane thickness → `figs/combined_overview.*`
 - `setup`: (a) and (b) on top; (c), (d) and (e), the system top view of `setup_schematic.py`, below → `figs/combined_setup.*`
 
-(a) and (b) are the 3D renders without labels (`membrane_3d.py --bare`), embedded at full resolution; (c)–(e) are vector. Panel (e) is the full schematic drawn smaller, with text and lines scaled with it; the script prints its smallest text size (about 2 pt at 183 mm), so use a larger `--width` if it has to be read in print.
+(a) and (b) are the 3D renders without labels (`membrane_3d.py --bare`), embedded at full resolution; (c)–(e) are vector. Panel (e) is the simplified system schematic (`setup_<kind>_simple`): its only text is the block names, the rest is colour-coded for the caption. `--setup-style full` puts the labelled schematic there instead, scaled down with its text (about 2 pt at 183 mm).
+
+Caption draft for `combined_setup`:
+
+> (a) Chip-scale chaotic multipass cell (CMPC) in a free-standing Si membrane, cut away to show the etched-trench DBR facets, the central support pillar and the star orbit {24/11}; the input (gold) and output-port (dark blue) waveguides are tapered strip-loaded guides. (b) Integrated Herriott cell with two curved trench-DBR mirrors and a single centre port. In (a) and (b), molecules with a red halo lie inside the evanescent field of the guided mode. (c) Cross-section through the 250 nm membrane (heights to scale, molecules enlarged): the TM₀ intensity decays into the gas with the length δ = 71 nm (dashed) and falls to 5 % at 3δ (dotted); only molecules inside this layer absorb. (d) Fraction of the gas absorption picked up by the mode, Γ, against membrane thickness for TM₀ (red) and TE₀ (blue); the dot marks this design (Γ = 0.64). (e) System layout: I, light source (bulk laser, isolator and coupling lens); II, sensing chip, with the edge coupler, a tap to the reference detector (grey), the micro-heater beam-dithering section with its bond pads (yellow box), the released membrane carrying the cell (light cyan, dashed) and the output-port waveguides (dark blue); III, detection (collecting lenses, signal photodiodes and the reference photodiode, green). Optical component graphics: A. Franzen, ComponentLibrary, CC BY-NC 3.0.
+
 
 ```
 python combined_figure.py                     both layouts, star {24/11}

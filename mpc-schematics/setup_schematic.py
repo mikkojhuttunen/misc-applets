@@ -5,6 +5,9 @@ output-port waveguides.
     python setup_schematic.py cmpc             cmpc | herriott
     python setup_schematic.py --outputs 3      CMPC output ports (1-3)
     python setup_schematic.py --no-modules     without the red light-source and blue detection blocks
+Each run also writes the simplified version (setup_<kind>_simple): only the block names I Light source, II Sensing chip,
+III Detection, with colour-coded regions for a caption (yellow: on-chip micro-heater dither section with bond pads;
+light cyan, dashed: released membrane window).
 
 Light path: laser (bulk, with its driver) -> isolator -> lens -> edge coupler -> tap coupler (a few % to a reference
 detector for power normalisation) -> dither section -> cell input port -> cell -> output ports (dark blue) -> output
@@ -140,7 +143,8 @@ def module(ax, x0, y0, x1, y1, kind, label):
     fc, ec, ink = MOD[kind]
     ax.add_patch(FancyBboxPatch((x0, y0), x1 - x0, y1 - y0, boxstyle="round,pad=0,rounding_size=0.15", fc=fc, alpha=0.09, ec="none", zorder=0.5))
     ax.add_patch(FancyBboxPatch((x0, y0), x1 - x0, y1 - y0, boxstyle="round,pad=0,rounding_size=0.15", fc="none", ec=ec, lw=1.8, zorder=0.6))
-    ax.text(x1 - 0.12, y0 + 0.1, label, ha="right", va="bottom", fontsize=10, fontweight="bold", color=ink, zorder=6)
+    if label:
+        ax.text(x1 - 0.12, y0 + 0.1, label, ha="right", va="bottom", fontsize=10, fontweight="bold", color=ink, zorder=6)
 
 
 def draw(ax, kind, a, title=True, legend=True, attribution=True):
@@ -279,11 +283,92 @@ def draw(ax, kind, a, title=True, legend=True, attribution=True):
         ax.text(18.45, -0.55, components.ATTRIBUTION, ha="right", va="top", fontsize=7, color=C["muted"])
 
 
+XLIM_S, YLIM_S = (-0.25, 16.75), (0.35, 8.75)
+ZONE = dict(dither=("#f3d046", "#b8930b"), window=("#d8eef3", "#1f4e79"))   # colour-coded regions on the chip: fill, edge
+
+
+def draw_simple(ax, kind, a):
+    """Reduced schematic for a figure panel: no text but the block names I-III; parts and colour-coded regions are left
+    to the caption. Returns the block-name texts (so a caller can size them independently of the drawing)."""
+    ax.set_xlim(*XLIM_S)
+    ax.set_ylim(*YLIM_S)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    cx0, cy0, cx1, cy1 = 4.4, 0.6, 14.4, 7.75
+    yb = yin = 4.57
+    # I: light source
+    module(ax, -0.1, cy0, 4.22, cy1, "src", "")
+    components.place(ax, "laser", 1.1, yb, 2.0)
+    ax.plot([2.1, 2.62], [yb, yb], color=C["fs"], lw=2.4, zorder=3)
+    components.place(ax, "isolator", 3.0, yb, 0.72)
+    ax.add_patch(Polygon([[3.37, yb - 0.09], [3.85, yb - 0.09], [4.4, yb], [3.85, yb + 0.09], [3.37, yb + 0.09]], fc=C["fs"], ec="none", alpha=0.85, zorder=3))
+    components.place(ax, "lens", 3.85, yb, 0.6)
+    # II: sensing chip
+    ax.add_patch(FancyBboxPatch((cx0, cy0), cx1 - cx0, cy1 - cy0, boxstyle="round,pad=0,rounding_size=0.15", fc=C["chip"], ec=C["chip_ec"], lw=1.8, zorder=1))
+    ax.add_patch(Polygon([[cx0, yin - 0.18], [cx0 + 0.55, yin - 0.04], [cx0 + 0.55, yin + 0.04], [cx0, yin + 0.18]], fc=C["wg_in"], ec="none", zorder=3))
+    curve(ax, [[cx0 + 0.55, yin], [6.55, yin]], C["wg_in"])
+    curve(ax, [[5.15, yin - 0.14], [5.5, yin - 0.14], [5.85, yin - 1.3], [6.1, 1.4], [6.9, cy0 + 0.35], [cx1, cy0 + 0.35]], C["wg_ref"], lw=2.0)
+    # dither section (yellow): phase heater, 1x2, heated arm pair, bond pads
+    fz, ez = ZONE["dither"]
+    ax.add_patch(FancyBboxPatch((5.6, yin - 0.75), 2.45, 3.2, boxstyle="round,pad=0,rounding_size=0.1", fc=fz, alpha=0.3, ec="none", zorder=1.5))
+    ax.add_patch(FancyBboxPatch((5.6, yin - 0.75), 2.45, 3.2, boxstyle="round,pad=0,rounding_size=0.1", fc="none", ec=ez, lw=1.4, zorder=1.6))
+    heater(ax, 5.75, 6.4, yin, n=4)
+    ax.add_patch(Rectangle((6.55, yin - 0.2), 0.4, 0.4, fc=C["wg_in"], ec="#8a6a12", lw=0.8, zorder=4))
+    pads = (5.75, 6.4, 7.2, 7.65)
+    for xp, yh in zip(pads, (yin, yin, yin + 0.42, yin + 0.42)):
+        ax.add_patch(Rectangle((xp - 0.13, yin + 1.95), 0.26, 0.26, fc="#d9c27a", ec="#8a6a12", lw=0.8, zorder=4))
+        ax.plot([xp, xp], [yin + 1.95, yh + 0.08], color=C["heater"], lw=0.7, alpha=0.8, zorder=2)
+    if kind == "cmpc":
+        ccen, rc = np.array([11.1, 4.0]), 1.85
+        fw, ew = ZONE["window"]
+        ax.add_patch(Circle(ccen, rc * 1.42, fc=fw, ec=ew, lw=1.0, ls=(0, (5, 3)), zorder=1.5))
+        p_in, d0, ports = cmpc_cell(ax, ccen, rc, m=a.star, outs=tuple(a.out_angles[: a.outputs]))
+        port_in = p_in - d0 * 0.22 * rc * 1.4
+        approach = port_in - d0 * 0.75
+    else:
+        x0, y0, d, D, R = 9.0, 4.4, 4.2, 1.35, 5.0
+        fw, ew = ZONE["window"]
+        ax.add_patch(FancyBboxPatch((8.55, 2.75), 5.1, 3.3, boxstyle="round,pad=0,rounding_size=0.3", fc=fw, ec=ew, lw=1.0, ls=(0, (5, 3)), zorder=1.5))
+        herriott_cell(ax, x0, y0, d, D, R)
+        port_in = np.array([x0 - 0.2, y0])
+        approach = port_in + np.array([-0.9, 0.42])
+    for sgn in (1, -1):
+        nb = np.array([-(approach - [7.7, yin])[1], (approach - [7.7, yin])[0]])
+        nb = nb / np.linalg.norm(nb)
+        curve(ax, [[6.95, yin + sgn * 0.1], [7.2, yin + sgn * 0.42], [7.65, yin + sgn * 0.42], approach + sgn * 0.07 * nb, port_in + sgn * 0.05 * nb], C["wg_in"], lw=2.0)
+        heater(ax, 7.2, 7.65, yin + sgn * 0.42, n=3, amp=0.05)
+    xe, det_y = cx1, []
+    if kind == "cmpc":
+        for i, (pp, u) in enumerate(ports):
+            yt = [6.3, 2.45, 4.0][i] if len(ports) > 1 else 4.0
+            curve(ax, [pp, pp + u * 0.45, [xe - 0.7, yt], [xe, yt]], C["wg_out"], lw=2.6)
+            det_y.append(yt)
+    else:
+        u_out = np.array([-0.95, -0.32])
+        curve(ax, [port_in, port_in + u_out * 0.35, [8.45, 3.3], [9.3, 2.35], [xe - 0.7, 2.35], [xe, 2.35]], C["wg_out"], lw=2.6)
+        det_y.append(2.35)
+    # III: detection
+    module(ax, 14.6, cy0, 16.55, cy1, "det", "")
+    for yt, ref in [(cy0 + 0.35, True)] + [(y, False) for y in det_y]:
+        if not ref:
+            ax.add_patch(Polygon([[xe - 0.5, yt - 0.04], [xe, yt - 0.18], [xe, yt + 0.18], [xe - 0.5, yt + 0.04]], fc=C["wg_out"], ec="none", zorder=3))
+        ax.add_patch(Polygon([[xe, yt - 0.03], [14.95, yt - 0.11], [14.95, yt + 0.11], [xe, yt + 0.03]], fc=C["fs"], ec="none", alpha=0.85, zorder=3))
+        ax.add_patch(Polygon([[14.95, yt - 0.11], [15.45, yt - 0.02], [15.45, yt + 0.02], [14.95, yt + 0.11]], fc=C["fs"], ec="none", alpha=0.85, zorder=3))
+        components.place(ax, "lens", 14.95, yt, 0.42)
+        components.place(ax, "photodiode_ref" if ref else "photodiode", 15.68, yt, 0.4)
+    names = []
+    for xc, ha, txt, col in ((-0.1, "left", "I  Light source", MOD["src"][2]), ((cx0 + cx1) / 2, "center", "II  Sensing chip", C["ink"]),
+                             (16.55, "right", "III  Detection", MOD["det"][2])):
+        names.append(ax.text(xc, cy1 + 0.15, txt, ha=ha, va="bottom", fontsize=13, fontweight="bold", color=col, zorder=6))
+    return names
+
+
 def inch_per_unit(ax):
     """Drawn size of one data unit (equal aspect)."""
     ax.apply_aspect()
     bb = ax.get_position().transformed(ax.figure.transFigure)
-    return min(bb.width / (XLIM[1] - XLIM[0]), bb.height / (YLIM[1] - YLIM[0])) / ax.figure.dpi
+    (x0, x1), (y0, y1) = ax.get_xlim(), ax.get_ylim()
+    return min(bb.width / (x1 - x0), bb.height / (y1 - y0)) / ax.figure.dpi
 
 
 def scale_artists(ax, k):
@@ -303,6 +388,14 @@ def scale_artists(ax, k):
                 c.set_mutation_scale(c.get_mutation_scale() * k)
 
 
+def figure_simple(kind, a):
+    fig, ax = plt.subplots(figsize=(13, 6.4), dpi=130)
+    draw_simple(ax, kind, a)
+    for ext in ("pdf", "png"):
+        fig.savefig(OUT / f"setup_{kind}_simple.{ext}", bbox_inches="tight", pad_inches=0.1)
+    plt.close(fig)
+
+
 def figure(kind, a):
     fig, ax = plt.subplots(figsize=(16, 8.4), dpi=130)
     draw(ax, kind, a)
@@ -317,6 +410,7 @@ def parser():
     ap.add_argument("kinds", nargs="*", default=["cmpc", "herriott"])
     ap.add_argument("--outputs", type=int, default=2, help="CMPC output ports (1-3)")
     ap.add_argument("--out-angles", type=float, nargs="+", default=[45, -45, 0], help="CMPC output-port facet angles, deg")
+    ap.add_argument("--star", type=int, default=7, help="CMPC star orbit step m drawn in the simplified schematic")
     ap.add_argument("--no-modules", dest="modules", action="store_false", help="omit the light-source (red) and detection (blue) blocks")
     return ap
 
@@ -325,4 +419,5 @@ if __name__ == "__main__":
     a = parser().parse_args()
     for k in a.kinds:
         figure(k, a)
-        print("wrote", OUT / f"setup_{k}.pdf")
+        figure_simple(k, a)
+        print("wrote", OUT / f"setup_{k}.pdf", "and", OUT / f"setup_{k}_simple.pdf")

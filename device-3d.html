@@ -263,6 +263,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
           <div class="btns" role="group" aria-label="Figure">
             <button type="button" data-fig="combined_setup" aria-pressed="true">Overview + setup (a–e)</button>
             <button type="button" data-fig="combined_overview" aria-pressed="false">Overview (a–d)</button>
+            <button type="button" data-fig="setup_cmpc_simple" aria-pressed="false">Setup: simplified</button>
             <button type="button" data-fig="setup_cmpc" aria-pressed="false">Setup: CMPC</button>
             <button type="button" data-fig="setup_herriott" aria-pressed="false">Setup: Herriott</button>
             <button type="button" data-fig="evanescent_sensing" aria-pressed="false">Evanescent sensing</button>
@@ -1122,7 +1123,8 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
   }
   // ---------------------------------------------------------------- 2D figures (published next to this page)
   const FIGS = {
-    combined_setup: ["(a) CMPC chip, star {24/11}; (b) integrated Herriott cell; (c) evanescent field of the TM₀ mode, δ and 3δ marked; (d) Γ against membrane thickness; (e) the whole system from the top: light source (red block), sensing chip, detection (blue block). 183 mm wide; (a) and (b) are embedded images, (c)–(e) vector. combined_figure.py setup", "Overview figure with the system schematic, panels (a) to (e)", true],
+    combined_setup: ["(a) CMPC chip, star {24/11}; (b) integrated Herriott cell; (c) evanescent field of the TM₀ mode, δ and 3δ marked; (d) Γ against membrane thickness; (e) the system from the top, simplified: I light source, II sensing chip (yellow: micro-heater dither section; light cyan, dashed: released membrane), III detection. 183 mm wide; (a) and (b) are embedded images, (c)–(e) vector. combined_figure.py setup", "Overview figure with the system schematic, panels (a) to (e)", true],
+    setup_cmpc_simple: ["Simplified system schematic, text only for the blocks: I light source (laser, isolator, lens), II sensing chip (edge coupler, reference tap in grey, yellow: micro-heater dither section with bond pads, light cyan dashed: released membrane with the CMPC, dark blue: output-port waveguides), III detection (lenses, photodiodes; green: reference). setup_schematic.py", "Simplified setup schematic"],
     combined_overview: ["(a) CMPC chip, star {24/11}; (b) integrated Herriott cell; (c) evanescent field of the TM₀ mode in the 250 nm Si membrane, δ and 3δ marked, molecules with a halo absorb; (d) Γ against membrane thickness (TM₀ red, TE₀ blue, dot: this design). 183 mm wide; the 3D panels are embedded images, (c) and (d) are vector. combined_figure.py", "Overview figure, panels (a) to (d)", true],
     setup_cmpc: ["Top view of the whole system: light source (red block: bulk laser, isolator and lens) into the edge coupler, on-chip dither section, CMPC, dark-blue output-port waveguides to the detection (blue block: bulk photodiodes, lock-in), reference tap. setup_schematic.py cmpc", "Setup schematic, CMPC"],
     setup_herriott: ["The same setup with the integrated Herriott cell; one centre output port. setup_schematic.py herriott", "Setup schematic, integrated Herriott cell"],

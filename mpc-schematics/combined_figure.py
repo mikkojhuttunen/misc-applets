@@ -6,8 +6,9 @@ setup   two rows: (a) and (b) on top; (c), (d) and (e) the system top view of se
         red block, sensing chip, detection in the blue block) below      -> figs/combined_setup.{pdf,svg,png}
 
 (a) and (b) are the oblique renders of membrane_3d.py without labels (embedded raster, full resolution); (c), (d) and
-(e) are vector. (e) is the full schematic drawn smaller, with text and lines scaled with it: its smallest text is
-printed; use a larger --width for bigger text.
+(e) are vector. (e) is the simplified schematic by default (block names I-III only; see setup_schematic.py for the
+colour coding to describe in the caption); --setup-style full draws the labelled schematic, scaled down with its
+text (the smallest size is printed; use a larger --width for bigger text).
 
     python combined_figure.py                         both layouts, 183 mm wide (double column), CMPC star {24/11}
     python combined_figure.py setup --width 250 --setup-kind herriott
@@ -110,8 +111,10 @@ def setup_layout(a, img_a, img_b, md):
     gap, left_d, bottom, credit = 0.06, 0.32, 0.28, 0.1   # inches; credit: line for the component-library attribution
     asp1 = [img_a.shape[1] / img_a.shape[0], img_b.shape[1] / img_b.shape[0]]
     H1 = (W - gap) / sum(asp1)
-    margin = 1.0                                           # data units left of the schematic for the panel label
-    ex = (ss.XLIM[1] - ss.XLIM[0] + margin) / (ss.YLIM[1] - ss.YLIM[0])
+    simple = a.setup_style == "simple"
+    XL, YL = (ss.XLIM_S, ss.YLIM_S) if simple else (ss.XLIM, ss.YLIM)
+    margin = 1.3                                           # data units left of the schematic for the panel label
+    ex = (XL[1] - XL[0] + margin) / (YL[1] - YL[0])
     asp2 = [1.1, 0.75, ex]
     H2 = (W - 2 * gap - left_d) / sum(asp2)
     FH = credit + bottom + H2 + gap + H1
@@ -133,13 +136,20 @@ def setup_layout(a, img_a, img_b, md):
     panel_c(fig, axes[2], md, a)
     panel_d(axes[3], md)
     ae = axes[4]
-    sa = ss.parser().parse_args([a.setup_kind])
+    sa = ss.parser().parse_args([a.setup_kind, "--star", str(a.star)])
     ref = plt.figure(figsize=(16, 8.4), dpi=130)             # the scale the standalone schematic is designed at
-    k = H2 / (ss.YLIM[1] - ss.YLIM[0]) / ss.inch_per_unit(ref.add_subplot(111, xlim=ss.XLIM, ylim=ss.YLIM, aspect="equal"))
+    k = H2 / (YL[1] - YL[0]) / ss.inch_per_unit(ref.add_subplot(111, xlim=ss.XLIM, ylim=ss.YLIM, aspect="equal"))
     plt.close(ref)
-    ss.draw(ae, a.setup_kind, sa, title=False, legend=True, attribution=False)
-    ae.set_xlim(ss.XLIM[0] - margin, ss.XLIM[1])
-    ss.scale_artists(ae, k)
+    if simple:
+        names = ss.draw_simple(ae, a.setup_kind, sa)
+        ae.set_xlim(XL[0] - margin, XL[1])
+        ss.scale_artists(ae, k)
+        for t in names:                                    # block names at the figure's font size, not scaled
+            t.set_fontsize(a.font)
+    else:
+        ss.draw(ae, a.setup_kind, sa, title=False, legend=True, attribution=False)
+        ae.set_xlim(XL[0] - margin, XL[1])
+        ss.scale_artists(ae, k)
     smallest = min(t.get_fontsize() for t in ae.texts)
     labels(axes, a)
     if components.used_library():
@@ -157,6 +167,8 @@ def main():
     ap.add_argument("--pol", default="TM", choices=("TE", "TM"))
     ap.add_argument("--seed", type=int, default=4, help="molecule placement in (c)")
     ap.add_argument("--font", type=float, default=7, help="font size, pt")
+    ap.add_argument("--setup-style", default="simple", choices=("simple", "full"),
+                    help="panel (e): simple (block names I-III only, details in the caption) or the full labelled schematic")
     ap.add_argument("--setup-kind", default="cmpc", choices=("cmpc", "herriott"), help="cell drawn in panel (e)")
     ap.add_argument("--no-render", action="store_true", help="reuse the 3D renders from the last run")
     a = ap.parse_args()

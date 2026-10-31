@@ -36,6 +36,20 @@ def test_mgo_lithium_niobate_telecom_values():
     assert mat.index("ln_o", 1.55e-6) == pytest.approx(2.208, abs=2e-3)
 
 
+def test_congruent_lithium_niobate_against_jundt():
+    # Zelmon congruent fit vs the independent Jundt (1997) congruent extraordinary fit at 24.5 °C
+    def jundt(lu):
+        a = (5.35583, 0.100473, 0.20692, 100.0, 11.34927, 1.5334e-2)
+        l2 = lu * lu
+        return np.sqrt(a[0] + a[1] / (l2 - a[2] ** 2) + a[3] / (l2 - a[4] ** 2) - a[5] * l2)
+    for lu in (0.45, 0.6328, 1.064, 1.55, 3.0):
+        assert mat.index("ln_e_cong", lu * 1e-6) == pytest.approx(jundt(lu), abs=1e-3)
+    # congruent LN at 1064 nm: n_e = 2.156, n_o = 2.232; MgO doping lowers n_e
+    assert mat.index("ln_e_cong", 1.064e-6) == pytest.approx(2.156, abs=1e-3)
+    assert mat.index("ln_o_cong", 1.064e-6) == pytest.approx(2.232, abs=1e-3)
+    assert mat.index("ln_e_cong", 1.55e-6) > mat.index("ln_e", 1.55e-6)
+
+
 def test_unknown_material_is_rejected():
     with pytest.raises(ValueError, match="material"):
         mat.refractive_index("unobtainium", 1.55e-6)

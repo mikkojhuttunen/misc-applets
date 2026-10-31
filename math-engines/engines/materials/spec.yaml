@@ -1,7 +1,7 @@
 engine: materials
-version: 2
+version: 3
 title: Material refractive index
-description: Sellmeier phase index, group index and GVD of SiO2, Si3N4, Si, LiNbO3, LiTaO3, KTP (x, y, z), BBO, AlN, GaAs, TiO2 and sapphire; temperature-dependent index of MgO:LiNbO3.
+description: Sellmeier phase index, group index and GVD of SiO2, Si3N4, Si, LiNbO3 (5 % MgO and congruent), LiTaO3, KTP (x, y, z), BBO, AlN, GaAs, TiO2 and sapphire; temperature-dependent index of MgO:LiNbO3.
 references:
   - "I. H. Malitson, JOSA 55, 1205 (1965)"
   - "D. E. Zelmon, D. L. Small, D. Jundt, JOSA B 14, 3319 (1997)"
@@ -18,7 +18,7 @@ functions:
     title: Phase index, group index and GVD
     equations: ["n^2 = 1 + sum_i A_i λ^2 / (λ^2 - B_i)  (or the published form of each fit)", "n_g = n - λ dn/dλ", "β2 = λ^3 d²n/dλ² / (2π c²)"]
     inputs:
-      - {name: material, label: "Material", type: choice, choices: [sio2, si3n4, si, ln_e, ln_o, ln_e_gayer, lt_e, lt_e_bond, lt_o_bond, ktp_x, ktp_y, ktp_z, bbo_o, bbo_e, aln_o, aln_e, gaas, tio2_o, tio2_e, sapphire_o, sapphire_e], default: sio2}
+      - {name: material, label: "Material", type: choice, choices: [sio2, si3n4, si, ln_e, ln_o, ln_e_cong, ln_o_cong, ln_e_gayer, lt_e, lt_e_bond, lt_o_bond, ktp_x, ktp_y, ktp_z, bbo_o, bbo_e, aln_o, aln_e, gaas, tio2_o, tio2_e, sapphire_o, sapphire_e], default: sio2}
       - {name: wavelength, label: "Vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 200}
     outputs:
       - {name: n, label: "Phase index n", ui_unit: "", scale: 1.0}

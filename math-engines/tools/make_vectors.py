@@ -27,6 +27,7 @@ from engines.fringe_averaging import engine as fav  # noqa: E402
 from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
+from engines.cwe_shg import engine as cwe  # noqa: E402
 
 OUT = ROOT / "test_vectors" / "vectors.json"
 
@@ -254,7 +255,35 @@ def build() -> dict:
                             "phase": psi, "drift": drift, "coherence": coh, "filter": kind, "T": Ts,
                             "V": [float(x) for x in fav.residual_visibility(f, A, np.array(Ts), drift, coh, kind)],
                             "floor": fav.static_floor(f, A, drift, coh), "n_groups": int(f.size)})
+    v["cwe_shg"] = _cwe_shg_vectors()
     return v
+
+
+def _cwe_shg_vectors() -> list:
+    """Spectra and coupled-wave end values for ordered, chirp-free random and continuous-g structures."""
+    cases = []
+    lam, n_p, n_sh = 1.55e-6, 2.0272, 2.1924
+    dk0 = 4 * np.pi * (n_sh - n_p) / lam
+    per = 2 * np.pi / dk0
+    rng = np.random.default_rng(2024)
+    structs = [
+        ("ordered", *cwe.periodic_domains(40 * per, per, 0.5)),
+        ("ordered_d03_offset", *cwe.periodic_domains(37.3 * per, per, 0.3, offset=0.2 * per)),
+        ("random", *cwe.domains_from_lengths(rng.uniform(0.4, 1.6, 60) * per / 2)),
+        ("continuous", np.linspace(0.0, 20 * per, 41), np.round(np.sin(np.linspace(0, 6, 40)), 6)),
+    ]
+    for (name, b, g) in structs:
+        dks = [float(x) for x in dk0 * np.array([0.97, 1.0, 1.02])]
+        for (kappa, P, a1, a2) in ((900.0, 1e-3, 0.0, 0.0), (900.0, 2.0, 0.0, 0.0), (900.0, 0.5, 30.0, 80.0)):
+            und = cwe.shg_undepleted(b, g, dks, kappa, P, a1, a2)
+            full = cwe.shg_coupled(b, g, dks, kappa, P, a1, a2, max_step=per / 64, min_steps=2)
+            cases.append({"structure": name, "boundaries": [float(x) for x in b], "g": [float(x) for x in g],
+                          "delta_k": dks, "kappa": kappa, "power": P, "alpha_pump": a1, "alpha_sh": a2,
+                          "max_step": per / 64, "min_steps": 2,
+                          "G_re": [float(x) for x in und["G"].real], "G_im": [float(x) for x in und["G"].imag],
+                          "P_sh_undepleted": [float(x) for x in und["P_sh"]],
+                          "P_sh": [float(x) for x in full["P_sh"]], "P_pump": [float(x) for x in full["P_pump"]]})
+    return cases
 
 
 _CELL_CASES = [

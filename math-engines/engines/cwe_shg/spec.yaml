@@ -1,0 +1,51 @@
+engine: cwe_shg
+version: 1
+title: Coupled-wave SHG with arbitrary poling
+description: Second-harmonic generation in a χ² waveguide by coupled-wave equations with a domain-wall-aware RK4 integrator and an exact per-domain undepleted solver; coupling from the mode overlap area.
+references:
+  - "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)"
+  - "R. W. Boyd, Nonlinear Optics, 3rd ed., Academic Press (2008), sec. 2.6-2.7"
+  - "C. Wang et al., Optica 5, 1438 (2018)"
+functions:
+  coupling_shg:
+    title: Coupling and normalised efficiency
+    equations: ["η0 = 8π² d² / (ε0 c n_p² n_SH λ² A_eff)", "κ = √η0", "P_SH = η0 P² L² (uniform, Δk = 0, undepleted)"]
+    inputs:
+      - {name: wavelength, label: "Pump vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: n_pump, label: "Pump effective index", ui_unit: "", scale: 1.0, default: 2.0272, min: 1}
+      - {name: n_sh, label: "SH effective index", ui_unit: "", scale: 1.0, default: 2.1924, min: 1}
+      - {name: d_coeff, label: "Nonlinear coefficient d (full strength)", ui_unit: pm/V, scale: 1.0e-12, default: 25}
+      - {name: a_eff, label: "Overlap area A_eff", ui_unit: µm², scale: 1.0e-12, default: 1.0}
+    outputs:
+      - {name: eta_norm, label: "Normalised efficiency η0 (unpoled, Δk = 0)", ui_unit: "%/(W cm²)", scale: 100.0}
+      - {name: kappa, label: "Coupling κ", ui_unit: "1/(m √W)", scale: 1.0}
+  ordered_shg:
+    title: Ordered QPM SHG, closed form vs coupled waves
+    equations:
+      - "dA1/dz = i κ g(z) A2 A1* e^{-iΔk z} - α1/2 A1,  dA2/dz = i κ g(z) A1² e^{iΔk z} - α2/2 A2"
+      - "Δk = 4π (n_SH - n_p) / λ,  Λ = 2π/Δk + offset"
+      - "P_SH ≈ (2 sin πD / π)² η0 P² L² sinc²(Δk' L/2)"
+    inputs:
+      - {name: wavelength, label: "Pump vacuum wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: n_pump, label: "Pump effective index", ui_unit: "", scale: 1.0, default: 2.0272, min: 1}
+      - {name: n_sh, label: "SH effective index", ui_unit: "", scale: 1.0, default: 2.1924, min: 1}
+      - {name: d_coeff, label: "Nonlinear coefficient d (full strength)", ui_unit: pm/V, scale: 1.0e-12, default: 25}
+      - {name: a_eff, label: "Overlap area A_eff", ui_unit: µm², scale: 1.0e-12, default: 1.0}
+      - {name: length, label: "Poled length", ui_unit: mm, scale: 1.0e-3, default: 1}
+      - {name: power, label: "Pump power in the guide", ui_unit: mW, scale: 1.0e-3, default: 100}
+      - {name: period_offset, label: "Period offset from the matched value", ui_unit: nm, scale: 1.0e-9, default: 0}
+      - {name: duty_cycle, label: "Duty cycle D", ui_unit: "", scale: 1.0, default: 0.5, min: 0.01, max: 0.99}
+      - {name: loss_pump, label: "Pump loss", ui_unit: dB/cm, scale: 100.0, default: 0, min: 0}
+      - {name: loss_sh, label: "SH loss", ui_unit: dB/cm, scale: 100.0, default: 0, min: 0}
+    outputs:
+      - {name: period, label: "Poling period", ui_unit: µm, scale: 1.0e-6}
+      - {name: domains, label: "Number of domains", ui_unit: "", scale: 1.0}
+      - {name: eta_norm, label: "η0 (unpoled, Δk = 0)", ui_unit: "%/(W cm²)", scale: 100.0}
+      - {name: p_sh_closed, label: "SH power, closed form", ui_unit: mW, scale: 1.0e-3}
+      - {name: p_sh_undepleted, label: "SH power, undepleted (exact per domain)", ui_unit: mW, scale: 1.0e-3}
+      - {name: p_sh, label: "SH power, coupled waves", ui_unit: mW, scale: 1.0e-3}
+      - {name: p_pump_out, label: "Pump power out", ui_unit: mW, scale: 1.0e-3}
+      - {name: conversion, label: "Conversion P_SH / P", ui_unit: "%", scale: 0.01}
+      - {name: efficiency, label: "Efficiency P_SH / P²", ui_unit: "%/W", scale: 0.01}
+      - {name: power_residual, label: "Power-conservation residual (lossless)", ui_unit: "", scale: 1.0}
+      - {name: step_error, label: "Step-halving change of P_SH", ui_unit: "", scale: 1.0}

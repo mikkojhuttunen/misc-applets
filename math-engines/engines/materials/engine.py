@@ -23,6 +23,8 @@ _SELLMEIER = {
     "si3n4": [(3.0249, 0.1353406**2), (40314.0, 1239.842**2)],
     "ln_e": [(2.2454, 0.01242), (1.3005, 0.0513), (6.8972, 331.33)],
     "ln_o": [(2.4272, 0.01478), (1.4617, 0.05612), (9.6536, 371.216)],
+    "ln_e_cong": [(2.9804, 0.02047), (0.5981, 0.0666), (8.9543, 416.08)],
+    "ln_o_cong": [(2.6734, 0.01764), (1.2290, 0.05914), (12.614, 474.60)],
     "si": [(10.6684293, 0.301516485**2), (1.54133408, 1104.0**2)],
 }
 # n^2 = 1 + c0 + sum A λ^2 / (λ^2 - B^2): (c0, [(A, B_um), ...]); the form used by
@@ -54,6 +56,8 @@ _SOURCES = {
     "si3n4": "K. Luke et al., Opt. Lett. 40, 4823 (2015), LPCVD Si3N4",
     "ln_e": "D. E. Zelmon et al., JOSA B 14, 3319 (1997), 5% MgO:LiNbO3, extraordinary",
     "ln_o": "D. E. Zelmon et al., JOSA B 14, 3319 (1997), 5% MgO:LiNbO3, ordinary",
+    "ln_e_cong": "D. E. Zelmon et al., JOSA B 14, 3319 (1997), congruent (undoped) LiNbO3, extraordinary, 21 °C",
+    "ln_o_cong": "D. E. Zelmon et al., JOSA B 14, 3319 (1997), congruent (undoped) LiNbO3, ordinary, 21 °C",
     "si": "Salzberg & Villa (1957) fit, real part only, valid above about 1.2 µm",
     "lt_e": "Approximate single-pole fit to LiTaO3 extraordinary index (±0.01); verify before design use",
     "ln_e_gayer": "O. Gayer et al., Appl. Phys. B 91, 343 (2008), 5% MgO:LiNbO3 extraordinary, temperature dependent (T0 = 24.5 °C)",
@@ -77,6 +81,7 @@ MATERIALS = tuple(_SOURCES)
 # is an extrapolation and refractive_index() says so in its assumptions.
 VALID_RANGE = {
     "ln_e_gayer": (0.5e-6, 4.0e-6),
+    "ln_e_cong": (0.4e-6, 5.0e-6), "ln_o_cong": (0.4e-6, 5.0e-6),
     "lt_e_bond": (0.45e-6, 4.0e-6), "lt_o_bond": (0.45e-6, 4.0e-6),
     "ktp_x": (0.43e-6, 3.54e-6), "ktp_y": (0.43e-6, 3.54e-6), "ktp_z": (0.43e-6, 3.54e-6),
     "bbo_o": (0.64e-6, 3.18e-6), "bbo_e": (0.64e-6, 3.18e-6),

@@ -5,11 +5,12 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | Engine | Computes | Extra deps |
 |---|---|---|
 | [gaussian_beam](engines/gaussian_beam/) | Rayleigh range, divergence, w(z), R(z), Gouy phase, ABCD propagation, thin-lens focusing | |
-| [materials](engines/materials/) | Sellmeier phase index, group index and GVD: SiO₂, Si₃N₄, Si, LiNbO₃ (e, o, temperature-dependent), LiTaO₃, KTP, BBO, AlN, GaAs, TiO₂, sapphire | |
+| [materials](engines/materials/) | Sellmeier phase index, group index and GVD: SiO₂, Si₃N₄, Si, LiNbO₃ (MgO and congruent, e, o, temperature-dependent), LiTaO₃, KTP, BBO, AlN, GaAs, TiO₂, sapphire | |
 | [slab_waveguide](engines/slab_waveguide/) | Three-layer and multilayer slab effective index, V, b, mode count | |
 | [anisotropic_slab](engines/anisotropic_slab/) | TE/TM modes of slabs with anisotropic layers (x-, y-, z-cut uniaxial films, biaxial stacks), orientation helpers | |
 | [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra; oblique incidence (s/p, TIR), etched-trench membrane DBRs, two-wavelength DBR orders | |
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
+| [cwe_shg](engines/cwe_shg/) | Coupled-wave SHG with arbitrary poling g(z) and Δk(z): coupling from the overlap area, exact per-domain undepleted solver, domain-wall-aware RK4 with pump depletion and loss, conservation and step-halving diagnostics | |
 | [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius | scipy |
 | [membrane_mode](engines/membrane_mode/) | Free-standing membrane slab mode for evanescent sensing: n_eff, n_g, absorption factor Γ, penetration depth, surface-field (roughness) weight, evanescent gas volume | |
 | [billiard_cell](engines/billiard_cell/) | 2D ray tracing of stadium and perturbed segmented-polygon multipass cells with ports; reusable ray tables re-weighted for any R(sin χ), loss and Γ; ergodic mean-field estimate, Poincaré sections, occupancy maps | |

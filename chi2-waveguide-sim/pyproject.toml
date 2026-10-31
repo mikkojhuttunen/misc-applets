@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chi2-waveguide-sim"
+version = "0.1.0"
+description = "Coupled-wave SHG, cascaded THG and DFG/OPA in TFLN and TFLT waveguides with ordered, random, quasi-random, chirped and hybrid poling; ensemble statistics and inverse design."
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "pyyaml>=6"]
+
+[project.optional-dependencies]
+jax = ["jax>=0.4"]
+figures = ["matplotlib>=3.6"]
+test = ["pytest>=7", "scipy>=1.10"]
+
+[tool.setuptools]
+packages = ["chi2sim"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

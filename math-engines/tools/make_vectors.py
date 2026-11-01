@@ -29,6 +29,7 @@ from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
 from engines.cwe_shg import engine as cwe  # noqa: E402
 from engines.cwe_dfg import engine as dfg  # noqa: E402
+from engines.cwe_cascade import engine as casc  # noqa: E402
 
 OUT = ROOT / "test_vectors" / "vectors.json"
 
@@ -258,7 +259,34 @@ def build() -> dict:
                             "floor": fav.static_floor(f, A, drift, coh), "n_groups": int(f.size)})
     v["cwe_shg"] = _cwe_shg_vectors()
     v["cwe_dfg_uniform"], v["cwe_dfg"] = _cwe_dfg_vectors()
+    v["cwe_cascade"] = _cwe_cascade_vectors()
     return v
+
+
+def _cwe_cascade_vectors() -> list:
+    """Nested-integral and RK4 THG cases (two-section, random domains, uniform matched)."""
+    lam, n1, n2, n3 = 1.55e-6, 1.9109, 2.1027, 2.20
+    dka, dkb = 4 * np.pi * (n2 - n1) / lam, 2 * np.pi * (3 * n3 - 2 * n2 - n1) / lam
+    pa, pb = 2 * np.pi / dka, 2 * np.pi / dkb
+    ka, k3 = 900.0, 1500.0
+    rng = np.random.default_rng(99)
+    structs = [("two_section", *casc.two_section_domains(60 * pa, pa, pb, 0.5)),
+               ("random", *cwe.domains_from_lengths(rng.uniform(0.5, 1.5, 70) * pa / 2)),
+               ("uniform", np.array([0.0, 200e-6]), np.array([1.0]))]
+    cases = []
+    for (name, b, g) in structs:
+        qa = [float(x) for x in (dka * np.array([0.995, 1.0, 1.004]) if name != "uniform" else [0.0, 1e3, 5e3])]
+        qb = [float(x) for x in (dkb * np.array([0.995, 1.0, 1.004]) if name != "uniform" else [0.0, 2e3, -4e3])]
+        for (P, al) in ((1e-3, (0.0, 0.0, 0.0)), (0.5, (0.0, 0.0, 0.0)), (1e-2, (20.0, 50.0, 120.0))):
+            u = casc.cascade_undepleted(b, g, qa, qb, ka, k3, P, al)
+            f = casc.cascade_coupled(b, g, qa, qb, ka, k3 / 3, 2 * k3 / 3, k3, P, al, max_step=pa / 64, min_steps=2)
+            cases.append({"structure": name, "boundaries": [float(x) for x in b], "g": [float(x) for x in g],
+                          "delta_k_a": qa, "delta_k_b": qb, "kappa": [ka, k3 / 3, 2 * k3 / 3, k3], "power": P, "alpha": list(al),
+                          "max_step": pa / 64, "min_steps": 2,
+                          "J_re": [float(x) for x in u["J"].real], "J_im": [float(x) for x in u["J"].imag],
+                          "P_th_undepleted": [float(x) for x in u["P_th"]],
+                          "P1": [float(x) for x in f["P1"]], "P2": [float(x) for x in f["P2"]], "P3": [float(x) for x in f["P3"]]})
+    return cases
 
 
 def _cwe_dfg_vectors():

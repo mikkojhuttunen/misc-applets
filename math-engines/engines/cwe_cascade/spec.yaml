@@ -1,0 +1,53 @@
+engine: cwe_cascade
+version: 1
+title: Cascaded THG (SHG + SFG) with arbitrary poling
+description: Third-harmonic generation by cascaded ω+ω→2ω and ω+2ω→3ω on one poling profile; exact per-domain nested undepleted integral and a domain-wall-aware RK4 with depletion, back-conversion and loss; two-section design.
+references:
+  - "S. N. Zhu, Y. Y. Zhu, N. B. Ming, Science 278, 843 (1997)"
+  - "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)"
+  - "R. W. Boyd, Nonlinear Optics, 3rd ed., Academic Press (2008)"
+functions:
+  coupling_thg:
+    title: SHG and SFG couplings of the cascade
+    equations: ["κ_a² = 8π² d_a² / (ε0 c n1² n2 λ² A_a)", "κ_3² = 8π² d_b² / (ε0 c n1 n2 n3 (λ/3)² A_b),  κ1:κ2:κ3 = 1:2:3", "P3 = (κ3 κa)² P³ L⁴ / 4 (uniform, both matched)"]
+    inputs:
+      - {name: wavelength, label: "Fundamental wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: n1, label: "Index at ω", ui_unit: "", scale: 1.0, default: 1.911, min: 1}
+      - {name: n2, label: "Index at 2ω", ui_unit: "", scale: 1.0, default: 2.103, min: 1}
+      - {name: n3, label: "Index at 3ω", ui_unit: "", scale: 1.0, default: 2.20, min: 1}
+      - {name: d_shg, label: "d of ω+ω→2ω", ui_unit: pm/V, scale: 1.0e-12, default: 22}
+      - {name: d_sfg, label: "d of ω+2ω→3ω", ui_unit: pm/V, scale: 1.0e-12, default: 22}
+      - {name: a_eff_shg, label: "Overlap area, SHG", ui_unit: µm², scale: 1.0e-12, default: 0.9}
+      - {name: a_eff_sfg, label: "Overlap area, SFG", ui_unit: µm², scale: 1.0e-12, default: 1.2}
+    outputs:
+      - {name: eta_shg, label: "SHG η0 (unpoled, matched)", ui_unit: "%/(W cm²)", scale: 100.0}
+      - {name: eta_sfg, label: "SFG η (unpoled, matched)", ui_unit: "%/(W cm²)", scale: 100.0}
+      - {name: eta_thg_matched, label: "THG P3/(P³L⁴), both matched", ui_unit: "%/(W² cm⁴)", scale: 1.0e6}
+  two_section_thg:
+    title: Two-section THG (SHG grating, then SFG grating)
+    equations: ["Δk_a = 4π(n2 - n1)/λ,  Δk_b = 2π(3n3 - 2n2 - n1)/λ", "P3 ≈ (2/π)⁴ κ3² κa² P³ La² Lb²"]
+    inputs:
+      - {name: wavelength, label: "Fundamental wavelength", ui_unit: nm, scale: 1.0e-9, default: 1550, min: 100}
+      - {name: n1, label: "Index at ω", ui_unit: "", scale: 1.0, default: 1.911, min: 1}
+      - {name: n2, label: "Index at 2ω", ui_unit: "", scale: 1.0, default: 2.103, min: 1}
+      - {name: n3, label: "Index at 3ω", ui_unit: "", scale: 1.0, default: 2.20, min: 1}
+      - {name: d_shg, label: "d of ω+ω→2ω", ui_unit: pm/V, scale: 1.0e-12, default: 22}
+      - {name: d_sfg, label: "d of ω+2ω→3ω", ui_unit: pm/V, scale: 1.0e-12, default: 22}
+      - {name: a_eff_shg, label: "Overlap area, SHG", ui_unit: µm², scale: 1.0e-12, default: 0.9}
+      - {name: a_eff_sfg, label: "Overlap area, SFG", ui_unit: µm², scale: 1.0e-12, default: 1.2}
+      - {name: length, label: "Total poled length", ui_unit: mm, scale: 1.0e-3, default: 2}
+      - {name: power, label: "Fundamental power", ui_unit: mW, scale: 1.0e-3, default: 50}
+      - {name: split, label: "SHG section fraction", ui_unit: "", scale: 1.0, default: 0.5, min: 0.01, max: 0.99}
+      - {name: loss_1, label: "Loss at ω", ui_unit: dB/cm, scale: 100.0, default: 0, min: 0}
+      - {name: loss_2, label: "Loss at 2ω", ui_unit: dB/cm, scale: 100.0, default: 0, min: 0}
+      - {name: loss_3, label: "Loss at 3ω", ui_unit: dB/cm, scale: 100.0, default: 0, min: 0}
+    outputs:
+      - {name: period_a, label: "SHG period", ui_unit: µm, scale: 1.0e-6}
+      - {name: period_b, label: "SFG period", ui_unit: µm, scale: 1.0e-6}
+      - {name: p_th_closed, label: "3ω power, closed form", ui_unit: mW, scale: 1.0e-3}
+      - {name: p_th_undepleted, label: "3ω power, undepleted (exact)", ui_unit: mW, scale: 1.0e-3}
+      - {name: p_th, label: "3ω power, coupled waves", ui_unit: mW, scale: 1.0e-3}
+      - {name: p_sh, label: "2ω power out", ui_unit: mW, scale: 1.0e-3}
+      - {name: efficiency, label: "THG efficiency P3/P³", ui_unit: "%/W²", scale: 0.01}
+      - {name: power_residual, label: "Power-conservation residual (lossless)", ui_unit: "", scale: 1.0}
+      - {name: step_error, label: "Step-halving change of P3", ui_unit: "", scale: 1.0}

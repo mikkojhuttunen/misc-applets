@@ -224,8 +224,11 @@ class WallParams:
         return Poling(b, self.g0 * (-1.0) ** np.arange(ell.size))
 
 
-def gradient_optimise(start: Poling, target: Target, l_min=None, steps=300, lr=0.03, fab=DEFAULT_FAB, log_every=0):
-    """Adam on the wall parametrisation of `start` (domain count fixed), maximising target; then fabricated."""
+def gradient_optimise(start: Poling, target: Target, l_min=None, steps=400, lr=0.002, fab=DEFAULT_FAB, log_every=0):
+    """Adam on the wall parametrisation of `start` (domain count fixed), maximising target; then fabricated.
+
+    lr is in the softplus variables: 0.002 moves walls by a few nm per step (larger steps overshoot the nm-scale
+    wall moves that tune a band's ripple). The best iterate of the continuous problem is fabricated."""
     jax, jnp = _jax()
     f = FAB_PRESETS[fab]
     l_min = f["l_min"] if l_min is None else l_min

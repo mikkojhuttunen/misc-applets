@@ -35,6 +35,10 @@ chi2sim/waveguide.py   Ridge (film, etch, top width, sidewall angle, cladding, c
 chi2sim/thg.py         cascaded THG designs on THGModel: two_section, superlattice, blend (SHG weight sweeping along z),
                        commensurate higher-order single period; thg_spectrum, optimisers, references,
                        thg_devices (thickness spread), double_matching_shift
+chi2sim/optimize.py    Target (mean | flat | yield | min | geo over devices × wavelengths), device_nodes (thickness
+                       quadrature), band_target, robust_target; envelope IFTA + PWM binarisation; WallParams and
+                       gradient_optimise (JAX, Adam, l_min and length kept by construction); evolve_chirp (DE, optional
+                       wall-jitter variable with the exact jitter mean); THG: thg_mask, THGTarget, evolve_thg
 chi2sim/wafer.py       ThicknessSpread (±5 nm uniform default, film and deposited layer independent), ThicknessFamily
                        (mode models on a thickness stencil, Lagrange interpolation, analytic sensitivity and grating
                        tolerance), shg_devices / opa_devices (one mask on many devices), yield_fraction
@@ -43,6 +47,7 @@ chi2sim/synthesis.py   band_to_dk, lambda_grid, efficiency_ceiling, chirp_from_s
                        parasitic_orders, random_band_design, design(mode="chirp" | "random" | "hybrid") -> Design
 examples/band_designs.py   ordered baseline vs qpm_shg; chirp / random / hybrid for 10, 50, 100 nm FWHM vs the ceiling
 examples/ridge_shg.py      TFLN vs TFLT x-cut ridges from the FD solver: period, A_eff, η, width tolerance, band designs
+examples/optimize_designs.py  flat-top bands (chirp -> IFTA -> gradient), robust SHG (TFLN, TFLT) and THG over ±5 nm film
 examples/thg_designs.py    cascaded THG 1550 -> 517 nm: designs, spectra, TE10 option, depletion, thickness spread
 examples/wafer_spread.py   ±5 nm thickness spread over 200 devices: SHG yield of ordered vs chirped masks (TFLN, TFLT,
                            SiNx-loaded TFLN), OPA with 775 / 532 / 1064 nm pumps
@@ -150,6 +155,52 @@ peak anywhere in 1500-1600 nm (100 devices), for both two-section and blend mask
 a different lever (temperature acts on both steps with yet another ratio, or masks optimised over the
 thickness ensemble, milestone 6).
 
+## Optimised designs (milestone 6)
+
+`examples/optimize_designs.py`, x-cut ridges 600/300 nm, 1.4 µm, L = 4 mm. All masks fabricated (10 nm grid,
+l_min 300 nm) before evaluation.
+
+**Flat-top SHG bands** (core = central 80 % of the FWHM band; ceiling = (2/π)² 2πL/B_k):
+
+| band | Hann chirp | envelope IFTA | IFTA + wall gradient (flat, α = 3) |
+|---|---|---|---|
+| 20 nm | 0.51 of ceiling, 2.56 dB | 0.62, 2.01 dB | 0.63, 0.90 dB |
+| 40 nm | 0.58, 1.73 dB | 0.73, 1.23 dB | 0.76, 0.85 dB |
+
+IFTA iterates on the first-order envelope e(z) = a e^{-iψ} with |e| ≤ 2/π and realises it by PWM; a GS loop on the
+±1 mask itself stalls because a narrow band spans few FFT bins and never moves a wall. Bands below about 3× the
+ordered FWHM (6 nm here, L·B_k < 10) cannot be made flat by any mask. Wall gradients need small steps (a few nm per
+wall per step).
+
+**Robust SHG at 1550 nm over the ±5 nm film spread** (η at 1550 nm on 200 random devices, %/W):
+
+| | TFLN mean / p10 / worst | TFLT mean / p10 / worst |
+|---|---|---|
+| ordered (nominal peak 595 / 184) | 47 / 0.15 / 0.00 | 15 / 0.06 / 0.00 |
+| 100 nm chirp (milestone 4) | 25 / 20 / 11 | 8.3 / 4.0 / 1.8 |
+| DE on the geometric mean over devices (chirp span ≈ 1.5 %, no apodisation) | 38 / 20 / 13 | 12 / 8.4 / 4.4 |
+| DE + wall gradient | 41 / 26 / 9.6 | 12 / 8.4 / 2.4 |
+
+The expected efficiency alone is a degenerate objective: by Parseval an ordered grating already reaches the cap of
+the mean |G|² over the devices' Δk range (that is why the ordered mean is the highest); what a mask can change is how
+evenly the devices share it. The geometric mean punishes dead devices and selects a chirp matched to the Δk spread
+of ±5 nm (span ≈ 1.5 % of K). The gradient polish raises mean and p10 but lowers the single worst device (it tunes
+to the 21 quadrature nodes); DE alone is the better worst-case design. Wall jitter as a design variable only lowers
+the objective (tests): randomness moves power from the band into a broad weak floor. TFLT follows TFLN at about a
+third of the efficiency (d33 13.8 vs 25.2 pm/V).
+
+**Robust THG** (η_THG at 1550 nm, 100 devices, %/W²):
+
+| | nominal | mean / p10 / worst |
+|---|---|---|
+| two-section | 2666 | 180 / 0.00 / 0.00 |
+| blend 0.9 -> 0.1 | 3609 | 183 / 0.02 / 0.01 |
+| DE geometric mean: blended chirped superlattice, w 0.56 -> 0.44, spans 1.7 % (K_a) / 1.0 % (K_b) | 10 | 8.3 / 2.2 / 0.86 |
+
+The optimiser matches both chirps to the ±5 nm spreads of Δk_a (1.4 %) and Δk_b (1.0 %): every device then works,
+at about 1/300 of the nominal double-matched peak (the THG analogue of the bandwidth-efficiency ceiling, applied
+twice).
+
 ## Fabrication presets (`poling.FAB_PRESETS`)
 
 | preset | l_min | grid | basis |
@@ -168,6 +219,8 @@ These are demonstrated periodic gratings. Short isolated domains in aperiodic ma
 4. `cwe_dfg` engine (math-engines; transfer matrix, depleted RK4, JS cross-check), OPAModel, loading strips,
    wafer thickness spread: done.
 5. `cwe_cascade` engine (math-engines), THGModel, double-matching designs, THG thickness spread: done.
-6. Hybrid optimisation, IFTA and JAX gradient design (including yield objectives over the thickness ensemble): open.
+6. Optimisation: envelope IFTA, JAX wall gradients, DE over chirp / apodisation / jitter / blended THG masks,
+   band and thickness-ensemble objectives (mean, flat, yield, soft minimum, geometric mean), TFLN vs TFLT: done.
+7. Optional: JS port and applet, pulsed / dispersive extension: open.
 
 Not yet: pump depletion inside `design` (use `cwe_shg.shg_coupled` on the mask), Δk(z) from width variation in the batched solver (use `cwe_shg`), adiabatic-conversion robustness (needs the depleted/OPA solvers).

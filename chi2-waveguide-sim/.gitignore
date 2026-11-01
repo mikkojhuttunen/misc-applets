@@ -1,2 +1,3 @@
 figs/
 *.egg-info/
+cache/

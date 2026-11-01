@@ -28,6 +28,7 @@ from engines.materials import engine as mat  # noqa: E402
 from engines.slab_waveguide import engine as sw  # noqa: E402
 from engines.step_index_fiber import engine as sif  # noqa: E402
 from engines.cwe_shg import engine as cwe  # noqa: E402
+from engines.cwe_dfg import engine as dfg  # noqa: E402
 
 OUT = ROOT / "test_vectors" / "vectors.json"
 
@@ -256,7 +257,40 @@ def build() -> dict:
                             "V": [float(x) for x in fav.residual_visibility(f, A, np.array(Ts), drift, coh, kind)],
                             "floor": fav.static_floor(f, A, drift, coh), "n_groups": int(f.size)})
     v["cwe_shg"] = _cwe_shg_vectors()
+    v["cwe_dfg_uniform"], v["cwe_dfg"] = _cwe_dfg_vectors()
     return v
+
+
+def _cwe_dfg_vectors():
+    """Uniform-medium gains (also checked against expM in parametric-amplifier.html) and QPM transfer/RK4 cases."""
+    uni = []
+    for (gam, dk, L, ai) in ((1000.0, 0.0, 3e-3, 0.0), (1000.0, 1500.0, 3e-3, 0.0), (500.0, 2500.0, 5e-3, 0.0),
+                             (800.0, 300.0, 4e-3, 200.0), (300.0, 0.0, 1e-2, 50.0)):
+        r = dfg.opa_transfer(np.array([0.0, L]), np.array([1.0]), dk, gam, gam, 1.0, 1.0, alpha_idler=ai)
+        uni.append({"gamma": gam, "delta_k": dk, "length": L, "alpha_idler": ai,
+                    "gain": float(r["gain"][0]), "idler": float(r["P_idler"][0])})
+    cases = []
+    lp, ls = 775e-9, 1500e-9
+    li = float(dfg.idler_wavelength(lp, ls))
+    dk0 = 2 * np.pi * (2.10 / lp - 1.91 / ls - 1.90 / li)
+    per = 2 * np.pi / dk0
+    ks, ki = 800.0, 800.0 * ls / li
+    kp = ks * ls / lp
+    rng = np.random.default_rng(77)
+    for (name, b, g) in (("ordered", *cwe.periodic_domains(60 * per, per)),
+                         ("random", *cwe.domains_from_lengths(rng.uniform(0.5, 1.5, 80) * per / 2))):
+        dks = [float(x) for x in dk0 * np.array([0.98, 1.0, 1.01])]
+        for (P, Ps, aS, aI, aP) in ((1.0, 1e-6, 0.0, 0.0, 0.0), (2.0, 0.2, 0.0, 0.0, 0.0), (1.0, 1e-3, 30.0, 90.0, 10.0)):
+            tm = dfg.opa_transfer(b, g, dks, ks, ki, P, Ps, alpha_signal=aS, alpha_idler=aI)
+            fw = dfg.three_wave(b, g, dks, ks, ki, kp, P, Ps, alpha_signal=aS, alpha_idler=aI, alpha_pump=aP,
+                                max_step=per / 64, min_steps=2)
+            cases.append({"structure": name, "boundaries": [float(x) for x in b], "g": [float(x) for x in g], "delta_k": dks,
+                          "kappa": [ks, ki, kp], "pump_power": P, "signal_power": Ps, "alpha": [aS, aI, aP],
+                          "max_step": per / 64, "min_steps": 2,
+                          "tm_P_signal": [float(x) for x in tm["P_signal"]], "tm_P_idler": [float(x) for x in tm["P_idler"]],
+                          "P_signal": [float(x) for x in fw["P_signal"]], "P_idler": [float(x) for x in fw["P_idler"]],
+                          "P_pump": [float(x) for x in fw["P_pump"]]})
+    return uni, cases
 
 
 def _cwe_shg_vectors() -> list:

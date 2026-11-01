@@ -30,6 +30,7 @@ import scipy.sparse.linalg as spla
 from scipy.interpolate import CubicSpline
 
 from engines.anisotropic_slab import engine as aslab
+from engines.cwe_dfg import engine as dfg
 from engines.cwe_shg import engine as cwe
 from engines.slab_waveguide import engine as slab
 
@@ -46,10 +47,16 @@ class Ridge:
     cut: str = "x"
     clad: str = "air"
     substrate: str = "sio2"
+    load: str | None = None              # deposited strip on top of the film: materials.DEPOSITED key
+    load_thickness: float = 0.0
+    load_width: float | None = None      # default: the top width
+    load_index: float | None = None      # constant index overriding the load material's dispersion
 
     def __post_init__(self):
         if not (0 <= self.etch <= self.film and self.film > 0 and self.width > 0):
             raise ValueError("need film > 0, 0 <= etch <= film, width > 0")
+        if self.load is not None and (self.load_thickness <= 0 or self.load not in materials.DEPOSITED):
+            raise ValueError(f"load needs load_thickness > 0 and a material in {tuple(materials.DEPOSITED)}")
         if not (10 <= self.sidewall <= 90):
             raise ValueError("sidewall angle must lie in [10, 90] degrees")
         if self.material not in materials.CRYSTALS or self.cut not in materials.CUTS:
@@ -64,6 +71,20 @@ class Ridge:
         """Lateral run of one sidewall."""
         return self.etch / math.tan(math.radians(self.sidewall)) if self.sidewall < 90 else 0.0
 
+    @property
+    def strip_width(self) -> float:
+        return self.width if self.load_width is None else self.load_width
+
+    @property
+    def top(self) -> float:
+        return self.film + (self.load_thickness if self.load else 0.0)
+
+    def in_load(self, x, y):
+        x, y = np.asarray(x), np.asarray(y)
+        if self.load is None:
+            return np.zeros(np.broadcast(x, y).shape, dtype=bool)
+        return (y >= self.film) & (y < self.top) & (np.abs(x) < self.strip_width / 2)
+
     def in_film(self, x, y):
         x, y = np.asarray(x), np.asarray(y)
         slab_part = (y >= 0) & (y < self.slab)
@@ -76,15 +97,22 @@ class Ridge:
 
 def indices(geom: Ridge, wavelength) -> dict:
     lat, vert, prop = materials.film_tensor(geom.material, geom.cut, wavelength)
-    return {"film": (lat, vert, prop), "sub": materials.isotropic(geom.substrate, wavelength),
-            "clad": materials.isotropic(geom.clad, wavelength)}
+    out = {"film": (lat, vert, prop), "sub": materials.isotropic(geom.substrate, wavelength),
+           "clad": materials.isotropic(geom.clad, wavelength), "load": None}
+    if geom.load is not None:
+        out["load"] = geom.load_index if geom.load_index is not None else materials.deposited(geom.load, wavelength)
+    return out
 
 
-def _slab_neff(ix, thickness, wavelength, pol):
+def _slab_neff(ix, thickness, wavelength, pol, load_thickness=0.0):
     if thickness <= 0:
         return float("nan")
     lat, vert, prop = ix["film"]
-    r = aslab.slab_modes(wavelength, [ix["sub"], (vert, lat, prop), ix["clad"]], [thickness], pol)
+    layers, th = [ix["sub"], (vert, lat, prop)], [thickness]
+    if load_thickness > 0:
+        layers.append(ix["load"])
+        th.append(load_thickness)
+    r = aslab.slab_modes(wavelength, layers + [ix["clad"]], th, pol)
     return float(r["neff"][0]) if r["n_modes"] else float("nan")
 
 
@@ -92,14 +120,14 @@ def eim(geom: Ridge, wavelength, polarization="TE") -> float:
     """Effective index method: vertical anisotropic slab in and outside the ridge, then a lateral slab of
     the mid-height width with the complementary polarisation."""
     ix = indices(geom, wavelength)
-    n_in = _slab_neff(ix, geom.film, wavelength, polarization)
+    n_in = _slab_neff(ix, geom.film, wavelength, polarization, geom.load_thickness if geom.load else 0.0)
     n_out = _slab_neff(ix, geom.slab, wavelength, polarization)
     floor = max(ix["sub"], ix["clad"])
     if not np.isfinite(n_out):
         n_out = floor
     if not np.isfinite(n_in) or n_in <= n_out:
         return float("nan")
-    w = geom.width + geom.spread
+    w = geom.width + geom.spread if geom.etch > 0 else geom.strip_width
     lat_pol = "TM" if polarization == "TE" else "TE"
     return float(slab.neff_three_layer(wavelength, n_out, n_in, n_out, w, lat_pol, 0))
 
@@ -112,6 +140,7 @@ class Grid:
     ye: np.ndarray
     f_film: np.ndarray        # (Ny, Nx) film area fraction per cell
     f_sub: np.ndarray         # (Ny, Nx) substrate fraction
+    f_load: np.ndarray | None = None   # (Ny, Nx) deposited-strip fraction
 
     @property
     def xc(self):
@@ -165,13 +194,14 @@ def build_grid(geom: Ridge, wavelength_max, h=20e-9, ratio=1.15, lateral_margin=
     """Graded grid: uniform step h over the film and sidewalls (plus 0.2 µm), growing by `ratio` up to
     λ/4 outside; margins in units of the longest wavelength. Area fractions by s×s supersampling."""
     hx, hy = (h, h) if np.ndim(h) == 0 else h
-    half = geom.width / 2 + geom.spread
+    half = max(geom.width / 2 + geom.spread, geom.strip_width / 2 if geom.load else 0.0)
     core_x = half + 0.2e-6
     lam = wavelength_max
-    xe = _axis(-core_x, core_x, [-half, -geom.width / 2, geom.width / 2, half], hx,
+    sw = geom.strip_width / 2
+    xe = _axis(-core_x, core_x, [-half, -geom.width / 2, geom.width / 2, half] + ([-sw, sw] if geom.load else []), hx,
                -core_x - lateral_margin * lam, core_x + lateral_margin * lam, lam / 4, ratio)
-    ye = _axis(-0.1e-6, geom.film + 0.1e-6, [0.0, geom.slab, geom.film], hy,
-               -sub_margin * lam, geom.film + clad_margin * lam, lam / 4, ratio)
+    ye = _axis(-0.1e-6, geom.top + 0.1e-6, [0.0, geom.slab, geom.film, geom.top], hy,
+               -sub_margin * lam, geom.top + clad_margin * lam, lam / 4, ratio)
     s = supersample
     u = (np.arange(s) + 0.5) / s
     xs = (xe[:-1, None] + np.diff(xe)[:, None] * u[None, :]).ravel()
@@ -182,13 +212,18 @@ def build_grid(geom: Ridge, wavelength_max, h=20e-9, ratio=1.15, lateral_margin=
     ny, nx = ye.size - 1, xe.size - 1
     f_film = fil.reshape(ny, s, nx, s).mean(axis=(1, 3))
     f_sub = sub.reshape(ny, s, nx, s).mean(axis=(1, 3))
-    return Grid(xe, ye, f_film, f_sub)
+    f_load = geom.in_load(X, Y).astype(float).reshape(ny, s, nx, s).mean(axis=(1, 3)) if geom.load else None
+    return Grid(xe, ye, f_film, f_sub, f_load)
 
 
 def _eps(grid: Grid, ix, component):
     n_f = ix["film"][0 if component == "x" else 1]
-    f_clad = 1 - grid.f_film - grid.f_sub
-    return grid.f_film * n_f**2 + grid.f_sub * ix["sub"] ** 2 + f_clad * ix["clad"] ** 2
+    f_load = grid.f_load if grid.f_load is not None else 0.0
+    f_clad = 1 - grid.f_film - grid.f_sub - f_load
+    eps = grid.f_film * n_f**2 + grid.f_sub * ix["sub"] ** 2 + f_clad * ix["clad"] ** 2
+    if grid.f_load is not None:
+        eps = eps + grid.f_load * ix["load"] ** 2
+    return eps
 
 
 # ----------------------------------------------------------------------------- FD solver
@@ -304,6 +339,14 @@ def a_eff_shg(pump: np.ndarray, sh: np.ndarray, grid: Grid) -> float:
     return float(num / ov**2)
 
 
+def a_eff_three(e1: np.ndarray, e2: np.ndarray, e3: np.ndarray, grid: Grid) -> float:
+    """A_eff = ∫|E1|² ∫|E2|² ∫|E3|² / |∫_χ E1 E2 E3 dA|² (real mode fields); equals a_eff_shg for E1 = E2."""
+    dA = grid.area
+    num = np.sum(e1**2 * dA) * np.sum(e2**2 * dA) * np.sum(e3**2 * dA)
+    ov = np.sum(grid.f_film * e1 * e2 * e3 * dA)
+    return float(num / ov**2)
+
+
 # ----------------------------------------------------------------------------- SHG table
 
 @dataclass
@@ -405,7 +448,7 @@ class SHGModel:
     def load(cls, path) -> "SHGModel":
         z = np.load(path, allow_pickle=True)
         obj = cls.__new__(cls)
-        obj.geom = Ridge(**{k: (float(v) if k in _FLOATS else str(v)) for k, v in z["geom"]})
+        obj.geom = Ridge(**{k: _restore(k, v) for k, v in z["geom"]})
         obj.lambdas, obj.polarization, obj.h = z["lambdas"], str(z["polarization"]), float(z["h"])
         obj.n_p, obj.n_sh, obj.a_eff_tab, obj.film_fraction = z["n_p"], z["n_sh"], z["a_eff"], z["film_fraction"]
         obj.grid = None
@@ -428,7 +471,116 @@ class SHGModel:
         return m
 
 
-_FLOATS = {"film", "etch", "width", "sidewall"}
+@dataclass
+class OPAModel:
+    """Fixed pump λ_p, tabulated signal λ_s (idler 1/λ_i = 1/λ_p - 1/λ_s): n_s, n_i, A_eff splined over λ_s.
+    Callable as Δk(λ_s) = 2π(n_p/λ_p - n_s/λ_s - n_i/λ_i); coupling(λ_s) gives the cwe_dfg coupling Result."""
+
+    geom: Ridge
+    wavelength_pump: float
+    signals: np.ndarray
+    polarization: str = "TE"
+    h: float = 20e-9
+
+    def __post_init__(self):
+        ls = np.sort(np.asarray(self.signals, dtype=float))
+        if ls.size < 4:
+            raise ValueError("need at least 4 signal wavelengths for the spline")
+        self.signals = ls
+        li = dfg.idler_wavelength(self.wavelength_pump, ls)
+        self.grid = build_grid(self.geom, max(li.max(), ls.max()), self.h)
+        mp = fundamental(self.geom, self.wavelength_pump, self.polarization, self.grid)
+        self.n_p = mp.neff
+        n_s, n_i, ae = [], [], []
+        for s_, i_ in zip(ls, li):
+            ms = fundamental(self.geom, s_, self.polarization, self.grid)
+            mi = ms if abs(s_ - i_) < 1e-12 else fundamental(self.geom, i_, self.polarization, self.grid)
+            n_s.append(ms.neff)
+            n_i.append(mi.neff)
+            ae.append(a_eff_three(ms.field, mi.field, mp.field, self.grid))
+        self.n_s, self.n_i, self.a_eff_tab = np.array(n_s), np.array(n_i), np.array(ae)
+        self._ss, self._si, self._sa = CubicSpline(ls, self.n_s), CubicSpline(ls, self.n_i), CubicSpline(ls, self.a_eff_tab)
+        self.notes = materials.absorption_notes([self.wavelength_pump, ls.min(), ls.max(), li.min(), li.max()],
+                                                self.geom.substrate, self.geom.clad)
+
+    def _check(self, ls):
+        ls = np.asarray(ls, dtype=float)
+        if np.any(ls < self.signals.min() * (1 - 1e-9)) or np.any(ls > self.signals.max() * (1 + 1e-9)):
+            raise ValueError("signal wavelength outside the tabulated range")
+        return ls
+
+    def idler(self, ls):
+        return dfg.idler_wavelength(self.wavelength_pump, self._check(ls))
+
+    def neff_signal(self, ls):
+        return self._ss(self._check(ls))
+
+    def neff_idler(self, ls):
+        return self._si(self._check(ls))
+
+    def a_eff(self, ls):
+        return self._sa(self._check(ls))
+
+    def __call__(self, ls):
+        ls = self._check(ls)
+        li = dfg.idler_wavelength(self.wavelength_pump, ls)
+        return 2 * np.pi * (self.n_p / self.wavelength_pump - self._ss(ls) / ls - self._si(ls) / li)
+
+    def d_coeff(self, ls):
+        return materials.miller_d3(self.geom.material, self.geom.cut, self.polarization, float(ls), float(self.idler(ls)))
+
+    def coupling(self, ls):
+        return dfg.coupling_three_wave(float(ls), float(self.idler(ls)), float(self.neff_signal(ls)),
+                                       float(self.neff_idler(ls)), self.n_p, self.d_coeff(ls), float(self.a_eff(ls)))
+
+    def period(self, ls):
+        return 2 * np.pi / np.abs(self(ls))
+
+    def gain_spectrum(self, poling_boundaries, g, ls, pump_power, alpha_signal=0.0, alpha_idler=0.0, delta_k=None):
+        """Undepleted signal gain over λ_s for a mask (cwe_dfg.opa_transfer); κ evaluated at each λ_s.
+        delta_k: optional (M,) or (R, M) override (e.g. per-device tables); rows are flattened."""
+        ls = np.atleast_1d(np.asarray(ls, dtype=float))
+        dk = self(ls) if delta_k is None else np.asarray(delta_k, dtype=float)
+        ks, ki = self.kappas(ls)
+        shape = dk.shape
+        ks_b, ki_b = np.broadcast_to(ks, shape).ravel(), np.broadcast_to(ki, shape).ravel()
+        r = dfg.opa_transfer(poling_boundaries, g, np.abs(dk.ravel()), ks_b, ki_b, pump_power, 1.0,
+                             alpha_signal=alpha_signal, alpha_idler=alpha_idler)
+        return r["gain"].reshape(shape)
+
+    def kappas(self, ls):
+        ls = np.atleast_1d(np.asarray(ls, dtype=float))
+        c = [self.coupling(x) for x in ls]
+        return np.array([float(x["kappa_signal"]) for x in c]), np.array([float(x["kappa_idler"]) for x in c])
+
+
+_FLOATS = {"film", "etch", "width", "sidewall", "load_thickness", "load_width", "load_index"}
+
+
+def _restore(k, v):
+    if v is None or (isinstance(v, str) and v == "None"):
+        return None
+    return float(v) if k in _FLOATS else str(v)
+
+
+def with_thickness(geom: Ridge, d_film=0.0, d_load=0.0, etch="depth") -> Ridge:
+    """Geometry with the film (and deposited strip) thicker by d_film (d_load).
+
+    etch="depth": timed etch, the etch depth stays (slab = film - etch changes; a full etch stays full);
+    etch="slab": the remaining slab stays (etch depth absorbs the change)."""
+    film = geom.film + d_film
+    if geom.etch >= geom.film:
+        e = film
+    elif etch == "depth":
+        e = geom.etch
+    elif etch == "slab":
+        e = geom.etch + d_film
+    else:
+        raise ValueError("etch must be 'depth' or 'slab'")
+    kw = {"film": film, "etch": e}
+    if geom.load is not None:
+        kw["load_thickness"] = geom.load_thickness + d_load
+    return replace(geom, **kw)
 
 
 def with_width(geom: Ridge, width) -> Ridge:

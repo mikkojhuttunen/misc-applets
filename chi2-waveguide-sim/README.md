@@ -23,15 +23,23 @@ chi2sim/fast.py        G(Δk) = ∫ g e^{iΔk z} dz as a sum over walls, batched
 chi2sim/ensemble.py    monte_carlo; closed forms: renewal_mean (i.i.d. lengths), jitter_mean (Gaussian wall jitter)
 chi2sim/metrics.py     fwhm, band_stats (mean, min, ripple dB, contrast), ensemble_stats (mean, σ/mean, quantiles)
 chi2sim/materials.py   LN (congruent, MgO) and LT index tensors per cut, type-0 d coefficients (d33, d22) with Miller scaling
-chi2sim/waveguide.py   Ridge (film, etch, top width, sidewall angle, cladding, cut, material); eim; 2D semi-vectorial
+chi2sim/waveguide.py   Ridge (film, etch, top width, sidewall angle, cladding, cut, material, optional deposited strip
+                       load = sinx | si3n4 | sic | sio2 | al2o3 or load_index); with_thickness; eim; 2D semi-vectorial
                        FD solver (port of waveguide-core.js; sparse shift-invert, sub-pixel ε on a graded grid);
                        a_eff_shg; SHGModel (n_p, n_SH, n_g, A_eff tables, splined; Δk(λ) callable, κ(λ), period,
-                       save/load/cached); width_scan (period, Δk and A_eff vs width, dΔk/dw)
+                       save/load/cached); width_scan (period, Δk and A_eff vs width, dΔk/dw);
+                       OPAModel (fixed pump, signal table, idler by energy conservation, three-mode A_eff,
+                       Miller-scaled d, gain_spectrum via cwe_dfg, mid-IR absorption flags)
+chi2sim/wafer.py       ThicknessSpread (±5 nm uniform default, film and deposited layer independent), ThicknessFamily
+                       (mode models on a thickness stencil, Lagrange interpolation, analytic sensitivity and grating
+                       tolerance), shg_devices / opa_devices (one mask on many devices), yield_fraction
 chi2sim/dispersion.py  simple Δk(λ) models: LinearIndexSHG, MaterialSHG (bulk Sellmeier)
 chi2sim/synthesis.py   band_to_dk, lambda_grid, efficiency_ceiling, chirp_from_spectrum, poling_from_chirp,
                        parasitic_orders, random_band_design, design(mode="chirp" | "random" | "hybrid") -> Design
 examples/band_designs.py   ordered baseline vs qpm_shg; chirp / random / hybrid for 10, 50, 100 nm FWHM vs the ceiling
 examples/ridge_shg.py      TFLN vs TFLT x-cut ridges from the FD solver: period, A_eff, η, width tolerance, band designs
+examples/wafer_spread.py   ±5 nm thickness spread over 200 devices: SHG yield of ordered vs chirped masks (TFLN, TFLT,
+                           SiNx-loaded TFLN), OPA with 775 / 532 / 1064 nm pumps
 tests/                 generators, fast solver vs cwe_shg and JAX gradients, ensemble statistics, synthesis
 ```
 
@@ -76,6 +84,40 @@ not a calibrated match. The d33 values are Shoji et al. (1997) at 1064 nm, Mille
 approximate. The model is semi-vectorial: TE-TM mode hybridisation, which appears at some widths in x-cut films,
 is not captured.
 
+## Wafer thickness spread (devices differ, each device uniform)
+
+Thin LN/LT films and deposited layers (SiNx, SiC, ...) are taken to vary by ±5 nm (uniform, independent) across the
+wafer and to be constant within one device. `ThicknessFamily` solves the mode model on a 5-point thickness stencil
+(5 × 3 with a deposited strip) and interpolates Δk and κ to every device; interpolation error < 0.2 nm of
+phase-matching wavelength with 3 nodes, about 0.01 nm with 5 (tests). The etch depth is kept (timed etch) unless
+`etch="slab"`. `examples/wafer_spread.py`, L = 4 mm, 200 devices:
+
+| guide | dλ_pm/dt | ordered-grating thickness tolerance |
+|---|---|---|
+| TFLN ridge 600/300 nm, 1.4 µm, SHG | -9.7 nm/nm | ±0.31 nm |
+| TFLT ridge, same geometry, SHG | -12.5 nm/nm | ±0.32 nm |
+| SiNx-loaded TFLN (300 nm LN + 300 nm SiNx strip), SHG | -4.4 (LN), -2.4 (SiNx) nm/nm | ±0.34 nm (LN), ±0.63 nm (SiNx) |
+| TFLN ridge, OPA 532 nm pump, signal 1550 nm | -23.8 nm/nm | ±0.32 nm |
+| TFLN ridge, OPA 775 nm pump (degenerate) | no first-order shift: the gain band collapses or splits | ±0.31 nm |
+| TFLN 900/450 nm, 2.4 µm, OPA 1064 nm pump (idler 3.39 µm) | -10.3 nm/nm | ±0.80 nm |
+
+TFLN SHG at 1550 nm, one mask on all devices (η at 1550 nm in %/W; yield = share of devices with η ≥ ½ nominal):
+
+| design | η nominal | median | worst | yield |
+|---|---|---|---|---|
+| ordered | 595 | 2.4 | 0.0 | 0.08 |
+| chirp 30 nm | 83 | 13 | 0.2 | 0.33 |
+| chirp 60 nm | 38 | 36 | 2.3 | 0.71 |
+| chirp 100 nm | 25 | 25 | 10.8 | 0.98 |
+
+A ±5 nm film spread moves the SHG phase matching by about ±48 nm, eight times the 6 nm acceptance of a 4 mm
+grating, so an ordered grating alone yields 8 %. The options are per-device tuning (temperature, or a ladder of
+about 16 periods per die to cover ±48 nm with 6 nm steps) or a broadband mask that trades peak efficiency for
+yield (100 nm chirp: 98 % of devices within a factor of 2, at 4 % of the ordered peak). OPA behaves the same way.
+The degenerate 775 nm-pumped OPA is the most fragile: its gain band either disappears or splits into
+non-degenerate lobes outside 1450-1650 nm. The 1064 nm pump (900 nm film, 2.4 µm) is the least sensitive in
+thickness, but its 3.39 µm idler sits in the SiO2 absorption range (flagged, not modelled).
+
 ## Fabrication presets (`poling.FAB_PRESETS`)
 
 | preset | l_min | grid | basis |
@@ -91,6 +133,8 @@ These are demonstrated periodic gratings. Short isolated domains in aperiodic ma
 1. `cwe_shg` engine: done (math-engines).
 2. Poling generators, fast undepleted solver, ensemble statistics, synthesis stages 1–3 (+ statistical random design): done here.
 3. Waveguide layer (EIM, Python 2D semi-vectorial FD solver, overlap A_eff, Miller-scaled d, cached tables): done.
-4. `cwe_dfg` (OPA), 5. `cwe_cascade` (THG), 6. hybrid optimisation, IFTA and JAX gradient design: open.
+4. `cwe_dfg` engine (math-engines; transfer matrix, depleted RK4, JS cross-check), OPAModel, loading strips,
+   wafer thickness spread: done.
+5. `cwe_cascade` (THG), 6. hybrid optimisation, IFTA and JAX gradient design (including yield objectives): open.
 
 Not yet: pump depletion inside `design` (use `cwe_shg.shg_coupled` on the mask), Δk(z) from width variation in the batched solver (use `cwe_shg`), adiabatic-conversion robustness (needs the depleted/OPA solvers).

@@ -75,3 +75,43 @@ def miller_d(material, cut, polarization, wavelength):
     chi = lambda lam: float(mat.index(idx, lam)) ** 2 - 1
     lr = row["lambda_ref"]
     return row[name] * (chi(wavelength) ** 2 * chi(wavelength / 2)) / (chi(lr) ** 2 * chi(lr / 2))
+
+
+def miller_d3(material, cut, polarization, wavelength_signal, wavelength_idler):
+    """Type-0 coefficient for ω_p = ω_s + ω_i by Miller's rule: d ∝ χ(λ_s) χ(λ_i) χ(λ_p), referenced to
+    the tabulated SHG value. Reduces to miller_d for λ_s = λ_i."""
+    name, extra = coefficient(material, cut, polarization)
+    if name is None:
+        return 0.0
+    row = D_TABLE[material]
+    idx = CRYSTALS[material][1 if extra else 0]
+    chi = lambda lam: float(mat.index(idx, lam)) ** 2 - 1
+    lr = row["lambda_ref"]
+    lp = 1 / (1 / wavelength_signal + 1 / wavelength_idler)
+    return row[name] * chi(wavelength_signal) * chi(wavelength_idler) * chi(lp) / (chi(lr) ** 2 * chi(lr / 2))
+
+
+# Deposited loading or cladding layers (isotropic). si3n4: LPCVD stoichiometric fit (Luke 2015); PECVD SiNx and
+# amorphous/sputtered SiC vary with recipe: "sinx" uses the Si3N4 dispersion scaled to n = 1.95 at 1550 nm and
+# "sic" a constant 2.55 (amorphous SiC near 1550 nm). Pass Ridge(load_index=...) for a measured value.
+DEPOSITED = {"si3n4": "si3n4", "sinx": "sinx", "sic": "sic", "sio2": "sio2", "al2o3": "sapphire_o"}
+
+
+def deposited(name, wavelength) -> float:
+    if name == "sic":
+        return 2.55
+    if name == "sinx":
+        return float(mat.index("si3n4", wavelength)) * 1.95 / float(mat.index("si3n4", 1.55e-6))
+    return float(mat.index(DEPOSITED[name], wavelength))
+
+
+def absorption_notes(wavelengths, substrate="sio2", clad="air") -> list[str]:
+    """Warnings for wavelengths where the passive layers absorb (no loss model, flags only)."""
+    lam = np.atleast_1d(np.asarray(wavelengths, dtype=float))
+    notes = []
+    if "sio2" in (substrate, clad) and np.any(lam > 2.6e-6):
+        notes.append("WARNING: SiO2 absorbs beyond ~2.6 µm (OH band near 2.7 µm, multiphonon edge beyond ~3.5 µm); "
+                     "mid-IR idler loss into the oxide is not modelled")
+    if np.any(lam > 4.5e-6):
+        notes.append("WARNING: LiNbO3/LiTaO3 multiphonon absorption beyond ~4.5-5 µm")
+    return notes

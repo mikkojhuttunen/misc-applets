@@ -11,6 +11,7 @@ Pure-function physics engines with machine-readable specs. One Python reference 
 | [bragg_grating](engines/bragg_grating/) | Grating coupling coefficient, coupled-mode peak reflectance and bandwidth, transfer-matrix stack spectra; oblique incidence (s/p, TIR), etched-trench membrane DBRs, two-wavelength DBR orders | |
 | [qpm_shg](engines/qpm_shg/) | SHG phase mismatch, poling period, coherence length, sinc² acceptance bandwidth | |
 | [cwe_shg](engines/cwe_shg/) | Coupled-wave SHG with arbitrary poling g(z) and Δk(z): coupling from the overlap area, exact per-domain undepleted solver, domain-wall-aware RK4 with pump depletion and loss, conservation and step-halving diagnostics | |
+| [cwe_dfg](engines/cwe_dfg/) | Coupled-wave DFG and OPA (CW) with arbitrary poling: three-wave coupling and gain coefficient, exact per-domain transfer matrices (undepleted pump, signal/idler loss), depleted wall-aware RK4 with losses, power and Manley-Rowe diagnostics | |
 | [step_index_fiber](engines/step_index_fiber/) | LP01 effective index, V, b, Marcuse mode-field radius | scipy |
 | [membrane_mode](engines/membrane_mode/) | Free-standing membrane slab mode for evanescent sensing: n_eff, n_g, absorption factor Γ, penetration depth, surface-field (roughness) weight, evanescent gas volume | |
 | [billiard_cell](engines/billiard_cell/) | 2D ray tracing of stadium and perturbed segmented-polygon multipass cells with ports; reusable ray tables re-weighted for any R(sin χ), loss and Γ; ergodic mean-field estimate, Poincaré sections, occupancy maps | |
@@ -78,7 +79,7 @@ The tests fail if `web/engines_index.json` or `test_vectors/vectors.json` is out
 | Port | Covers | Checked by |
 |---|---|---|
 | `dbr-structures/dbr-engine.js` | Sellmeier indices, three-layer slab, coupled-mode reflectance, transfer-matrix stack | `check_js_ports.mjs` |
-| `parametric-amplifier.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver | `check_js_ports.mjs` (functions extracted from the page) |
+| `parametric-amplifier.html` (inline) | silica Sellmeier, Bessel ratios, LP01 solver, χ² OPA transfer matrix `expM` (vs `cwe_dfg`) | `check_js_ports.mjs` (functions extracted from the page) |
 | `fringe-washout.html` (inline `engine:begin/end` block) | `fringe_averaging` harmonics, components, filters, residual visibility | `check_js_ports.mjs` (block extracted from the page) |
 | `cmpc-ray-tracer.html` (inline `engine:begin/end` block) | `billiard_cell.SegmentedCell` geometry, hit test, reflection, launch, `reflection_weighted_path`; `ray_phase` path lengths, dither offsets, visibility, `dither_analysis`; `bragg_grating.stack_R_oblique`, `TrenchDBR`; `cell_mirror` statistics | `check_js_ports.mjs` (block extracted from the page) |
 

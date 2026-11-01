@@ -1024,6 +1024,320 @@
    }
   },
   {
+   "engine": "cwe_dfg",
+   "version": 1,
+   "title": "Coupled-wave DFG and OPA with arbitrary poling",
+   "description": "Three-wave difference-frequency generation and optical parametric amplification (CW) in a χ² waveguide; exact per-domain transfer matrices for an undepleted pump and a domain-wall-aware RK4 with pump depletion, loss, power and Manley-Rowe diagnostics.",
+   "requires": [],
+   "references": [
+    "R. W. Boyd, Nonlinear Optics, 3rd ed., Academic Press (2008), sec. 2.8-2.9",
+    "M. M. Fejer, G. A. Magel, D. H. Jundt, R. L. Byer, IEEE J. Quantum Electron. 28, 2631 (1992)",
+    "R. L. Byer and R. L. Herbst, in Nonlinear Infrared Generation, Springer (1977), parametric gain"
+   ],
+   "files": [
+    "engines/cwe_dfg/__init__.py",
+    "engines/cwe_dfg/engine.py",
+    "engines/cwe_shg/__init__.py",
+    "engines/cwe_shg/engine.py"
+   ],
+   "functions": {
+    "coupling_three_wave": {
+     "title": "Three-wave coupling and parametric gain coefficient",
+     "equations": [
+      "η_SFG = κ_p² = 8π² d² / (ε0 c n_s n_i n_p λ_p² A_eff)",
+      "κ_j = κ_p λ_p / λ_j",
+      "Γ = √(κ_s κ_i P_p)"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_signal",
+       "label": "Signal wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1500,
+       "min": 100
+      },
+      {
+       "name": "wavelength_idler",
+       "label": "Idler wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1603.4,
+       "min": 100
+      },
+      {
+       "name": "n_signal",
+       "label": "Signal effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.91,
+       "min": 1
+      },
+      {
+       "name": "n_idler",
+       "label": "Idler effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.9,
+       "min": 1
+      },
+      {
+       "name": "n_pump",
+       "label": "Pump effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.1,
+       "min": 1
+      },
+      {
+       "name": "d_coeff",
+       "label": "Nonlinear coefficient d (full strength)",
+       "ui_unit": "pm/V",
+       "scale": 1e-12,
+       "default": 25
+      },
+      {
+       "name": "a_eff",
+       "label": "Three-wave overlap area A_eff",
+       "ui_unit": "µm²",
+       "scale": 1e-12,
+       "default": 1.0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "wavelength_pump",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "eta_sfg",
+       "label": "SFG efficiency η_SFG (unpoled, Δk = 0)",
+       "ui_unit": "%/(W cm²)",
+       "scale": 100.0
+      },
+      {
+       "name": "gain_coeff",
+       "label": "Gain coefficient Γ/√P_p",
+       "ui_unit": "1/(m √W)",
+       "scale": 1.0
+      },
+      {
+       "name": "kappa_signal",
+       "label": "κ_s",
+       "ui_unit": "1/(m √W)",
+       "scale": 1.0
+      },
+      {
+       "name": "kappa_idler",
+       "label": "κ_i",
+       "ui_unit": "1/(m √W)",
+       "scale": 1.0
+      }
+     ]
+    },
+    "ordered_opa": {
+     "title": "Ordered QPM OPA / DFG, closed form vs transfer matrix vs coupled waves",
+     "equations": [
+      "Δk = 2π (n_p/λ_p - n_s/λ_s - n_i/λ_i),  Λ = 2π/Δk + offset",
+      "G = 1 + (Γ_eff/g)² sinh²(gL),  g = √(Γ_eff² - Δk'²/4),  Γ_eff = (2 sin πD/π) Γ"
+     ],
+     "inputs": [
+      {
+       "name": "wavelength_pump",
+       "label": "Pump wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 775,
+       "min": 100
+      },
+      {
+       "name": "wavelength_signal",
+       "label": "Signal wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 1500,
+       "min": 100
+      },
+      {
+       "name": "n_pump",
+       "label": "Pump effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 2.1,
+       "min": 1
+      },
+      {
+       "name": "n_signal",
+       "label": "Signal effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.91,
+       "min": 1
+      },
+      {
+       "name": "n_idler",
+       "label": "Idler effective index",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 1.9,
+       "min": 1
+      },
+      {
+       "name": "d_coeff",
+       "label": "Nonlinear coefficient d (full strength)",
+       "ui_unit": "pm/V",
+       "scale": 1e-12,
+       "default": 25
+      },
+      {
+       "name": "a_eff",
+       "label": "Three-wave overlap area A_eff",
+       "ui_unit": "µm²",
+       "scale": 1e-12,
+       "default": 1.0
+      },
+      {
+       "name": "length",
+       "label": "Poled length",
+       "ui_unit": "mm",
+       "scale": 0.001,
+       "default": 2
+      },
+      {
+       "name": "pump_power",
+       "label": "Pump power in the guide",
+       "ui_unit": "mW",
+       "scale": 0.001,
+       "default": 300
+      },
+      {
+       "name": "signal_power",
+       "label": "Signal power in",
+       "ui_unit": "µW",
+       "scale": 1e-06,
+       "default": 1
+      },
+      {
+       "name": "period_offset",
+       "label": "Period offset from the matched value",
+       "ui_unit": "nm",
+       "scale": 1e-09,
+       "default": 0
+      },
+      {
+       "name": "duty_cycle",
+       "label": "Duty cycle D",
+       "ui_unit": "",
+       "scale": 1.0,
+       "default": 0.5,
+       "min": 0.01,
+       "max": 0.99
+      },
+      {
+       "name": "loss_signal",
+       "label": "Signal loss",
+       "ui_unit": "dB/cm",
+       "scale": 100.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "loss_idler",
+       "label": "Idler loss",
+       "ui_unit": "dB/cm",
+       "scale": 100.0,
+       "default": 0,
+       "min": 0
+      },
+      {
+       "name": "loss_pump",
+       "label": "Pump loss",
+       "ui_unit": "dB/cm",
+       "scale": 100.0,
+       "default": 0,
+       "min": 0
+      }
+     ],
+     "outputs": [
+      {
+       "name": "wavelength_idler",
+       "label": "Idler wavelength",
+       "ui_unit": "nm",
+       "scale": 1e-09
+      },
+      {
+       "name": "period",
+       "label": "Poling period",
+       "ui_unit": "µm",
+       "scale": 1e-06
+      },
+      {
+       "name": "gamma",
+       "label": "Gain coefficient Γ",
+       "ui_unit": "1/m",
+       "scale": 1.0
+      },
+      {
+       "name": "gain_closed_db",
+       "label": "Signal gain, closed form",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "gain_undepleted_db",
+       "label": "Signal gain, transfer matrix",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "gain_db",
+       "label": "Signal gain, coupled waves",
+       "ui_unit": "dB",
+       "scale": 1.0
+      },
+      {
+       "name": "p_idler",
+       "label": "Idler power out",
+       "ui_unit": "µW",
+       "scale": 1e-06
+      },
+      {
+       "name": "p_pump_out",
+       "label": "Pump power out",
+       "ui_unit": "mW",
+       "scale": 0.001
+      },
+      {
+       "name": "dfg_efficiency",
+       "label": "DFG efficiency P_i/(P_p P_s)",
+       "ui_unit": "%/W",
+       "scale": 0.01
+      },
+      {
+       "name": "power_residual",
+       "label": "Power-conservation residual (lossless)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "manley_rowe",
+       "label": "Manley-Rowe residual (lossless)",
+       "ui_unit": "",
+       "scale": 1.0
+      },
+      {
+       "name": "step_error",
+       "label": "Step-halving change of P_s",
+       "ui_unit": "",
+       "scale": 1.0
+      }
+     ]
+    }
+   }
+  },
+  {
    "engine": "cwe_shg",
    "version": 1,
    "title": "Coupled-wave SHG with arbitrary poling",

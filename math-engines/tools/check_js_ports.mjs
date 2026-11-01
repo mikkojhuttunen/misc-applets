@@ -44,10 +44,18 @@ const close = (label, got, want, rel, abs = 0) => {
     for (; j < html.length; j++) { if (html[j] === '{') depth++; else if (html[j] === '}' && --depth === 0) break; }
     return html.slice(i, j + 1);
   };
-  const src = ['nSilica', 'besJ1overJ0', 'besK1overK0', 'lp01'].map(grab).join('\n');
+  const src = ['nSilica', 'besJ1overJ0', 'besK1overK0', 'lp01', 'cm', 'ca', 'cs', 'cd', 'ce', 'csq', 'cr', 'expM', 'apply'].map(grab).join('\n');
   const ctx = vm.createContext({ Math, Map });
-  vm.runInContext('var neffCache = new Map();\n' + src + '\n;globalThis.__p = { nSilica, lp01 };', ctx);
+  vm.runInContext('var neffCache = new Map();\n' + src + '\n;globalThis.__p = { nSilica, lp01, expM, apply, cr };', ctx);
   const p = ctx.__p;
+  /* χ² OPA, undepleted pump: expM on [signal, idler*] for a uniform medium (the page's Δk sign is opposite;
+     the gain depends on Δk² only). Γ of the page = √(κ_s κ_i P_p) of cwe_dfg. */
+  for (const r of V.cwe_dfg_uniform) {
+    const E = p.expM(r.gamma, [-r.alpha_idler / 2, r.delta_k], r.length, 0);
+    const o = p.apply(E, [p.cr(1), p.cr(0)]);
+    close(`pa expM gain Γ=${r.gamma} Δk=${r.delta_k}`, o[0][0] ** 2 + o[0][1] ** 2, r.gain, 1e-9);
+    close(`pa expM idler Γ=${r.gamma} Δk=${r.delta_k}`, o[1][0] ** 2 + o[1][1] ** 2, r.idler, 1e-9, 1e-15);
+  }
   for (const r of V.materials.filter(r => r.material === 'sio2')) close(`pa nSilica(${r.wavelength})`, p.nSilica(r.wavelength), r.n, 1e-12);
   for (const r of V.lp01) {
     const o = p.lp01(r.wavelength, r.core_radius, r.delta_n);

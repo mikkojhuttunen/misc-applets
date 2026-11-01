@@ -8,7 +8,9 @@ Objectives (all maximised)
   mean    Σ w η                          (band average, or expected efficiency over devices)
   flat    mean - α·std over the band     (flat top; per device, then averaged)
   yield   Σ w sigmoid((η/η_ref - r)/s)   (soft fraction of devices above r·η_ref)
-  min     soft minimum over devices      (-(s/β) log Σ w e^{-β η/s}, s = mean η; worst-case robust design)
+  min     soft minimum over devices      (-(s/β) log Σ w e^{-β η/s}, s = mean η)
+  geo     geometric mean over devices    exp Σ w log(η + floor): punishes dead devices; the robust choice when the
+          device distribution is strongly peaked (THG), where the mean and the soft minimum both follow the peak
 
 Device ensembles enter through deterministic quadrature nodes of the thickness spread (`device_nodes`): the
 expected value over a uniform ±5 nm spread is a smooth integral, so 9-21 nodes replace hundreds of samples while
@@ -44,13 +46,14 @@ class Target:
     rel: float = 0.5
     soft: float = 0.1
     beta: float = 10.0
+    floor: float = 1e-4
 
     def __post_init__(self):
         self.q = np.atleast_2d(np.abs(np.asarray(self.q, dtype=float)))
         d = self.q.shape[0]
         self.device_w = np.full(d, 1.0 / d) if self.device_w is None else np.asarray(self.device_w, float) / np.sum(self.device_w)
-        if self.kind not in ("mean", "flat", "yield", "min"):
-            raise ValueError("kind must be mean, flat, yield or min")
+        if self.kind not in ("mean", "flat", "yield", "min", "geo"):
+            raise ValueError("kind must be mean, flat, yield, min or geo")
         if self.kind == "yield" and self.ref is None:
             raise ValueError("yield needs ref")
 
@@ -60,6 +63,8 @@ class Target:
             per = eta.mean(axis=1)
         elif self.kind == "flat":
             per = eta.mean(axis=1) - self.alpha * xp.sqrt(((eta - eta.mean(axis=1, keepdims=True)) ** 2).mean(axis=1) + 1e-300)
+        elif self.kind == "geo":
+            return xp.exp(xp.sum(xp.asarray(self.device_w) * xp.log(eta.mean(axis=1) + self.floor)))
         elif self.kind == "yield":
             per = (1 / (1 + xp.exp(-(eta.mean(axis=1) / self.ref - self.rel) / self.soft)))
         else:
@@ -325,6 +330,9 @@ class THGTarget:
     kappa_a: float
     kappa_3: float
     device_w: np.ndarray = field(default=None)
+    kind: str = "mean"                   # "mean" (expected), "min" (soft worst case) or "geo" (geometric mean)
+    beta: float = 10.0
+    floor: float = 1e-4
 
     def __post_init__(self):
         self.q_a, self.q_b = np.abs(np.atleast_1d(self.q_a)), np.abs(np.atleast_1d(self.q_b))
@@ -336,14 +344,22 @@ class THGTarget:
         return r["P_th"]
 
     def evaluate(self, p: Poling) -> float:
-        return float(np.sum(self.device_w * self.eta(p)))
+        e = self.eta(p)
+        mean = float(np.sum(self.device_w * e))
+        if self.kind == "mean":
+            return mean
+        if self.kind == "geo":
+            return float(np.exp(np.sum(self.device_w * np.log(e + self.floor))))
+        x = -self.beta * e / (mean + 1e-300)
+        mx = x.max()
+        return float(-(mean / self.beta) * (mx + np.log(np.sum(self.device_w * np.exp(x - mx)))))
 
 
-def thg_robust_target(family, lam0, n=11) -> THGTarget:
+def thg_robust_target(family, lam0, n=11, kind="mean") -> THGTarget:
     df, dl, w = device_nodes(family.spread, n, family.has_load)
     dk = family.evaluate(lambda m: m(np.array([lam0]))[:, 0], df, dl)        # (D, 2)
     c = family.nominal.coupling(lam0)
-    return THGTarget(dk[:, 0], dk[:, 1], float(c["kappa_a"]), float(c["kappa_3"]), w)
+    return THGTarget(dk[:, 0], dk[:, 1], float(c["kappa_a"]), float(c["kappa_3"]), w, kind)
 
 
 def evolve_thg(target: THGTarget, L, ka, kb, maxiter=12, popsize=8, seed=0, fab=DEFAULT_FAB,

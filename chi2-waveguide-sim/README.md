@@ -29,7 +29,12 @@ chi2sim/waveguide.py   Ridge (film, etch, top width, sidewall angle, cladding, c
                        a_eff_shg; SHGModel (n_p, n_SH, n_g, A_eff tables, splined; Δk(λ) callable, κ(λ), period,
                        save/load/cached); width_scan (period, Δk and A_eff vs width, dΔk/dw);
                        OPAModel (fixed pump, signal table, idler by energy conservation, three-mode A_eff,
-                       Miller-scaled d, gain_spectrum via cwe_dfg, mid-IR absorption flags)
+                       Miller-scaled d, gain_spectrum via cwe_dfg, mid-IR absorption flags);
+                       THGModel (modes at λ, λ/2 and λ/3 with a selectable 3ω order, Δk_a, Δk_b, both overlaps,
+                       Miller-scaled d per process); mode_of_order
+chi2sim/thg.py         cascaded THG designs on THGModel: two_section, superlattice, blend (SHG weight sweeping along z),
+                       commensurate higher-order single period; thg_spectrum, optimisers, references,
+                       thg_devices (thickness spread), double_matching_shift
 chi2sim/wafer.py       ThicknessSpread (±5 nm uniform default, film and deposited layer independent), ThicknessFamily
                        (mode models on a thickness stencil, Lagrange interpolation, analytic sensitivity and grating
                        tolerance), shg_devices / opa_devices (one mask on many devices), yield_fraction
@@ -38,6 +43,7 @@ chi2sim/synthesis.py   band_to_dk, lambda_grid, efficiency_ceiling, chirp_from_s
                        parasitic_orders, random_band_design, design(mode="chirp" | "random" | "hybrid") -> Design
 examples/band_designs.py   ordered baseline vs qpm_shg; chirp / random / hybrid for 10, 50, 100 nm FWHM vs the ceiling
 examples/ridge_shg.py      TFLN vs TFLT x-cut ridges from the FD solver: period, A_eff, η, width tolerance, band designs
+examples/thg_designs.py    cascaded THG 1550 -> 517 nm: designs, spectra, TE10 option, depletion, thickness spread
 examples/wafer_spread.py   ±5 nm thickness spread over 200 devices: SHG yield of ordered vs chirped masks (TFLN, TFLT,
                            SiNx-loaded TFLN), OPA with 775 / 532 / 1064 nm pumps
 tests/                 generators, fast solver vs cwe_shg and JAX gradients, ensemble statistics, synthesis
@@ -118,6 +124,32 @@ The degenerate 775 nm-pumped OPA is the most fragile: its gain band either disap
 non-degenerate lobes outside 1450-1650 nm. The 1064 nm pump (900 nm film, 2.4 µm) is the least sensitive in
 thickness, but its 3.39 µm idler sits in the SiO2 absorption range (flagged, not modelled).
 
+## Cascaded THG (1550 -> 517 nm)
+
+`math-engines/engines/cwe_cascade` solves ω+ω→2ω and ω+2ω→3ω on one mask (exact nested undepleted integral,
+depleted RK4). `examples/thg_designs.py`, x-cut TFLN ridge 600/300 nm, 1.4 µm, TE00 at all three wavelengths,
+L = 4 mm: Λ_a = 4.039 µm, Λ_b = 3.134 µm (Δk_b/Δk_a = 1.289), A_eff 0.90 / 0.74 µm², d 22.7 / 25.5 pm/V.
+
+| design | η_THG at 1550 nm | FWHM |
+|---|---|---|
+| both processes matched at full strength (uniform, ideal reference) | 64900 %/W² | |
+| two-section (SHG then SFG, split 1/2) | 2670 %/W² (= closed form (2/π)⁴ κ3²κa² L⁴/16) | 1.75 nm |
+| superlattice sign(w cos K_a z + (1-w) cos(K_b z + ψ)), optimised | 1760 %/W² | 1.0 nm |
+| blend: superlattice with w falling 0.9 -> 0.1 along z, optimised | 3610 %/W² | 1.3 nm |
+| single period with orders (7, 9) | ≈ 0 (strength 0.006) | |
+
+The blend wins because 2ω is made early and converted late, while both gratings stay present everywhere.
+No small-integer ratio fits 1.289, so a single period is useless here. Moving 3ω to TE10 (fully etched 1.2 µm
+ridge) lengthens Λ_b to 6.7 µm but its overlap with the even ω and 2ω modes nearly cancels (A_eff 371 µm²,
+SFG efficiency × 1.6e-3). Depletion (blend, full RK4): 0.034 mW at 10 mW, 18 mW at 0.1 W, 0.17 W at 0.3 W,
+0.94 W at 1 W (lossless CW idealisation; the undepleted value fails above ~10 mW).
+
+Thickness: a film change re-matches the SHG step at -9.7 nm/nm but the SFG step at only -1.4 nm/nm, so tuning
+the fundamental wavelength cannot restore both. Over ±5 nm only about 20 % of devices reach half the nominal
+peak anywhere in 1500-1600 nm (100 devices), for both two-section and blend masks. Robust THG needs
+a different lever (temperature acts on both steps with yet another ratio, or masks optimised over the
+thickness ensemble, milestone 6).
+
 ## Fabrication presets (`poling.FAB_PRESETS`)
 
 | preset | l_min | grid | basis |
@@ -135,6 +167,7 @@ These are demonstrated periodic gratings. Short isolated domains in aperiodic ma
 3. Waveguide layer (EIM, Python 2D semi-vectorial FD solver, overlap A_eff, Miller-scaled d, cached tables): done.
 4. `cwe_dfg` engine (math-engines; transfer matrix, depleted RK4, JS cross-check), OPAModel, loading strips,
    wafer thickness spread: done.
-5. `cwe_cascade` (THG), 6. hybrid optimisation, IFTA and JAX gradient design (including yield objectives): open.
+5. `cwe_cascade` engine (math-engines), THGModel, double-matching designs, THG thickness spread: done.
+6. Hybrid optimisation, IFTA and JAX gradient design (including yield objectives over the thickness ensemble): open.
 
 Not yet: pump depletion inside `design` (use `cwe_shg.shg_coupled` on the mask), Δk(z) from width variation in the batched solver (use `cwe_shg`), adiabatic-conversion robustness (needs the depleted/OPA solvers).

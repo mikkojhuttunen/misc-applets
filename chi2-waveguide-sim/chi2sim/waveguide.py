@@ -30,6 +30,7 @@ import scipy.sparse.linalg as spla
 from scipy.interpolate import CubicSpline
 
 from engines.anisotropic_slab import engine as aslab
+from engines.cwe_cascade import engine as casc
 from engines.cwe_dfg import engine as dfg
 from engines.cwe_shg import engine as cwe
 from engines.slab_waveguide import engine as slab
@@ -325,10 +326,15 @@ def solve(geom: Ridge, wavelength, polarization="TE", grid: Grid | None = None, 
 
 
 def fundamental(geom: Ridge, wavelength, polarization="TE", grid: Grid | None = None, h=20e-9) -> Mode:
-    for m in solve(geom, wavelength, polarization, grid, n_modes=4, h=h):
-        if m.order == (0, 0):
+    return mode_of_order(geom, wavelength, polarization, (0, 0), grid, h)
+
+
+def mode_of_order(geom: Ridge, wavelength, polarization="TE", order=(0, 0), grid: Grid | None = None, h=20e-9) -> Mode:
+    """Guided mode with (vertical, lateral) node counts `order`, e.g. (1, 0) for TE10."""
+    for m in solve(geom, wavelength, polarization, grid, n_modes=4 if tuple(order) == (0, 0) else 30, h=h):
+        if m.order == tuple(order):
             return m
-    raise RuntimeError(f"no guided fundamental {polarization} mode at {wavelength * 1e9:.1f} nm")
+    raise RuntimeError(f"no guided {polarization}{order[0]}{order[1]} mode at {wavelength * 1e9:.1f} nm")
 
 
 def a_eff_shg(pump: np.ndarray, sh: np.ndarray, grid: Grid) -> float:
@@ -552,6 +558,78 @@ class OPAModel:
         ls = np.atleast_1d(np.asarray(ls, dtype=float))
         c = [self.coupling(x) for x in ls]
         return np.array([float(x["kappa_signal"]) for x in c]), np.array([float(x["kappa_idler"]) for x in c])
+
+
+@dataclass
+class THGModel:
+    """Cascaded THG tables over the fundamental λ: modes at λ, λ/2 (TE00) and λ/3 (order `order3`).
+
+    dk_a(λ) = 4π(n2 - n1)/λ (SHG), dk_b(λ) = 2π(3 n3 - 2 n2 - n1)/λ (SFG ω + 2ω); overlap areas A_a (ω, ω, 2ω)
+    and A_b (ω, 2ω, 3ω); Miller-scaled d per process; coupling(λ) is the cwe_cascade coupling Result."""
+
+    geom: Ridge
+    lambdas: np.ndarray
+    polarization: str = "TE"
+    order3: tuple = (0, 0)
+    h: float = 15e-9
+
+    def __post_init__(self):
+        lam = np.sort(np.asarray(self.lambdas, dtype=float))
+        if lam.size < 4:
+            raise ValueError("need at least 4 wavelengths for the spline")
+        self.lambdas = lam
+        self.grid = build_grid(self.geom, lam.max(), self.h)
+        n1, n2, n3, aa, ab, sgn = [], [], [], [], [], []
+        for l in lam:
+            m1 = fundamental(self.geom, l, self.polarization, self.grid)
+            m2 = fundamental(self.geom, l / 2, self.polarization, self.grid)
+            m3 = mode_of_order(self.geom, l / 3, self.polarization, self.order3, self.grid)
+            n1.append(m1.neff)
+            n2.append(m2.neff)
+            n3.append(m3.neff)
+            aa.append(a_eff_shg(m1.field, m2.field, self.grid))
+            ab.append(a_eff_three(m1.field, m2.field, m3.field, self.grid))
+        self.n1, self.n2, self.n3 = np.array(n1), np.array(n2), np.array(n3)
+        self.a_eff_a, self.a_eff_b = np.array(aa), np.array(ab)
+        self._s = {k: CubicSpline(lam, v) for k, v in (("n1", self.n1), ("n2", self.n2), ("n3", self.n3),
+                                                       ("aa", self.a_eff_a), ("ab", self.a_eff_b))}
+        self.notes = []
+        if not np.all(np.isfinite(self.a_eff_b)) or np.any(self.a_eff_b > 50 * self.a_eff_a):
+            self.notes.append(f"3ω mode {self.order3} has (near-)zero overlap with ω and 2ω: SFG step suppressed")
+
+    def _check(self, lam):
+        lam = np.asarray(lam, dtype=float)
+        if np.any(lam < self.lambdas.min() * (1 - 1e-9)) or np.any(lam > self.lambdas.max() * (1 + 1e-9)):
+            raise ValueError("wavelength outside the tabulated range")
+        return lam
+
+    def n(self, which, lam):
+        return self._s[which](self._check(lam))
+
+    def dk_a(self, lam):
+        lam = self._check(lam)
+        return 4 * np.pi * (self._s["n2"](lam) - self._s["n1"](lam)) / lam
+
+    def dk_b(self, lam):
+        lam = self._check(lam)
+        return 2 * np.pi * (3 * self._s["n3"](lam) - 2 * self._s["n2"](lam) - self._s["n1"](lam)) / lam
+
+    def __call__(self, lam):
+        """Stacked (Δk_a, Δk_b) for use with ThicknessFamily.evaluate."""
+        return np.stack([self.dk_a(lam), self.dk_b(lam)])
+
+    def d_coeffs(self, lam):
+        lam = float(lam)
+        return (materials.miller_d(self.geom.material, self.geom.cut, self.polarization, lam),
+                materials.miller_d3(self.geom.material, self.geom.cut, self.polarization, lam, lam / 2))
+
+    def coupling(self, lam):
+        da, db = self.d_coeffs(lam)
+        return casc.coupling_thg(float(lam), float(self.n("n1", lam)), float(self.n("n2", lam)), float(self.n("n3", lam)),
+                                 da, db, float(self.n("aa", lam)), float(self.n("ab", lam)))
+
+    def periods(self, lam):
+        return 2 * np.pi / np.abs(self.dk_a(lam)), 2 * np.pi / np.abs(self.dk_b(lam))
 
 
 _FLOATS = {"film", "etch", "width", "sidewall", "load_thickness", "load_width", "load_index"}

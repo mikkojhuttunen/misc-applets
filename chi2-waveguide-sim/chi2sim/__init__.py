@@ -22,6 +22,6 @@ ENGINES = _locate_engines()
 if str(ENGINES) not in sys.path:
     sys.path.insert(0, str(ENGINES))
 
-from . import dispersion, ensemble, fast, materials, metrics, poling, synthesis, wafer, waveguide  # noqa: E402,F401
+from . import dispersion, ensemble, fast, materials, metrics, poling, synthesis, thg, wafer, waveguide  # noqa: E402,F401
 
-__all__ = ["poling", "fast", "ensemble", "metrics", "synthesis", "dispersion", "materials", "waveguide", "wafer", "ENGINES"]
+__all__ = ["poling", "fast", "ensemble", "metrics", "synthesis", "dispersion", "materials", "waveguide", "wafer", "thg", "ENGINES"]

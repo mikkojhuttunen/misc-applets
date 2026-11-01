@@ -292,6 +292,17 @@ def pwm(z, phase, duty=0.5) -> Poling:
     return from_walls(walls, z[-1], s[0])
 
 
+def from_sign(z, f) -> Poling:
+    """Binary structure g = sign(f(z)) with walls at the linearly interpolated zero crossings of f on grid z."""
+    z = np.asarray(z, dtype=float)
+    f = np.asarray(f, dtype=float)
+    s = np.sign(f)
+    s[s == 0] = 1.0
+    idx = np.nonzero(s[1:] != s[:-1])[0]
+    t = f[idx] / (f[idx] - f[idx + 1])
+    return from_walls(z[idx] + t * (z[idx + 1] - z[idx]), z[-1], s[0])
+
+
 def phase_from_k(z, k_local) -> np.ndarray:
     """Φ(z) = ∫ K dz (trapezoid) on the grid z."""
     k = np.asarray(k_local, dtype=float)

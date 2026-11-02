@@ -1,0 +1,132 @@
+{
+ "target": {
+  "fringe_both_chaotic": 4.2e-08,
+  "fringe_both_regular": 1.7e-07,
+  "gammaL_cm": 2.5,
+  "nh3_ppb": 110.0,
+  "slab_si_neff": 2.0,
+  "slab_si_gamma": 0.64
+ },
+ "stored": {
+  "fringe_both_chaotic": 4.160987311828672e-08,
+  "fringe_both_regular": 1.664660611782099e-07,
+  "gammaL_cm": 2.5275974192179627,
+  "nh3_ppb": 109.94521383931811,
+  "nh3_detail": {
+   "ppm": 0.10994521383931811,
+   "nea": 6.197111661811167e-08,
+   "shot": 2.6392974327955952e-08,
+   "fringe": 5.606986892279538e-08,
+   "L_median_m": 0.12437213569196072,
+   "T_median": 0.23000311777561036,
+   "gammaL_cm": 2.4874427138392146,
+   "alpha_ppm_per_cm": 2.266e-07
+  },
+  "fringe": {
+   "n_layouts": 30,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00011661586479926331,
+     "regular": 0.00023196770333792373,
+     "share_below": 0.0,
+     "chaotic_p25": 0.00011471948785388023,
+     "chaotic_p75": 0.00011920440801066339
+    },
+    "angle": {
+     "chaotic_median": 4.4889746718492315e-07,
+     "regular": 2.7292868644179265e-06,
+     "share_below": 0.5333333333333333,
+     "chaotic_p25": 1.305079823986439e-07,
+     "chaotic_p75": 1.1305357870034833e-06
+    },
+    "spectral": {
+     "chaotic_median": 4.470634025442288e-06,
+     "regular": 2.5348879625182814e-05,
+     "share_below": 0.06666666666666667,
+     "chaotic_p25": 1.779061781147087e-06,
+     "chaotic_p75": 7.680167912517188e-06
+    },
+    "both": {
+     "chaotic_median": 4.160987311828672e-08,
+     "regular": 1.664660611782099e-07,
+     "share_below": 0.9666666666666667,
+     "chaotic_p25": 1.5491806638095683e-08,
+     "chaotic_p75": 8.984080398958433e-08
+    }
+   },
+   "threshold": 5e-07,
+   "L_median_m": 0.12637987096089812,
+   "T_median": 0.2273594230555604,
+   "gamma": 0.2,
+   "gammaL_cm": 2.5275974192179627,
+   "grains_median": 294.13375032290327,
+   "regular_L_m": 0.16757980338617032,
+   "regular_T": 0.2779646021443446
+  },
+  "n_layouts_fringe": 30,
+  "n_layouts_nh3": 21
+ },
+ "rerun": {
+  "fringe_both_chaotic": 4.160987311828672e-08,
+  "fringe_both_regular": 1.664660611782099e-07,
+  "gammaL_cm": 2.5275974192179627,
+  "nh3_ppb": 109.94521383931811,
+  "nh3_detail": {
+   "ppm": 0.10994521383931811,
+   "nea": 6.197111661811167e-08,
+   "shot": 2.6392974327955952e-08,
+   "fringe": 5.606986892279538e-08,
+   "L_median_m": 0.12437213569196072,
+   "T_median": 0.23000311777561036,
+   "gammaL_cm": 2.4874427138392146,
+   "alpha_ppm_per_cm": 2.266e-07
+  },
+  "fringe": {
+   "n_layouts": 30,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00011661586479926331,
+     "regular": 0.00023196770333792373,
+     "share_below": 0.0,
+     "chaotic_p25": 0.00011471948785388023,
+     "chaotic_p75": 0.00011920440801066339
+    },
+    "angle": {
+     "chaotic_median": 4.4889746718492315e-07,
+     "regular": 2.7292868644179265e-06,
+     "share_below": 0.5333333333333333,
+     "chaotic_p25": 1.305079823986439e-07,
+     "chaotic_p75": 1.1305357870034833e-06
+    },
+    "spectral": {
+     "chaotic_median": 4.470634025442288e-06,
+     "regular": 2.5348879625182814e-05,
+     "share_below": 0.06666666666666667,
+     "chaotic_p25": 1.779061781147087e-06,
+     "chaotic_p75": 7.680167912517188e-06
+    },
+    "both": {
+     "chaotic_median": 4.160987311828672e-08,
+     "regular": 1.664660611782099e-07,
+     "share_below": 0.9666666666666667,
+     "chaotic_p25": 1.5491806638095683e-08,
+     "chaotic_p75": 8.984080398958433e-08
+    }
+   },
+   "threshold": 5e-07,
+   "L_median_m": 0.12637987096089812,
+   "T_median": 0.2273594230555604,
+   "gamma": 0.2,
+   "gammaL_cm": 2.5275974192179627,
+   "grains_median": 294.13375032290327,
+   "regular_L_m": 0.16757980338617032,
+   "regular_T": 0.2779646021443446
+  },
+  "n_layouts_fringe": 30,
+  "n_layouts_nh3": 21
+ },
+ "slab": {
+  "si_250nm_tm0_neff": 2.015028510661024,
+  "si_250nm_tm0_gamma": 0.6386441328777436
+ }
+}

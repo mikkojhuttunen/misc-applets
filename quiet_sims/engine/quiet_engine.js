@@ -996,6 +996,34 @@ const GasEngine = (() => {
   /* gas_cell.ensemble: port-to-port statistics and the M² of the detected light */
   let ALPHA_M = 0;
   function setAlpha(a) { ALPHA_M = a; }
+  /* QUIET: angle-dependent mirror reflectivity. R_table = { s: [...], R: [...] } over |sin χ| (χ from the wall normal,
+     s increasing in [0, 1]), linear interpolation, clamped at the ends; null: the constant R of the caller. */
+  let RTAB = null;
+  function setRTable(t) {
+    if (!t) { RTAB = null; return; }
+    const sv = Float64Array.from(t.s), Rv = Float64Array.from(t.R);
+    if (sv.length !== Rv.length || sv.length < 2) throw new Error("R_table needs matching s and R arrays (at least two points)");
+    for (let i = 1; i < sv.length; i++) if (!(sv[i] > sv[i - 1])) throw new Error("R_table s must increase");
+    RTAB = { s: sv, R: Rv, lnR: Float64Array.from(Rv, v => Math.log(Math.max(v, 1e-300))) };
+  }
+  function lnRAt(x) {
+    const s = RTAB.s, n = s.length;
+    x = Math.abs(x);
+    if (x <= s[0]) return RTAB.lnR[0];
+    if (x >= s[n - 1]) return RTAB.lnR[n - 1];
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (s[m] <= x) lo = m; else hi = m; }
+    const u = (x - s[lo]) / (s[hi] - s[lo]);
+    return Math.log((1 - u) * RTAB.R[lo] + u * RTAB.R[hi]);
+  }
+  /* ln of the mirror losses of a marched ray up to its exit hit: the nh - 1 reflections before it */
+  function lnBounce(r, nh, Rm) {
+    if (!RTAB) return Rm < 1 ? (nh - 1) * Math.log(Rm) : 0;
+    let s = 0;
+    for (let i = 0; i < nh - 1; i++) s += lnRAt(r.WC[i]);
+    return s;
+  }
+  const rTable = () => RTAB;
   function ensemble(mc, starts, portW, sIn, sOut, nBounce, Rm, gamma, lamM) {
     const n = starts.length, Pm = mc.cell.perimeter, Ls = [], Ws = [], ys = [], us = [];
     let leaked = 0, back = 0, trapped = 0;
@@ -1003,7 +1031,7 @@ const GasEngine = (() => {
       const r = marchRay(mc, st, nBounce, sIn, sOut, portW, "both");
       if (r.exit === 1) {
         const nh = r.nWalls, sc = r.WC[nh - 1], ds = (((r.WS[nh - 1] - sOut + Pm / 2) % Pm) + Pm) % Pm - Pm / 2;
-        Ls.push(r.WG[nh - 1]); Ws.push((Rm < 1 ? Rm ** (nh - 1) : 1) * Math.exp(-ALPHA_M * r.WG[nh - 1]));
+        Ls.push(r.WG[nh - 1]); Ws.push(RTAB ? Math.exp(lnBounce(r, nh, Rm) - ALPHA_M * r.WG[nh - 1]) : (Rm < 1 ? Rm ** (nh - 1) : 1) * Math.exp(-ALPHA_M * r.WG[nh - 1]));
         ys.push(ds * Math.sqrt(Math.min(Math.max(1 - sc * sc, 0), 1))); us.push(Math.asin(Math.min(Math.max(sc, -1), 1)));
       } else if (r.exit === -2) leaked++; else if (r.exit === 0) back++; else trapped++;
     }
@@ -1176,7 +1204,7 @@ const GasEngine = (() => {
     return { param, values, rows, c: cellFigures(ref.circ, o.circle_theta, ref.q0, ref.lamM, figOpts(o)) };
   }
   const deformationSweep = (eps4Values, opts = {}, onRow = null) => perturbationSweep("eps4", eps4Values, opts, onRow);
-  return { setAlpha, SPECIES, invNormal, quantiles, erf, gfrac, designRadius, mirrorRadiusW, baselineCell, circleReference, placeInclusions, medium, asMedium, marchRay,
+  return { setAlpha, setRTable, rTable, lnBounce, SPECIES, invNormal, quantiles, erf, gfrac, designRadius, mirrorRadiusW, baselineCell, circleReference, placeInclusions, medium, asMedium, marchRay,
     mediumPaths, tangentChaos, chaosMap, VERDICTS, centrePath, eigenQ, inputQ, qWidth, gaussianPath, beamRays, ensemble, twinDivergence, cellFigures, retune, common, compare, perturbationSweep,
     deformationSweep, DEFAULTS, KEYS, SWEEPABLE, PERT };
 })();
@@ -1468,11 +1496,12 @@ const DitherLab = (() => {
      ray bundle across the beam */
   function exitPaths(mc, thetas, nB) {
     const c = mc.cell, pw = c.meta.portW, n = thetas.length, L = new Float64Array(n).fill(NaN), id = new Float64Array(n).fill(-1), hits = new Int32Array(n);
+    const tab = G.rTable(), lnR = tab ? new Float64Array(n) : null;
     for (let i = 0; i < n; i++) {
       const r = G.marchRay(mc, Pl.launch(c, c.sIn, thetas[i]), nB, c.sIn, c.sOut, pw, "out");
-      if (r.exit === 1) { const k = r.nWalls - 1; L[i] = r.WL[k]; id[i] = r.ID[k]; hits[i] = r.nWalls; }
+      if (r.exit === 1) { const k = r.nWalls - 1; L[i] = r.WL[k]; id[i] = r.ID[k]; hits[i] = r.nWalls; if (tab) lnR[i] = G.lnBounce(r, r.nWalls, 1); }
     }
-    return { L, id, hits };
+    return { L, id, hits, lnR };
   }
 
   /* Fringe of the light leaving the output port against a stray copy, as a spectrum. At each launch angle θ of the
@@ -1489,7 +1518,7 @@ const DitherLab = (() => {
     const fa = Math.max(1, Math.round(o.f_theta)), fl = Math.max(1, Math.round(o.f_lambda));
     const nB = Math.min(3000, Math.ceil(Math.log(1e-3) / Math.log(Math.min(R, 0.99999))));
     const c0 = exitPaths(mc, [theta], nB), s = wave(Na, o.waveform), th = Array.from(s, v => theta + A * v);
-    const tr = Na > 1 ? exitPaths(mc, th, nB) : c0, amp = Float64Array.from(tr.hits, (h, i) => (h ? R ** ((h - 1) / 2) * Math.exp(-0.5 * (o.alpha_m || 0) * tr.L[i]) : 0));
+    const tr = Na > 1 ? exitPaths(mc, th, nB) : c0, amp = Float64Array.from(tr.hits, (h, i) => (h ? (tr.lnR ? Math.exp(0.5 * tr.lnR[i]) : R ** ((h - 1) / 2)) * Math.exp(-0.5 * (o.alpha_m || 0) * tr.L[i]) : 0));
     let aSum = 0, nSum = 0, lSum = 0;
     for (let i = 0; i < Na; i++) { aSum += amp[i]; nSum += amp[i] * tr.hits[i]; if (amp[i]) lSum += amp[i] * tr.L[i]; }
     if (!(aSum > 0)) throw new Error("no light of the dithered beam reaches the output port");
@@ -1659,7 +1688,7 @@ const DitherLab = (() => {
       rays.e1r.push(b2r * iar - b2i * iai - gam * u * u / 2); rays.e1i.push(b2r * iai + b2i * iar + k0 * p * u);
       const tr = -2 * k0 * bi, ti = 2 * k0 * br;                                           /* 2 i k0 β */
       rays.e2r.push(tr * iar - ti * iai); rays.e2i.push(tr * iai + ti * iar);
-      rays.u.push(u); rays.v.push(v); rays.opl.push(n0 * r.WL[nh - 1]); rays.lg.push(r.WG[nh - 1]); rays.amp.push(o.R_mirror ** (nh - 1) * Math.exp(-(o.alpha_m || 0) * r.WG[nh - 1]));
+      rays.u.push(u); rays.v.push(v); rays.opl.push(n0 * r.WL[nh - 1]); rays.lg.push(r.WG[nh - 1]); rays.amp.push((G.rTable() ? Math.exp(G.lnBounce(r, nh, 1)) : o.R_mirror ** (nh - 1)) * Math.exp(-(o.alpha_m || 0) * r.WG[nh - 1]));
       rays.y.push(yy); rays.p.push(pp); rays.ch.push(ch); rays.hits.push(nh);
     }
     return { rays, keys, nCh: keys.length, e3r: -k0 * k0 * iar, e3i: -k0 * k0 * iai, w, thw, dy, dp, launched, leaked, back, k0, n0 };
@@ -1770,6 +1799,7 @@ const DitherLab = (() => {
     const stage = s => { if (onStage) onStage(s); };
     const S = setup(opts), { o, lamM, mc, q0 } = S, c = mc.cell, pw = c.meta.portW;
     G.setAlpha(o.alpha_m || 0);
+    G.setRTable(o.R_table || null);                     /* QUIET: R(|sin χ|) table, or the constant R_mirror */
     let theta = S.theta, rt = null;
     if (o.cell !== "circle" && o.retune) { stage("re-aiming the launch"); rt = G.retune(mc, theta, q0, lamM, { Rm: o.R_mirror, gamma: o.gamma, nEff: o.n_eff, nSide: 6 }); theta = rt.theta; }
     stage("tracing the beam");

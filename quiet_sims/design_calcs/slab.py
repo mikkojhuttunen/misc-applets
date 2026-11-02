@@ -1,3 +1,6 @@
+"""Free-standing slab modes: TM0 / TE0 effective index and the share of the |E|² in the gas (Gamma), symmetric
+cladding (air). TM0 here is the mode with H in the slab plane (E mostly normal to the membrane), the one the QUIET
+membranes use. Functions: tm0, te0 (n_eff), gam (n_eff, Gamma). CLI: python design_calcs/slab.py [out.json]."""
 import numpy as np
 from scipy.optimize import brentq
 def tm0(nc,ncl,t,lam):
@@ -38,14 +41,31 @@ def gam(nc,t,lam,pol='TM'):
     Eo2=(ne**2+(g/kk)**2)*Ha**2
     Ic=np.trapezoid(Ec2,x);Io=Eo2/(2*g)*2
     return ne,Io/(Ic+Io)
-print('Si 250 nm TM0 1.55:',gam(3.48,250e-9,1.55e-6,'TM'),' TE0:',gam(3.48,250e-9,1.55e-6,'TE'))
-print('SiN n=2.0 @1.55 um, TM0 / TE0 (n_eff, E-intensity fraction in gas)')
-for t in (100,150,200,250,300,400,500):
-    a=gam(2.0,t*1e-9,1.55e-6,'TM');b=gam(2.0,t*1e-9,1.55e-6,'TE')
-    print(t,'nm TM0',None if a[0] is None else (round(a[0],3),round(a[1],3)),'TE0',None if b[0] is None else (round(b[0],3),round(b[1],3)))
-print('SiN n=1.97 @3.3 um TM0')
-for t in (200,300,400,500,600,800):
-    a=gam(1.97,t*1e-9,3.3e-6,'TM');print(t,None if a[0] is None else (round(a[0],3),round(a[1],3)))
-print('Si 3.42 @3.3 um TM0')
-for t in (250,400,600):
-    a=gam(3.42,t*1e-9,3.3e-6,'TM');print(t,None if a[0] is None else (round(a[0],3),round(a[1],3)))
+
+
+def table():
+    """The printed tables of the original script, as a dict."""
+    out = {"Si_250nm_1p55": {"TM0": gam(3.48, 250e-9, 1.55e-6, 'TM'), "TE0": gam(3.48, 250e-9, 1.55e-6, 'TE')},
+           "SiN_n2p0_1p55": {}, "SiN_n1p97_3p3": {}, "Si_3p42_3p3": {}}
+    for t in (100, 150, 200, 250, 300, 400, 500, 600, 700):
+        out["SiN_n2p0_1p55"][t] = {"TM0": gam(2.0, t * 1e-9, 1.55e-6, 'TM'), "TE0": gam(2.0, t * 1e-9, 1.55e-6, 'TE')}
+    for t in (200, 300, 400, 500, 600, 800, 1000, 1200, 1500):
+        out["SiN_n1p97_3p3"][t] = {"TM0": gam(1.97, t * 1e-9, 3.3e-6, 'TM')}
+    for t in (250, 400, 600):
+        out["Si_3p42_3p3"][t] = {"TM0": gam(3.42, t * 1e-9, 3.3e-6, 'TM')}
+    return out
+
+
+if __name__ == "__main__":
+    import json, sys
+    tab = table()
+    a = tab["Si_250nm_1p55"]
+    print('Si 250 nm TM0 1.55:', a["TM0"], ' TE0:', a["TE0"])
+    print('SiN n=2.0 @1.55 um, TM0 / TE0 (n_eff, E-intensity fraction in gas)')
+    for t, v in tab["SiN_n2p0_1p55"].items():
+        print(t, 'nm TM0', tuple(round(x, 3) for x in v["TM0"]) if v["TM0"][0] else None, 'TE0', tuple(round(x, 3) for x in v["TE0"]) if v["TE0"][0] else None)
+    print('SiN n=1.97 @3.3 um TM0')
+    for t, v in tab["SiN_n1p97_3p3"].items():
+        print(t, tuple(round(x, 3) for x in v["TM0"]) if v["TM0"][0] else None)
+    if len(sys.argv) > 1:
+        json.dump(tab, open(sys.argv[1], "w"), indent=1)

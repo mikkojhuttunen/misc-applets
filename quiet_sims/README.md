@@ -325,3 +325,19 @@ TE0 light blue, design points as black dots). `qs/slabmodes.py` solves the funda
 | SiNx 1.2 µm, 3.0 µm (dashed curve) | 1.646 | 2.21 | 0.300 | 0.220 | 1.624, 0.243 |
 
 TE0 overlaps are 4–6× smaller (0.05–0.06 at the design points): TM0 is the right choice.
+
+## Step 9: proposal figures from the new runs
+
+`python scripts/step9_figures.py` (→ `results/figs/fig2f_static_fringe.pdf` (8.4 cm), `results/figs/fig3_spectroscopy.pdf`
+(16.8 cm), `results/figs/fig1d_SiNx.pdf` (step 8), Liberation Sans 10 pt, the colours of the existing PDFs; plotted
+numbers in `results/step9_figdata.json`). Medians and quartiles over the layouts; regular cells as single values.
+
+* Fig. 2f, 600 nm SiNx cells with R(χ) and 0.1 dB/cm (30 layouts; none / spectral / angle / both):
+  R-Herriott 8.7e-4 / 7.7e-5 / 8.7e-4 / 7.7e-5; C-Herriott 2.2e-4 / 6.0e-6 / 3.0e-6 / 2.1e-7;
+  R-CMPC 2.3e-4 / 1.9e-5 / 3.4e-6 / 4.0e-8; C-CMPC 1.3e-4 / 5.4e-6 / 2.6e-7 / 3.4e-8; target 5e-7.
+* Fig. 3b, 600 nm SiNx circle (21 layouts, min–max bands): NH3 35 ppb at 1 s (NEA 3.7e-8, Γ⟨L⟩ 4.7 cm with
+  Γ_E = 0.31), replacing 52 ppb; shot-limited below ≈ 1 s, the angle-only curve flattens at ≈ 2e-7 and both dithers
+  reach the shot line.
+* Fig. 3a: the HITRAN strips with the new 1 s noise (NH3 10 ppm, CH4 / C2H6 1 ppm: concentrations inferred from the
+  existing panel scales; mid-IR strips with the 1.2 µm / 0.3 dB/cm circle of step 4). The fringe pattern is an
+  illustration (exponential exit-path statistics, random phases) whose rms is the median residual at 1 s.

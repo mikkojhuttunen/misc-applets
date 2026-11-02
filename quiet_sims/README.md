@@ -286,3 +286,22 @@ d_eff = 14 pm/V, h = 0.8–1.0: 1.8 mW/(W² cm) at the theoretical optimum, P_i 
 experiments typically reach 30–60 % of it. Dither: ±20 pm at 3.31 µm = ±0.55 GHz, carried entirely by the signal with
 a fixed pump: ±4.5 pm at 1.567 µm (or ±2.1 pm on the pump), < 1 % of the QPM acceptance; DFB current modulation
 (≈ ±0.5–1 mA) reaches it at 1–100 kHz.
+
+## Step 7: thermo-optic launch-angle dither
+
+`python scripts/step7_thermo.py` (→ `results/step7_thermo.json`; model and parameters in the script docstring).
+K beams fanned in across the 30 µm port aperture form a phased array; a linear phase ramp steers the launch by ±2 mrad.
+
+| chip | n_eff | modes in port | edge phase | ΔT (200 µm heater) | P per edge heater, anchors 10 / 20 / 50 µm | f_3dB, anchors 10 / 20 / 50 µm |
+|---|---|---|---|---|---|---|
+| SiNx 600 nm, 1.55 µm (dn/dT 2.45e-5 /K) | 1.66 | 64 | ±0.20 rad | ±10 K | 0.60 / 0.30 / 0.12 mW | 4.5 / 1.1 / 0.18 kHz |
+| SiNx 1.2 µm, 3.3 µm | 1.59 | 29 | ±0.09 rad | ±9.9 K | 1.19 / 0.59 / 0.24 mW | 4.5 / 1.1 / 0.18 kHz |
+| Si 250 nm, 1.55 µm (1.8e-4 /K) | 2.02 | 78 | ±0.25 rad | ±1.3 K | 0.80 / 0.40 / 0.16 mW | 144 / 36 / 5.8 kHz |
+
+The heater power does not depend on the heater length (P = 2κt·Δφλ/(2π ℓ dn_eff/dT)); it scales as 1/ℓ and the
+time constant as ℓ² (ℓ: distance to the heat-sunk anchors). The 9× smaller dn/dT of SiNx is offset by its 24× lower
+thermal conductivity in power, but its thermal diffusivity is ≈ 40× lower, so it is slow: SiNx needs anchors within
+≈ 20 µm of the heater for a 1 kHz dither (≈ 0.3 mW per edge heater, 0.6 mW at 3.3 µm, × K/2 for the array plus the
+same as bias), while Si reaches tens of kHz. One-second measurements are feasible: the fig. 3b averaging assumes a
+1 kHz angle dither (hundreds of periods per second). Assumptions: LPCVD SiNx κ = 2.5 W/mK, Si film κ = 60 W/mK, the
+same dn/dT at 3.3 µm, through-etched release (a 2 µm air gap below adds 0.26 mW per heater).

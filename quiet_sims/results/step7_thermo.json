@@ -1,0 +1,161 @@
+{
+ "aperture_um": 30.0,
+ "dither_mrad": 2.0,
+ "heater_length_um": 200.0,
+ "cases": {
+  "SiNx 600 nm, 1.55 um": {
+   "n_eff": 1.6570174735454388,
+   "dneff_dT_per_K": 2.4853228443733054e-05,
+   "modes_in_port": 64.14261187917829,
+   "phase_edge_rad": 0.20150995826168788,
+   "phase_ramp_total_rad": 0.40301991652337577,
+   "dT_edge_K": 10.00081826771646,
+   "by_anchor_distance": [
+    {
+     "l_um": 5.0,
+     "G_W_per_K": 0.00011999999999999999,
+     "P_edge_mW": 1.200098192125975,
+     "P_edge_with_2um_air_gap_mW": 1.4601194670866031,
+     "tau_us": 8.794678740154922,
+     "f3dB_kHz": 18.09673187551724
+    },
+    {
+     "l_um": 10.0,
+     "G_W_per_K": 5.9999999999999995e-05,
+     "P_edge_mW": 0.6000490960629875,
+     "P_edge_with_2um_air_gap_mW": 0.8600703710236156,
+     "tau_us": 35.178714960619686,
+     "f3dB_kHz": 4.52418296887931
+    },
+    {
+     "l_um": 20.0,
+     "G_W_per_K": 2.9999999999999997e-05,
+     "P_edge_mW": 0.30002454803149375,
+     "P_edge_with_2um_air_gap_mW": 0.5600458229921217,
+     "tau_us": 140.71485984247875,
+     "f3dB_kHz": 1.1310457422198275
+    },
+    {
+     "l_um": 50.0,
+     "G_W_per_K": 1.1999999999999999e-05,
+     "P_edge_mW": 0.1200098192125975,
+     "P_edge_with_2um_air_gap_mW": 0.3800310941732255,
+     "tau_us": 879.467874015492,
+     "f3dB_kHz": 0.18096731875517238
+    },
+    {
+     "l_um": 100.0,
+     "G_W_per_K": 5.999999999999999e-06,
+     "P_edge_mW": 0.06000490960629875,
+     "P_edge_with_2um_air_gap_mW": 0.32002618456692666,
+     "tau_us": 3517.871496061968,
+     "f3dB_kHz": 0.045241829688793096
+    }
+   ],
+   "K_elements_power_note": "a linear ramp over K elements needs on average half the edge power per element (sum ~ K/2 x P_edge), plus the same again as bias"
+  },
+  "SiNx 1.2 um, 3.3 um": {
+   "n_eff": 1.5879573186847962,
+   "dneff_dT_per_K": 2.4092078806026147e-05,
+   "modes_in_port": 28.871951248814476,
+   "phase_edge_rad": 0.09070390993807821,
+   "phase_ramp_total_rad": 0.18140781987615642,
+   "dT_edge_K": 9.88680137237224,
+   "by_anchor_distance": [
+    {
+     "l_um": 5.0,
+     "G_W_per_K": 0.00023999999999999998,
+     "P_edge_mW": 2.3728323293693374,
+     "P_edge_with_2um_air_gap_mW": 2.6298891650510154,
+     "tau_us": 8.794678740154922,
+     "f3dB_kHz": 18.09673187551724
+    },
+    {
+     "l_um": 10.0,
+     "G_W_per_K": 0.00011999999999999999,
+     "P_edge_mW": 1.1864161646846687,
+     "P_edge_with_2um_air_gap_mW": 1.443473000366347,
+     "tau_us": 35.178714960619686,
+     "f3dB_kHz": 4.52418296887931
+    },
+    {
+     "l_um": 20.0,
+     "G_W_per_K": 5.9999999999999995e-05,
+     "P_edge_mW": 0.5932080823423344,
+     "P_edge_with_2um_air_gap_mW": 0.8502649180240127,
+     "tau_us": 140.71485984247875,
+     "f3dB_kHz": 1.1310457422198275
+    },
+    {
+     "l_um": 50.0,
+     "G_W_per_K": 2.3999999999999997e-05,
+     "P_edge_mW": 0.23728323293693374,
+     "P_edge_with_2um_air_gap_mW": 0.494340068618612,
+     "tau_us": 879.467874015492,
+     "f3dB_kHz": 0.18096731875517238
+    },
+    {
+     "l_um": 100.0,
+     "G_W_per_K": 1.1999999999999999e-05,
+     "P_edge_mW": 0.11864161646846687,
+     "P_edge_with_2um_air_gap_mW": 0.37569845215014513,
+     "tau_us": 3517.871496061968,
+     "f3dB_kHz": 0.045241829688793096
+    }
+   ],
+   "K_elements_power_note": "a linear ramp over K elements needs on average half the edge power per element (sum ~ K/2 x P_edge), plus the same again as bias"
+  },
+  "Si 250 nm, 1.55 um": {
+   "n_eff": 2.015028510661039,
+   "dneff_dT_per_K": 0.00022630639961995771,
+   "modes_in_port": 78.00110363849183,
+   "phase_edge_rad": 0.24504769416258199,
+   "phase_ramp_total_rad": 0.49009538832516397,
+   "dT_edge_K": 1.3355975664264879,
+   "by_anchor_distance": [
+    {
+     "l_um": 5.0,
+     "G_W_per_K": 0.0012,
+     "P_edge_mW": 1.6027170797117853,
+     "P_edge_with_2um_air_gap_mW": 1.637442616438874,
+     "tau_us": 0.2754247508677549,
+     "f3dB_kHz": 577.8527259821814
+    },
+    {
+     "l_um": 10.0,
+     "G_W_per_K": 0.0006,
+     "P_edge_mW": 0.8013585398558927,
+     "P_edge_with_2um_air_gap_mW": 0.8360840765829813,
+     "tau_us": 1.1016990034710197,
+     "f3dB_kHz": 144.46318149554534
+    },
+    {
+     "l_um": 20.0,
+     "G_W_per_K": 0.0003,
+     "P_edge_mW": 0.40067926992794634,
+     "P_edge_with_2um_air_gap_mW": 0.435404806655035,
+     "tau_us": 4.406796013884079,
+     "f3dB_kHz": 36.115795373886336
+    },
+    {
+     "l_um": 50.0,
+     "G_W_per_K": 0.00011999999999999999,
+     "P_edge_mW": 0.16027170797117854,
+     "P_edge_with_2um_air_gap_mW": 0.1949972446982672,
+     "tau_us": 27.542475086775486,
+     "f3dB_kHz": 5.778527259821814
+    },
+    {
+     "l_um": 100.0,
+     "G_W_per_K": 5.9999999999999995e-05,
+     "P_edge_mW": 0.08013585398558927,
+     "P_edge_with_2um_air_gap_mW": 0.11486139071267797,
+     "tau_us": 110.16990034710194,
+     "f3dB_kHz": 1.4446318149554536
+    }
+   ],
+   "K_elements_power_note": "a linear ramp over K elements needs on average half the edge power per element (sum ~ K/2 x P_edge), plus the same again as bias"
+  }
+ },
+ "feasibility_1s": "the 1 s averaging of fig. 3b assumes an angle dither at 1 kHz (f_theta) and needs >= ~100 dither periods per measurement: a thermal f3dB >= 1 kHz is enough, met by SiNx with anchors <= ~20 um from the heater and by Si for any anchor distance up to ~100 um"
+}

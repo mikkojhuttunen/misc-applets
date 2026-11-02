@@ -267,3 +267,22 @@ Limitations: 2D ray optics with an effective index; vertical diffraction in the 
 separately); the limits use the analyte's peak absorption without fitting the H2O / CO2 background; the
 ensemble-to-ensemble scatter of a median over 21–30 chaotic layouts is tens of per cent (bootstrap intervals in the
 step-3 and step-2 summaries); mid-IR runs keep the 1.55 µm dither settings (±2 mrad, ±20 pm).
+
+## Step 6: DFG source design (MgO:PPLN)
+
+`python scripts/step6_dfg.py` (→ `results/step6_dfg.json`, `results/step6_period_grid.csv`; model and literature
+parameters in `qs/dfg.py`, each marked LIT / VERIFY / ASSUMPTION). Pump 1064.0 nm, type-0 (eee) QPM along x.
+
+| line | idler | signal | period (write at 25 °C, QPM at 60 °C) | T acceptance 20 / 50 mm | signal acceptance 20 / 50 mm | P_idler (1 W pump, 5 W signal) 20 / 50 mm |
+|---|---|---|---|---|---|---|
+| CH4 3016.49 /cm (strongest, step 4) | 3.3151 µm | 1566.9 nm | 30.66 µm | 10.1 / 4.1 °C | 4.2 / 1.7 nm (510 / 204 GHz) | 14–18 / 36–45 mW |
+| CH4 3.31 µm (brief) | 3.3100 µm | 1568.1 nm | 30.67 µm | 10.1 / 4.1 °C | 4.2 / 1.7 nm | 14–18 / 36–45 mW |
+| C2H6 2996.85 /cm (Q-branch, brief 3.34 µm) | 3.3368 µm | 1562.1 nm | 30.61 µm | 10.1 / 4.1 °C | 4.0 / 1.6 nm | 14–18 / 36–44 mW |
+| C2H6 2986.68 /cm (strongest, step 4) | 3.3482 µm | 1559.6 nm | 30.58 µm | 10.1 / 4.1 °C | 4.0 / 1.6 nm | 14–18 / 35–44 mW |
+
+Idler 3.06–3.66 µm needs periods 29.2–31.3 µm over 25–200 °C (grid in the CSV); a multi-period chip with 0.2 µm steps
+or a fan-out over that range covers it. Walk-off: none (eee along a principal axis). Power: Boyd–Kleinman,
+d_eff = 14 pm/V, h = 0.8–1.0: 1.8 mW/(W² cm) at the theoretical optimum, P_i ∝ L P_p P_s (1 W signal: 7–9 mW at 50 mm);
+experiments typically reach 30–60 % of it. Dither: ±20 pm at 3.31 µm = ±0.55 GHz, carried entirely by the signal with
+a fixed pump: ±4.5 pm at 1.567 µm (or ±2.1 pm on the pump), < 1 % of the QPM acceptance; DFB current modulation
+(≈ ±0.5–1 mA) reaches it at 1–100 kHz.

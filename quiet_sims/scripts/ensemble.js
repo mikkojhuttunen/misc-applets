@@ -5,7 +5,9 @@
    seen by the detected light and the share of its bounces above the critical angle.
    node scripts/ensemble.js --cell circle|herriott --seeds 30 --out results/step2/x.json [--n_eff 1.66] [--R 0.99]
      [--rtable results/step1/Rtable_circle_neff1.66.json] [--dBcm 0.1] [--m 11] [--wavelength 1.6537e-6] [--gamma 0.31]
-     [--first 1] [--engine quiet] */
+     [--first 1] [--engine quiet] [--stat]
+   --stat also stores the static fringe floor (both dithers and wavelength only, x 2 sqrt(eps)/sqrt(M2)) against the
+   wavelength-dither depth (stat_dl, 0.01 pm - 1 nm, 32 points per decade) at the fixed angle dither. */
 const fs = require('fs'), path = require('path');
 const { config, args } = require('./cells.js');
 const { loadEngine, RESULTS } = require('./engine_path.js');
@@ -48,6 +50,7 @@ function summarise(o, label) {
     floor[md] = s2 * spec.floor;
   }
   const bs = bounceStats(o, r.theta);
+  if (a.stat && sp.stat) bs.stat = { both: sp.stat.both.map(v => s2 * v), spec: sp.stat.spec.map(v => s2 * v), floor: sp.stat.floor.map(v => s2 * v) };
   return Object.assign({ label, seed: o.inc_seed, T_trans: r.T, L_mean_m: r.L_mean, M2: r.M2, grains: r.grains, gamma: o.gamma, env, floor, n_pass: r.n_pass,
     V_theta: r.V_theta, V_lambda: r.V_lambda, V_joint: r.V_joint, V_floor: r.V_floor, V_floor_both: r.V_floor_both, theta: r.theta }, bs);
 }
@@ -56,6 +59,7 @@ const base = config(cell, { n_eff: nEff, R: tab ? Math.min(tab.design.R_avg, 0.9
 const res = { cell, n_eff: nEff, dBcm, m, gamma, rtable: a.rtable || null, R_const: tab ? null : base.R_mirror, design: tab ? tab.design : null,
   settings: Object.assign({}, base, { R_table: R_table ? '(table)' : null }), regular: null, chaotic: [] };
 const t0 = Date.now();
+if (a.stat) res.stat_dl = Array.from({ length: 161 }, (_, j) => 1e-14 * 10 ** (j / 32));
 const save = () => fs.writeFileSync(out, JSON.stringify(res));
 fs.mkdirSync(path.dirname(out), { recursive: true });
 if (first <= 1) {

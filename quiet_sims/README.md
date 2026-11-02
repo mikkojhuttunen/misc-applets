@@ -305,3 +305,23 @@ thermal conductivity in power, but its thermal diffusivity is ≈ 40× lower, so
 same as bias), while Si reaches tens of kHz. One-second measurements are feasible: the fig. 3b averaging assumes a
 1 kHz angle dither (hundreds of periods per second). Assumptions: LPCVD SiNx κ = 2.5 W/mK, Si film κ = 60 W/mK, the
 same dn/dT at 3.3 µm, through-etched release (a 2 µm air gap below adds 0.26 mW per heater).
+
+## Step 8: Fig. 1d data (SiNx only)
+
+`python scripts/step8_fig1d.py` (→ `results/step8_fig1d.csv` with n_eff, n_g and both Γ for TE0 / TM0, 1.55 and
+3.0 µm, n = 2.0 / 1.97 and the Luke et al. 2015 LPCVD Si3N4 dispersion (marked; coefficients to verify), 50–1500 nm;
+`results/step8_fig1d.json`; `results/figs/fig1d_SiNx.pdf`, 15.5 cm, 10 pt, solid 1.55 µm / dashed 3.0 µm, TM0 navy,
+TE0 light blue, design points as black dots). `qs/slabmodes.py` solves the fundamental mode robustly
+(`design_calcs/slab.py` returns a higher-order mode once the film is multimode, e.g. 1500 nm at 1.55 µm).
+
+Γ definition: the existing Fig. 1d plots the absorption confinement factor Γ_abs = n_g ∫_gas ε|E|² / ∫ε|E|²
+(Robinson et al. 2008; it exceeds 1 for thin Si, e.g. 1.30 at 400 nm, 3.0 µm), while Steps 2–5 and the brief use the
+|E|² fraction Γ_E. They agree for Si 250 nm (0.64) but not for SiNx:
+
+| design point | n_eff (TM0) | n_g | Γ_E (steps 2–5) | Γ_abs (Fig. 1d) | Luke 2015 dispersion: n_eff, Γ_abs |
+|---|---|---|---|---|---|
+| SiNx 600 nm, 1.55 µm | 1.657 | 2.26 | 0.313 | 0.231 | 1.653, 0.237 |
+| SiNx 1.2 µm, 3.3 µm | 1.588 | 2.23 | 0.372 | 0.296 | 1.554, 0.335 |
+| SiNx 1.2 µm, 3.0 µm (dashed curve) | 1.646 | 2.21 | 0.300 | 0.220 | 1.624, 0.243 |
+
+TE0 overlaps are 4–6× smaller (0.05–0.06 at the design points): TM0 is the right choice.

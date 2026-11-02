@@ -341,3 +341,35 @@ numbers in `results/step9_figdata.json`). Medians and quartiles over the layouts
 * Fig. 3a: the HITRAN strips with the new 1 s noise (NH3 10 ppm, CH4 / C2H6 1 ppm: concentrations inferred from the
   existing panel scales; mid-IR strips with the 1.2 µm / 0.3 dB/cm circle of step 4). The fringe pattern is an
   illustration (exponential exit-path statistics, random phases) whose rms is the median residual at 1 s.
+
+## Step 10: spec cases for the Fig. 2 and Fig. 3 artifacts
+
+`bash scripts/run_step10.sh` (→ `results/step10/<cell>_<case>.json`, 30 layouts + regular per case, 600 nm SiNx,
+TM0, n_eff 1.66, Γ 0.313) and `python scripts/step10_specs.py` (→ `results/step10_summary.json`, table below):
+
+- ideal: the designed 20-period R(χ) table of step 1, no membrane loss;
+- target: the same mirror, 0.1 dB/cm (the step-2 ensemble, copied);
+- minimum: R(χ) capped at 0.95 below the critical angle (sin χ < 1/n_eff; total internal reflection kept above it,
+  `results/step1/Rtable_<cell>_neff1.66_min95.json`), 0.3 dB/cm.
+
+| cell | spec | static fringe none / spectral / angle / both (chaotic median) | both: quartiles | both, regular | layouts < 5e-7 | Γ⟨L⟩ | T | ⟨R⟩ bounce | NH3 1 s median [quartiles] |
+|---|---|---|---|---|---|---|---|---|---|
+| circle | ideal (designed R(χ), 0 dB/cm) | 1.2e-04 / 5.4e-06 / 2.0e-07 / 2.5e-08 | 1.5e-08–7.7e-08 | 3.5e-08 | 100 % | 5.70 cm | 0.50 | 1.0000 | 24 ppb [17–53] |
+| circle | target (designed R(χ), 0.1 dB/cm) | 1.3e-04 / 5.4e-06 / 2.6e-07 / 3.4e-08 | 2.0e-08–1.0e-07 | 4.0e-08 | 100 % | 4.67 cm | 0.34 | 1.0000 | 37 ppb [28–87] |
+| circle | minimum (R ≤ 0.95 below θc, 0.3 dB/cm) | 1.3e-04 / 7.6e-06 / 5.5e-07 / 1.1e-07 | 4.7e-08–2.6e-07 | 2.0e-07 | 90 % | 2.44 cm | 0.07 | 0.9578 | 191 ppb [121–460] |
+| herriott | ideal (designed R(χ), 0 dB/cm) | 2.0e-04 / 5.9e-06 / 1.7e-06 / 1.6e-07 | 6.8e-08–3.4e-07 | 8.1e-05 | 93 % | 8.14 cm | 1.00 | 1.0000 | 83 ppb [37–164] |
+| herriott | target (designed R(χ), 0.1 dB/cm) | 2.2e-04 / 6.0e-06 / 3.0e-06 / 2.1e-07 | 1.2e-07–5.2e-07 | 7.7e-05 | 67 % | 5.64 cm | 0.61 | 1.0000 | 168 ppb [94–406] |
+| herriott | minimum (R ≤ 0.95 below θc, 0.3 dB/cm) | 2.7e-04 / 8.5e-06 / 3.0e-05 / 8.7e-07 | 3.5e-07–1.6e-06 | 6.8e-05 | 37 % | 1.82 cm | 0.36 | 0.9643 | 2003 ppb [818–4390] |
+
+NH3 limits from the medians of all 30 layouts (step 2 used the first 21: 34 ppb for the target case, 37 ppb here).
+The regular circle without inclusions does as well as the chaotic median once the SiNx mirror reflects almost
+totally (both dithers 22 / 32 ppb ideal / target against 24 / 37); its fringe with both dithers is 3.5–4.0e-8. The
+inclusions matter for the minimum spec (regular 290 ppb against 191) and for the Herriott cell (regular fringe
+≈ 8e-5 whatever the spec).
+
+Artifacts: `python scripts/build_fig2_artifact.py SRC.html OUT.html` (Fig. 2: engine swapped for
+`engine/quiet_engine.js`, ensemble data, R tables and a case selector for the live run, target line 5e-7) and
+`node scripts/rep_paths.js results/step10/circle_<case>.json results/step10/rep_circle_<case>.json` then
+`python scripts/build_fig3_artifact.py SRC.html OUT.html` (Fig. 3: solid target, dashed minimum, dash-dot ideal,
+30-layout bands; the exit paths of the representative layout of each case drive the noise traces of panel a). SRC is
+the saved HTML of the published artifact.

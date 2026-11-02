@@ -55,5 +55,26 @@ def step3():
               f"{1e3*dl['ppm']:.0f} ppb [{1e3*dl['ci68_ppm'][0]:.0f}–{1e3*dl['ci68_ppm'][1]:.0f}] |")
 
 
+
+def step4():
+    g = json.loads((R / "step4_gas.json").read_text())
+    print("\n| analyte | strongest line near target | α peak, 1 ppm (/cm) | H2O / CO2 background there (/cm) | Fig. 3 line: α (HAPI / Fig. 3 data) |")
+    print("|---|---|---|---|---|")
+    for k, v in g["lines"].items():
+        f = g["fig3_lines"][k]
+        print(f"| {k} | {v['nu0_cm']:.3f} /cm ({v['lambda0_um']:.4f} µm) | {v['alpha_peak_per_ppm_cm']:.3e} | {v['bg_at_peak_per_cm']['H2O']:.1e} / {v['bg_at_peak_per_cm']['CO2']:.1e} | "
+              f"{f['nu0_cm']:.3f} /cm: {f['alpha_peak_per_ppm_cm']:.3e} / {f['fig3_alpha_peak_per_ppm_cm']:.3e} |")
+    r = g["ratio_CH4_3p31_over_1p65"]
+    print(f"\nCH4 3.31 / 1.65 µm peak ratio: {r['strongest_lines']:.0f}× (strongest lines), {r['fig3_lines']:.0f}× (Fig. 3 lines).")
+    d = json.loads((R / "step4_summary.json").read_text())
+    fmt = lambda t: "not within 100 s" if t is None else (f"{1e3*t:.2g} ms" if t < 1 else f"{t:.0f} s")
+    print("\n| cell | film (n_eff, Γ) | loss | Γ⟨L⟩ | T | ⟨R⟩ | CH4 1 s | CH4 τ(10 ppb) / τ(1 ppb) | C2H6 1 s | C2H6 τ(10 ppb) / τ(1 ppb) |")
+    print("|---|---|---|---|---|---|---|---|---|---|")
+    for k, v in sorted(d["cases"].items(), key=lambda kv: (kv[1]["cell"], kv[1]["film_nm"], kv[1]["dBcm"])):
+        a, b = v["limits"]["CH4"], v["limits"]["C2H6"]
+        print(f"| {v['cell']} | {v['film_nm']/1e3:.1f} µm ({v['n_eff']:.2f}, {v['gamma']:.2f}) | {v['dBcm']} dB/cm | {v['gammaL_cm']:.2f} cm | {v['T_median']:.2f} | {v['R_bounce_median']:.4f} | "
+              f"{a['ppb_1s']:.1f} ppb | {fmt(a['tau_10ppb_s'])} / {fmt(a['tau_1ppb_s'])} | {b['ppb_1s']:.1f} ppb | {fmt(b['tau_10ppb_s'])} / {fmt(b['tau_1ppb_s'])} |")
+
+
 if __name__ == "__main__":
     globals()[sys.argv[1]]()

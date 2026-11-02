@@ -155,3 +155,61 @@ shorten the path to 2–4 cm Γ⟨L⟩ and leave the inclusions behind (fringe 1
 the fall-back if the trench mirrors underperform: 55–65 % of its bounces reflect totally, so a sub-critical mirror
 reflectivity R_s enters as ⟨R⟩ ≈ 0.35 R_s + 0.65 (m = 5, n_eff 1.66) against 0.81 R_s + 0.19 (m = 11): with R_s =
 0.98, 0.993 against 0.984 per bounce. It costs ≈ 1.4× in NH3 (66 ppb) with ideal mirrors.
+
+## Step 4: mid-infrared (3.3 µm) SiNx cells and HITRAN line strengths
+
+`python scripts/step4_gas.py` (→ `results/step4_gas.json`): HAPI 1.3 run offline on the HITRAN line files in
+`../HITRAN/hitran_data` (hitran.org itself is not reachable from the simulation host; these are the files
+`HITRAN/get_spectra.py` fetched), 1 ppm analyte in breath: 1 atm, 35 °C, H2O at saturation (5.5 %), CO2 4.5 %, Voigt
+with air broadening, line-resolved strips of ±1.5 /cm with the H2O and CO2 background. On the Fig. 3 lines HAPI
+reproduces the Fig. 3 strips to 1 %.
+
+
+| analyte | strongest line near target | α peak, 1 ppm (/cm) | H2O / CO2 background there (/cm) | Fig. 3 line: α (HAPI / Fig. 3 data) |
+|---|---|---|---|---|
+| CH4_3.31 | 3016.492 /cm (3.3151 µm) | 3.794e-05 | 2.4e-05 / 2.6e-10 | 3017.800 /cm: 3.647e-05 / 3.614e-05 |
+| CH4_1.65 | 6057.084 /cm (1.6510 µm) | 4.335e-07 | 1.2e-08 / 1.3e-07 | 6114.652 /cm: 1.542e-07 / 1.548e-07 |
+| C2H6_3.34 | 2986.682 /cm (3.3482 µm) | 3.691e-05 | 1.5e-05 / 1.5e-10 | 2996.852 /cm: 3.344e-05 / 3.317e-05 |
+| NH3_1.53 | 6528.774 /cm (1.5317 µm) | 2.276e-07 | 1.8e-07 / 8.1e-07 | 6528.774 /cm: 2.276e-07 / 2.266e-07 |
+
+CH4 3.31 / 1.65 µm peak ratio: 88× (strongest lines), 237× (Fig. 3 lines).
+
+The crude 150–230× line-strength scaling is replaced by the HITRAN peaks: 88× between the strongest CH4 lines at 3.31
+and 1.65 µm, 237× between the two Fig. 3 lines. At 3.31 µm the breath water absorbs 2.4e-5 /cm under the CH4 peak
+(as much as 0.6 ppm CH4), and at the 1.53 µm NH3 line CO2 absorbs 8e-7 /cm: the lines need spectral fitting against
+that background; the limits below use the peak absorption of the analyte alone.
+
+`bash scripts/run_step4.sh` (circle and Herriott, films 1.0 / 1.2 / 1.5 µm with n_eff 1.46 / 1.59 / 1.71 and Γ 0.53 /
+0.37 / 0.22 from `design_calcs/slab.py` with n = 1.97, R tables of step 1, membrane loss 0.1 / 0.3 / 0.5 dB/cm,
+λ = 3.3151 µm, the same ±2 mrad and ±20 pm dithers, 21 layouts) and `python scripts/step4_midir.py`
+(→ `results/step4_summary.json`): detection limits at 1 s (1 mW, shot noise √(q/(P T)) and the fringe residual) and
+the averaging time to reach 10 ppb and 1 ppb (median noise curve over the layouts, up to 100 s):
+
+| cell | film (n_eff, Γ) | loss | Γ⟨L⟩ | T | ⟨R⟩ | CH4 1 s | CH4 τ(10 ppb) / τ(1 ppb) | C2H6 1 s | C2H6 τ(10 ppb) / τ(1 ppb) |
+|---|---|---|---|---|---|---|---|---|---|
+| circle | 1.0 µm (1.46, 0.53) | 0.1 dB/cm | 7.48 cm | 0.35 | 0.9988 | 2.3 ppb | 0.15 ms / 30 s | 2.4 ppb | 0.16 ms / 31 s |
+| circle | 1.0 µm (1.46, 0.53) | 0.3 dB/cm | 5.57 cm | 0.20 | 0.9987 | 4.7 ppb | 0.38 ms / 64 s | 4.8 ppb | 0.4 ms / 66 s |
+| circle | 1.0 µm (1.46, 0.53) | 0.5 dB/cm | 4.54 cm | 0.13 | 0.9986 | 7.3 ppb | 1.1 ms / not within 100 s | 7.6 ppb | 1.2 ms / not within 100 s |
+| circle | 1.2 µm (1.59, 0.37) | 0.1 dB/cm | 4.99 cm | 0.36 | 0.9999 | 1.5 ppb | 0.25 ms / 16 s | 1.6 ppb | 0.26 ms / 17 s |
+| circle | 1.2 µm (1.59, 0.37) | 0.3 dB/cm | 3.70 cm | 0.20 | 0.9999 | 3.1 ppb | 0.59 ms / 42 s | 3.2 ppb | 0.62 ms / 43 s |
+| circle | 1.2 µm (1.59, 0.37) | 0.5 dB/cm | 2.95 cm | 0.14 | 0.9999 | 5.4 ppb | 1.5 ms / 75 s | 5.5 ppb | 1.6 ms / 77 s |
+| circle | 1.5 µm (1.71, 0.22) | 0.1 dB/cm | 3.20 cm | 0.36 | 1.0000 | 2.0 ppb | 0.65 ms / 25 s | 2.1 ppb | 0.69 ms / 26 s |
+| circle | 1.5 µm (1.71, 0.22) | 0.3 dB/cm | 2.37 cm | 0.20 | 1.0000 | 4.0 ppb | 1.5 ms / 54 s | 4.1 ppb | 1.6 ms / 56 s |
+| circle | 1.5 µm (1.71, 0.22) | 0.5 dB/cm | 1.88 cm | 0.12 | 1.0000 | 6.6 ppb | 4.8 ms / 93 s | 6.8 ppb | 5.3 ms / 95 s |
+| herriott | 1.0 µm (1.46, 0.53) | 0.1 dB/cm | 6.99 cm | 0.70 | 0.9991 | 21.0 ppb | 26 s / not within 100 s | 21.5 ppb | 27 s / not within 100 s |
+| herriott | 1.0 µm (1.46, 0.53) | 0.3 dB/cm | 5.22 cm | 0.41 | 0.9990 | 34.5 ppb | 47 s / not within 100 s | 35.5 ppb | 48 s / not within 100 s |
+| herriott | 1.0 µm (1.46, 0.53) | 0.5 dB/cm | 3.33 cm | 0.37 | 0.9990 | 236.8 ppb | not within 100 s / not within 100 s | 243.4 ppb | not within 100 s / not within 100 s |
+| herriott | 1.2 µm (1.59, 0.37) | 0.1 dB/cm | 5.39 cm | 0.69 | 1.0000 | 24.0 ppb | 31 s / not within 100 s | 24.7 ppb | 32 s / not within 100 s |
+| herriott | 1.2 µm (1.59, 0.37) | 0.3 dB/cm | 4.06 cm | 0.38 | 1.0000 | 40.0 ppb | 55 s / not within 100 s | 41.2 ppb | 57 s / not within 100 s |
+| herriott | 1.2 µm (1.59, 0.37) | 0.5 dB/cm | 2.28 cm | 0.37 | 1.0000 | 222.0 ppb | not within 100 s / not within 100 s | 228.2 ppb | not within 100 s / not within 100 s |
+| herriott | 1.5 µm (1.71, 0.22) | 0.1 dB/cm | 3.30 cm | 0.68 | 1.0000 | 25.1 ppb | 33 s / not within 100 s | 25.8 ppb | 34 s / not within 100 s |
+| herriott | 1.5 µm (1.71, 0.22) | 0.3 dB/cm | 2.40 cm | 0.38 | 1.0000 | 57.7 ppb | 81 s / not within 100 s | 59.3 ppb | 83 s / not within 100 s |
+| herriott | 1.5 µm (1.71, 0.22) | 0.5 dB/cm | 1.40 cm | 0.36 | 1.0000 | 654.6 ppb | not within 100 s / not within 100 s | 672.9 ppb | not within 100 s / not within 100 s |
+
+Findings: the circular CMPC reaches 1.5–7 ppb CH4 and C2H6 at 1 s for every film and loss, 10 ppb within
+milliseconds and 1 ppb within 16–95 s (not within 100 s for the 1.0 µm film at 0.5 dB/cm). The 1.2 µm film is
+best (Γ 0.37 with a near-perfect mirror). The loss sets the transmission and path: 0.1 → 0.5 dB/cm costs 2.3–3.3×.
+The Herriott cell is fringe-limited at 3.3 µm. Its static fringe is 3–6e-6 (2e-7 at 1.55 µm): the inclusions' phase
+kicks (∝ Δn r/λ) halve, ±20 pm is a smaller relative wavelength dither, and at 0.5 dB/cm the shorter path scrambles
+even less (2–4e-5). That gives 21–58 ppb at 1 s up to 0.3 dB/cm and 220–650 ppb at 0.5 dB/cm; 1 ppb is never reached.
+A larger wavelength dither (scaled with λ²) would be the first thing to try for a mid-IR Herriott cell.

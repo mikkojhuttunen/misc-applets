@@ -123,3 +123,35 @@ all or nearly all layouts below 5e-7. 600 nm (n_eff 1.66) is the best compromise
 mirror (⟨R⟩ 0.993) costs transmission; 700 nm loses on Γ. 5 nm sidewall roughness costs ≈ 15 % (34 → 40 ppb). The
 Herriott cell keeps more light (T ≈ 0.6) and a long path but its fringe is 5–10× worse (2–4e-7 with both dithers,
 regular 1e-4) and only 60–70 % of the layouts reach 5e-7: 150–180 ppb.
+
+## Step 3: launch-angle study
+
+`bash scripts/run_step3.sh` (per launch and n_eff: bounce-angle histogram → N = 20 mirror optimised for it with
+`scripts/make_rtable.py` → 21 layouts + regular) and `python scripts/step3_launch.py` (→ `results/step3_summary.json`,
+with bootstrap 68 % intervals of the NH3 limit over the layouts); `python scripts/report.py step3`:
+
+| n_eff | m | χ | passes to exit (regular) | bounces above critical | ⟨R⟩ bounce (N=20 mirror) | Γ⟨L⟩ | T | static fringe both (chaotic / regular) | NH3 1 s [68 % CI] |
+|---|---|---|---|---|---|---|---|---|---|
+| 1.66 | 11 | 7.5° | 23 | 19 % | 1.0000 | 4.70 cm | 0.35 | 4.6e-08 / 1.2e-07 | 48 ppb [38–69] |
+| 1.66 | 8 | 30.0° | 2 | 24 % | 1.0000 | 0.47 cm | 0.90 | 2.4e-05 / 3.2e-05 | 221862 ppb [193765–343485] |
+| 1.66 | 5 | 52.5° | 23 | 65 % | 1.0000 | 3.21 cm | 0.39 | 4.4e-08 / 8.1e-08 | 66 ppb [51–85] |
+| 1.66 | 2 | 75.0° | 11 | 89 % | 1.0000 | 1.82 cm | 0.60 | 4.7e-07 / 1.0e-06 | 1127 ppb [988–1210] |
+| 1.66 | 1 | 82.5° | 23 | 93 % | 1.0000 | 1.80 cm | 0.54 | 8.9e-08 / 6.6e-07 | 221 ppb [211–286] |
+| 1.36 | 11 | 7.5° | 23 | 12 % | 0.9931 | 8.33 cm | 0.29 | 5.8e-08 / 5.3e-08 | 33 ppb [31–53] |
+| 1.36 | 8 | 30.0° | 2 | 7 % | 0.9919 | 0.58 cm | 0.83 | 4.1e-05 / 1.6e-04 | 310785 ppb [272457–384756] |
+| 1.36 | 5 | 52.5° | 23 | 55 % | 0.9974 | 6.35 cm | 0.33 | 2.0e-07 / 1.6e-07 | 138 ppb [90–163] |
+| 1.36 | 2 | 75.0° | 11 | 92 % | 0.9988 | 2.56 cm | 0.53 | 5.3e-07 / 6.6e-07 | 911 ppb [820–943] |
+| 1.36 | 1 | 82.5° | 23 | 91 % | 0.9994 | 3.82 cm | 0.50 | 1.7e-07 / 8.4e-07 | 199 ppb [182–272] |
+
+Star orbit with step 24 − m facets: the exit facet m is reached after k passes with (24 − m)·k ≡ m (mod 24). Every
+odd m (11, 5, 1) needs all 23 passes, but m = 8 closes a triangle and exits after 2 chords (Γ⟨L⟩ 0.5 cm, the fringe is
+not scrambled) and m = 2 a 12-gon that exits after 11. For m = 2 and 1 the rays live in an annulus between the caustic
+a·sin χ and the wall thinner than a 50 µm inclusion, so the inclusions are placed anywhere in the cell (inc_ring 0)
+and the rays rarely meet them.
+
+Decision for SiNx: keep the 7.5° launch (m = 11). It gives the longest Γ⟨L⟩ and the lowest fringe (NH3 33–48 ppb).
+Grazing launches buy total internal reflection (89–93 % of the bounces at 75–82.5°, R ≈ 1 without a mirror) but
+shorten the path to 2–4 cm Γ⟨L⟩ and leave the inclusions behind (fringe 1–5e-7): 200 ppb and worse. 52.5° (m = 5) is
+the fall-back if the trench mirrors underperform: 55–65 % of its bounces reflect totally, so a sub-critical mirror
+reflectivity R_s enters as ⟨R⟩ ≈ 0.35 R_s + 0.65 (m = 5, n_eff 1.66) against 0.81 R_s + 0.19 (m = 11): with R_s =
+0.98, 0.993 against 0.984 per bounce. It costs ≈ 1.4× in NH3 (66 ppb) with ideal mirrors.

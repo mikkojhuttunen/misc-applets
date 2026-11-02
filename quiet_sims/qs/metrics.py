@@ -109,7 +109,8 @@ def ensemble_stats(res, eps=1e-6, thr=5e-7, gamma=None, alpha_ppm=None, T_avg=1.
     if alpha_ppm:
         Tg = fig3_data()["T"]
         dl = detection_limit(res, Tg, alpha_ppm, gamma, T=T_avg, P_in=P_in, n_layouts=n_nh3)
-        out["detection_limit"] = dict(dl, n_layouts=min(n_nh3, len(res["chaotic"])), T_avg=T_avg)
+        out["detection_limit"] = dict(dl, n_layouts=min(n_nh3, len(res["chaotic"])), T_avg=T_avg,
+                                      ci68_ppm=bootstrap_limit(res, Tg, alpha_ppm, gamma, T=T_avg, P_in=P_in, n_layouts=n_nh3))
         if reg:
             r1 = {"chaotic": [reg]}
             out["regular"]["detection_limit_ppm"] = detection_limit(r1, Tg, alpha_ppm, gamma, T=T_avg, P_in=P_in)["ppm"]
@@ -131,3 +132,19 @@ def clean(x):
 
 def dump(path, obj):
     Path(path).write_text(json.dumps(clean(obj), indent=1))
+
+
+def bootstrap_limit(res, Tgrid, alpha_ppm, gamma, T=1.0, P_in=1e-3, n_layouts=21, n_boot=400, seed=1):
+    """68 % interval (16th, 84th percentile) of the median-based detection limit [ppm] when the layouts are resampled
+    with replacement (the scatter of a finite ensemble of chaotic layouts)."""
+    ch = [c for c in res["chaotic"][:n_layouts] if "error" not in c]
+    L = np.array([c["L_mean_m"] for c in ch])
+    Tc = np.array([c["T_trans"] for c in ch])
+    fr = np.array([env_at(c["env"]["both"], Tgrid, T) for c in ch])
+    rng = np.random.default_rng(seed)
+    v = []
+    for _ in range(n_boot):
+        i = rng.integers(0, len(ch), len(ch))
+        nea = math.sqrt(Q_E / (P_in * np.median(Tc[i])) / T + np.median(fr[i]) ** 2)
+        v.append(nea / (100 * alpha_ppm * gamma * np.median(L[i])))
+    return [float(np.percentile(v, 16)), float(np.percentile(v, 84))]

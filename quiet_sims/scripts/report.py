@@ -43,5 +43,17 @@ def step2():
               f"{c['T_median']:.2f} | {c['R_bounce_median']:.4f} | {1e3*c['detection_limit']['ppm']:.0f} ppb |")
 
 
+
+def step3():
+    d = json.loads((R / "step3_summary.json").read_text())
+    print("\n| n_eff | m | χ | passes to exit (regular) | bounces above critical | ⟨R⟩ bounce (N=20 mirror) | Γ⟨L⟩ | T | static fringe both (chaotic / regular) | NH3 1 s [68 % CI] |")
+    print("|---|---|---|---|---|---|---|---|---|---|")
+    for k, v in sorted(d["cases"].items(), key=lambda kv: (-kv[1]["n_eff"], -kv[1]["m"])):
+        dl = v["detection_limit"]
+        print(f"| {v['n_eff']:.2f} | {v['m']} | {v['chi_deg']:.1f}° | {v['passes_to_exit_regular']} | {100*v['above_critical_median']:.0f} % | {v['R_bounce_median']:.4f} | "
+              f"{v['gammaL_cm']:.2f} cm | {v['T_median']:.2f} | {v['modes']['both']['chaotic_median']:.1e} / {v['modes']['both']['regular']:.1e} | "
+              f"{1e3*dl['ppm']:.0f} ppb [{1e3*dl['ci68_ppm'][0]:.0f}–{1e3*dl['ci68_ppm'][1]:.0f}] |")
+
+
 if __name__ == "__main__":
     globals()[sys.argv[1]]()

@@ -156,8 +156,14 @@ def main():
     a.axvspan(dl[win[0]], dl[win[-1]], color='#000', alpha=0.06, lw=0)
     a.axhline(TGT, color=C['target'], ls='--', lw=1)
     a.set(xscale='log', yscale='log', xlabel='Wavelength dither (pm)', ylabel='Static fringe ΔP/P', ylim=(5e-9, 2e-6))
-    a.set_xticks([5, 10, 20, 50]); a.set_xticklabels(['5', '10', '20', '50'])
-    a.legend(loc='lower left', handlelength=1.2)
+    from matplotlib.ticker import FixedLocator, NullFormatter, NullLocator
+    a.xaxis.set_major_locator(FixedLocator([5, 10, 20, 50])); a.set_xticklabels(['5', '10', '20', '50'])
+    a.xaxis.set_minor_locator(NullLocator()); a.xaxis.set_minor_formatter(NullFormatter())
+    from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
+    a.legend(handles=[Line2D([], [], color=C['r_cmpc'], lw=1.6, label='regular'), Line2D([], [], color=C['c_cmpc'], lw=1.6, label='chaotic, median'),
+                      Patch(color=C['c_cmpc'], alpha=0.22, lw=0, label='quartiles, 30 layouts'), Line2D([], [], color=C['target'], ls='--', lw=1, label='target')],
+             loc='lower left', handlelength=1.4, fontsize=8.5, labelspacing=0.25)
     a.text(0.03, 0.97, '(a) both dithers, 600 nm', transform=a.transAxes, va='top')
     b = ax[1]
     tt = np.array(FILMS)

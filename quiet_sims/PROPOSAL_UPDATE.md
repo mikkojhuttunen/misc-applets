@@ -112,3 +112,27 @@ Literature parameters to verify are marked in the code.
 - **Spectral fitting:** the limits use the peak absorption without fitting the H2O/CO2 background. At 3.31 µm, breath water absorbs as much as 0.6 ppm of CH4 would, so spectral fitting is required.
 - **Layout scatter:** the medians over 21–30 chaotic layouts scatter by tens of percent between ensembles.
 - **Parameters still to verify:** MgO:PPLN temperature tuning, d_eff, and SiNx thermal conductivity.
+
+
+## Addendum: why the chaotic cell matters (step 11, robustness study)
+
+Keep the chaotic CMPC as a main novelty point, but argue it as robustness and as the enabler of the on-chip angle
+dither, not as a lower fringe at one nominal setting. Add `fig_robustness.pdf` (results/figs) as a supplementary or
+Fig. 2 panel if space allows. Numbers (600 nm SiN_x circle, target spec, 30 inclusion layouts per film, films 500–700 nm):
+
+- **Angle dither alone (on-chip thermo-optic, ±2 mrad):** the chaotic cell meets the 5×10⁻⁷ fringe target for every
+  film thickness (median 2.2–3.9×10⁻⁷; 60–80 % of layouts), the regular cell misses it in 8 of 9 cases (up to 5×10⁻⁶,
+  1.4–24× worse). Only the chaotic cell turns the integrated angle dither into a working fringe suppressor; the regular
+  cell needs a wavelength dither of the laser as well. This relaxes the source requirements (mid-IR DFG idler).
+- **Both dithers:** both cells reach the target, but the regular cell's residual depends on where its single optical
+  path lands relative to the wavelength-dither depth (dips ≈ 9 pm apart): across ±20 % in dither depth and 500–700 nm
+  films it varies 23× (3×10⁻⁸ to 2.6×10⁻⁷; NH₃ 20–219 ppb at 1 s), while the chaotic median stays within 3×
+  (4.3–7.2×10⁻⁸; NH₃ 38–83 ppb).
+- **Caveat to state honestly:** a single chaotic device is one inclusion layout; with both dithers it beats the regular
+  cell over the operating window for about 60 % of layouts. The robust single-device advantage is the angle-dither
+  result.
+
+Suggested sentence: "Chaotic ray dynamics decorrelate the many exit paths, so that the integrated thermo-optic angle
+dither alone suppresses parasitic fringes below 5×10⁻⁷ for any membrane thickness from 500 to 700 nm, whereas the
+equivalent regular cell requires an additional laser-wavelength dither and remains sensitive to the exact optical
+path (23× variation over ±20 % dither depth and ±100 nm thickness)."

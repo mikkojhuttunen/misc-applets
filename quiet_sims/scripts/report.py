@@ -76,5 +76,20 @@ def step4():
               f"{a['ppb_1s']:.1f} ppb | {fmt(a['tau_10ppb_s'])} / {fmt(a['tau_1ppb_s'])} | {b['ppb_1s']:.1f} ppb | {fmt(b['tau_10ppb_s'])} / {fmt(b['tau_1ppb_s'])} |")
 
 
+
+def step5():
+    d = json.loads((R / "step5_noise.json").read_text())
+    for case, b in d["budgets"].items():
+        print(f"\n{case} (Γ⟨L⟩ {b['gammaL_cm']:.2f} cm, fringe residual at 1 s {b['fringe_residual_1s']:.1e}):\n")
+        print("| P_in | IL | NEP (W/√Hz) | P_det | CH4 1 s / 10 s | C2H6 1 s / 10 s | M7 margin (10 ppb, 1 s) CH4 / C2H6 | 10 ppb at 1 s / 10 s | 1 ppb at 1 s / 10 s |")
+        print("|---|---|---|---|---|---|---|---|---|")
+        for r in b["rows"]:
+            a, c = r["limits"]["CH4"], r["limits"]["C2H6"]
+            yn = lambda v, t: "yes" if v <= t else "no"
+            both = lambda t, key: "/".join(yn(max(a[key], c[key]), t) for _ in [0])
+            print(f"| {r['P_in_mW']:g} mW | {r['IL_dB']:.0f} dB | {r['NEP_W_rtHz']:.0e} | {r['P_det_W']:.1e} W | {a['ppb_1s']:.1f} / {a['ppb_10s']:.1f} ppb | {c['ppb_1s']:.1f} / {c['ppb_10s']:.1f} ppb | "
+                  f"{a['M7_margin_10ppb_1s']:.2f}× / {c['M7_margin_10ppb_1s']:.2f}× | {both(10, 'ppb_1s')} / {both(10, 'ppb_10s')} | {both(1, 'ppb_1s')} / {both(1, 'ppb_10s')} |")
+
+
 if __name__ == "__main__":
     globals()[sys.argv[1]]()

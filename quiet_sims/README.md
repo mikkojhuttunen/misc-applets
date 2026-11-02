@@ -213,3 +213,57 @@ The Herriott cell is fringe-limited at 3.3 µm. Its static fringe is 3–6e-6 (2
 kicks (∝ Δn r/λ) halve, ±20 pm is a smaller relative wavelength dither, and at 0.5 dB/cm the shorter path scrambles
 even less (2–4e-5). That gives 21–58 ppb at 1 s up to 0.3 dB/cm and 220–650 ppb at 0.5 dB/cm; 1 ppb is never reached.
 A larger wavelength dither (scaled with λ²) would be the first thing to try for a mid-IR Herriott cell.
+
+## Step 5: noise budget (detector noise and insertion loss)
+
+`python scripts/step5_noise.py` (→ `results/step5_noise.json`, `qs/noise.py`): P_det = P_in·10^(−IL/10),
+NEA(τ) = √((q/P_det + (NEP/P_det)²)/τ + r(τ)²) with responsivity 1 A/W, the shot term as in the baseline, and
+r(τ) and Γ⟨L⟩ from the step-4 cell with the lowest CH4 limit at 0.3 dB/cm (circle 1.2 µm; the Herriott 1.0 µm case is
+also in the JSON). The insertion loss replaces the ensemble transmission (it includes coupling). The NEA curves vs τ
+are in the JSON (`nea_tau_grid_s`, `fringe_residual_curve`). M7 table (10 ppb, margin = 10 ppb / limit at 1 s):
+
+
+circle_neff1.59_0.3dB (Γ⟨L⟩ 3.70 cm, fringe residual at 1 s 4.4e-07):
+
+| P_in | IL | NEP (W/√Hz) | P_det | CH4 1 s / 10 s | C2H6 1 s / 10 s | M7 margin (10 ppb, 1 s) CH4 / C2H6 | 10 ppb at 1 s / 10 s | 1 ppb at 1 s / 10 s |
+|---|---|---|---|---|---|---|---|---|
+| 0.1 mW | 20 dB | 1e-12 | 1.0e-06 W | 8.3 / 3.5 ppb | 8.5 / 3.6 ppb | 1.21× / 1.18× | yes / yes | no / no |
+| 0.1 mW | 20 dB | 1e-11 | 1.0e-06 W | 71.3 / 22.7 ppb | 73.3 / 23.3 ppb | 0.14× / 0.14× | no / no | no / no |
+| 0.1 mW | 20 dB | 1e-10 | 1.0e-06 W | 711.5 / 225.0 ppb | 731.4 / 231.3 ppb | 0.01× / 0.01× | no / no | no / no |
+| 0.1 mW | 35 dB | 1e-12 | 3.2e-08 W | 225.6 / 71.4 ppb | 231.9 / 73.4 ppb | 0.04× / 0.04× | no / no | no / no |
+| 0.1 mW | 35 dB | 1e-11 | 3.2e-08 W | 2250.0 / 711.5 ppb | 2312.9 / 731.4 ppb | 0.00× / 0.00× | no / no | no / no |
+| 0.1 mW | 35 dB | 1e-10 | 3.2e-08 W | 22499.1 / 7114.8 ppb | 23128.1 / 7313.7 ppb | 0.00× / 0.00× | no / no | no / no |
+| 1 mW | 20 dB | 1e-12 | 1.0e-05 W | 3.3 / 2.6 ppb | 3.4 / 2.6 ppb | 3.01× / 2.93× | yes / yes | no / no |
+| 1 mW | 20 dB | 1e-11 | 1.0e-05 W | 7.8 / 3.4 ppb | 8.0 / 3.5 ppb | 1.28× / 1.24× | yes / yes | no / no |
+| 1 mW | 20 dB | 1e-10 | 1.0e-05 W | 71.2 / 22.6 ppb | 73.2 / 23.3 ppb | 0.14× / 0.14× | no / no | no / no |
+| 1 mW | 35 dB | 1e-12 | 3.2e-07 W | 23.3 / 7.7 ppb | 23.9 / 7.9 ppb | 0.43× / 0.42× | no / yes | no / no |
+| 1 mW | 35 dB | 1e-11 | 3.2e-07 W | 225.1 / 71.2 ppb | 231.4 / 73.2 ppb | 0.04× / 0.04× | no / no | no / no |
+| 1 mW | 35 dB | 1e-10 | 3.2e-07 W | 2249.9 / 711.5 ppb | 2312.8 / 731.4 ppb | 0.00× / 0.00× | no / no | no / no |
+| 10 mW | 20 dB | 1e-12 | 1.0e-04 W | 3.1 / 2.6 ppb | 3.2 / 2.6 ppb | 3.19× / 3.11× | yes / yes | no / no |
+| 10 mW | 20 dB | 1e-11 | 1.0e-04 W | 3.2 / 2.6 ppb | 3.3 / 2.6 ppb | 3.11× / 3.03× | yes / yes | no / no |
+| 10 mW | 20 dB | 1e-10 | 1.0e-04 W | 7.8 / 3.4 ppb | 8.0 / 3.5 ppb | 1.29× / 1.25× | yes / yes | no / no |
+| 10 mW | 35 dB | 1e-12 | 3.2e-06 W | 4.2 / 2.7 ppb | 4.3 / 2.8 ppb | 2.40× / 2.34× | yes / yes | no / no |
+| 10 mW | 35 dB | 1e-11 | 3.2e-06 W | 22.8 / 7.6 ppb | 23.4 / 7.8 ppb | 0.44× / 0.43× | no / yes | no / no |
+| 10 mW | 35 dB | 1e-10 | 3.2e-06 W | 225.0 / 71.2 ppb | 231.3 / 73.2 ppb | 0.04× / 0.04× | no / no | no / no |
+
+Meets 10 ppb at 1 s (CH4 and C2H6), circular SiNx cell: at 20 dB with NEP 1e-12 for every power, with 1e-11 from
+1 mW, with 1e-10 only at 10 mW (margins 1.2–3.2×); at 35 dB only 10 mW with NEP 1e-12 (2.4×). At 10 s also 1 mW /
+35 dB / 1e-12 and 10 mW / 35 dB / 1e-11. 1 ppb is met by no combination at 1 s or 10 s: the fringe residual
+(4.4e-7 at 1 s) sets a floor of ≈ 2.6–3.1 ppb, which only falls below 1 ppb after ≈ 40 s of averaging (step 4). The
+Herriott cell is fringe-limited at ≈ 28–35 ppb whatever the detector and power: it meets neither target.
+
+## Summary
+
+| Step | Result |
+|---|---|
+| 0 baselines | reproduced bit for bit: fringe both dithers 4.16e-8 chaotic / 1.66e-7 regular, Γ⟨L⟩ 2.53 cm, NH3 110 ppb at 1 s, Si 250 nm TM0 n_eff 2.015, Γ 0.639 |
+| 1 mirrors R(χ) | first-order trench DBR, N = 20: bounce-averaged R 0.993 (n_eff 1.36), 0.9998 (1.53), ≈ 1.0000 (1.66, 1.74); 13–23 % of the circle's bounces (34 % Herriott) totally reflected; 5 nm roughness → 0.996; vertical diffraction is the open risk (isolated-gap bound 0.5–0.76, needs 2D FDTD) |
+| 2 ensembles 1.55 µm | circle SiNx 34–41 ppb NH3 (600 nm best: 34 ppb, Γ⟨L⟩ 4.7 cm, T 0.34), fringe 3–6e-8, ≥ 93 % layouts < 5e-7; Herriott 150–180 ppb, fringe 2–4e-7, 60–70 % < 5e-7 |
+| 3 launch | keep 7.5° (m = 11): 33–48 ppb; grazing launches are 89–93 % TIR but short and unscrambled (200–1100 ppb); 52.5° is the fall-back for weak mirrors (66 ppb) |
+| 4 mid-IR | HITRAN peaks: CH4 3.31 µm 3.79e-5, C2H6 3.35 µm 3.69e-5, CH4 1.65 µm 4.3e-7, NH3 1.53 µm 2.28e-7 /cm/ppm (88–237× CH4 gain); circle CH4/C2H6 1.5–7 ppb at 1 s, 1 ppb in 16–95 s (1.2 µm film best); Herriott fringe-limited |
+| 5 noise budget | 10 ppb at 1 s: 20 dB IL with NEP ≤ 1e-11 from 1 mW (≤ 1e-10 at 10 mW), 35 dB only at 10 mW with NEP 1e-12; 1 ppb at ≤ 10 s: none (fringe floor ≈ 3 ppb) |
+
+Limitations: 2D ray optics with an effective index; vertical diffraction in the mirror gaps not in R(χ) (estimated
+separately); the limits use the analyte's peak absorption without fitting the H2O / CO2 background; the
+ensemble-to-ensemble scatter of a median over 21–30 chaotic layouts is tens of per cent (bootstrap intervals in the
+step-3 and step-2 summaries); mid-IR runs keep the 1.55 µm dither settings (±2 mrad, ±20 pm).

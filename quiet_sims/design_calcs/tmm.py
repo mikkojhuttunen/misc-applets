@@ -1,3 +1,5 @@
+"""Effective-index trench DBR transfer matrix (s-pol), as received; the main search runs only as a script
+(python design_calcs/tmm.py). qs/mirror.py is the vectorised, extended version used by the QUIET steps."""
 import numpy as np
 def refl(ns,N,dg,dt,sinth,lam=1.0):
     # s-pol (E out of plane = slab TM0), slab | (gap, tooth)xN | gap | air ; layers: n_list, d_list
@@ -37,8 +39,9 @@ def best(ns,N):
                 v=R.min()
                 if v>bestv[0]: bestv=(v,(mg,mt,np.rad2deg(thd),R[0],R[len(R)//2],R[-1]))
     return bestv,np.rad2deg(np.arcsin(1/ns))
-for ns,name in ((1.36,'SiN 400 nm TM0 (n_eff 1.36)'),(1.25,'SiN thinner (1.25)'),(1.5,'SiN thick (1.5)'),(2.0,'Si 250 nm TM0 (n_eff 2.0)')):
-    print(name)
-    for N in (3,4,5,6,8,10):
-        (v,info),thc=best(ns,N)
-        print('  N=%2d  worst-case R over 0..%.0f%% of crit angle (%.0f deg): %.4f  | mg,mt,design deg,R(0),R(mid),R(edge)=%s'%(N,97,thc,v,tuple(round(float(x),4) for x in info)))
+if __name__ == "__main__":
+    for ns,name in ((1.36,'SiN 400 nm TM0 (n_eff 1.36)'),(1.25,'SiN thinner (1.25)'),(1.5,'SiN thick (1.5)'),(2.0,'Si 250 nm TM0 (n_eff 2.0)')):
+        print(name)
+        for N in (3,4,5,6,8,10):
+            (v,info),thc=best(ns,N)
+            print('  N=%2d  worst-case R over 0..%.0f%% of crit angle (%.0f deg): %.4f  | mg,mt,design deg,R(0),R(mid),R(edge)=%s'%(N,97,thc,v,tuple(round(float(x),4) for x in info)))

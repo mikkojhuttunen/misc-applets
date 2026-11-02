@@ -1,0 +1,739 @@
+{
+ "alpha_NH3_per_cm_ppm": 2.266e-07,
+ "threshold": 5e-07,
+ "cases": {
+  "circle_neff1.36": {
+   "n_layouts": 30,
+   "gamma": 0.67,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00013964050900093202,
+     "chaotic_p25": 0.00013608490364119038,
+     "chaotic_p75": 0.00014171944850333715,
+     "share_below": 0.0,
+     "regular": 0.000180022556290365
+    },
+    "angle": {
+     "chaotic_median": 2.476660695711231e-07,
+     "chaotic_p25": 1.2858624055904903e-07,
+     "chaotic_p75": 5.124069423347441e-07,
+     "share_below": 0.7333333333333333,
+     "regular": 3.446442923712683e-06
+    },
+    "spectral": {
+     "chaotic_median": 5.29154905198202e-06,
+     "chaotic_p25": 2.1730307525115176e-06,
+     "chaotic_p75": 1.113578737159924e-05,
+     "share_below": 0.03333333333333333,
+     "regular": 1.9204732670299967e-05
+    },
+    "both": {
+     "chaotic_median": 5.548578366492398e-08,
+     "chaotic_p25": 2.1664559194834364e-08,
+     "chaotic_p75": 1.7020141736589024e-07,
+     "share_below": 1.0,
+     "regular": 4.338598033318695e-08
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.2823317950185027,
+   "L_median_m": 0.12445653646908594,
+   "gammaL_cm": 8.33858794342876,
+   "R_bounce_median": 0.9930778462303329,
+   "above_critical_median": 0.10970873989346479,
+   "bounces_median": 33.63856249190605,
+   "grains_median": 205.1337878310042,
+   "regular": {
+    "T": 0.264746500162627,
+    "L_m": 0.15764324110061223,
+    "gammaL_cm": 10.56209715374102,
+    "R_bounce": 0.9924838735821276,
+    "above_critical": 0.0033967136716269754,
+    "detection_limit_ppm": 0.02087784365281098
+   },
+   "detection_limit": {
+    "ppm": 0.04133537441663783,
+    "nea": 7.733741454848526e-08,
+    "shot": 2.3712759274543496e-08,
+    "fringe": 7.361236809553005e-08,
+    "L_median_m": 0.1232347150183082,
+    "T_median": 0.2849352687812834,
+    "gammaL_cm": 8.25672590622665,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "circle",
+   "n_eff": 1.36,
+   "thickness_nm": 400,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_circle_neff1.36.json",
+   "design_R_avg": 0.9931677032618038
+  },
+  "circle_neff1.53": {
+   "n_layouts": 30,
+   "gamma": 0.463,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.0001305069599795877,
+     "chaotic_p25": 0.00012840953034325134,
+     "chaotic_p75": 0.00013607708702082345,
+     "share_below": 0.0,
+     "regular": 0.00019694365148458401
+    },
+    "angle": {
+     "chaotic_median": 2.9039597561017635e-07,
+     "chaotic_p25": 1.55704686394585e-07,
+     "chaotic_p75": 4.783641394693386e-07,
+     "share_below": 0.8,
+     "regular": 1.1346514455841417e-06
+    },
+    "spectral": {
+     "chaotic_median": 5.441955513118725e-06,
+     "chaotic_p25": 2.1537270703405856e-06,
+     "chaotic_p75": 1.5438027288263466e-05,
+     "share_below": 0.03333333333333333,
+     "regular": 1.8446018552190962e-06
+    },
+    "both": {
+     "chaotic_median": 4.6425838280865554e-08,
+     "chaotic_p25": 2.1397507215891634e-08,
+     "chaotic_p75": 8.70574738767163e-08,
+     "share_below": 0.9333333333333333,
+     "regular": 7.700549121089073e-08
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.3467150996085285,
+   "L_median_m": 0.14314284899763552,
+   "gammaL_cm": 6.627513908590525,
+   "R_bounce_median": 0.9997576656884049,
+   "above_critical_median": 0.14621967997135837,
+   "bounces_median": 39.45220080050426,
+   "grains_median": 234.8578383147716,
+   "regular": {
+    "T": 0.392618797818408,
+    "L_m": 0.17892925354308256,
+    "gammaL_cm": 8.284424439044722,
+    "R_bounce": 0.9996334462588573,
+    "above_critical": 0,
+    "detection_limit_ppm": 0.04263653187940151
+   },
+   "detection_limit": {
+    "ppm": 0.03566515753751883,
+    "nea": 5.361284820196281e-08,
+    "shot": 2.118436088804696e-08,
+    "fringe": 4.9249978132905743e-08,
+    "L_median_m": 0.14327942720665263,
+    "T_median": 0.3570094082199494,
+    "gammaL_cm": 6.633837479668017,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "circle",
+   "n_eff": 1.53,
+   "thickness_nm": 500,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_circle_neff1.53.json",
+   "design_R_avg": 0.9997630415688652
+  },
+  "circle_neff1.66": {
+   "n_layouts": 30,
+   "gamma": 0.313,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.0001262123953373819,
+     "chaotic_p25": 0.00012181338230833521,
+     "chaotic_p75": 0.0001303194277488008,
+     "share_below": 0.0,
+     "regular": 0.00022711417926090202
+    },
+    "angle": {
+     "chaotic_median": 2.5600139266696595e-07,
+     "chaotic_p25": 1.086238602049728e-07,
+     "chaotic_p75": 4.785671459911188e-07,
+     "share_below": 0.7666666666666667,
+     "regular": 3.443264166721858e-06
+    },
+    "spectral": {
+     "chaotic_median": 5.429747101881108e-06,
+     "chaotic_p25": 2.5663630947824457e-06,
+     "chaotic_p75": 1.1166597754289457e-05,
+     "share_below": 0.03333333333333333,
+     "regular": 1.8590429419224846e-05
+    },
+    "both": {
+     "chaotic_median": 3.3542198888772455e-08,
+     "chaotic_p25": 1.9777265693150342e-08,
+     "chaotic_p75": 1.0044711796000484e-07,
+     "share_below": 1.0,
+     "regular": 3.9965476992294916e-08
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.34143068488323736,
+   "L_median_m": 0.1490996168945307,
+   "gammaL_cm": 4.666818008798811,
+   "R_bounce_median": 0.9999975812486067,
+   "above_critical_median": 0.18654961461535807,
+   "bounces_median": 41.64937916133168,
+   "grains_median": 251.1066106426535,
+   "regular": {
+    "T": 0.44079171980658627,
+    "L_m": 0.19670517730592132,
+    "gammaL_cm": 6.1568720496753375,
+    "R_bounce": 0.999999103574143,
+    "above_critical": 0.01985590841836434,
+    "detection_limit_ppm": 0.031955273923855575
+   },
+   "detection_limit": {
+    "ppm": 0.03439171411301283,
+    "nea": 3.64364855678592e-08,
+    "shot": 2.1654363583962427e-08,
+    "fringe": 2.9303686087425488e-08,
+    "L_median_m": 0.14937517117942906,
+    "T_median": 0.34167998930815346,
+    "gammaL_cm": 4.67544285791613,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "circle",
+   "n_eff": 1.66,
+   "thickness_nm": 600,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_circle_neff1.66.json",
+   "design_R_avg": 0.9999975338637974
+  },
+  "circle_neff1.66_rough5nm": {
+   "n_layouts": 30,
+   "gamma": 0.313,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00012677843957981973,
+     "chaotic_p25": 0.0001224095296499235,
+     "chaotic_p75": 0.00013095896633925078,
+     "share_below": 0.0,
+     "regular": 0.00023230554219990233
+    },
+    "angle": {
+     "chaotic_median": 2.7683959978477985e-07,
+     "chaotic_p25": 1.2061552666203854e-07,
+     "chaotic_p75": 5.307052557975113e-07,
+     "share_below": 0.7,
+     "regular": 3.861113235608364e-06
+    },
+    "spectral": {
+     "chaotic_median": 5.447295717256018e-06,
+     "chaotic_p25": 2.572849031641192e-06,
+     "chaotic_p75": 1.1248886240134005e-05,
+     "share_below": 0.03333333333333333,
+     "regular": 1.9015368393185593e-05
+    },
+    "both": {
+     "chaotic_median": 3.737569293321942e-08,
+     "chaotic_p25": 2.2006410567763508e-08,
+     "chaotic_p75": 1.1063166767776481e-07,
+     "share_below": 0.9666666666666667,
+     "regular": 4.3888440511691145e-08
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.2950586155201161,
+   "L_median_m": 0.13920996794611162,
+   "gammaL_cm": 4.357271996713294,
+   "R_bounce_median": 0.9962930417093446,
+   "above_critical_median": 0.1840246831796955,
+   "bounces_median": 38.58654463676295,
+   "grains_median": 248.86808142453384,
+   "regular": {
+    "T": 0.35890299101208684,
+    "L_m": 0.18052998811083443,
+    "gammaL_cm": 5.6505886278691175,
+    "R_bounce": 0.9956988510369177,
+    "above_critical": 0.01732979408852335,
+    "detection_limit_ppm": 0.03819768793067731
+   },
+   "detection_limit": {
+    "ppm": 0.03991621708845501,
+    "nea": 3.9424387890682524e-08,
+    "shot": 2.296910156096447e-08,
+    "fringe": 3.2042202390551965e-08,
+    "L_median_m": 0.13925517395599965,
+    "T_median": 0.3036843262077025,
+    "gammaL_cm": 4.358686944822789,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "circle",
+   "n_eff": 1.66,
+   "thickness_nm": 600,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_circle_neff1.66_rough5nm.json",
+   "design_R_avg": 0.9963451898748752
+  },
+  "circle_neff1.74": {
+   "n_layouts": 30,
+   "gamma": 0.215,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.0001237193652416009,
+     "chaotic_p25": 0.00012027211707441283,
+     "chaotic_p75": 0.00012630694118376137,
+     "share_below": 0.0,
+     "regular": 0.00018310517372730774
+    },
+    "angle": {
+     "chaotic_median": 2.471929983408941e-07,
+     "chaotic_p25": 1.2476529130599482e-07,
+     "chaotic_p75": 4.925553321614301e-07,
+     "share_below": 0.7333333333333333,
+     "regular": 2.6967461182465283e-06
+    },
+    "spectral": {
+     "chaotic_median": 3.3754666027202227e-06,
+     "chaotic_p25": 8.685019582515019e-07,
+     "chaotic_p75": 8.389477505074324e-06,
+     "share_below": 0.13333333333333333,
+     "regular": 2.034906695378882e-05
+    },
+    "both": {
+     "chaotic_median": 5.457588220173999e-08,
+     "chaotic_p25": 1.9463210607583166e-08,
+     "chaotic_p75": 1.0192793694902264e-07,
+     "share_below": 1.0,
+     "regular": 1.6731411227628862e-07
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.3440609591891802,
+   "L_median_m": 0.14547196858189282,
+   "gammaL_cm": 3.1276473245106953,
+   "R_bounce_median": 0.9999999933978712,
+   "above_critical_median": 0.2038198470662993,
+   "bounces_median": 40.04197981515797,
+   "grains_median": 261.32771313017207,
+   "regular": {
+    "T": 0.37268358202327795,
+    "L_m": 0.18538146812283854,
+    "gammaL_cm": 3.9857015646410283,
+    "R_bounce": 0.999999995228954,
+    "above_critical": 0.036360901525797934,
+    "detection_limit_ppm": 0.1862660864702198
+   },
+   "detection_limit": {
+    "ppm": 0.0712388686369692,
+    "nea": 5.047356853337178e-08,
+    "shot": 2.15857335548413e-08,
+    "fringe": 4.562496276592866e-08,
+    "L_median_m": 0.14542820099017167,
+    "T_median": 0.34385612897260903,
+    "gammaL_cm": 3.1267063212886907,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "circle",
+   "n_eff": 1.74,
+   "thickness_nm": 700,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_circle_neff1.74.json",
+   "design_R_avg": 0.9999999935269338
+  },
+  "herriott_neff1.36": {
+   "n_layouts": 30,
+   "gamma": 0.67,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00022451889947509393,
+     "chaotic_p25": 0.0002176165155099904,
+     "chaotic_p75": 0.00022964100204874013,
+     "share_below": 0.0,
+     "regular": 0.0009185247060662881
+    },
+    "angle": {
+     "chaotic_median": 3.1358555590730923e-06,
+     "chaotic_p25": 1.5386446623847694e-06,
+     "chaotic_p75": 4.653148180882248e-06,
+     "share_below": 0.03333333333333333,
+     "regular": 0.0009185130209193073
+    },
+    "spectral": {
+     "chaotic_median": 1.0337625494834092e-05,
+     "chaotic_p25": 2.8666623596213253e-06,
+     "chaotic_p75": 1.7385401034740024e-05,
+     "share_below": 0.0,
+     "regular": 6.758098262986482e-05
+    },
+    "both": {
+     "chaotic_median": 3.755573934782794e-07,
+     "chaotic_p25": 1.4515874619168786e-07,
+     "chaotic_p75": 8.130445094104107e-07,
+     "share_below": 0.6666666666666666,
+     "regular": 6.829503525225897e-05
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.5649663040393768,
+   "L_median_m": 0.15270464513285165,
+   "gammaL_cm": 10.231211223901061,
+   "R_bounce_median": 0.9946063624949109,
+   "above_critical_median": 0.3378983340329259,
+   "bounces_median": 21.646526063334328,
+   "grains_median": 79.35156712694742,
+   "regular": {
+    "T": 0.6703041475747308,
+    "L_m": 0.12894139720723902,
+    "gammaL_cm": 8.639073612885015,
+    "R_bounce": 0.9917381764016594,
+    "above_critical": 0,
+    "detection_limit_ppm": 34.79961872731285
+   },
+   "detection_limit": {
+    "ppm": 0.17947022698700438,
+    "nea": 4.139330621027331e-07,
+    "shot": 1.6822216628433774e-08,
+    "fringe": 4.135910938710494e-07,
+    "L_median_m": 0.15191581780367103,
+    "T_median": 0.5661662164206389,
+    "gammaL_cm": 10.17835979284596,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "herriott",
+   "n_eff": 1.36,
+   "thickness_nm": 400,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_herriott_neff1.36.json",
+   "design_R_avg": 0.9945362123177923
+  },
+  "herriott_neff1.53": {
+   "n_layouts": 30,
+   "gamma": 0.463,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00022260644366152844,
+     "chaotic_p25": 0.00021512858695402518,
+     "chaotic_p75": 0.000228222079714847,
+     "share_below": 0.0,
+     "regular": 0.0021091656767537542
+    },
+    "angle": {
+     "chaotic_median": 3.2411143076517365e-06,
+     "chaotic_p25": 1.1936398334232133e-06,
+     "chaotic_p75": 5.654453243464763e-06,
+     "share_below": 0.06666666666666667,
+     "regular": 0.00210916559042144
+    },
+    "spectral": {
+     "chaotic_median": 7.93279887312076e-06,
+     "chaotic_p25": 2.19943633373555e-06,
+     "chaotic_p75": 1.237923258916662e-05,
+     "share_below": 0.06666666666666667,
+     "regular": 8.26054983317995e-05
+    },
+    "both": {
+     "chaotic_median": 3.761445934396007e-07,
+     "chaotic_p25": 1.5310331449680424e-07,
+     "chaotic_p75": 6.470251730963486e-07,
+     "share_below": 0.6,
+     "regular": 8.277531255496777e-05
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.6285978437074797,
+   "L_median_m": 0.16824698899298784,
+   "gammaL_cm": 7.789835590375338,
+   "R_bounce_median": 0.9998792414614175,
+   "above_critical_median": 0.32324014409337076,
+   "bounces_median": 23.437673090534354,
+   "grains_median": 80.72080976836139,
+   "regular": {
+    "T": 0.7228634304373606,
+    "L_m": 0.13999996137949455,
+    "gammaL_cm": 6.481998211870598,
+    "R_bounce": 0.9998328490892617,
+    "above_critical": 0,
+    "detection_limit_ppm": 56.21401265715603
+   },
+   "detection_limit": {
+    "ppm": 0.17986211419375356,
+    "nea": 3.1590772383271446e-07,
+    "shot": 1.5947108330923635e-08,
+    "fringe": 3.1550495988660524e-07,
+    "L_median_m": 0.16740932827290458,
+    "T_median": 0.6300086390753152,
+    "gammaL_cm": 7.751051899035483,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "herriott",
+   "n_eff": 1.53,
+   "thickness_nm": 500,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_herriott_neff1.53.json",
+   "design_R_avg": 0.9998407340829694
+  },
+  "herriott_neff1.66": {
+   "n_layouts": 30,
+   "gamma": 0.313,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00021554445236946157,
+     "chaotic_p25": 0.000207210297795645,
+     "chaotic_p75": 0.00022009936504543103,
+     "share_below": 0.0,
+     "regular": 0.0008721321119782028
+    },
+    "angle": {
+     "chaotic_median": 2.9626043224387076e-06,
+     "chaotic_p25": 1.743482146462481e-06,
+     "chaotic_p75": 5.290332497881251e-06,
+     "share_below": 0.0,
+     "regular": 0.0008721084835886936
+    },
+    "spectral": {
+     "chaotic_median": 5.951878204690919e-06,
+     "chaotic_p25": 5.016104019098186e-06,
+     "chaotic_p75": 8.031393423839457e-06,
+     "share_below": 0.0,
+     "regular": 7.720762824115134e-05
+    },
+    "both": {
+     "chaotic_median": 2.0532425035893074e-07,
+     "chaotic_p25": 1.1619310473899618e-07,
+     "chaotic_p75": 5.210515893906859e-07,
+     "share_below": 0.6666666666666666,
+     "regular": 7.733734602539446e-05
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.6058746652426804,
+   "L_median_m": 0.18014579652628224,
+   "gammaL_cm": 5.638563431272634,
+   "R_bounce_median": 0.9999996089251266,
+   "above_critical_median": 0.3386366199585049,
+   "bounces_median": 25.269638153070254,
+   "grains_median": 86.09773968129517,
+   "regular": {
+    "T": 0.7400610525963728,
+    "L_m": 0.12973224599306726,
+    "gammaL_cm": 4.0606192995830055,
+    "R_bounce": 0.9999995831570279,
+    "above_critical": 0,
+    "detection_limit_ppm": 83.83965307808596
+   },
+   "detection_limit": {
+    "ppm": 0.14782558177884833,
+    "nea": 1.8867289324795655e-07,
+    "shot": 1.6256606807912123e-08,
+    "fringe": 1.8797123019666535e-07,
+    "L_median_m": 0.1799515821417262,
+    "T_median": 0.6062483787863775,
+    "gammaL_cm": 5.63248452103603,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "herriott",
+   "n_eff": 1.66,
+   "thickness_nm": 600,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_herriott_neff1.66.json",
+   "design_R_avg": 0.9999993798858563
+  },
+  "herriott_neff1.66_rough5nm": {
+   "n_layouts": 30,
+   "gamma": 0.313,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00021876185228842916,
+     "chaotic_p25": 0.00021102223109286376,
+     "chaotic_p75": 0.00022531734139086585,
+     "share_below": 0.0,
+     "regular": 0.0008655189884606211
+    },
+    "angle": {
+     "chaotic_median": 3.2987466817728033e-06,
+     "chaotic_p25": 1.8263722100315755e-06,
+     "chaotic_p75": 5.536380578537288e-06,
+     "share_below": 0.03333333333333333,
+     "regular": 0.0008654955392371684
+    },
+    "spectral": {
+     "chaotic_median": 6.50902150896189e-06,
+     "chaotic_p25": 5.3468664348688114e-06,
+     "chaotic_p75": 1.2678460590449308e-05,
+     "share_below": 0.0,
+     "regular": 7.662218530762589e-05
+    },
+    "both": {
+     "chaotic_median": 2.2555429021589817e-07,
+     "chaotic_p25": 1.1782858174291926e-07,
+     "chaotic_p75": 5.256713405387772e-07,
+     "share_below": 0.7,
+     "regular": 7.675091947963251e-05
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.560092344796369,
+   "L_median_m": 0.17047022921905255,
+   "gammaL_cm": 5.3357181745563445,
+   "R_bounce_median": 0.9968910694072217,
+   "above_critical_median": 0.3271552337776056,
+   "bounces_median": 23.38625772131594,
+   "grains_median": 83.58431765357889,
+   "regular": {
+    "T": 0.7011460672654691,
+    "L_m": 0.12930825352020545,
+    "gammaL_cm": 4.047348335182431,
+    "R_bounce": 0.9954903364238663,
+    "above_critical": 0,
+    "detection_limit_ppm": 83.47674122308439
+   },
+   "detection_limit": {
+    "ppm": 0.18217395499813518,
+    "nea": 2.2024014814287373e-07,
+    "shot": 1.693705892129073e-08,
+    "fringe": 2.1958792974362616e-07,
+    "L_median_m": 0.17045351461813732,
+    "T_median": 0.5585144284470268,
+    "gammaL_cm": 5.335195007547698,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "herriott",
+   "n_eff": 1.66,
+   "thickness_nm": 600,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_herriott_neff1.66_rough5nm.json",
+   "design_R_avg": 0.9969354464259435
+  },
+  "herriott_neff1.74": {
+   "n_layouts": 30,
+   "gamma": 0.215,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00021194255592557013,
+     "chaotic_p25": 0.00020728237126913494,
+     "chaotic_p75": 0.00021935118732831715,
+     "share_below": 0.0,
+     "regular": 0.002109164834597605
+    },
+    "angle": {
+     "chaotic_median": 3.2347561081334115e-06,
+     "chaotic_p25": 1.5446781825839628e-06,
+     "chaotic_p75": 5.829956546023101e-06,
+     "share_below": 0.0,
+     "regular": 0.0021091003167369913
+    },
+    "spectral": {
+     "chaotic_median": 5.170330581552225e-06,
+     "chaotic_p25": 4.325515529499549e-06,
+     "chaotic_p75": 1.3575714835395232e-05,
+     "share_below": 0.03333333333333333,
+     "regular": 0.00018635111069756507
+    },
+    "both": {
+     "chaotic_median": 2.1572667652431975e-07,
+     "chaotic_p25": 1.0718814867154122e-07,
+     "chaotic_p75": 5.350400625064623e-07,
+     "share_below": 0.7,
+     "regular": 0.00018667493550912745
+    }
+   },
+   "threshold": 5e-07,
+   "T_median": 0.5923963288354063,
+   "L_median_m": 0.1906650653343283,
+   "gammaL_cm": 4.099298904688058,
+   "R_bounce_median": 0.9999999726025413,
+   "above_critical_median": 0.33438267657470533,
+   "bounces_median": 26.43336372439326,
+   "grains_median": 89.04820601349493,
+   "regular": {
+    "T": 0.724435915097608,
+    "L_m": 0.13999996462051417,
+    "gammaL_cm": 3.0099992393410546,
+    "R_bounce": 0.9999999889576751,
+    "above_critical": 0,
+    "detection_limit_ppm": 273.00594048674236
+   },
+   "detection_limit": {
+    "ppm": 0.17851419826014736,
+    "nea": 1.6676678025644777e-07,
+    "shot": 1.6481372922391215e-08,
+    "fringe": 1.6595036409630261e-07,
+    "L_median_m": 0.1917513431780125,
+    "T_median": 0.5898256042257533,
+    "gammaL_cm": 4.122653878327269,
+    "alpha_ppm_per_cm": 2.266e-07,
+    "n_layouts": 21,
+    "T_avg": 1.0
+   },
+   "cell": "herriott",
+   "n_eff": 1.74,
+   "thickness_nm": 700,
+   "dBcm": 0.1,
+   "rtable": "results/step1/Rtable_herriott_neff1.74.json",
+   "design_R_avg": 0.999999977494241
+  }
+ },
+ "baseline_Si_R0.99": {
+  "fringe": {
+   "n_layouts": 30,
+   "modes": {
+    "none": {
+     "chaotic_median": 0.00011661586479926331,
+     "regular": 0.00023196770333792373,
+     "share_below": 0.0,
+     "chaotic_p25": 0.00011471948785388023,
+     "chaotic_p75": 0.00011920440801066339
+    },
+    "angle": {
+     "chaotic_median": 4.4889746718492315e-07,
+     "regular": 2.7292868644179265e-06,
+     "share_below": 0.5333333333333333,
+     "chaotic_p25": 1.305079823986439e-07,
+     "chaotic_p75": 1.1305357870034833e-06
+    },
+    "spectral": {
+     "chaotic_median": 4.470634025442288e-06,
+     "regular": 2.5348879625182814e-05,
+     "share_below": 0.06666666666666667,
+     "chaotic_p25": 1.779061781147087e-06,
+     "chaotic_p75": 7.680167912517188e-06
+    },
+    "both": {
+     "chaotic_median": 4.160987311828672e-08,
+     "regular": 1.664660611782099e-07,
+     "share_below": 0.9666666666666667,
+     "chaotic_p25": 1.5491806638095683e-08,
+     "chaotic_p75": 8.984080398958433e-08
+    }
+   },
+   "threshold": 5e-07,
+   "L_median_m": 0.12637987096089812,
+   "T_median": 0.2273594230555604,
+   "gamma": 0.2,
+   "gammaL_cm": 2.5275974192179627,
+   "grains_median": 294.13375032290327,
+   "regular_L_m": 0.16757980338617032,
+   "regular_T": 0.2779646021443446
+  },
+  "nh3": {
+   "ppm": 0.10994521383931811,
+   "nea": 6.197111661811167e-08,
+   "shot": 2.6392974327955952e-08,
+   "fringe": 5.606986892279538e-08,
+   "L_median_m": 0.12437213569196072,
+   "T_median": 0.23000311777561036,
+   "gammaL_cm": 2.4874427138392146,
+   "alpha_ppm_per_cm": 2.266e-07
+  }
+ }
+}

@@ -51,3 +51,14 @@ def test_mode_count_and_decay():
     assert len(te) == int(np.ceil(2 * v / np.pi))
     assert decay_length((1.0,) * 3, te[0], 0.633, "TE") == pytest.approx(
         0.633 / (2 * np.pi * np.sqrt(te[0] ** 2 - 1)))
+
+
+def test_graded_coords_keep_interfaces_centred_and_grow():
+    from swr.modes import graded_coords
+    c = graded_coords(-3.0, 4.0, -0.5, 1.0, [0.0, 0.5], 0.02, 0.08, 1.15)
+    assert c[0] == -3.0 and c[-1] == 4.0 and np.all(np.diff(c) > 0)
+    centres = 0.5 * (c[1:] + c[:-1])
+    for z in (0.0, 0.5):
+        assert np.min(np.abs(centres - z)) < 1e-12
+    d = np.diff(c)
+    assert d.max() <= 0.08 + 1e-12 and np.all(d[(centres > -0.5) & (centres < 1.0)] <= 0.02 + 1e-12)

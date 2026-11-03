@@ -188,7 +188,10 @@ probe:
 modes:
   num_modes: 14
   max_pml_energy_fraction: 0.02      # modes with more |E|^2 than this inside the PML cells are spurious
-  grid_dl_um: 0.01                   # local mode-solver grid
+  grid_dl_um: 0.01                   # local mode-solver grid near the guide
+  grid_dl_far_um: 0.08               # largest cell far from the guide (graded)
+  grid_growth: 1.15                  # cell-size ratio of neighbouring cells in the graded zone
+  fine_margin_um: 0.5                # fine grid extends this far beyond the guide
   lateral_clearance_min_um: 2.0
   vertical_clearance_min_um: 1.5
   clearance_decay_lengths: 8.0       # field decay lengths (1/gamma) to the boundary; PML leak floor ~ exp(-16)

@@ -1,3 +1,4 @@
 *.egg-info/
 *.hdf5
 sim_data/
+results/sweep_cost.csv

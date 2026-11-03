@@ -91,7 +91,10 @@ def _clearances(modes: list, guide: Guide, outside: dict, cfg: Cfg):
             continue
         for eps in (guide.eps_below, guide.eps_above):
             vert = max(vert, nd * decay_length(eps, n, guide.lam_um, pol))
-        n_side = outside.get(pol) or np.sqrt(guide.eps_above[1 if pol == "TE" else 2])
+        # lateral tail decays against the highest slab mode beside the guide that lies below n,
+        # of either polarization (TM-like modes couple to the TE slab mode)
+        below = [v for v in outside.values() if v is not None and v < n]
+        n_side = max(below) if below else float(np.sqrt(max(guide.eps_above)))
         if n > n_side:
             lat = max(lat, nd * guide.lam_um / (2 * np.pi * np.sqrt(n**2 - n_side**2)))
     cap = cfg.modes.max_domain_um / 2
@@ -125,6 +128,29 @@ def interface_centered_coords(lo, hi, interfaces, dl):
     return np.array(coords)
 
 
+def graded_coords(lo, hi, fine_lo, fine_hi, interfaces, dl, dl_far, growth):
+    """Interface-centred fine cells on [fine_lo, fine_hi], geometric growth outside up to dl_far."""
+    fine_lo, fine_hi = max(lo, fine_lo), min(hi, fine_hi)
+    core = interface_centered_coords(fine_lo, fine_hi, interfaces, dl)
+
+    def outward(start, stop, sign):
+        pts, x, step = [], start, dl
+        while sign * (stop - x) > 1e-12:
+            step = min(step * growth, dl_far)
+            if sign * (stop - x) <= step:
+                x = stop
+            elif sign * (stop - x) < 2 * step:     # split the rest into two equal cells
+                x = x + 0.5 * (stop - x)
+            else:
+                x = x + sign * step
+            pts.append(x)
+        return pts
+
+    left = outward(fine_lo, lo, -1.0)[::-1]
+    right = outward(fine_hi, hi, 1.0)
+    return np.array(left + core.tolist() + right)
+
+
 def _solve(guide: Guide, cfg: Cfg, vert: float, lat: float):
     import tidy3d as td
     from tidy3d.plugins.mode import ModeSolver
@@ -136,8 +162,11 @@ def _solve(guide: Guide, cfg: Cfg, vert: float, lat: float):
         [l.thickness for l in guide.core_stack]).tolist() + np.cumsum(
         [l.thickness for l in guide.outside_stack]).tolist()
     y_if = [v for w in guide.sidewalls for v in (w.y0, w.y1)]
-    ys = interface_centered_coords(-half_w, half_w, y_if, dl)
-    zs = interface_centered_coords(z_lo, z_hi, z_if, dl)
+    m = cfg.modes
+    fine_y = guide.core_half_width + m.fine_margin_um
+    ys = graded_coords(-half_w, half_w, -fine_y, fine_y, y_if, dl, m.grid_dl_far_um, m.grid_growth)
+    zs = graded_coords(z_lo, z_hi, -m.fine_margin_um, guide.top_z + m.fine_margin_um, z_if, dl,
+                       m.grid_dl_far_um, m.grid_growth)
     size_y, size_z = 2 * half_w, z_hi - z_lo
     center = (0.0, 0.0, 0.5 * (z_lo + z_hi))
     grid = td.GridSpec(grid_x=td.UniformGrid(dl=dl), grid_y=td.CustomGridBoundaries(coords=ys.tolist()),
@@ -148,11 +177,24 @@ def _solve(guide: Guide, cfg: Cfg, vert: float, lat: float):
         boundary_spec=td.BoundarySpec.all_sides(boundary=td.PML()))
     plane = td.Box(center=center, size=(0, size_y, size_z))
     core = core_slab_neff(guide, cfg)
-    n_guess = max(v for v in core.values() if v is not None)
-    spec = td.ModeSpec(num_modes=int(cfg.modes.num_modes), target_neff=n_guess,
-                       num_pml=tuple(int(v) for v in cfg.modes.num_pml))
-    ms = ModeSolver(simulation=sim, plane=plane, mode_spec=spec, freqs=[float(freq(guide.lam_um))])
-    return ms.solve(), (size_y, size_z)
+    num_pml = tuple(int(v) for v in cfg.modes.num_pml)
+    entries = []
+    # one solve aimed at each polarization's core-slab index, so spurious PML modes near the
+    # TE index cannot crowd out the TM modes; duplicates are merged
+    for target in sorted({v for v in core.values() if v is not None}, reverse=True):
+        spec = td.ModeSpec(num_modes=int(cfg.modes.num_modes), target_neff=float(target), num_pml=num_pml)
+        data = ModeSolver(simulation=sim, plane=plane, mode_spec=spec,
+                          freqs=[float(freq(guide.lam_um))]).solve()
+        n_all = np.atleast_1d(np.squeeze(data.n_eff.values))
+        k_all = np.atleast_1d(np.squeeze(data.k_eff.values))
+        te_all = np.atleast_1d(np.squeeze(data.pol_fraction.te.values))
+        for i in range(n_all.size):
+            if any(abs(e["n"] - n_all[i]) < 1e-7 and abs(e["te"] - te_all[i]) < 1e-3 for e in entries):
+                continue
+            entries.append({"n": float(n_all[i]), "k": float(k_all[i]), "te": float(te_all[i]), "data": data, "idx": i,
+                            "real": _pml_fraction(data, i, num_pml) <= cfg.modes.max_pml_energy_fraction})
+    entries.sort(key=lambda e: -e["n"])
+    return entries, (size_y, size_z)
 
 
 def _pml_fraction(data, mode_index, num_pml):
@@ -204,35 +246,29 @@ def mode_report(cfg: Cfg, platform: str, lam_um: float, substrate: str | None = 
     outside = outside_slab_neff(guide, cfg)
     core = core_slab_neff(guide, cfg)
     vert, lat = _clearances(list(core.items()), guide, outside, cfg)
-    num_pml = tuple(int(v) for v in cfg.modes.num_pml)
     for _ in range(int(cfg.modes.max_resize_iterations)):
-        data, size = _solve(guide, cfg, vert, lat)
-        n_all = np.atleast_1d(np.squeeze(data.n_eff.values))
-        te_all = np.atleast_1d(np.squeeze(data.pol_fraction.te.values))
-        real = np.array([_pml_fraction(data, i, num_pml) <= cfg.modes.max_pml_energy_fraction
-                         for i in range(n_all.size)])
-        guided = [("TE" if te >= 0.5 else "TM", n) for n, te, ok in zip(n_all, te_all, real)
-                  if ok and n > guide.n_cladding_max + cfg.modes.guided_margin]
+        entries, size = _solve(guide, cfg, vert, lat)
+        # near-cutoff modes are flagged, not used for sizing (their tails would set the domain)
+        guided = [("TE" if e["te"] >= 0.5 else "TM", e["n"]) for e in entries
+                  if e["real"] and e["n"] > guide.n_cladding_max + cfg.modes.near_cutoff_dneff]
         v2, l2 = _clearances(guided, guide, outside, cfg)
         if v2 <= vert * 1.05 and l2 <= lat * 1.05:
             break
         vert, lat = max(vert, v2), max(lat, l2)
 
-    k_all = np.atleast_1d(np.squeeze(data.k_eff.values))
     k0 = 2 * np.pi / lam_um
     n_clad = guide.n_cladding_max
     counters = {"TE": 0, "TM": 0}
     modes = []
-    order = np.argsort(-n_all)
     dropped = 0
-    for idx in order:
-        if not real[idx]:
+    for j, e in enumerate(entries):
+        if not e["real"]:
             dropped += 1
             continue
-        n, kk, te = float(n_all[idx]), float(k_all[idx]), float(te_all[idx])
+        n, kk, te, data, idx = e["n"], e["k"], e["te"], e["data"], e["idx"]
         pol = "TE" if te >= 0.5 else "TM"
         guided = n > n_clad + cfg.modes.guided_margin
-        label = f"{pol}{counters[pol]}" if guided else f"unguided{idx}"
+        label = f"{pol}{counters[pol]}" if guided else f"unguided{j}"
         if guided:
             counters[pol] += 1
         other = outside["TM" if pol == "TE" else "TE"]
@@ -240,13 +276,14 @@ def mode_report(cfg: Cfg, platform: str, lam_um: float, substrate: str | None = 
         lateral = (other is not None and n < other) or (same is not None and n < same)
         p_frac, e_frac, e_len = _field_metrics(data, int(idx), guide, cfg.modes.sidewall_band_um)
         modes.append(ModeInfo(
-            index=int(idx), label=label, n_eff=n, k_eff=kk,
+            index=int(j), label=label, n_eff=n, k_eff=kk,
             leak_db_per_cm=DB_PER_NEPER * 2 * k0 * kk * 1e4, te_fraction=te,
             sidewall_power_fraction=p_frac, sidewall_e2_fraction=e_frac, sidewall_e2_per_length_um=e_len,
             guided=bool(guided), near_cutoff=bool(guided and n - n_clad < cfg.modes.near_cutoff_dneff),
             lateral_leak_risk=bool(guided and lateral)))
     info = dict(guide.info)
-    lowest = min(float(n) for n, ok in zip(n_all, real) if ok) if real.any() else np.inf
+    reals = [e["n"] for e in entries if e["real"]]
+    lowest = min(reals) if reals else np.inf
     info.update({"mode_list_complete": bool(lowest <= n_clad + cfg.modes.guided_margin),
                  "spurious_pml_modes_dropped": dropped, "core_slab_neff": core, "clearance_um": {"vertical": vert, "lateral": lat}})
     return ModeReport(platform, lam_um, size, n_clad, outside, modes, info)

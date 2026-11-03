@@ -1,0 +1,212 @@
+# Sidewall-roughness study: every physical and numerical parameter lives here.
+# Lengths in um unless the key ends in _nm. Angles in degrees.
+# Values marked TENTATIVE are placeholders awaiting confirmation (README, "Open parameters").
+
+wavelengths_um:
+  vis: [0.405, 0.450, 0.532, 0.633, 0.780, 0.850, 0.980]     # TENTATIVE point set
+  telecom: [1.55]
+
+# ---------------------------------------------------------------- materials
+# kind: constant | library | uniaxial_library | sellmeier | uniaxial_sellmeier
+#       | sellmeier_fit | uniaxial_sellmeier_fit
+# Sellmeier form: n^2 = 1 + sum_i B_i lam^2 / (lam^2 - C_i), lam in um, C_i in um^2.
+materials:
+  air:
+    kind: constant
+    n: 1.0
+  water:
+    kind: library
+    name: H2O
+    variant: Horiba
+  SiO2:
+    kind: library
+    name: FusedSilica
+    variant: ZemaxPMLStable          # valid 0.405-2.0 um; SiO2/Palik_NoLoss starts at 0.55 um
+  Si:
+    kind: sellmeier_fit
+    library_name: cSi
+    library_variant: Green2008       # real part only (lossless Si, used by substrate S1 only)
+    fit_range_um: [0.40, 1.60]
+    terms: 2
+    max_abs_dn: 0.2                  # lossless Si cannot follow the 370 nm resonance: dn ~ 0.15 at 405 nm
+  LN:
+    kind: uniaxial_library
+    name: LiNbO3
+    variant: Zelmon1997              # congruent LN, valid 0.4-5.0 um
+  LT:
+    kind: uniaxial_sellmeier_fit
+    data_o: data/materials/LiTaO3_Bond1965_o.csv
+    data_e: data/materials/LiTaO3_Bond1965_e.csv
+    fit_range_um: [0.45, 2.0]        # data go to 4 um
+    max_abs_dn: 1.0e-3               # Bond 1965 points scatter by ~8e-4 about any smooth curve
+    terms: 2
+    citation: "W. L. Bond, J. Appl. Phys. 36, 1674 (1965), doi:10.1063/1.1703106 (tabulated n, 0.45-4.0 um)"
+  SiNx:
+    kind: constant
+    n: 2.0                           # PECVD, n = 1.95-2.2 with Si ratio; teacher's value for now
+  Al2O3:
+    kind: sellmeier_fit
+    data: data/materials/Al2O3_PEALD_RodriguezdeMarcos2016.csv
+    terms: 2
+    citation: "L. V. Rodriguez de Marcos et al., PEALD Al2O3 thin films, doi:10.1364/OME.562660 (real part; bibliographic details to verify)"
+  sapphire:
+    kind: uniaxial_sellmeier
+    o: [[1.4313493, 0.0726631], [0.65054713, 0.1193242], [5.3414021, 18.028251]]
+    e: [[1.5039759, 0.0740288], [0.55069141, 0.1216529], [6.5927379, 20.072248]]
+    c_are_wavelengths: true          # C_i given as resonance wavelengths (um), squared on load
+    citation: "I. H. Malitson and M. J. Dodge, JOSA 62, 1405 (1972); M. J. Dodge, CRC Handbook of Laser Science IV (1986)"
+
+material_fit:
+  max_abs_dn: 5.0e-4                 # fit to tabulated n must stay within this everywhere
+  lossless_imag_eps_tol: 1.0e-6      # library media with larger Im(eps) are refitted lossless
+
+# --------------------------------------------------------------- orientation
+# Sim frame: x = propagation, y = lateral in-plane, z = film normal.
+# cut = crystal axis along z; propagation_angle_deg is measured in the film plane from
+# reference_axis (crystal axis) towards cut x reference_axis.
+orientation_defaults:
+  z: {reference_axis: x}
+  x: {reference_axis: y}             # 0 deg = along crystal y, 90 deg = along crystal z
+  y: {reference_axis: z}
+orientation_tol: 1.0e-9              # |off-diagonal| below this counts as diagonal
+
+orientations:
+  zcut: {cut: z, propagation_angle_deg: 0.0}
+  xcut_y: {cut: x, propagation_angle_deg: 0.0}
+  xcut_z: {cut: x, propagation_angle_deg: 90.0}
+  xcut_45: {cut: x, propagation_angle_deg: 45.0}
+
+# ------------------------------------------------------------------- stacks
+claddings:
+  above: air                         # air | SiO2 | water
+  below: air
+
+substrates:                          # layers listed downwards from the film bottom
+  membrane: []                       # default: free-standing film
+  S1_box2.0: [{material: SiO2, thickness_um: 2.0}, {material: Si, thickness_um: null}]
+  S1_box2.5: [{material: SiO2, thickness_um: 2.5}, {material: Si, thickness_um: null}]
+  S1_box3.0: [{material: SiO2, thickness_um: 3.0}, {material: Si, thickness_um: null}]
+  S2: [{material: SiO2, thickness_um: null}]   # null = semi-infinite (into the PML)
+substrate: membrane
+
+membrane_thicknesses_um: [0.3, 0.4, 0.5, 1.0]
+
+# ---------------------------------------------------------------- platforms
+platforms:
+  A_rib_LN:
+    type: rib
+    film: LN
+    orientation: zcut
+    film_thickness_um: 0.5
+    top_width_um: 1.2                # TENTATIVE
+    etch_fraction: 0.5               # etch depth / film thickness; 1.0 = full etch
+    etch_fraction_sweep: [0.25, 0.5, 0.75, 1.0]
+    sidewall_angle_deg: 70.0         # from the film plane; 90 = vertical
+    sidewall_angle_sweep: [60.0, 65.0, 70.0, 75.0]
+    footing: null                    # {height_um, width_um}, later milestone
+  B_strip_LN:
+    type: strip_loaded
+    film: LN
+    orientation: zcut
+    film_thickness_um: 0.3
+    strip: SiNx
+    strip_width_um: 1.5              # TENTATIVE
+    strip_height_um: 0.3             # TENTATIVE
+    sidewall_angle_deg: 80.0         # TENTATIVE
+  C_rib_LT:
+    type: rib
+    film: LT
+    orientation: zcut
+    film_thickness_um: 0.5
+    top_width_um: 1.2
+    etch_fraction: 0.5
+    sidewall_angle_deg: 70.0
+    footing: null
+  C_strip_LT:
+    type: strip_loaded
+    film: LT
+    orientation: zcut
+    film_thickness_um: 0.3
+    strip: SiNx
+    strip_width_um: 1.5
+    strip_height_um: 0.3
+    sidewall_angle_deg: 80.0
+  D_rib_SiNx:
+    type: rib
+    film: SiNx
+    film_thickness_um: 0.3
+    top_width_um: 1.0                # TENTATIVE
+    etch_fraction: 1.0               # TENTATIVE
+    sidewall_angle_deg: 80.0         # TENTATIVE
+    footing: null
+  D_rib_Al2O3:
+    type: rib
+    film: Al2O3
+    film_thickness_um: 0.4
+    top_width_um: 1.2                # TENTATIVE
+    etch_fraction: 1.0               # TENTATIVE
+    sidewall_angle_deg: 80.0         # TENTATIVE
+    footing: null
+  D_rib_sapphire:
+    type: rib
+    film: sapphire
+    orientation: zcut                # c-plane film: optic axis along the film normal
+    film_thickness_um: 0.4
+    top_width_um: 1.2                # TENTATIVE
+    etch_fraction: 1.0               # TENTATIVE
+    sidewall_angle_deg: 80.0         # TENTATIVE
+    footing: null
+  E_slab_LN:
+    type: slab
+    film: LN
+    orientation: zcut
+    film_thickness_um: 0.5
+
+# ---------------------------------------------------------------- roughness
+roughness:
+  sigma_nm: [2.0, 3.0, 5.0]
+  lc_nm: [50.0, 70.0, 100.0]
+  lz_nm: null                        # null = columnar
+  acf: gaussian
+  min_length_over_lc: 20.0           # realization length must exceed this many Lc
+
+# ------------------------------------------------------- spectral probe
+probe:
+  amplitude_nm: 2.0
+  linearity_amplitudes_nm: [1.0, 2.0, 4.0]
+  periods_um: [0.15, 0.2, 0.3, 0.4, 0.6, 0.8, 1.2]  # TENTATIVE; final set from K-band of each mode
+  n_periods: 20
+  walls: one                         # one | both_in_phase | both_antiphase
+  input_length_um: 3.0
+  output_length_um: 3.0
+
+# ---------------------------------------------------------------- mode solver
+modes:
+  num_modes: 8
+  grid_dl_um: 0.01                   # local mode-solver grid
+  lateral_clearance_min_um: 2.0
+  vertical_clearance_min_um: 1.5
+  clearance_decay_lengths: 6.0       # field decay lengths (1/gamma) between core and boundary
+  max_domain_um: 30.0
+  max_resize_iterations: 3
+  num_pml: [12, 12]                  # mode-solver PML cells (y, z): leaky modes get k_eff > 0
+  guided_margin: 0.005               # guided if n_eff > n_cladding_max + margin
+  near_cutoff_dneff: 0.03            # flag if n_eff - n_cladding_max < this
+  sidewall_band_um: 0.01             # band half-width around each sidewall for field fractions
+  slab_scan_points: 4000             # 1D slab solver root bracketing
+
+# ---------------------------------------------------------------- FDTD
+fdtd:
+  min_steps_per_wvl: 20
+  sidewall_dl_um: 0.005              # production mesh override at the sidewalls
+  sidewall_dl_coarse_um: 0.02        # debug / milestone 1
+  sidewall_override_pad_um: 0.05     # override box extends this far either side of the wall
+  pml_layers: 12
+  pml_clearance_decay_lengths: 6.0
+  flux_box_gap_um: 0.4               # gap between guide surfaces and the radiation flux box
+  run_time_transits: 8.0             # run time in units of group transit time over the domain
+  shutoff: 1.0e-6
+  source_fwidth_fraction: 0.1        # broadband mode source, fwidth / f0
+  num_freqs_source: 5
+  monitor_freqs_per_band: 21
+  subpixel: true

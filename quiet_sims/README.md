@@ -447,3 +447,9 @@ Findings:
   worst 1.9e-7 vs 2.6e-7), and individual layouts also oscillate with the dither depth. The robust gain of a single
   chaotic device is the angle-dither result; with both dithers the gain is predictability (a narrow ensemble) and a
   lower typical fringe rather than a guaranteed bound.
+
+Robustness artifacts: `python scripts/robustness_data.py` (→ `results/step11_artifact_data.json`) and
+`python scripts/build_robust_artifacts.py FIG2_SRC.html FIG3_SRC.html OUT_DIR` copy the step-10 Fig. 2 / Fig. 3 pages
+and add Fig. 2 (g)–(i) (static fringe: both dithers against dither depth at 600 nm and against film thickness, angle
+dither alone against film thickness) and Fig. 3 (c)–(d) (NH3 limit at 1 s against film thickness, both dithers and
+angle dither alone), with PDF (svg2pdf, Liberation Sans embedded), SVG and CSV export.

@@ -179,14 +179,19 @@ probe:
   walls: one                         # one | both_in_phase | both_antiphase
   input_length_um: 3.0
   output_length_um: 3.0
+  points_per_period: 16              # wall vertices and x-mesh cells per corrugation period
+  source_offset_um: 0.5              # source distance from the input end of the domain
+  flux_box_margin_x_um: 0.5          # radiation box extends this far beyond the corrugation in x
+  extra_monitor_modes: 2             # mode monitors carry the guided modes plus this many
 
 # ---------------------------------------------------------------- mode solver
 modes:
-  num_modes: 8
+  num_modes: 14
+  max_pml_energy_fraction: 0.02      # modes with more |E|^2 than this inside the PML cells are spurious
   grid_dl_um: 0.01                   # local mode-solver grid
   lateral_clearance_min_um: 2.0
   vertical_clearance_min_um: 1.5
-  clearance_decay_lengths: 6.0       # field decay lengths (1/gamma) between core and boundary
+  clearance_decay_lengths: 8.0       # field decay lengths (1/gamma) to the boundary; PML leak floor ~ exp(-16)
   max_domain_um: 30.0
   max_resize_iterations: 3
   num_pml: [12, 12]                  # mode-solver PML cells (y, z): leaky modes get k_eff > 0
@@ -205,8 +210,21 @@ fdtd:
   pml_clearance_decay_lengths: 6.0
   flux_box_gap_um: 0.4               # gap between guide surfaces and the radiation flux box
   run_time_transits: 8.0             # run time in units of group transit time over the domain
+  group_index_over_n_max: 1.3        # transit-time estimate: n_g ~ this x the largest film index
   shutoff: 1.0e-6
   source_fwidth_fraction: 0.1        # broadband mode source, fwidth / f0
   num_freqs_source: 5
   monitor_freqs_per_band: 21
   subpixel: true
+
+# ------------------------------------------------------------------- sweep
+# Priced by scripts/estimate_sweep_cost.py, cheapest first. Modes flagged near-cutoff or
+# laterally leaky are skipped unless skip_flagged_modes is false.
+sweep:
+  platforms: [A_rib_LN, B_strip_LN, C_rib_LT, C_strip_LT, D_rib_SiNx, D_rib_Al2O3, D_rib_sapphire]
+  modes: [TE0, TM0]
+  bands: [telecom, vis]
+  periods_per_band: 9
+  period_edge_fraction: 0.05         # trim this fraction of the K band at each edge
+  smooth_reference: true             # one amplitude-0 run per (platform, mode, wavelength)
+  skip_flagged_modes: true

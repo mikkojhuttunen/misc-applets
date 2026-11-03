@@ -1,0 +1,8 @@
+# Milestone 1 overrides: coarse grids for local checks and the first (debug) probe run.
+modes:
+  grid_dl_um: 0.02
+fdtd:
+  min_steps_per_wvl: 12
+  monitor_freqs_per_band: 5
+probe:
+  n_periods: 10

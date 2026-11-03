@@ -1,0 +1,143 @@
+A_rib_LN  lambda = 0.633 um  domain 8.56 x 3.50 um  n_clad,max = 1.0000  outside-slab n_eff = TE 2.1016, TM 1.8998
+  {'remaining_slab_um': 0.25, 'etch_depth_um': 0.25, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'tidy3d material_library LiNbO3/Zelmon1997 (uniaxial) [https://doi.org/10.1364/JOSAB.14.003319]', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 11, 'core_slab_neff': {'TE': 2.2245388262351695, 'TM': 2.122881228394902}, 'clearance_um': {'vertical': 1.5, 'lateral': 3.5914115915123594}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         2.21402  -2.35e-18  -2.03e-12    1.000     0.0002       0.0008  
+  TE1         2.18176   2.24e-18   1.93e-12    0.999     0.0010       0.0031  
+  TE2         2.13265   3.78e-15   3.25e-09    0.994     0.0024       0.0055  
+  TM0         2.11352  -2.49e-12  -2.15e-06    0.004     0.0006       0.0007  
+  TM1         2.08113   4.05e-06       3.49    0.009     0.0021       0.0029  lateral-leak
+A_rib_LN  lambda = 1.550 um  domain 14.11 x 3.50 um  n_clad,max = 1.0000  outside-slab n_eff = TE 1.6623, TM 1.1344
+  {'remaining_slab_um': 0.25, 'etch_depth_um': 0.25, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'tidy3d material_library LiNbO3/Zelmon1997 (uniaxial) [https://doi.org/10.1364/JOSAB.14.003319]', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 12, 'core_slab_neff': {'TE': 1.9638862960193426, 'TM': 1.691028907772931}, 'clearance_um': {'vertical': 1.5, 'lateral': 6.363024196852768}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.90085  -1.12e-09  -0.000395    0.996     0.0015       0.0041  
+  TE1         1.73696  -2.10e-09  -0.000741    0.952     0.0064       0.0097  
+  TM0         1.62860   5.59e-04        197    0.166     0.0017       0.0033  lateral-leak
+B_strip_LN  lambda = 0.633 um  domain 9.34 x 3.60 um  n_clad,max = 1.0000  outside-slab n_eff = TE 2.1456, TM 1.9888
+  {'strip_height_um': 0.3, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'tidy3d material_library LiNbO3/Zelmon1997 (uniaxial) [https://doi.org/10.1364/JOSAB.14.003319]', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 21, 'core_slab_neff': {'TE': 2.174659162392777, 'TM': 2.075111525691171}, 'clearance_um': {'vertical': 1.5, 'lateral': 3.8690061651548864}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         2.17008   6.52e-15   5.62e-09    1.000     0.0002       0.0004  
+  TE1         2.15564  -5.36e-10  -0.000462    1.000     0.0007       0.0011  
+  TM0         2.06507   1.04e-05       8.97    0.003     0.0003       0.0004  lateral-leak
+  TM1         2.04536   2.35e-05       20.3    0.007     0.0010       0.0016  lateral-leak
+B_strip_LN  lambda = 1.550 um  domain 13.15 x 3.94 um  n_clad,max = 1.0000  outside-slab n_eff = TE 1.7536, TM 1.2335
+  {'strip_height_um': 0.3, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'tidy3d material_library LiNbO3/Zelmon1997 (uniaxial) [https://doi.org/10.1364/JOSAB.14.003319]', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 13, 'core_slab_neff': {'TE': 1.9271091494241592, 'TM': 1.736695653572808}, 'clearance_um': {'vertical': 1.6694651772695648, 'lateral': 5.772779621010328}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.88741  -1.47e-11  -5.17e-06    0.998     0.0012       0.0026  
+  TE1         1.78658   2.27e-09   0.000799    0.985     0.0042       0.0063  
+  TM0         1.68710   1.55e-04       54.7    0.041     0.0015       0.0023  lateral-leak
+C_rib_LT  lambda = 0.633 um  domain 9.41 x 3.50 um  n_clad,max = 1.0000  outside-slab n_eff = TE 1.9897, TM 1.8566
+  {'remaining_slab_um': 0.25, 'etch_depth_um': 0.25, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'uniaxial lossless Sellmeier fits (2 terms) to data/materials/LiTaO3_Bond1965_o.csv, data/materials/LiTaO3_Bond1965_e.csv: W. L. Bond, J. Appl. Phys. 36, 1674 (1965), doi:10.1063/1.1703106 (tabulated n, 0.45-4.0 um) (max |dn| 7.8e-04)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 8, 'core_slab_neff': {'TE': 2.113335927940716, 'TM': 2.095325125968566}, 'clearance_um': {'vertical': 1.5, 'lateral': 4.011770325912074}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         2.10235  -1.07e-17  -9.26e-12    0.999     0.0003       0.0009  
+  TM0         2.08608   6.66e-18   5.74e-12    0.006     0.0006       0.0008  
+  TE1         2.06873  -8.64e-18  -7.45e-12    0.992     0.0012       0.0034  
+  TM1         2.05348   1.01e-17    8.7e-12    0.014     0.0024       0.0030  
+  TE2         2.01778   1.04e-14   8.97e-09    0.985     0.0026       0.0059  
+  TM2         1.99977  -3.34e-11  -2.88e-05    0.039     0.0050       0.0062  
+C_rib_LT  lambda = 1.550 um  domain 31.38 x 3.71 um  n_clad,max = 1.0000  outside-slab n_eff = TE 1.5812, TM 1.1250
+  {'remaining_slab_um': 0.25, 'etch_depth_um': 0.25, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'uniaxial lossless Sellmeier fits (2 terms) to data/materials/LiTaO3_Bond1965_o.csv, data/materials/LiTaO3_Bond1965_e.csv: W. L. Bond, J. Appl. Phys. 36, 1674 (1965), doi:10.1063/1.1703106 (tabulated n, 0.45-4.0 um) (max |dn| 7.8e-04)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 12, 'core_slab_neff': {'TE': 1.870800470444906, 'TM': 1.6519997432760407}, 'clearance_um': {'vertical': 1.603284800419388, 'lateral': 15.0}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.80646  -2.70e-10  -9.51e-05    0.995     0.0017       0.0043  
+  TE1         1.64783  -5.70e-11  -2.01e-05    0.861     0.0070       0.0081  
+  TM0         1.58592  -3.73e-09   -0.00131    0.194     0.0018       0.0040  
+C_strip_LT  lambda = 0.633 um  domain 9.62 x 3.60 um  n_clad,max = 1.0000  outside-slab n_eff = TE 2.0336, TM 1.9512
+  {'strip_height_um': 0.3, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'uniaxial lossless Sellmeier fits (2 terms) to data/materials/LiTaO3_Bond1965_o.csv, data/materials/LiTaO3_Bond1965_e.csv: W. L. Bond, J. Appl. Phys. 36, 1674 (1965), doi:10.1063/1.1703106 (tabulated n, 0.45-4.0 um) (max |dn| 7.8e-04)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 10, 'core_slab_neff': {'TE': 2.0762282598390467, 'TM': 2.0537642685725435}, 'clearance_um': {'vertical': 1.5, 'lateral': 4.007035518988068}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         2.07040   8.96e-20   7.73e-14    1.000     0.0002       0.0004  
+  TE1         2.05256   5.18e-13   4.46e-07    0.996     0.0008       0.0015  
+  TM0         2.04348  -4.18e-13   -3.6e-07    0.004     0.0003       0.0005  
+  TM1         2.02265   1.48e-04        127    0.113     0.0010       0.0017  lateral-leak
+C_strip_LT  lambda = 1.550 um  domain 31.61 x 4.01 um  n_clad,max = 1.0000  outside-slab n_eff = TE 1.6674, TM 1.2132
+  {'strip_height_um': 0.3, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'uniaxial lossless Sellmeier fits (2 terms) to data/materials/LiTaO3_Bond1965_o.csv, data/materials/LiTaO3_Bond1965_e.csv: W. L. Bond, J. Appl. Phys. 36, 1674 (1965), doi:10.1063/1.1703106 (tabulated n, 0.45-4.0 um) (max |dn| 7.8e-04)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 12, 'core_slab_neff': {'TE': 1.8697171018998338, 'TM': 1.7194121003121097}, 'clearance_um': {'vertical': 1.7031663248917035, 'lateral': 15.0}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.82640  -3.77e-11  -1.33e-05    0.997     0.0012       0.0028  
+  TE1         1.71513  -3.10e-11  -1.09e-05    0.938     0.0047       0.0067  
+  TM0         1.66848  -1.00e-06     -0.353    0.275     0.0014       0.0024  
+D_rib_SiNx  lambda = 0.633 um  domain 5.11 x 4.13 um  n_clad,max = 1.0000  outside-slab n_eff = TE -, TM -
+  {'remaining_slab_um': 0.0, 'etch_depth_um': 0.3, 'substrate': 'membrane', 'orientation': None, 'film_source': 'constant n = 2.0 (non-dispersive)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 0, 'core_slab_neff': {'TE': 1.8528532823284716, 'TM': 1.761904675121511}, 'clearance_um': {'vertical': 1.9157817630590712, 'lateral': 2.0}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.83093  -5.46e-18  -4.71e-12    1.000     0.0005       0.0028  
+  TE1         1.76001  -5.13e-18  -4.43e-12    0.984     0.0022       0.0106  
+  TM0         1.74932   3.24e-18    2.8e-12    0.020     0.0017       0.0019  
+  TM1         1.68549  -2.81e-18  -2.42e-12    0.026     0.0075       0.0066  
+  TE2         1.63624   1.68e-17   1.45e-11    0.988     0.0051       0.0231  
+  TM2         1.57522   3.13e-17    2.7e-11    0.056     0.0170       0.0144  
+  TE3         1.45320   3.06e-17   2.64e-11    0.979     0.0121       0.0373  
+  TM3         1.41450  -1.83e-16  -1.58e-10    0.130     0.0299       0.0239  
+  TE4         1.35483  -2.93e-14  -2.53e-08    0.981     0.0004       0.0033  
+  TE5         1.26283  -1.19e-13  -1.03e-07    0.919     0.0034       0.0122  
+  TE6         1.21141   6.73e-14    5.8e-08    0.895     0.0288       0.0427  
+  TM4         1.18493  -2.84e-15  -2.45e-09    0.196     0.0412       0.0326  
+  TM5         1.12868   4.15e-11   3.58e-05    0.027     0.0027       0.0018  
+  TE7         1.08489  -4.28e-11  -3.69e-05    0.898     0.0036       0.0209  
+D_rib_SiNx  lambda = 1.550 um  domain 15.55 x 14.75 um  n_clad,max = 1.0000  outside-slab n_eff = TE -, TM -
+  {'remaining_slab_um': 0.0, 'etch_depth_um': 0.3, 'substrate': 'membrane', 'orientation': None, 'film_source': 'constant n = 2.0 (non-dispersive)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 25, 'core_slab_neff': {'TE': 1.558750194851646, 'TM': 1.1719961772368874}, 'clearance_um': {'vertical': 7.224432071030285, 'lateral': 7.224432071030287}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.41122  -1.23e-18  -4.34e-13    0.990     0.0019       0.0117  
+  TM0         1.10220  -1.84e-14  -6.47e-09    0.027     0.0041       0.0023  
+  TE1         1.03664   8.16e-10   0.000287    0.851     0.0120       0.0159  
+D_rib_Al2O3  lambda = 0.633 um  domain 6.02 x 5.08 um  n_clad,max = 1.0000  outside-slab n_eff = TE -, TM -
+  {'remaining_slab_um': 0.0, 'etch_depth_um': 0.4, 'substrate': 'membrane', 'orientation': None, 'film_source': 'lossless Sellmeier fit (2 terms) to data/materials/Al2O3_PEALD_RodriguezdeMarcos2016.csv: L. V. Rodriguez de Marcos et al., PEALD Al2O3 thin films, doi:10.1364/OME.562660 (real part; bibliographic details to verify) (max |dn| 1.4e-04)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 0, 'core_slab_neff': {'TE': 1.5671427721849183, 'TM': 1.520304889669201}, 'clearance_um': {'vertical': 2.341329554802683, 'lateral': 2.3413295548026825}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.54937   5.63e-18   4.85e-12    1.000     0.0006       0.0023  
+  TM0         1.50918   1.58e-18   1.36e-12    0.006     0.0017       0.0016  
+  TE1         1.49359  -6.90e-18  -5.95e-12    0.995     0.0025       0.0090  
+  TM1         1.45931   5.66e-18   4.88e-12    0.014     0.0067       0.0062  
+  TE2         1.39798   1.60e-17   1.38e-11    0.993     0.0067       0.0192  
+  TM2         1.37402   2.98e-17   2.57e-11    0.034     0.0150       0.0135  
+  TE3         1.26034   6.29e-17   5.42e-11    0.979     0.0152       0.0301  
+  TM3         1.25145  -1.36e-16  -1.17e-10    0.155     0.0240       0.0209  
+  TE4         1.23426  -1.06e-15  -9.11e-10    0.922     0.0023       0.0043  
+  TE5         1.16708  -7.15e-15  -6.16e-09    0.975     0.0027       0.0094  
+  TM4         1.12724   2.69e-13   2.32e-07    0.014     0.0013       0.0016  
+  TE6         1.10160   1.54e-13   1.33e-07    0.660     0.0254       0.0239  
+  TM5         1.08316  -3.73e-13  -3.22e-07    0.107     0.0350       0.0301  
+  TM6         1.05759   1.02e-11   8.82e-06    0.390     0.0051       0.0120  
+D_rib_Al2O3  lambda = 1.550 um  domain 9.64 x 8.70 um  n_clad,max = 1.0000  outside-slab n_eff = TE -, TM -
+  {'remaining_slab_um': 0.0, 'etch_depth_um': 0.4, 'substrate': 'membrane', 'orientation': None, 'film_source': 'lossless Sellmeier fit (2 terms) to data/materials/Al2O3_PEALD_RodriguezdeMarcos2016.csv: L. V. Rodriguez de Marcos et al., PEALD Al2O3 thin films, doi:10.1364/OME.562660 (real part; bibliographic details to verify) (max |dn| 1.4e-04)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 11, 'core_slab_neff': {'TE': 1.3488949962245251, 'TM': 1.163094734288817}, 'clearance_um': {'vertical': 4.148312184165609, 'lateral': 4.148312184165609}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.24656  -1.84e-14  -6.46e-09    0.993     0.0029       0.0091  
+  TM0         1.10740   1.61e-10   5.67e-05    0.018     0.0047       0.0029  
+  TE1         1.01133  -2.65e-05      -9.33    0.905     0.0114       0.0126  near-cutoff
+D_rib_sapphire  lambda = 0.633 um  domain 5.34 x 3.40 um  n_clad,max = 1.0000  outside-slab n_eff = TE -, TM -
+  {'remaining_slab_um': 0.0, 'etch_depth_um': 0.4, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'uniaxial Sellmeier: I. H. Malitson and M. J. Dodge, JOSA 62, 1405 (1972); M. J. Dodge, CRC Handbook of Laser Science IV (1986)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 0, 'core_slab_neff': {'TE': 1.6667166024645097, 'TM': 1.6127788372084162}, 'clearance_um': {'vertical': 1.5, 'lateral': 2.0}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.64980  -2.39e-14  -2.06e-08    1.000     0.0005       0.0020  
+  TM0         1.60190   4.51e-14   3.89e-08    0.028     0.0016       0.0015  
+  TE1         1.59640  -3.16e-14  -2.72e-08    0.975     0.0018       0.0078  
+  TM1         1.55389   6.35e-14   5.48e-08    0.013     0.0058       0.0055  
+  TE2         1.50500  -7.36e-14  -6.34e-08    0.993     0.0049       0.0171  
+  TM2         1.47196   1.23e-13   1.06e-07    0.031     0.0131       0.0121  
+  TE3         1.37203  -4.73e-13  -4.08e-07    0.985     0.0109       0.0279  
+  TM3         1.35383  -4.79e-13  -4.13e-07    0.123     0.0219       0.0194  
+  TE4         1.33458  -1.94e-11  -1.68e-05    0.948     0.0013       0.0033  
+  TE5         1.27001  -3.56e-11  -3.07e-05    0.975     0.0020       0.0086  
+  TE6         1.20314   8.83e-13   7.62e-07    0.894     0.0215       0.0315  
+  TM4         1.19637   3.67e-10   0.000317    0.032     0.0062       0.0055  
+  TM5         1.18861   9.37e-11   8.08e-05    0.097     0.0284       0.0239  
+  TE7         1.15002  -9.07e-11  -7.82e-05    0.899     0.0064       0.0179  
+D_rib_sapphire  lambda = 1.550 um  domain 12.96 x 12.01 um  n_clad,max = 1.0000  outside-slab n_eff = TE -, TM -
+  {'remaining_slab_um': 0.0, 'etch_depth_um': 0.4, 'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'uniaxial Sellmeier: I. H. Malitson and M. J. Dodge, JOSA 62, 1405 (1972); M. J. Dodge, CRC Handbook of Laser Science IV (1986)', 'mode_list_complete': False, 'spurious_pml_modes_dropped': 11, 'core_slab_neff': {'TE': 1.436681797667839, 'TM': 1.2050852919700845}, 'clearance_um': {'vertical': 5.8074109369424365, 'lateral': 5.807410936942437}}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.33261  -3.39e-18  -1.19e-12    0.994     0.0022       0.0088  
+  TM0         1.14559  -3.64e-14  -1.28e-08    0.023     0.0044       0.0028  
+  TE1         1.05616   7.50e-10   0.000264    0.917     0.0120       0.0165  
+E_slab_LN  lambda = 0.633 um  domain inf x nan um  n_clad,max = 1.0000  outside-slab n_eff = TE -, TM -
+  {'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'tidy3d material_library LiNbO3/Zelmon1997 (uniaxial) [https://doi.org/10.1364/JOSAB.14.003319]', 'solver': 'exact 1D slab (no sidewalls)'}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         2.22454   0.00e+00          0    1.000     0.0000       0.0000  
+  TM0         2.12288   0.00e+00          0    0.000     0.0000       0.0000  
+  TE1         2.03104   0.00e+00          0    1.000     0.0000       0.0000  
+  TM1         1.87001   0.00e+00          0    0.000     0.0000       0.0000  
+  TE2         1.67734   0.00e+00          0    1.000     0.0000       0.0000  
+  TM2         1.39965   0.00e+00          0    0.000     0.0000       0.0000  
+  TE3         1.11450   0.00e+00          0    1.000     0.0000       0.0000  
+  TM3         1.00888   0.00e+00          0    0.000     0.0000       0.0000  near-cutoff
+E_slab_LN  lambda = 1.550 um  domain inf x nan um  n_clad,max = 1.0000  outside-slab n_eff = TE -, TM -
+  {'substrate': 'membrane', 'orientation': 'zcut', 'film_source': 'tidy3d material_library LiNbO3/Zelmon1997 (uniaxial) [https://doi.org/10.1364/JOSAB.14.003319]', 'solver': 'exact 1D slab (no sidewalls)'}
+  label       n_eff     k_eff     leak dB/cm  TE frac  P_sw frac  |E|2_sw frac  flags
+  TE0         1.96389   0.00e+00          0    1.000     0.0000       0.0000  
+  TM0         1.69103   0.00e+00          0    0.000     0.0000       0.0000  
+  TE1         1.18059   0.00e+00          0    1.000     0.0000       0.0000  
+  TM1         1.01420   0.00e+00          0    0.000     0.0000       0.0000  near-cutoff
+wrote /home/user/misc-applets/sidewall-roughness/results/m1/modes.json

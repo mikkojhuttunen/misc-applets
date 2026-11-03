@@ -1,0 +1,1788 @@
+[
+ {
+  "platform": "A_rib_LN",
+  "lam_um": 0.633,
+  "domain_um": [
+   8.56480830015782,
+   3.5
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": 2.1015682302012544,
+   "TM": 1.8997875722648672
+  },
+  "info": {
+   "remaining_slab_um": 0.25,
+   "etch_depth_um": 0.25,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 11,
+   "core_slab_neff": {
+    "TE": 2.2245388262351695,
+    "TM": 2.122881228394902
+   },
+   "clearance_um": {
+    "vertical": 1.5,
+    "lateral": 3.5914115915123594
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 2.2140187693651434,
+    "k_eff": -2.3504155301492677e-18,
+    "leak_db_per_cm": -2.0264463640052418e-12,
+    "te_fraction": 0.9997425194402854,
+    "sidewall_power_fraction": 0.0002455975965501909,
+    "sidewall_e2_fraction": 0.0008349691386257398,
+    "sidewall_e2_per_length_um": 0.04174845693128699,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 2.181756160450738,
+    "k_eff": 2.2438659078889176e-18,
+    "leak_db_per_cm": 1.9345829926796165e-12,
+    "te_fraction": 0.998612573934888,
+    "sidewall_power_fraction": 0.001032834746518247,
+    "sidewall_e2_fraction": 0.0031176141522526765,
+    "sidewall_e2_per_length_um": 0.1558807076126338,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TE2",
+    "n_eff": 2.1326515282280085,
+    "k_eff": 3.775187728121291e-15,
+    "leak_db_per_cm": 3.2548353033570865e-09,
+    "te_fraction": 0.9940904237971324,
+    "sidewall_power_fraction": 0.002384143254344764,
+    "sidewall_e2_fraction": 0.0054966877966145435,
+    "sidewall_e2_per_length_um": 0.27483438983072717,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 3,
+    "label": "TM0",
+    "n_eff": 2.1135161151136996,
+    "k_eff": -2.4879283781199574e-12,
+    "leak_db_per_cm": -2.145005149547521e-06,
+    "te_fraction": 0.003673907341550703,
+    "sidewall_power_fraction": 0.0006058921816656304,
+    "sidewall_e2_fraction": 0.0007461141117342521,
+    "sidewall_e2_per_length_um": 0.037305705586712604,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 13,
+    "label": "TM1",
+    "n_eff": 2.081128404017381,
+    "k_eff": 4.0483927824741355e-06,
+    "leak_db_per_cm": 3.4903831807088057,
+    "te_fraction": 0.008775319526673316,
+    "sidewall_power_fraction": 0.002128108921083717,
+    "sidewall_e2_fraction": 0.00289087825946796,
+    "sidewall_e2_per_length_um": 0.144543912973398,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": true
+   }
+  ]
+ },
+ {
+  "platform": "A_rib_LN",
+  "lam_um": 1.55,
+  "domain_um": [
+   14.108033510838638,
+   3.5
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": 1.6623425893059758,
+   "TM": 1.1343903735559386
+  },
+  "info": {
+   "remaining_slab_um": 0.25,
+   "etch_depth_um": 0.25,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 12,
+   "core_slab_neff": {
+    "TE": 1.9638862960193426,
+    "TM": 1.691028907772931
+   },
+   "clearance_um": {
+    "vertical": 1.5,
+    "lateral": 6.363024196852768
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.9008462796751637,
+    "k_eff": -1.1224147789022323e-09,
+    "leak_db_per_cm": -0.00039519901510627717,
+    "te_fraction": 0.9960754300034739,
+    "sidewall_power_fraction": 0.0014922765894346806,
+    "sidewall_e2_fraction": 0.004120330565503153,
+    "sidewall_e2_per_length_um": 0.20601652827515765,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 1.7369553309712071,
+    "k_eff": -2.1049204173549155e-09,
+    "leak_db_per_cm": -0.0007411364242988248,
+    "te_fraction": 0.951908448121981,
+    "sidewall_power_fraction": 0.006443205745890307,
+    "sidewall_e2_fraction": 0.009672724115093081,
+    "sidewall_e2_per_length_um": 0.48363620575465405,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 8,
+    "label": "TM0",
+    "n_eff": 1.6286041634075097,
+    "k_eff": 0.0005590720166024661,
+    "leak_db_per_cm": 196.84764891537498,
+    "te_fraction": 0.16631618632368347,
+    "sidewall_power_fraction": 0.0017122303490332785,
+    "sidewall_e2_fraction": 0.0032547486715162072,
+    "sidewall_e2_per_length_um": 0.16273743357581036,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": true
+   }
+  ]
+ },
+ {
+  "platform": "B_strip_LN",
+  "lam_um": 0.633,
+  "domain_um": [
+   9.343808518734852,
+   3.6
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": 2.145554222253849,
+   "TM": 1.9887562378886512
+  },
+  "info": {
+   "strip_height_um": 0.3,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 21,
+   "core_slab_neff": {
+    "TE": 2.174659162392777,
+    "TM": 2.075111525691171
+   },
+   "clearance_um": {
+    "vertical": 1.5,
+    "lateral": 3.8690061651548864
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 2.1700849170065264,
+    "k_eff": 6.5163512777028095e-15,
+    "leak_db_per_cm": 5.618170993127823e-09,
+    "te_fraction": 0.9999219667731821,
+    "sidewall_power_fraction": 0.00020026555976870636,
+    "sidewall_e2_fraction": 0.00035190688584647194,
+    "sidewall_e2_per_length_um": 0.017595344292323598,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 2.155643222140841,
+    "k_eff": -5.35979440539677e-10,
+    "leak_db_per_cm": -0.0004621027960933423,
+    "te_fraction": 0.9997156844346008,
+    "sidewall_power_fraction": 0.000673133315027073,
+    "sidewall_e2_fraction": 0.0010833458359803024,
+    "sidewall_e2_per_length_um": 0.054167291799015124,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 20,
+    "label": "TM0",
+    "n_eff": 2.065072330731459,
+    "k_eff": 1.0398640853159527e-05,
+    "leak_db_per_cm": 8.965345777026606,
+    "te_fraction": 0.0030692361087113723,
+    "sidewall_power_fraction": 0.0002681220184895684,
+    "sidewall_e2_fraction": 0.0004322973353713318,
+    "sidewall_e2_per_length_um": 0.02161486676856659,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": true
+   },
+   {
+    "index": 23,
+    "label": "TM1",
+    "n_eff": 2.0453639502856285,
+    "k_eff": 2.350738235897351e-05,
+    "leak_db_per_cm": 20.267245896557526,
+    "te_fraction": 0.007372618157545177,
+    "sidewall_power_fraction": 0.0010072899047670505,
+    "sidewall_e2_fraction": 0.001603192505263948,
+    "sidewall_e2_per_length_um": 0.08015962526319739,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": true
+   }
+  ]
+ },
+ {
+  "platform": "B_strip_LN",
+  "lam_um": 1.55,
+  "domain_um": [
+   13.151355430445737,
+   3.9389303545391297
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": 1.7535536482287228,
+   "TM": 1.2335063480261057
+  },
+  "info": {
+   "strip_height_um": 0.3,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 13,
+   "core_slab_neff": {
+    "TE": 1.9271091494241592,
+    "TM": 1.736695653572808
+   },
+   "clearance_um": {
+    "vertical": 1.6694651772695648,
+    "lateral": 5.772779621010328
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.8874050956691386,
+    "k_eff": -1.4673132909329665e-11,
+    "leak_db_per_cm": -5.166367891165918e-06,
+    "te_fraction": 0.9979345918887389,
+    "sidewall_power_fraction": 0.0011532828577244677,
+    "sidewall_e2_fraction": 0.0026039501972456368,
+    "sidewall_e2_per_length_um": 0.13019750986228185,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 1.7865810042576646,
+    "k_eff": 2.269756858851012e-09,
+    "leak_db_per_cm": 0.0007991748612094591,
+    "te_fraction": 0.9854557064656196,
+    "sidewall_power_fraction": 0.004154911032583745,
+    "sidewall_e2_fraction": 0.006332143520844037,
+    "sidewall_e2_per_length_um": 0.31660717604220184,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 12,
+    "label": "TM0",
+    "n_eff": 1.687102860574468,
+    "k_eff": 0.00015522549249122818,
+    "leak_db_per_cm": 54.65444941122219,
+    "te_fraction": 0.04066624711659409,
+    "sidewall_power_fraction": 0.001492053126017152,
+    "sidewall_e2_fraction": 0.0022929575152785572,
+    "sidewall_e2_per_length_um": 0.11464787576392786,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": true
+   }
+  ]
+ },
+ {
+  "platform": "C_rib_LT",
+  "lam_um": 0.633,
+  "domain_um": [
+   9.405525768957249,
+   3.5
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": 1.9896570287126465,
+   "TM": 1.8566089671460844
+  },
+  "info": {
+   "remaining_slab_um": 0.25,
+   "etch_depth_um": 0.25,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 8,
+   "core_slab_neff": {
+    "TE": 2.113335927940716,
+    "TM": 2.095325125968566
+   },
+   "clearance_um": {
+    "vertical": 1.5,
+    "lateral": 4.011770325912074
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 2.10235059230934,
+    "k_eff": -1.0740702696894773e-17,
+    "leak_db_per_cm": -9.260259578697325e-12,
+    "te_fraction": 0.9991243495428626,
+    "sidewall_power_fraction": 0.00031350055738933464,
+    "sidewall_e2_fraction": 0.0009157759448246597,
+    "sidewall_e2_per_length_um": 0.045788797241232984,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TM0",
+    "n_eff": 2.0860770105372577,
+    "k_eff": 6.658804105455758e-18,
+    "leak_db_per_cm": 5.740988857092453e-12,
+    "te_fraction": 0.00621955075336875,
+    "sidewall_power_fraction": 0.0006464560821867778,
+    "sidewall_e2_fraction": 0.0007616099153829126,
+    "sidewall_e2_per_length_um": 0.03808049576914563,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TE1",
+    "n_eff": 2.0687327930576846,
+    "k_eff": -8.642545484060933e-18,
+    "leak_db_per_cm": -7.45130154531142e-12,
+    "te_fraction": 0.9919737088475031,
+    "sidewall_power_fraction": 0.0012341003715747524,
+    "sidewall_e2_fraction": 0.0034099484192307624,
+    "sidewall_e2_per_length_um": 0.1704974209615381,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 3,
+    "label": "TM1",
+    "n_eff": 2.053479736767664,
+    "k_eff": 1.009032552555411e-17,
+    "leak_db_per_cm": 8.699527045581532e-12,
+    "te_fraction": 0.013912670236965758,
+    "sidewall_power_fraction": 0.002434119155114075,
+    "sidewall_e2_fraction": 0.002960020158086127,
+    "sidewall_e2_per_length_um": 0.14800100790430634,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 4,
+    "label": "TE2",
+    "n_eff": 2.0177820239955944,
+    "k_eff": 1.0402596925587789e-14,
+    "leak_db_per_cm": 8.968756564815046e-09,
+    "te_fraction": 0.9852169842099313,
+    "sidewall_power_fraction": 0.002575014758568936,
+    "sidewall_e2_fraction": 0.005895721293356051,
+    "sidewall_e2_per_length_um": 0.29478606466780255,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 5,
+    "label": "TM2",
+    "n_eff": 1.9997738714308784,
+    "k_eff": -3.340639840192263e-11,
+    "leak_db_per_cm": -2.8801832572892957e-05,
+    "te_fraction": 0.038577397992492,
+    "sidewall_power_fraction": 0.004965796868720148,
+    "sidewall_e2_fraction": 0.00622440729816255,
+    "sidewall_e2_per_length_um": 0.3112203649081275,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "C_rib_LT",
+  "lam_um": 1.55,
+  "domain_um": [
+   31.3819851171331,
+   3.706569600838776
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": 1.5812217245184217,
+   "TM": 1.1250487685096646
+  },
+  "info": {
+   "remaining_slab_um": 0.25,
+   "etch_depth_um": 0.25,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 12,
+   "core_slab_neff": {
+    "TE": 1.870800470444906,
+    "TM": 1.6519997432760407
+   },
+   "clearance_um": {
+    "vertical": 1.603284800419388,
+    "lateral": 15.0
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.8064612809387446,
+    "k_eff": -2.700039015606661e-10,
+    "leak_db_per_cm": -9.506759709275175e-05,
+    "te_fraction": 0.9953019584521948,
+    "sidewall_power_fraction": 0.0017217654061445432,
+    "sidewall_e2_fraction": 0.004303982609276168,
+    "sidewall_e2_per_length_um": 0.2151991304638084,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 1.6478319836741608,
+    "k_eff": -5.696201965762508e-11,
+    "leak_db_per_cm": -2.0056163274306526e-05,
+    "te_fraction": 0.8607058201443843,
+    "sidewall_power_fraction": 0.006953931327486277,
+    "sidewall_e2_fraction": 0.008110173010223078,
+    "sidewall_e2_per_length_um": 0.40550865051115387,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TM0",
+    "n_eff": 1.585918003491543,
+    "k_eff": -3.730001062816556e-09,
+    "leak_db_per_cm": -0.0013133226451385405,
+    "te_fraction": 0.19385492250153127,
+    "sidewall_power_fraction": 0.0017930472779476346,
+    "sidewall_e2_fraction": 0.003972338638199113,
+    "sidewall_e2_per_length_um": 0.19861693190995566,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "C_strip_LT",
+  "lam_um": 0.633,
+  "domain_um": [
+   9.619867226401215,
+   3.6
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": 2.03355716899472,
+   "TM": 1.9512378651415327
+  },
+  "info": {
+   "strip_height_um": 0.3,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 10,
+   "core_slab_neff": {
+    "TE": 2.0762282598390467,
+    "TM": 2.0537642685725435
+   },
+   "clearance_um": {
+    "vertical": 1.5,
+    "lateral": 4.007035518988068
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 2.0703981821292117,
+    "k_eff": 8.964617734852083e-20,
+    "leak_db_per_cm": 7.728981016532947e-14,
+    "te_fraction": 0.9997498182352832,
+    "sidewall_power_fraction": 0.00021658486620323555,
+    "sidewall_e2_fraction": 0.00043837659099326114,
+    "sidewall_e2_per_length_um": 0.021918829549663055,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 2.052561250233335,
+    "k_eff": 5.177543171003108e-13,
+    "leak_db_per_cm": 4.4638972976378786e-07,
+    "te_fraction": 0.99573616246435,
+    "sidewall_power_fraction": 0.000818788524009936,
+    "sidewall_e2_fraction": 0.0014594215424196101,
+    "sidewall_e2_per_length_um": 0.0729710771209805,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TM0",
+    "n_eff": 2.0434800229697108,
+    "k_eff": -4.176738107941902e-13,
+    "leak_db_per_cm": -3.601038047814244e-07,
+    "te_fraction": 0.003851357123350934,
+    "sidewall_power_fraction": 0.000283393078932861,
+    "sidewall_e2_fraction": 0.0004627715119403206,
+    "sidewall_e2_per_length_um": 0.02313857559701603,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 10,
+    "label": "TM1",
+    "n_eff": 2.022652898433322,
+    "k_eff": 0.00014784883393500602,
+    "leak_db_per_cm": 127.4701124575111,
+    "te_fraction": 0.11305099665391738,
+    "sidewall_power_fraction": 0.0010269082624608241,
+    "sidewall_e2_fraction": 0.0016663257972246341,
+    "sidewall_e2_per_length_um": 0.08331628986123171,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": true
+   }
+  ]
+ },
+ {
+  "platform": "C_strip_LT",
+  "lam_um": 1.55,
+  "domain_um": [
+   31.605796188425078,
+   4.006332649783407
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": 1.6673675505850045,
+   "TM": 1.2132246641749036
+  },
+  "info": {
+   "strip_height_um": 0.3,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 12,
+   "core_slab_neff": {
+    "TE": 1.8697171018998338,
+    "TM": 1.7194121003121097
+   },
+   "clearance_um": {
+    "vertical": 1.7031663248917035,
+    "lateral": 15.0
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.8263995974633511,
+    "k_eff": -3.7703128888905656e-11,
+    "leak_db_per_cm": -1.3275163231451377e-05,
+    "te_fraction": 0.9973068993993548,
+    "sidewall_power_fraction": 0.0011728885277331948,
+    "sidewall_e2_fraction": 0.002826840381678674,
+    "sidewall_e2_per_length_um": 0.1413420190839337,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 1.7151297382338755,
+    "k_eff": -3.0976496609955674e-11,
+    "leak_db_per_cm": -1.0906735354705929e-05,
+    "te_fraction": 0.9380028545452305,
+    "sidewall_power_fraction": 0.004685074966290404,
+    "sidewall_e2_fraction": 0.0066881470853483276,
+    "sidewall_e2_per_length_um": 0.33440735426741636,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TM0",
+    "n_eff": 1.668476697635992,
+    "k_eff": -1.001884017790581e-06,
+    "leak_db_per_cm": -0.3527604808169102,
+    "te_fraction": 0.2753801773084368,
+    "sidewall_power_fraction": 0.0013569697393308114,
+    "sidewall_e2_fraction": 0.0023922964310138105,
+    "sidewall_e2_per_length_um": 0.11961482155069052,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "D_rib_SiNx",
+  "lam_um": 0.633,
+  "domain_um": [
+   5.105796188425079,
+   4.131563526118143
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": null,
+   "TM": null
+  },
+  "info": {
+   "remaining_slab_um": 0.0,
+   "etch_depth_um": 0.3,
+   "substrate": "membrane",
+   "orientation": null,
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 0,
+   "core_slab_neff": {
+    "TE": 1.8528532823284716,
+    "TM": 1.761904675121511
+   },
+   "clearance_um": {
+    "vertical": 1.9157817630590712,
+    "lateral": 2.0
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.830927944521681,
+    "k_eff": -5.4606084504044194e-18,
+    "leak_db_per_cm": -4.70794631742226e-12,
+    "te_fraction": 0.9996554013698778,
+    "sidewall_power_fraction": 0.0004702881088167912,
+    "sidewall_e2_fraction": 0.0027680628397745073,
+    "sidewall_e2_per_length_um": 0.13840314198872536,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 1.7600097368601881,
+    "k_eff": -5.1335901154348225e-18,
+    "leak_db_per_cm": -4.426002504780713e-12,
+    "te_fraction": 0.9838192152146834,
+    "sidewall_power_fraction": 0.002174703140470648,
+    "sidewall_e2_fraction": 0.0106092077792276,
+    "sidewall_e2_per_length_um": 0.5304603889613799,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TM0",
+    "n_eff": 1.7493163602942805,
+    "k_eff": 3.242762339288573e-18,
+    "leak_db_per_cm": 2.7957966867956912e-12,
+    "te_fraction": 0.02002601524579293,
+    "sidewall_power_fraction": 0.001663780179552569,
+    "sidewall_e2_fraction": 0.0018531147872038996,
+    "sidewall_e2_per_length_um": 0.09265573936019497,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 3,
+    "label": "TM1",
+    "n_eff": 1.6854855314109096,
+    "k_eff": -2.806090112993105e-18,
+    "leak_db_per_cm": -2.4193131102162225e-12,
+    "te_fraction": 0.025927824066865626,
+    "sidewall_power_fraction": 0.007496644972480263,
+    "sidewall_e2_fraction": 0.006642709879423439,
+    "sidewall_e2_per_length_um": 0.3321354939711719,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 4,
+    "label": "TE2",
+    "n_eff": 1.636240305373944,
+    "k_eff": 1.6823258678750564e-17,
+    "leak_db_per_cm": 1.4504427384424519e-11,
+    "te_fraction": 0.9880642723136716,
+    "sidewall_power_fraction": 0.005146410084451027,
+    "sidewall_e2_fraction": 0.023109604388755426,
+    "sidewall_e2_per_length_um": 1.1554802194377713,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 5,
+    "label": "TM2",
+    "n_eff": 1.5752156007746239,
+    "k_eff": 3.133567727279612e-17,
+    "leak_db_per_cm": 2.7016528974800764e-11,
+    "te_fraction": 0.05580649357182435,
+    "sidewall_power_fraction": 0.01701585210470494,
+    "sidewall_e2_fraction": 0.014370681461881127,
+    "sidewall_e2_per_length_um": 0.7185340730940564,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 6,
+    "label": "TE3",
+    "n_eff": 1.4531975969482176,
+    "k_eff": 3.059396889279404e-17,
+    "leak_db_per_cm": 2.6377053856240778e-11,
+    "te_fraction": 0.9789817721810149,
+    "sidewall_power_fraction": 0.01211697162961128,
+    "sidewall_e2_fraction": 0.03726329986014794,
+    "sidewall_e2_per_length_um": 1.8631649930073968,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 7,
+    "label": "TM3",
+    "n_eff": 1.4144992069498,
+    "k_eff": -1.834075873567721e-16,
+    "leak_db_per_cm": -1.5812763052433592e-10,
+    "te_fraction": 0.12987166759819938,
+    "sidewall_power_fraction": 0.02990015741186901,
+    "sidewall_e2_fraction": 0.023893852662796568,
+    "sidewall_e2_per_length_um": 1.1946926331398284,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 8,
+    "label": "TE4",
+    "n_eff": 1.3548306763046332,
+    "k_eff": -2.9315736793037885e-14,
+    "leak_db_per_cm": -2.5275006683015564e-08,
+    "te_fraction": 0.9805906638101101,
+    "sidewall_power_fraction": 0.0004227120003196223,
+    "sidewall_e2_fraction": 0.00325118116970507,
+    "sidewall_e2_per_length_um": 0.1625590584852535,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 9,
+    "label": "TE5",
+    "n_eff": 1.2628338694950156,
+    "k_eff": -1.1921497125523424e-13,
+    "leak_db_per_cm": -1.0278299387334999e-07,
+    "te_fraction": 0.9192559707440818,
+    "sidewall_power_fraction": 0.0033997262324784567,
+    "sidewall_e2_fraction": 0.012174921623620162,
+    "sidewall_e2_per_length_um": 0.6087460811810081,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 10,
+    "label": "TE6",
+    "n_eff": 1.2114072839614691,
+    "k_eff": 6.73080856734951e-14,
+    "leak_db_per_cm": 5.803068594962242e-08,
+    "te_fraction": 0.8952666505076069,
+    "sidewall_power_fraction": 0.028775869725340235,
+    "sidewall_e2_fraction": 0.042734382034060554,
+    "sidewall_e2_per_length_um": 2.1367191017030276,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 11,
+    "label": "TM4",
+    "n_eff": 1.184932057884509,
+    "k_eff": -2.8410898406158785e-15,
+    "leak_db_per_cm": -2.4494886557198034e-09,
+    "te_fraction": 0.19558961734234817,
+    "sidewall_power_fraction": 0.04116498974026889,
+    "sidewall_e2_fraction": 0.032602021852747305,
+    "sidewall_e2_per_length_um": 1.6301010926373651,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 12,
+    "label": "TM5",
+    "n_eff": 1.1286777778388275,
+    "k_eff": 4.146918597998931e-11,
+    "leak_db_per_cm": 3.575328705476587e-05,
+    "te_fraction": 0.027354543141390773,
+    "sidewall_power_fraction": 0.0027187194235079983,
+    "sidewall_e2_fraction": 0.0018178565548043412,
+    "sidewall_e2_per_length_um": 0.09089282774021706,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 13,
+    "label": "TE7",
+    "n_eff": 1.0848892317770364,
+    "k_eff": -4.2756787504350227e-11,
+    "leak_db_per_cm": -3.6863412219384355e-05,
+    "te_fraction": 0.8983856240927117,
+    "sidewall_power_fraction": 0.0035883261170580826,
+    "sidewall_e2_fraction": 0.020902701990164845,
+    "sidewall_e2_per_length_um": 1.0451350995082422,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "D_rib_SiNx",
+  "lam_um": 1.55,
+  "domain_um": [
+   15.554660330485653,
+   14.748864142060569
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": null,
+   "TM": null
+  },
+  "info": {
+   "remaining_slab_um": 0.0,
+   "etch_depth_um": 0.3,
+   "substrate": "membrane",
+   "orientation": null,
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 25,
+   "core_slab_neff": {
+    "TE": 1.558750194851646,
+    "TM": 1.1719961772368874
+   },
+   "clearance_um": {
+    "vertical": 7.224432071030285,
+    "lateral": 7.224432071030287
+   }
+  },
+  "modes": [
+   {
+    "index": 13,
+    "label": "TE0",
+    "n_eff": 1.41121631927934,
+    "k_eff": -1.2316792423802483e-18,
+    "leak_db_per_cm": -4.33670718405534e-13,
+    "te_fraction": 0.9903810561148105,
+    "sidewall_power_fraction": 0.0019464902851579785,
+    "sidewall_e2_fraction": 0.01168065938193884,
+    "sidewall_e2_per_length_um": 0.5840329690969419,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 14,
+    "label": "TM0",
+    "n_eff": 1.1022041274000274,
+    "k_eff": -1.8383454765654895e-14,
+    "leak_db_per_cm": -6.4727615443046815e-09,
+    "te_fraction": 0.027387579929113687,
+    "sidewall_power_fraction": 0.00412887760535095,
+    "sidewall_e2_fraction": 0.0022945073404577318,
+    "sidewall_e2_per_length_um": 0.11472536702288659,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 15,
+    "label": "TE1",
+    "n_eff": 1.0366439548791193,
+    "k_eff": 8.157789481709877e-10,
+    "leak_db_per_cm": 0.00028723342112166826,
+    "te_fraction": 0.8513026565577648,
+    "sidewall_power_fraction": 0.01198134313517279,
+    "sidewall_e2_fraction": 0.015879094412946677,
+    "sidewall_e2_per_length_um": 0.7939547206473339,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "D_rib_Al2O3",
+  "lam_um": 0.633,
+  "domain_um": [
+   6.023720694172137,
+   5.082659109605366
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": null,
+   "TM": null
+  },
+  "info": {
+   "remaining_slab_um": 0.0,
+   "etch_depth_um": 0.4,
+   "substrate": "membrane",
+   "orientation": null,
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 0,
+   "core_slab_neff": {
+    "TE": 1.5671427721849183,
+    "TM": 1.520304889669201
+   },
+   "clearance_um": {
+    "vertical": 2.341329554802683,
+    "lateral": 2.3413295548026825
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.5493662234415537,
+    "k_eff": 5.627884356763667e-18,
+    "leak_db_per_cm": 4.852165774739175e-12,
+    "te_fraction": 0.9996738111019725,
+    "sidewall_power_fraction": 0.0005952195521048919,
+    "sidewall_e2_fraction": 0.0023232485440008617,
+    "sidewall_e2_per_length_um": 0.11616242720004308,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TM0",
+    "n_eff": 1.5091847238524223,
+    "k_eff": 1.5805089077955841e-18,
+    "leak_db_per_cm": 1.3626597035277658e-12,
+    "te_fraction": 0.005956875383950626,
+    "sidewall_power_fraction": 0.0016972308004782482,
+    "sidewall_e2_fraction": 0.0016008456577004465,
+    "sidewall_e2_per_length_um": 0.08004228288502233,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TE1",
+    "n_eff": 1.4935918807326936,
+    "k_eff": -6.9039592216060324e-18,
+    "leak_db_per_cm": -5.952353055195951e-12,
+    "te_fraction": 0.995314992136384,
+    "sidewall_power_fraction": 0.0025440721960849786,
+    "sidewall_e2_fraction": 0.009030869605527427,
+    "sidewall_e2_per_length_um": 0.45154348027637137,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 3,
+    "label": "TM1",
+    "n_eff": 1.4593108226574791,
+    "k_eff": 5.658879614178161e-18,
+    "leak_db_per_cm": 4.878888805574928e-12,
+    "te_fraction": 0.013593623782098553,
+    "sidewall_power_fraction": 0.0066926807308429394,
+    "sidewall_e2_fraction": 0.006238135258740975,
+    "sidewall_e2_per_length_um": 0.3119067629370488,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 4,
+    "label": "TE2",
+    "n_eff": 1.3979836117460906,
+    "k_eff": 1.602343153358357e-17,
+    "leak_db_per_cm": 1.3814844291832624e-11,
+    "te_fraction": 0.9930806252916279,
+    "sidewall_power_fraction": 0.006705577048887966,
+    "sidewall_e2_fraction": 0.019235813744263763,
+    "sidewall_e2_per_length_um": 0.9617906872131882,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 5,
+    "label": "TM2",
+    "n_eff": 1.3740208666288958,
+    "k_eff": 2.9823377327062756e-17,
+    "leak_db_per_cm": 2.5712676661451695e-11,
+    "te_fraction": 0.03392062550700524,
+    "sidewall_power_fraction": 0.014961067971263502,
+    "sidewall_e2_fraction": 0.013519136007158856,
+    "sidewall_e2_per_length_um": 0.6759568003579428,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 6,
+    "label": "TE3",
+    "n_eff": 1.260344628126159,
+    "k_eff": 6.288887694773188e-17,
+    "leak_db_per_cm": 5.422059818461587e-11,
+    "te_fraction": 0.9790374442712606,
+    "sidewall_power_fraction": 0.015203551645633976,
+    "sidewall_e2_fraction": 0.030148050610858665,
+    "sidewall_e2_per_length_um": 1.5074025305429333,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 7,
+    "label": "TM3",
+    "n_eff": 1.2514513226851716,
+    "k_eff": -1.35867538298069e-16,
+    "leak_db_per_cm": -1.1714025687746354e-10,
+    "te_fraction": 0.1554747713298136,
+    "sidewall_power_fraction": 0.02396621558794867,
+    "sidewall_e2_fraction": 0.020891454359404052,
+    "sidewall_e2_per_length_um": 1.0445727179702027,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 8,
+    "label": "TE4",
+    "n_eff": 1.2342624464398972,
+    "k_eff": -1.0561956332264516e-15,
+    "leak_db_per_cm": -9.106150691975863e-10,
+    "te_fraction": 0.9216501386006553,
+    "sidewall_power_fraction": 0.002289606727001201,
+    "sidewall_e2_fraction": 0.004349039441120633,
+    "sidewall_e2_per_length_um": 0.21745197205603164,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 9,
+    "label": "TE5",
+    "n_eff": 1.167077799231237,
+    "k_eff": -7.150577613366079e-15,
+    "leak_db_per_cm": -6.164978838538706e-09,
+    "te_fraction": 0.9747189244548258,
+    "sidewall_power_fraction": 0.0026508929964880086,
+    "sidewall_e2_fraction": 0.00941625548145047,
+    "sidewall_e2_per_length_um": 0.4708127740725235,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 10,
+    "label": "TM4",
+    "n_eff": 1.1272441087772256,
+    "k_eff": 2.687114956871218e-13,
+    "leak_db_per_cm": 2.3167368765938883e-07,
+    "te_fraction": 0.014292000597032863,
+    "sidewall_power_fraction": 0.0013108511545844859,
+    "sidewall_e2_fraction": 0.0015586376247366952,
+    "sidewall_e2_per_length_um": 0.07793188123683475,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 11,
+    "label": "TE6",
+    "n_eff": 1.1015980580715605,
+    "k_eff": 1.5373105643086114e-13,
+    "leak_db_per_cm": 1.3254155971272834e-07,
+    "te_fraction": 0.659993668234629,
+    "sidewall_power_fraction": 0.025414593435827706,
+    "sidewall_e2_fraction": 0.02391407546509407,
+    "sidewall_e2_per_length_um": 1.1957037732547036,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 12,
+    "label": "TM5",
+    "n_eff": 1.083162022105345,
+    "k_eff": -3.7339119731619e-13,
+    "leak_db_per_cm": -3.2192487857876943e-07,
+    "te_fraction": 0.10736028269246518,
+    "sidewall_power_fraction": 0.03498862538703494,
+    "sidewall_e2_fraction": 0.030123399575397874,
+    "sidewall_e2_per_length_um": 1.5061699787698937,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 13,
+    "label": "TM6",
+    "n_eff": 1.0575895655931251,
+    "k_eff": 1.023570084637221e-11,
+    "leak_db_per_cm": 8.824864581225378e-06,
+    "te_fraction": 0.39032418656873596,
+    "sidewall_power_fraction": 0.005132444290824517,
+    "sidewall_e2_fraction": 0.012037244348234777,
+    "sidewall_e2_per_length_um": 0.6018622174117388,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "D_rib_Al2O3",
+  "lam_um": 1.55,
+  "domain_um": [
+   9.63768595289799,
+   8.696624368331218
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": null,
+   "TM": null
+  },
+  "info": {
+   "remaining_slab_um": 0.0,
+   "etch_depth_um": 0.4,
+   "substrate": "membrane",
+   "orientation": null,
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 11,
+   "core_slab_neff": {
+    "TE": 1.3488949962245251,
+    "TM": 1.163094734288817
+   },
+   "clearance_um": {
+    "vertical": 4.148312184165609,
+    "lateral": 4.148312184165609
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.2465550923941355,
+    "k_eff": -1.835304934974374e-14,
+    "leak_db_per_cm": -6.462055884821351e-09,
+    "te_fraction": 0.9932984594048274,
+    "sidewall_power_fraction": 0.0029438477633811945,
+    "sidewall_e2_fraction": 0.009056680477498951,
+    "sidewall_e2_per_length_um": 0.45283402387494753,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TM0",
+    "n_eff": 1.1073975006157943,
+    "k_eff": 1.6092941309343886e-10,
+    "leak_db_per_cm": 5.666278344834414e-05,
+    "te_fraction": 0.017993257808482602,
+    "sidewall_power_fraction": 0.004652573442432901,
+    "sidewall_e2_fraction": 0.0029494851189712998,
+    "sidewall_e2_per_length_um": 0.14747425594856498,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TE1",
+    "n_eff": 1.0113320475654843,
+    "k_eff": -2.6501151414137304e-05,
+    "leak_db_per_cm": -9.330979184266116,
+    "te_fraction": 0.904732470662341,
+    "sidewall_power_fraction": 0.011356473363216156,
+    "sidewall_e2_fraction": 0.012617732814068377,
+    "sidewall_e2_per_length_um": 0.6308866407034188,
+    "guided": true,
+    "near_cutoff": true,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "D_rib_sapphire",
+  "lam_um": 0.633,
+  "domain_um": [
+   5.341061584566772,
+   3.4
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": null,
+   "TM": null
+  },
+  "info": {
+   "remaining_slab_um": 0.0,
+   "etch_depth_um": 0.4,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 0,
+   "core_slab_neff": {
+    "TE": 1.6667166024645097,
+    "TM": 1.6127788372084162
+   },
+   "clearance_um": {
+    "vertical": 1.5,
+    "lateral": 2.0
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.6498012249184408,
+    "k_eff": -2.3944038716505443e-14,
+    "leak_db_per_cm": -2.0643715791642063e-08,
+    "te_fraction": 0.9997242012174363,
+    "sidewall_power_fraction": 0.00045388905351328594,
+    "sidewall_e2_fraction": 0.002028590713318748,
+    "sidewall_e2_per_length_um": 0.1014295356659374,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TM0",
+    "n_eff": 1.6019006352235083,
+    "k_eff": 4.5066908022743585e-14,
+    "leak_db_per_cm": 3.885511762843381e-08,
+    "te_fraction": 0.02784666158774899,
+    "sidewall_power_fraction": 0.001559307994841891,
+    "sidewall_e2_fraction": 0.0015203269510940434,
+    "sidewall_e2_per_length_um": 0.07601634755470217,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TE1",
+    "n_eff": 1.5963983689085541,
+    "k_eff": -3.158787667951407e-14,
+    "leak_db_per_cm": -2.7233966514755845e-08,
+    "te_fraction": 0.9750176350201055,
+    "sidewall_power_fraction": 0.0018271479675325975,
+    "sidewall_e2_fraction": 0.0078097407321458985,
+    "sidewall_e2_per_length_um": 0.3904870366072949,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 3,
+    "label": "TM1",
+    "n_eff": 1.553892451349436,
+    "k_eff": 6.353611206392716e-14,
+    "leak_db_per_cm": 5.477862174727806e-08,
+    "te_fraction": 0.01297507839739356,
+    "sidewall_power_fraction": 0.005837986391806991,
+    "sidewall_e2_fraction": 0.005528777639871466,
+    "sidewall_e2_per_length_um": 0.2764388819935733,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 4,
+    "label": "TE2",
+    "n_eff": 1.5049960590511509,
+    "k_eff": -7.355360805276516e-14,
+    "leak_db_per_cm": -6.341535770422976e-08,
+    "te_fraction": 0.9932835208653776,
+    "sidewall_power_fraction": 0.00492608171213309,
+    "sidewall_e2_fraction": 0.01712175833628366,
+    "sidewall_e2_per_length_um": 0.8560879168141831,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 5,
+    "label": "TM2",
+    "n_eff": 1.4719625249147397,
+    "k_eff": 1.230861382270328e-13,
+    "leak_db_per_cm": 1.0612057913596956e-07,
+    "te_fraction": 0.030683825514699236,
+    "sidewall_power_fraction": 0.013099393237348236,
+    "sidewall_e2_fraction": 0.012058640783380968,
+    "sidewall_e2_per_length_um": 0.6029320391690484,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 6,
+    "label": "TE3",
+    "n_eff": 1.3720333036174133,
+    "k_eff": -4.733206701544214e-13,
+    "leak_db_per_cm": -4.0808058776825666e-07,
+    "te_fraction": 0.9852719902535704,
+    "sidewall_power_fraction": 0.010892313086740393,
+    "sidewall_e2_fraction": 0.02789202739505758,
+    "sidewall_e2_per_length_um": 1.394601369752879,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 7,
+    "label": "TM3",
+    "n_eff": 1.3538271750328705,
+    "k_eff": -4.789827953682895e-13,
+    "leak_db_per_cm": -4.1296227481678323e-07,
+    "te_fraction": 0.12291105682722087,
+    "sidewall_power_fraction": 0.02194797053130147,
+    "sidewall_e2_fraction": 0.01939515098294492,
+    "sidewall_e2_per_length_um": 0.969757549147246,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 8,
+    "label": "TE4",
+    "n_eff": 1.3345804563823194,
+    "k_eff": -1.944309598642025e-11,
+    "leak_db_per_cm": -1.6763159816334275e-05,
+    "te_fraction": 0.9481061039984662,
+    "sidewall_power_fraction": 0.0012990340897947217,
+    "sidewall_e2_fraction": 0.003344254479369201,
+    "sidewall_e2_per_length_um": 0.16721272396846004,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 9,
+    "label": "TE5",
+    "n_eff": 1.2700143458683093,
+    "k_eff": -3.555720885393227e-11,
+    "leak_db_per_cm": -3.065618639426283e-05,
+    "te_fraction": 0.9752765575764641,
+    "sidewall_power_fraction": 0.002026047333086101,
+    "sidewall_e2_fraction": 0.008568787049558827,
+    "sidewall_e2_per_length_um": 0.42843935247794135,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 10,
+    "label": "TE6",
+    "n_eff": 1.2031397840669023,
+    "k_eff": 8.832755917933324e-13,
+    "leak_db_per_cm": 7.615294353039374e-07,
+    "te_fraction": 0.893916220109321,
+    "sidewall_power_fraction": 0.021504850247063095,
+    "sidewall_e2_fraction": 0.03151493796321784,
+    "sidewall_e2_per_length_um": 1.575746898160892,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 11,
+    "label": "TM4",
+    "n_eff": 1.1963739744482293,
+    "k_eff": 3.67352410567097e-10,
+    "leak_db_per_cm": 0.00031671844708028226,
+    "te_fraction": 0.0321387522399281,
+    "sidewall_power_fraction": 0.006225008529567714,
+    "sidewall_e2_fraction": 0.005461754970102767,
+    "sidewall_e2_per_length_um": 0.27308774850513834,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 12,
+    "label": "TM5",
+    "n_eff": 1.1886111247854985,
+    "k_eff": 9.368110392578888e-11,
+    "leak_db_per_cm": 8.076858325317308e-05,
+    "te_fraction": 0.09657999420589072,
+    "sidewall_power_fraction": 0.028419293479116564,
+    "sidewall_e2_fraction": 0.02389383505843813,
+    "sidewall_e2_per_length_um": 1.1946917529219065,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 13,
+    "label": "TE7",
+    "n_eff": 1.1500164316485804,
+    "k_eff": -9.070593785213792e-11,
+    "leak_db_per_cm": -7.820349874155107e-05,
+    "te_fraction": 0.8994984979595935,
+    "sidewall_power_fraction": 0.006355134851246794,
+    "sidewall_e2_fraction": 0.01785306063414513,
+    "sidewall_e2_per_length_um": 0.8926530317072564,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "D_rib_sapphire",
+  "lam_um": 1.55,
+  "domain_um": [
+   12.955883458451646,
+   12.014821873884873
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": null,
+   "TM": null
+  },
+  "info": {
+   "remaining_slab_um": 0.0,
+   "etch_depth_um": 0.4,
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "mode_list_complete": false,
+   "spurious_pml_modes_dropped": 11,
+   "core_slab_neff": {
+    "TE": 1.436681797667839,
+    "TM": 1.2050852919700845
+   },
+   "clearance_um": {
+    "vertical": 5.8074109369424365,
+    "lateral": 5.807410936942437
+   }
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.3326090123725232,
+    "k_eff": -3.3870457520721533e-18,
+    "leak_db_per_cm": -1.192569066711665e-12,
+    "te_fraction": 0.993972894418836,
+    "sidewall_power_fraction": 0.0022209072084245648,
+    "sidewall_e2_fraction": 0.008780730094048825,
+    "sidewall_e2_per_length_um": 0.4390365047024412,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TM0",
+    "n_eff": 1.1455886906959514,
+    "k_eff": -3.6403281435166173e-14,
+    "leak_db_per_cm": -1.2817490681907202e-08,
+    "te_fraction": 0.022540765520543467,
+    "sidewall_power_fraction": 0.004449913226120136,
+    "sidewall_e2_fraction": 0.0028009028109610354,
+    "sidewall_e2_per_length_um": 0.14004514054805176,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TE1",
+    "n_eff": 1.0561645608105121,
+    "k_eff": 7.500460514914723e-10,
+    "leak_db_per_cm": 0.0002640890572767496,
+    "te_fraction": 0.9170325187372041,
+    "sidewall_power_fraction": 0.011961225673880764,
+    "sidewall_e2_fraction": 0.016540121932015518,
+    "sidewall_e2_per_length_um": 0.8270060966007758,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "E_slab_LN",
+  "lam_um": 0.633,
+  "domain_um": [
+   Infinity,
+   NaN
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": null,
+   "TM": null
+  },
+  "info": {
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "solver": "exact 1D slab (no sidewalls)"
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 2.2245388262351695,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 1.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 0,
+    "label": "TM0",
+    "n_eff": 2.122881228394902,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 0.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 2.0310414993242207,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 1.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TM1",
+    "n_eff": 1.8700105666500253,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 0.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TE2",
+    "n_eff": 1.6773357761160135,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 1.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 2,
+    "label": "TM2",
+    "n_eff": 1.399646376482644,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 0.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 3,
+    "label": "TE3",
+    "n_eff": 1.1145027961466079,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 1.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 3,
+    "label": "TM3",
+    "n_eff": 1.0088800806897398,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 0.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": true,
+    "lateral_leak_risk": false
+   }
+  ]
+ },
+ {
+  "platform": "E_slab_LN",
+  "lam_um": 1.55,
+  "domain_um": [
+   Infinity,
+   NaN
+  ],
+  "n_cladding_max": 1.0,
+  "outside_slab_neff": {
+   "TE": null,
+   "TM": null
+  },
+  "info": {
+   "substrate": "membrane",
+   "orientation": "zcut",
+   "solver": "exact 1D slab (no sidewalls)"
+  },
+  "modes": [
+   {
+    "index": 0,
+    "label": "TE0",
+    "n_eff": 1.9638862960193426,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 1.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 0,
+    "label": "TM0",
+    "n_eff": 1.691028907772931,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 0.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TE1",
+    "n_eff": 1.1805881013009403,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 1.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": false,
+    "lateral_leak_risk": false
+   },
+   {
+    "index": 1,
+    "label": "TM1",
+    "n_eff": 1.0141997537098864,
+    "k_eff": 0.0,
+    "leak_db_per_cm": 0.0,
+    "te_fraction": 0.0,
+    "sidewall_power_fraction": 0.0,
+    "sidewall_e2_fraction": 0.0,
+    "sidewall_e2_per_length_um": 0.0,
+    "guided": true,
+    "near_cutoff": true,
+    "lateral_leak_risk": false
+   }
+  ]
+ }
+]

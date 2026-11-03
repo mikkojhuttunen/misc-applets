@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sidewall-roughness"
+version = "0.1.0"
+description = "Sidewall-roughness scattering loss in TFLN/TFLT, SiNx, Al2O3 and sapphire thin-film waveguides (Tidy3D)."
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "scipy>=1.10", "pyyaml>=6"]
+
+[project.optional-dependencies]
+tidy3d = ["tidy3d>=2.8"]
+plot = ["matplotlib>=3.7"]
+test = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

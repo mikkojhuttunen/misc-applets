@@ -12,7 +12,11 @@ python scripts/m1_smooth_modes.py           # smooth-guide mode tables -> result
 python scripts/m1_probe_coarse.py           # one coarse corrugation run, built and checked locally
 python scripts/m1_probe_coarse.py --estimate   # + upload, print web.estimate_cost(), delete draft
 python scripts/estimate_sweep_cost.py [--production] [--modes] [--cloud --limit N]
+python scripts/export_tidy3d_setups.py --out setups/m1 --platforms A_rib_LN --modes TE0 --wavelengths 1.55 --periods 3
+python scripts/analyse_probe_results.py setups/m1      # after the *_data.hdf5 files come back
 ```
+
+**Runs by people.** `export_tidy3d_setups.py` writes one `td.Simulation` `.hdf5` per run, a `manifest.csv` (cheapest group first, smooth reference first in each group), the merged config with the git commit, and `RUN_ME.md` (estimate, run, download, naming). Whoever runs them returns the `*_data.hdf5` files; `analyse_probe_results.py` pairs each corrugated run with its smooth reference and writes alpha and H(K) per frequency to `kernel.csv`.
 
 ## Layout
 
@@ -31,7 +35,7 @@ python scripts/estimate_sweep_cost.py [--production] [--modes] [--cloud --limit 
 | `src/swr/analysis/probe.py` | radiation K band, H(K) from a probe run, α = ∫ S·H dK |
 | `src/swr/analysis/budget.py` | power budget of a run: same mode / other modes / reflection / radiation |
 | `src/swr/runners/cloud.py` | estimate (always printed) and confirmed run |
-| `scripts/` | milestone drivers and the sweep cost estimate |
+| `scripts/` | milestone drivers, the sweep cost estimate, setup-file export for Tidy3D users, analysis of returned runs |
 
 ## Conventions
 

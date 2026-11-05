@@ -511,10 +511,220 @@ def build3_species(s):
     return s
 
 
+GC_SIZES = ["d5", "d10", "d15", "d20"]
+
+
+def gc_data():
+    art = json.load(open(ROOT / "results" / "t11" / "artifact_data.json"))
+    summ = json.load(open(ROOT / "results" / "t11" / "summary.json"))
+    out = {"cases": {}, "sizes": GC_SIZES, "design": art["design"]}
+    for band, R in (("nir", 0.97), ("nir", 0.995), ("mir", 0.97), ("mir", 0.995)):
+        ck = f"{band}_R{R}"
+        cs = {"bars": {}, "old": None, "scaling": {}, "table": {}}
+        for cell in ["d4ref"] + GC_SIZES:
+            k = f"{ck}_{cell}"
+            A_ = art["cells"][k]
+            cs["bars"][cell] = {m: {"reg": A_["bars"][m]["reg"], "q": A_["bars"][m]["q"]} for m in ("none", "spectral", "input", "both")}
+            if cell == "d4ref":
+                cs["old"] = {m: A_["bars_old"][m] for m in ("none", "spectral", "input", "both")}
+            cs["scaling"][cell] = [{"name": x["name"], "N": round(x["N"], 2), "both": x["both"], "f": round(x["input_factor"], 3)} for x in art["scaling"][k]]
+            sm = summ[k]
+            cs["table"][cell] = {"T": sm["T"], "GL_cm": sm["GL_cm"], "M": sm["M"], "static": sm["static"]["both"],
+                                 "lim": {kk: (v[1] if isinstance(v, list) else v) for kk, v in sm["limits"].items() if "fringe" not in kk}}
+        cs["dlam"] = art["cells"][f"{ck}_d10"]["dlam"]
+        out["cases"][ck] = cs
+    return out
+
+
+def build2_design(s):
+    """Fig. 2 (j)-(k): the grating-coupler design at 5-20 mm (Task 11), with size buttons that also set the live cell."""
+    s = rep_(s, '<input id="cR" class="sim" type="range" min="0.5" max="5" step="0.05" value="2">', '<input id="cR" class="sim" type="range" min="0.5" max="10" step="0.05" value="2">')
+    panel = '''      <div class="panel" id="gcPanel">
+        <h2>Fig. 2 (j)–(k): grating-coupler design, 5–20 mm cells (QUIET Task 11, wave-consistent beamlet model)</h2>
+        <div class="btns" id="gcSize"><span class="sel">cell diameter</span><button type="button" data-gc="d5" aria-pressed="false">5 mm</button><button type="button" data-gc="d10" aria-pressed="true">10 mm</button><button type="button" data-gc="d15" aria-pressed="false">15 mm</button><button type="button" data-gc="d20" aria-pressed="false">20 mm</button>
+          <label class="sel mono" for="gcCase">case <select id="gcCase"><option value="nir_R0.97" selected>1.53 µm, R 97 %, ±35 pm</option><option value="nir_R0.995">1.53 µm, R 99.5 %, ±35 pm</option><option value="mir_R0.97">3.3 µm, R 97 %, ±81 pm</option><option value="mir_R0.995">3.3 µm, R 99.5 %, ±81 pm</option></select></label>
+          <label class="check"><input type="checkbox" id="gcLive" checked> size buttons also set the live cell above</label></div>
+        <div class="sheetwrap"><div class="sheet" id="gcSheet"></div></div>
+        <div class="btns">
+          <label class="sel mono" for="gcW">width (cm) <input id="gcW" type="number" min="8" max="28" step="0.1" value="16.8" style="width:5em"></label>
+          <label class="sel mono" for="gcH">height (cm) <input id="gcH" type="number" min="3" max="15" step="0.1" value="6.4" style="width:5em"></label>
+          <label class="sel mono" for="gcFs">font (pt) <input id="gcFs" type="number" min="6" max="14" step="0.5" value="10" style="width:4.5em"></label>
+          <button type="button" id="gcPdf">Download PDF</button><button type="button" id="gcSvgBtn">Download SVG</button><button type="button" id="gcCsv">Download data (CSV)</button>
+          <span class="status" id="gcStatus" role="status"></span>
+        </div>
+        <p class="hint">Design: free-space beam on a large-area input grating coupler (waist 75 µm, angle dither ±60 mrad, position dither ±100 µm), 24-facet circle CMPC, 8 index inclusions r 25 µm |Δn| 0.01, output port on facet 11 (best or equal-best of 23 at every size, chosen on layouts 1–15, checked on 16–30), set B, 0.3 dB/cm, ε = 10⁻⁶; static fringe (no drift), medians and quartiles over 30 layouts. (j) fringe per dither mode (none, wavelength, input angle + position, both) for the selected size, against the 4 mm cell with the old ±2 mrad, 40 µm launch. (k) both-dither fringe against the number of input states N swept by 17 input-dither designs (angle, position, both), one series per cell size; dashed: N<sup>−½</sup> from the 10 mm single-state value. The input dither follows N<sup>−½</sup> (Task 9b); the larger cells start lower because the wavelength dither averages better on their longer paths. Table: limits with drift averaging (0.1 rad/s) and the detector (10 mW, simulated transmission, +8 dB for two grating couplers, NEP 14 pW/√Hz).</p>
+        <div class="tbl"><table class="vals" id="gcTbl"></table></div>
+      </div>
+'''
+    s = rep_(s, '      <div class="panel" id="robPanel">', panel + '      <div class="panel" id="robPanel">')
+    s = s.replace('<script id="dsets" type="application/json">', '<script id="gcdata" type="application/json">' + json.dumps(gc_data()) + '</script>\n<script id="dsets" type="application/json">', 1)
+    s = rep_(s, '#robSheet { min-width: 560px; }', '#robSheet, #gcSheet { min-width: 560px; }\n#gcSize button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }')
+    js = r'''
+  /* ---------------------------------------------------------------- grating-coupler design (QUIET Task 11) */
+  const GC = JSON.parse(document.getElementById("gcdata").textContent);
+  const GC_COL = { d5: "#9ecae1", d10: "#4292c6", d15: "#08519c", d20: "#08306b" }, GC_D = { d5: 5, d10: 10, d15: 15, d20: 20 };
+  let gcSel = "d10", gcLast = null;
+  const MODES4 = [["none", "none"], ["spectral", "λ"], ["input", "input"], ["both", "both"]];
+  function gcPanels() {
+    const cs = GC.cases[$("gcCase").value], R = $("colCR").value, C = $("colCC").value, bars = cs.bars[gcSel], x = [1, 2, 3, 4];
+    const pj = { title: `(j) ${GC_D[gcSel]} mm cell`, xr: [0.5, 4.5], xticks: MODES4.map(([, l], i) => [i + 1, l]), xlab: [["Dither", 0]],
+      ylog: true, yr: [1e-8, 1e-3], ylab: [["Static fringe ΔP/P", 0]], hlines: [{ y: 5e-7, col: "#d62728" }],
+      bands: [{ x, lo: MODES4.map(([m]) => bars[m].q[0]), hi: MODES4.map(([m]) => bars[m].q[2]), col: C, a: 0.22 }],
+      series: [{ x, y: MODES4.map(([m]) => cs.old[m][1]), col: "#7f7f7f", lw: 1.2, mk: 2.2, dash: "3 2" },
+               { x, y: MODES4.map(([m]) => bars[m].reg), col: R, lw: 1.2, mk: 2.2 },
+               { x, y: MODES4.map(([m]) => bars[m].q[1]), col: C, lw: 1.4, mk: 2.4 }] };
+    const ser = GC.sizes.map(c => { const v = cs.scaling[c].slice().sort((a, b) => a.N - b.N);
+      return { x: v.map(p => p.N), y: v.map(p => p.both[1]), col: GC_COL[c], lw: c === gcSel ? 1.0 : 0.5, mk: c === gcSel ? 2.6 : 1.7 }; });
+    const one = cs.scaling[gcSel].find(p => p.name === "w40 A2") || cs.scaling[gcSel][0], Ns = [1, 600];
+    ser.push({ x: Ns, y: Ns.map(n => one.both[1] * n ** -0.5), col: "#000000", lw: 0.9, dash: "4 3" });
+    const pk = { title: "(k) fringe against input states", xlog: true, xr: [0.8, 600], xticks: [[1, "1"], [10, "10"], [100, "100"]], xlab: [["Input states N", 0]],
+      ylog: true, yr: [1e-8, 1e-4], ylab: [["ΔP/P, both dithers", 0]], hlines: [{ y: 5e-7, col: "#d62728" }], series: ser };
+    return [pj, pk];
+  }
+  function gcLegend() {
+    return [{ label: "4 mm, ±2 mrad", col: "#7f7f7f", lw: 1.4, dash: 1 }, { label: "regular (indicative)", col: $("colCR").value, lw: 1.6 }, { label: "chaotic", col: $("colCC").value, lw: 1.6 },
+      ...GC.sizes.map(c => ({ label: `${GC_D[c]} mm`, col: GC_COL[c], lw: 2.2 }))];
+  }
+  function gcTable() {
+    const cs = GC.cases[$("gcCase").value], nir = $("gcCase").value.startsWith("nir"), gases = nir ? ["NH3"] : ["CH4", "C2H6"], f = v => v >= 100 ? Math.round(v) : +v.toPrecision(2);
+    let h = `<thead><tr><th>cell</th><th>T</th><th>Γ⟨L⟩ cm</th><th>M</th><th>static fringe, both</th>${gases.map(g => `<th>${g} 1 s</th><th>${g} 15 s</th><th>${g} 30 s</th>`).join("")}${nir ? "" : "<th>CH4 30 s, NEP 1 nW/√Hz</th>"}</tr></thead><tbody>`;
+    for (const c of ["d4ref", ...GC.sizes]) { const t = cs.table[c];
+      h += `<tr${c === gcSel ? ' style="font-weight:700"' : ""}><td>${c === "d4ref" ? "4 mm, 16 × 50 µm" : GC_D[c] + " mm"}</td><td>${t.T.toFixed(4)}</td><td>${t.GL_cm.toFixed(1)}</td><td>${Math.round(t.M)}</td><td>${t.static[1].toExponential(1)}</td>`
+        + gases.map(g => [1, 15, 30].map(T => `<td>${f(t.lim[`${g}_${T}s_NEP14pW`])} ppb</td>`).join("")).join("") + (nir ? "" : `<td>${f(t.lim["CH4_30s_NEP1000pW"])} ppb</td>`) + "</tr>"; }
+    return h + "</tbody>";
+  }
+  const gcSize = () => ({ w: +$("gcW").value, h: +$("gcH").value, fs: +$("gcFs").value });
+  function gcDraw() { const { w, h, fs } = gcSize(); gcLast = robSvg(gcPanels(), w, h, fs, gcLegend()); $("gcSheet").innerHTML = gcLast.svg; $("gcTbl").innerHTML = gcTable(); }
+  function gcSet(c) {
+    gcSel = c;
+    document.querySelectorAll("#gcSize button[data-gc]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.gc === c)));
+    if ($("gcLive").checked) {      /* the live cell: radius, 8 inclusions r 25 um |dn| 0.01, output facet 11 */
+      $("cR").value = String(GC_D[c] / 2); $("nIncC").value = "8"; $("incRC").value = "25"; $("incDnC").value = "-2"; $("cOf").value = "0.458"; $("cNf").value = "24"; $("cTh").value = "7.5";
+      syncOut(); runStatus();
+    }
+    gcDraw();
+  }
+  document.querySelectorAll("#gcSize button[data-gc]").forEach(b => b.addEventListener("click", () => gcSet(b.dataset.gc)));
+  for (const id of ["gcW", "gcH", "gcFs", "gcCase"]) $(id).addEventListener("input", gcDraw);
+  $("gcPdf").onclick = async () => {
+    const st = $("gcStatus"); st.textContent = "Writing the PDF…";
+    try {
+      await ROB_CFG.loadPdfLibs();
+      const r = gcLast, host = document.createElement("div");
+      host.style.cssText = `position:absolute;left:-99999px;top:0;width:${r.W}px;height:${r.H}px;`;
+      host.innerHTML = r.svg.replace("<svg ", `<svg width="${r.W}" height="${r.H}" `);
+      document.body.appendChild(host);
+      const svg = host.firstElementChild, doc = new window.jspdf.jsPDF({ unit: "pt", format: [r.W, r.H], orientation: r.W >= r.H ? "landscape" : "portrait", compress: true });
+      ROB_CFG.addFont(doc); svg.setAttribute("font-family", ROB_CFG.pdfFont);
+      try { if (typeof doc.svg === "function") await doc.svg(svg, { x: 0, y: 0, width: r.W, height: r.H }); else await window.svg2pdf.svg2pdf(svg, doc, { x: 0, y: 0, width: r.W, height: r.H }); }
+      finally { host.remove(); }
+      await ROB_CFG.save(`fig2_grating_design_${GC_D[gcSel]}mm_${gcSize().w}x${gcSize().h}cm.pdf`, doc.output("blob"), st);
+    } catch (e) { st.textContent = `PDF failed: ${e && e.message || e}`; }
+  };
+  $("gcSvgBtn").onclick = () => ROB_CFG.save(`fig2_grating_design_${GC_D[gcSel]}mm_${gcSize().w}x${gcSize().h}cm.svg`,
+    new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + gcLast.svg.replace("<svg ", `<svg width="${gcSize().w}cm" height="${gcSize().h}cm" `)], { type: "image/svg+xml" }), $("gcStatus"));
+  $("gcCsv").onclick = () => {
+    const rows = ["case,cell,dither,N,input_factor_rms,both_q1,both_median,both_q3"];
+    for (const [ck, cs] of Object.entries(GC.cases)) for (const [c, v] of Object.entries(cs.scaling)) for (const p of v) rows.push([ck, c, p.name, p.N, p.f, ...p.both].join(","));
+    rows.push("", "case,cell,mode,regular,chaotic_q1,chaotic_median,chaotic_q3,old_4mm_median");
+    for (const [ck, cs] of Object.entries(GC.cases)) for (const [c, b] of Object.entries(cs.bars)) for (const [m] of MODES4) rows.push([ck, c, m, b[m].reg, ...b[m].q, cs.old[m][1]].join(","));
+    ROB_CFG.save("fig2_grating_design_data.csv", new Blob([rows.join("\n") + "\n"], { type: "text/csv" }), $("gcStatus"));
+  };
+  gcDraw();
+'''
+    s = rep_(s, '\n  robDraw();\n', '\n  robDraw();\n' + js)
+    return s
+
+
+def gc3_sets():
+    art = json.load(open(ROOT / "results" / "t11" / "artifact_data.json"))
+    out = {}
+    for c, D in (("d5", 5), ("d10", 10), ("d15", 15), ("d20", 20)):
+        def ren(o):    # Fig. 3 names the input dither "angle" (here angle + position of the grating-coupler beam)
+            o = dict(o)
+            for k in ("env", "env_lo", "env_hi", "floor"):
+                if k in o:
+                    o[k] = {("angle" if m == "input" else m): v for m, v in o[k].items()}
+            return o
+        sl = lambda band, R: {"cur": ren(art["cells"][f"{band}_R{R}_{c}"]["cur"]), "reg": ren(art["cells"][f"{band}_R{R}_{c}"]["reg"])}
+        circle = {"c_radius": D * 0.5e-3, "n_facets": 24, "c_theta": 0.1308996938995747, "dither": "input: 75 um waist, +-60 mrad angle, +-100 um position (grating coupler)",
+                  "waveform": "sine", "f_theta": 1000, "dlam": 35e-12, "lwave": "triangle", "f_lambda": 1297, "f_parasitic": 1e-6, "stray": 1, "n_inc": 8, "inc_radius": 25e-6,
+                  "inc_dn": 0.01, "inc_sign": "both", "inc_seed": 1, "n_eff": 1.5391, "gamma": 0.4532, "wavelength": 1.5317e-6, "R_mirror": 0.97, "membrane_loss_dB_cm": 0.3,
+                  "n_seeds": 30, "output_facet": 11}
+        out[f"G{D}"] = {
+            "label": f"grating-coupler design, {D} mm cell (Task 11)", "n_eff": 1.5391, "n_eff_mir": 1.4253, "noise": {"model": "det", "IL": "sim", "P": 10}, "T": 15, "win": True,
+            "smear": {"NH3": 0.804, "CH4": 0.921, "C2H6": 0.824},
+            "names": {"current": f"R 97 %, {D} mm (solid)", "target": f"R 99.5 %, {D} mm (dash-dot)"}, "short": {"target": "R 99.5 %"},
+            "desc": (f"Grating-coupler design, {D} mm 24-facet circle CMPC (QUIET Task 11, wave-consistent beamlet model): free-space beam on a large-area input "
+                     "grating coupler (75 µm waist, ±60 mrad angle and ±100 µm position dither), 8 index inclusions r 25 µm |Δn| 0.01, output on facet 11, "
+                     "set B (500 nm SiNx at 1.53 µm, 1000 nm at 3.3 µm), 0.3 dB/cm, ε = 10⁻⁶; “angle” curves = the input angle + position dither; wavelength dither ±35 pm at 1.53 µm (keeps 80 % of the NH₃ peak), "
+                     "±81 pm (±2.2 GHz) at 3.3 µm (92 % CH₄, 82 % C₂H₆), line smearing included in the ppb axis. Solid R 97 %, dash-dot R 99.5 %; medians "
+                     "and min–max bands over 30 layouts. Curves: undithered fringe below the 1 kHz dither period, the static residual above, rolled off by the "
+                     "0.1 rad/s fringe drift (engine envelope; untick “fringe drift” for the static floor). Detector: simulated transmission + 8 dB for the two "
+                     "grating couplers, NEP 14 pW/√Hz (a mid-IR detector is likely noisier)."),
+            "data": {"current": sl("nir", 0.97), "target": sl("nir", 0.995), "mir": sl("mir", 0.97), "mir_t": sl("mir", 0.995), "circle": circle}}
+    return out
+
+
+def build3_gc(s):
+    m = re.search(r'(<script id="dsets" type="application/json">)(.*?)(</script>)', s, re.S)
+    ds = json.loads(m.group(2))
+    ds.update(gc3_sets())
+    s = s[:m.start(2)] + json.dumps(ds, ensure_ascii=False) + s[m.end(2):]
+    s = s.replace('<option value="B03" selected>', '<option value="B03">', 1)
+    i = s.index('<select id="dset3">') + len('<select id="dset3">')
+    s = s[:i] + "".join(f'<option value="G{D}"{" selected" if D == 10 else ""}>grating-coupler design, {D} mm cell (Task 11)</option>' for D in (5, 10, 15, 20)) + s[i:]
+    s = rep_(s, '        <div class="ctl"><label>Gas line of (b)</label>',
+             '        <div class="btns" id="gcBtns3"><span class="sel">design cell</span>' + "".join(f'<button type="button" data-ds="G{D}" aria-pressed="{str(D == 10).lower()}">{D} mm</button>' for D in (5, 10, 15, 20)) + '</div>\n'
+             '        <div class="ctl"><label>Gas line of (b)</label>')
+    s = rep_(s, '#spBtns button[aria-pressed="true"] {', '#gcBtns3 button[aria-pressed="true"], #spBtns button[aria-pressed="true"] {')
+    # noise: simulated cell transmission + 8 dB couplers
+    s = rep_(s, '<select id="nzIL"><option>14</option><option>20</option><option>25</option></select>',
+             '<select id="nzIL"><option value="sim">sim. T + 8 dB</option><option>14</option><option>20</option><option>25</option></select>')
+    s = rep_(s, 'IL: +document.getElementById("nzIL").value,', 'IL: document.getElementById("nzIL").value,')
+    s = rep_(s, '    const Pd = z.P * 10 ** (-z.IL / 10); return Math.sqrt(NEP ** 2 + 2 * H_PL * C0 / (lam || LAM_N) * Pd) / (Pd * Math.sqrt(2 * T));',
+             '    const IL = z.IL === "sim" ? -10 * Math.log10(Math.max(o.T_trans, 1e-9)) + 8 : +z.IL;\n'
+             '    const Pd = z.P * 10 ** (-IL / 10); return Math.sqrt(NEP ** 2 + 2 * H_PL * C0 / (lam || LAM_N) * Pd) / (Pd * Math.sqrt(2 * T));')
+    s = s.replace('insertion loss ${z.IL} dB', 'insertion loss ${z.IL === "sim" ? "simulated cell transmission + 8 dB couplers" : z.IL + " dB"}')
+    # line smearing of the design's wavelength dither on the ppb axis
+    s = rep_(s, '    aNH3 = Math.max(...st.analyte_per_ppm); LAM_N = sp.lam;',
+             '    aNH3 = Math.max(...st.analyte_per_ppm) * ((DSX.smear || {})[sp.mol] || 1); LAM_N = sp.lam;')
+    # size buttons follow the data set; ratio readout
+    s = rep_(s, '  $("dset3").addEventListener("change", () => { setDS($("dset3").value); cache.clear(); relabel(); draw(); });',
+             '  const syncGc3 = () => document.querySelectorAll("#gcBtns3 button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.ds === $("dset3").value)));\n'
+             '  $("dset3").addEventListener("change", () => { setDS($("dset3").value); cache.clear(); relabel(); syncGc3(); draw(); });\n'
+             '  document.querySelectorAll("#gcBtns3 button").forEach(b => b.addEventListener("click", () => { $("dset3").value = b.dataset.ds; $("dset3").dispatchEvent(new Event("change")); }));')
+    s = rep_(s, '        <legend style="padding:0;margin-top:4px">Curves</legend>',
+             '        <div class="ctl"><label>C₂H₆ / CH₄ ratio (each line measured for T/2)</label><div class="checks">'
+             '<label class="sel mono" for="rCH4">CH₄ (ppm) <input id="rCH4" type="number" min="0.1" max="1000" step="0.1" value="2.5" style="width:5em"></label>'
+             '<label class="sel mono" for="rC2">C₂H₆ (ppb) <input id="rC2" type="number" min="0.1" max="100000" step="1" value="125" style="width:6em"></label></div>'
+             '<p class="hint mono" id="ratioOut"></p></div>\n'
+             '        <legend style="padding:0;margin-top:4px">Curves</legend>')
+    s = rep_(s, '  const lshotAt = T => noiseAt(lcur, T), tshotAt = T => noiseAt(tcur, T);',
+             '  const lshotAt = T => noiseAt(lcur, T), tshotAt = T => noiseAt(tcur, T);\n'
+             '  /* C2H6 / CH4 ratio precision: both 3.3 um lines, each averaged over T/2 (sequential tuning), 1 sigma = the noise-equivalent mixing ratio */\n'
+             '  function ratioText(T) {\n'
+             '    const x = DSX.data, o = x.mir ? x.mir.cur : cur0, sim = !!x.mir, s = {};\n'
+             '    for (const [g, key, lam] of [["CH4", "CH4 3.3", 3.3137e-6], ["C2H6", "C2H6", 3.3368e-6]]) {\n'
+             '      const st = D.strips.find(q => q.key === key), al = Math.max(...st.analyte_per_ppm) * ((DSX.smear || {})[g] || 1), Th = T / 2;\n'
+             '      s[g] = Math.hypot(interpLog(o.env.both, Th), noiseAt(o, Th, lam)) / (o.gamma * o.L_mean_m * 100 * al) * 1e3;   /* ppb */\n'
+             '    }\n'
+             '    const c1 = 1e3 * +$("rCH4").value, c2 = +$("rC2").value, r = c2 / c1, sr = r * Math.hypot(s.CH4 / c1, s.C2H6 / c2);\n'
+             '    return `C₂H₆/CH₄ = ${(100 * r).toPrecision(3)} % ± ${(100 * sr).toPrecision(2)} % (1σ, T = ${+T.toPrecision(2)} s; σ CH₄ ${+s.CH4.toPrecision(2)} ppb, σ C₂H₆ ${+s.C2H6.toPrecision(2)} ppb${sim ? "" : "; 1.53 µm cell scaled"}). CH₄ absorption under the C₂H₆ line not removed.`;\n'
+             '  }')
+    s = rep_(s, '  for (const id of ["nzModel", "nzIL", "nzP", "anaT"]) $(id).addEventListener("change", () => { relabel(); draw(); });',
+             '  for (const id of ["nzModel", "nzIL", "nzP", "anaT"]) $(id).addEventListener("change", () => { relabel(); draw(); });\n'
+             '  for (const id of ["rCH4", "rC2"]) $(id).addEventListener("input", () => draw());')
+    s = rep_(s, '    $("avgTOut").textContent = fmtT(T);', '    $("avgTOut").textContent = fmtT(T); try { $("ratioOut").textContent = ratioText(T); } catch (e) { $("ratioOut").textContent = ""; }')
+    return s
+
+
 def main():
     s2 = build2(open(ART / "fig2_src_live.html", encoding="utf-8").read())
+    s2 = build2_design(s2)
     (ART / "fig2_v32.html").write_text(s2, encoding="utf-8")
     s3 = build3(open(ART / "fig3_src_live.html", encoding="utf-8").read())
+    s3 = build3_gc(s3)
     (ART / "fig3_v32.html").write_text(s3, encoding="utf-8")
     print("ok", len(s2), len(s3))
 

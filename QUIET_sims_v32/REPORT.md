@@ -18,6 +18,7 @@ regular-cell value (single). Nothing was tuned after seeing results; failing cas
 | ε thresholds (5e-7 up to ε ≈ 2e-4; 8e-8 up to 6e-6) | 2.3e-4 / 5.9e-6 | near-IR R 95 %: 7.6e-6 / 1.9e-7; mid-IR: < 1e-6 | FAIL (25–30× tighter) |
 | angle dither gives K ≈ many independent patterns (K ≲ M ≈ 300) | – | K_eff ≈ 1.7–2.3 in ±2 mrad (see Task 5) | FAIL (risk R1.4 materialises) |
 | angle dither suppresses the fringe (engine V_θ ≈ 5e-3) | – | wave-optics bound V_θ ≥ 0.98 at ±2 mrad, 40 µm waist (Task 5b): both-dither fringe 3.4e-6 at R 97 % | FAIL (engine optimistic) |
+| sweeping input states (Task 9): factor N^−½; near-IR M3 with combined angle + position + ±160 pm | – | 4.3e-7 median at R 97 % (75 µm, ±15 mrad, ±100 µm); 3.3 µm best 8e-6 | marginal PASS near-IR, FAIL 3.3 µm |
 | NH3 ~50 ppb at 1 s (Sec. 3.2) | 56 ppb | 14 dB / 1 mW, 2 cm: 590–690 ppb; simulated Γ⟨L⟩: 270–480 ppb | FAIL |
 | M7: CH4 / C2H6 10 ppb at ≤ 15 s (2 cm, 14 dB, 1 mW) | – | R 95 %: 13 / 15 ppb; R 97 %: 9.8 / 11 ppb; R 99.5 %: 6.8 / 7.7 ppb | FAIL at 95 %, marginal at 97 %, PASS at 99.5 % |
 | ethane stretch 2 ppb | – | not reached in 100 s for any R at 2 cm (fringe floor 11–21 ppb) | FAIL |
@@ -316,6 +317,55 @@ Ways to make the decorrelation real (to be simulated with a wave-consistent mode
    wavelength dither in disguise.
 3. Deeper wavelength dither: V_λ falls with the dither depth (Task 2 mid-IR: ±2.2 GHz gives 4–5× over ±0.55 GHz).
 4. Lower ε (fringe ∝ √ε): ε = 5×10⁻⁸ brings 3.4e-6 to 7.6e-7 at R 97 %.
+
+## 6c. Task 9: sweeping more input states (wave-consistent input dither)
+
+`scripts/t9_input_states.js` (Gaussian-beamlet model), `scripts/run_t9.sh`, `scripts/t9_analysis.py`, `scripts/t9_figure.py`
+→ `results/t9/`, `results/t9/table.md` (all configurations), `figs/input_states.pdf`. Circle cell, set B, 0.3 dB/cm,
+30 layouts + regular, ε = 1e-6, static (0 Hz) fringe, no drift.
+
+Model. The input field exp(−(x−X)²/w²)·exp(i k n Θ (x−X)) (waist w, position offset X, tilt Θ) is expanded on a Gabor
+lattice of Gaussian beamlets (σ = 10 µm, oversampling 4, launch points kept on the 522 µm input facet); each beamlet is
+traced as one engine ray to the output port, giving its exit phasor g_j (amplitude R^((h−1)/2)·exp(−αL/2), phase k₀·OPL).
+The fringe phasor of an input state is Σ c_j g_j with c_j the closed-form overlap of beamlet and input; the dither-averaged
+(static) fringe uses the time-averaged c̄_j (sine angle and sine position at incommensurate rates) and, for the triangle
+wavelength dither, ḡ_j = g_j sinc(k₀ OPL_j Δλ/λ). V = |static| / rms(undithered); residual 2√ε V/√M with the engine's
+grains M per layout. Sub-diffraction tilts and shifts only re-weight the c_j, so the Task 5b limitation is removed.
+Beamlets of one diffraction cell are traced with independent rays (a fully mixing cell at that scale; the chaotic cells
+are, FTLE 0.53 per bounce); results agree within ≈ ±30 % for σ = 7 / 10 / 14 µm. For the regular cell this independence is
+not justified (neighbouring beamlets follow the same orbit), so regular-cell numbers of this task are indicative only.
+
+Findings.
+1. **The input dither does what wave optics allows, and no more.** The simulated input-dither factor (rms over layouts)
+   follows N^(−1/2) with N = |E_in|²/|⟨E_in⟩_t|², the number of orthogonal input states swept, at 1.53 and 3.3 µm, for
+   angle, position and combined dithers (Fig. a). Angle alone: 150 µm waist ±10 / ±15 mrad gives N = 4.4 / 6.0, factor
+   0.43 / 0.39. Combined angle and position: N = 17–33, factor 0.28–0.20. At 3.3 µm N is ≈ 5× smaller for the same
+   geometry (fewer modes per aperture; factor ≥ 0.4).
+2. **The wavelength dither is weaker than the single-ray engine gave.** Over the whole beam, 20–55 % of the detected power
+   leaves after only 2–5 cm of path; for those paths a ±20 pm sweep changes the fringe phase by only ≈ 2–3 rad. Spectral-only
+   fringe at R 97 %: 2.3e-5 (±20 pm), 4.6e-6 (±81 pm), 2.4e-6 (±160 pm), against 3.5e-6 from the engine's centre ray at ±20 pm.
+3. **The near-IR M3 target is reached only with a combined input dither and a deep wavelength dither.** Both dithers,
+   R 97 %, median [IQR]:
+
+| input dither | N | input factor sim (N^−½) | ±20 pm | ±81 pm | ±160 pm | R 99.5 %, ±160 pm (share < 5e-7) | 3.3 µm R 97 %, ±160 pm (±4.4 GHz) |
+|---|---|---|---|---|---|---|---|
+| 40 µm, ±2 mrad (as simulated before) | 1.0 | 0.98 (0.98) | 2.3e-05 [1.8e-05–3.4e-05] | 4.6e-06 [3.6e-06–6.8e-06] | 2.3e-06 [1.9e-06–2.9e-06] | 1.9e-06 (0 %) | 1.6e-05; CH₄ 107 ppb |
+| 150 µm, ±10 mrad | 4.4 | 0.43 (0.48) | 1.2e-05 [7.7e-06–2.1e-05] | 2.5e-06 [1.3e-06–4.9e-06] | 9.8e-07 [6.8e-07–1.3e-06] | 7.5e-07 (20 %) | 1.3e-05; CH₄ 90 ppb |
+| 150 µm, ±15 mrad | 6.0 | 0.39 (0.41) | 1.2e-05 [5.8e-06–1.8e-05] | 2.9e-06 [1.7e-06–4.4e-06] | 1e-06 [6.3e-07–1.5e-06] | 8.1e-07 (23 %) | 1e-05; CH₄ 71 ppb |
+| 40 µm, ±150 µm position | 3.6 | 0.63 (0.52) | 1.2e-05 [8.2e-06–1.5e-05] | 3.1e-06 [2.1e-06–5e-06] | 1.3e-06 [8.4e-07–2e-06] | 1.1e-06 (13 %) | 1.6e-05; CH₄ 106 ppb |
+| 40 µm, ±15 mrad + ±150 µm | 23.3 | 0.24 (0.21) | 3.8e-06 [2.2e-06–5.7e-06] | 1.4e-06 [9.2e-07–2.5e-06] | 5.6e-07 [4e-07–9.1e-07] | 4.7e-07 (57 %) | 1.3e-05; CH₄ 85 ppb |
+| 75 µm, ±15 mrad + ±100 µm | 32.6 | 0.20 (0.18) | 5.2e-06 [2.5e-06–7.9e-06] | 1e-06 [5.6e-07–1.6e-06] | 4.3e-07 [2.3e-07–6.7e-07] | 3.5e-07 (70 %) | 8.2e-06; CH₄ 55 ppb |
+
+   With 75 µm, ±15 mrad and ±100 µm plus ±160 pm (±20 GHz at 1.53 µm) the median is 4.3e-7 at R 97 % (50 % of layouts below
+   5e-7) and 3.5e-7 at R 99.5 % (70 %); the static NH₃ floor is then ≈ 0.5 ppm (R 97 %), before drift averaging.
+4. **3.3 µm stays far from the target**: best ≈ 8e-6 (CH₄ static floor ≈ 55 ppb, C₂H₆ ≈ 63 ppb at R 97 %); the 10 ppb M7
+   level would need ≈ 6× more suppression (more input states, deeper dither, ε ≲ 3e-8, or internal modulation).
+5. **The chaotic advantage does not survive this model in the near-IR**: the regular cell's single orbit has long, uniform
+   paths, so its wavelength dither works better (regular 2.3e-7 vs chaotic 4.3e-7 in the best case), within the caveat above.
+
+Bottom line: sweeping input states works with the expected N^(−½) and reaches the near-IR target only at the edge (≈ 20–30
+input states plus ±20 GHz); the earlier fringe numbers (engine single ray) were optimistic by ≈ 3× (best configuration) to
+170× (±2 mrad, ±20 pm). Intracavity (non-uniform) modulation remains the untested option that could exceed N ≈ 30.
 
 ## 7. Task 6: inclusions
 

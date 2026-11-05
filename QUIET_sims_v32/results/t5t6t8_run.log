@@ -6,3 +6,7 @@ results/t5/circle_A10.json
 results/t5/circle_A20.json
 results/t5/herriott_A10.json
 results/t5/herriott_A20.json
+results/t5/circle_A50.json
+results/t6/circle_dn0.001.json
+results/t6/circle_dn0.002.json
+results/t5/herriott_A50.json

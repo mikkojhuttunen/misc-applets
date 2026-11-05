@@ -1,0 +1,7 @@
+{"name": "B_realistic", "note": "realistic loss-budget parameters; n_eff and Gamma_E from the TM0 slab solver (qv/slabmodes.py, Si3N4 Sellmeier of Luke et al. 2015), constant R per bounce (angle-independent, no TIR bonus: conservative)",
+ "nir": {"film_nm": 500, "wavelength_m": 1.5317e-6, "line": "NH3 6528.77 /cm", "n_eff": 1.5391, "gamma_E": 0.4532, "gamma_abs": 0.392},
+ "mir": {"film_nm": 1000, "wavelength_m": 3.3151e-6, "line": "CH4 3016.49 /cm (C2H6 3.348 um: Gamma_E 0.562)", "n_eff": 1.4253, "gamma_E": 0.5526, "gamma_abs": 0.5331},
+ "R": [0.95, 0.97, 0.995], "dBcm": [0.3, 0.5], "eps": 1e-6, "eps_sweep": [1e-8, 1e-3, 31],
+ "cells": ["circle", "herriott"], "seeds": 30, "n_inc": 16, "inc_dn": 0.01, "inc_radius_m": 50e-6,
+ "angle_dither_rad": 2e-3, "wavelength_dither_m": 1.9952623149688796e-11, "wavelength_dither_3p3_note": "+-20 pm at 3.3 um = +-0.55 GHz; +-20 pm at 1.53 um = +-2.56 GHz (the near-IR runs keep +-20 pm as Fig. 2f; the fringe against dither depth is stored, so +-0.55 GHz (+-4.0 pm at 1.53 um) is read off the same runs)",
+ "P_in_W": [1e-3, 1e-2], "cell_loss_dB": [14, 20, 25], "NEP_W_rtHz": 14e-12, "T_avg_s": [1, 15]}

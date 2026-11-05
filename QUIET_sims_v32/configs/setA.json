@@ -1,0 +1,4 @@
+{"name": "A_old", "note": "regression: the parameters of the published Fig. 2f / Fig. 3 (proposal v32 Sec. 3.2)",
+ "wavelength_m": 1.6537262586923987e-6, "n_eff": 2.0, "gamma": 0.2, "R": 0.995, "dBcm": 0.0, "eps": 1e-6,
+ "cells": ["circle", "herriott"], "seeds": 30, "n_inc": 16, "inc_dn": 0.01, "inc_radius_m": 50e-6,
+ "angle_dither_rad": 2e-3, "wavelength_dither_m": 1.9952623149688796e-11, "P_in_W": 1e-3}

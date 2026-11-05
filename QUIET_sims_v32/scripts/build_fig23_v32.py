@@ -18,6 +18,8 @@ The robustness panels (Fig. 2 g-i, Fig. 3 c-d) stay on the step-11 basis (600 nm
 import json
 import math
 import re
+
+import numpy as np
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -55,12 +57,12 @@ def fig2_files(ds):
 
 DSM2 = {
     "B03": {"label": "v32 set B: 500 nm SiNx, 1.53 µm, 0.3 dB/cm (default)", "slots": {"ideal": "R 99.5 %", "target": "R 97 %", "lossy": "R 95 %"},
-            "live": {"n_eff": 1.5391, "gamma": 0.4532, "R": B_SLOTS, "dB": {"ideal": 0.3, "target": 0.3, "lossy": 0.3}, "sp": "NH3"}, "liveCase": "lossy",
+            "live": {"n_eff": 1.5391, "gamma": 0.4532, "R": B_SLOTS, "dB": {"ideal": 0.3, "target": 0.3, "lossy": 0.3}, "sp": "NH3"}, "liveCase": "target", "defaultOn": ["target"],
             "desc": "v32 set B (realistic loss budget): free-standing 500 nm SiNx membrane, TM₀ at 1.5317 µm (n_eff 1.539, Γ_E 0.453 from the slab solver), "
                     "constant mirror reflectivity per bounce (no angle dependence, no TIR bonus: conservative), membrane loss 0.3 dB/cm. Cases: R 99.5 %, 97 %, 95 %; "
-                    "default shows R 95 %, the T1.3 baseline."},
+                    "default shows R 97 % (paired with Fig. 3); R 95 % is the T1.3 baseline."},
     "B05": {"label": "v32 set B: 500 nm SiNx, 1.53 µm, 0.5 dB/cm", "slots": {"ideal": "R 99.5 %", "target": "R 97 %", "lossy": "R 95 %"},
-            "live": {"n_eff": 1.5391, "gamma": 0.4532, "R": B_SLOTS, "dB": {"ideal": 0.5, "target": 0.5, "lossy": 0.5}, "sp": "NH3"}, "liveCase": "lossy",
+            "live": {"n_eff": 1.5391, "gamma": 0.4532, "R": B_SLOTS, "dB": {"ideal": 0.5, "target": 0.5, "lossy": 0.5}, "sp": "NH3"}, "liveCase": "target", "defaultOn": ["target"],
             "desc": "v32 set B as above with membrane loss 0.5 dB/cm. Cases: R 99.5 %, 97 %, 95 %."},
     "S10": {"label": "earlier: step 10, 600 nm SiNx, R(χ) tables", "slots": {"ideal": "ideal", "target": "target", "lossy": "minimum"},
             "live": {"rtab": True, "n_eff": 1.66, "gamma": 0.313, "dB": {"ideal": 0.0, "target": 0.1, "lossy": 0.3}, "sp": "CH4"}, "liveCase": "target",
@@ -101,23 +103,25 @@ def fig3_files(ds):
     if ds in ("B03", "B05"):
         dB = "0.3" if ds == "B03" else "0.5"
         # slot keys of the drawing code: current = solid, lossy = dashed, target = dash-dot
-        return {"current": T2 / f"circle_nir_R0.95_{dB}dB.json", "lossy": T2 / f"circle_nir_R0.97_{dB}dB.json",
-                "target": T2 / f"circle_nir_R0.995_{dB}dB.json"}
+        return {"current": T2 / f"circle_nir_R0.97_{dB}dB.json", "lossy": T2 / f"circle_nir_R0.95_{dB}dB.json",
+                "target": T2 / f"circle_nir_R0.995_{dB}dB.json", "mir": T2 / f"circle_mir_R0.97_{dB}dB.json"}
     if ds == "S10":
         return {"current": S10 / "circle_target.json", "lossy": S10 / "circle_minimum.json", "target": S10 / "circle_ideal.json"}
     return {"current": T1 / "circle_A.json"}
 
 
 DSM3 = {
-    "B03": {"label": DSM2["B03"]["label"], "n_eff": 1.5391, "noise": {"model": "det", "IL": 14, "P": 1},
-            "names": {"current": "R 95 %, 0.3 dB/cm (solid)", "lossy": "R 97 %, 0.3 dB/cm (dashed)", "target": "R 99.5 %, 0.3 dB/cm (dash-dot)"},
-            "short": {"lossy": "R 97 %", "target": "R 99.5 %"},
-            "desc": "v32 set B: chaotic circular cell, 500 nm SiNx membrane, TM₀ at 1.5317 µm (n_eff 1.539, Γ_E 0.453), constant R per bounce, 0.3 dB/cm, NH₃ line; "
-                    "medians and min–max bands over 30 inclusion layouts. Panel (b): solid R 95 % (T1.3 baseline), dashed R 97 %, dash-dot R 99.5 %."},
-    "B05": {"label": DSM2["B05"]["label"], "n_eff": 1.5391, "noise": {"model": "det", "IL": 14, "P": 1},
-            "names": {"current": "R 95 %, 0.5 dB/cm (solid)", "lossy": "R 97 %, 0.5 dB/cm (dashed)", "target": "R 99.5 %, 0.5 dB/cm (dash-dot)"},
-            "short": {"lossy": "R 97 %", "target": "R 99.5 %"},
-            "desc": "v32 set B as above with 0.5 dB/cm membrane loss. Panel (b): solid R 95 %, dashed R 97 %, dash-dot R 99.5 %."},
+    "B03": {"label": DSM2["B03"]["label"], "n_eff": 1.5391, "n_eff_mir": 1.4253, "noise": {"model": "det", "IL": 14, "P": 10}, "T": 15, "win": True,
+            "names": {"current": "R 97 %, 0.3 dB/cm (solid)", "lossy": "R 95 %, 0.3 dB/cm (dashed)", "target": "R 99.5 %, 0.3 dB/cm (dash-dot)"},
+            "short": {"lossy": "R 95 %", "target": "R 99.5 %"},
+            "desc": "v32 set B: chaotic circular cell, 500 nm SiNx membrane, TM₀ at 1.5317 µm (n_eff 1.539, Γ_E 0.453), constant R per bounce, 0.3 dB/cm, NH₃ line, "
+                    "10 mW, marked window 15–30 s; medians and min–max bands over 30 inclusion layouts. Panel (b): solid R 97 %, dashed R 95 % (T1.3 baseline), "
+                    "dash-dot R 99.5 %. Panel (a): the 3.3 µm strips use the simulated 3.3 µm cell (1000 nm SiNx, n_eff 1.425, Γ_E 0.553, R 97 %, "
+                    "±0.55 GHz wavelength dither), the near-IR strips the 1.53 µm cell. Fringe residual against T: the stray-light fringe phase is assumed to drift at 0.1 rad/s (thermal), so the static fringe averages down for T ≳ 10 s; untick “fringe drift” for the conservative case without drift (residual held at the static floor). "},
+    "B05": {"label": DSM2["B05"]["label"], "n_eff": 1.5391, "n_eff_mir": 1.4253, "noise": {"model": "det", "IL": 14, "P": 10}, "T": 15, "win": True,
+            "names": {"current": "R 97 %, 0.5 dB/cm (solid)", "lossy": "R 95 %, 0.5 dB/cm (dashed)", "target": "R 99.5 %, 0.5 dB/cm (dash-dot)"},
+            "short": {"lossy": "R 95 %", "target": "R 99.5 %"},
+            "desc": "v32 set B as above with 0.5 dB/cm membrane loss, 10 mW, window 15–30 s. Panel (b): solid R 97 %, dashed R 95 %, dash-dot R 99.5 %. Fringe residual against T: the stray-light fringe phase is assumed to drift at 0.1 rad/s (thermal), so the static fringe averages down for T ≳ 10 s; untick “fringe drift” for the conservative case without drift (residual held at the static floor). "},
     "S10": {"label": DSM2["S10"]["label"], "n_eff": 1.66, "noise": {"model": "shot", "IL": 14, "P": 1},
             "names": {"current": "target (designed R(χ), 0.1 dB/cm; solid)", "lossy": "minimum (R ≤ 95 % below θc, 0.3 dB/cm; dashed)", "target": "ideal (designed R(χ), no loss; dash-dot)"},
             "short": {"lossy": "min. spec", "target": "ideal"},
@@ -149,6 +153,7 @@ def pack3(path, lg, rep=None):
     lo = {m: [min(x["env"][m][i] for x in c) for i in range(nT)] for m in MODES}
     hi = {m: [max(x["env"][m][i] for x in c) for i in range(nT)] for m in MODES}
     fr1 = [at1(x["env"]["both"], lg) for x in c]
+    atT = lambda arr, T: math.exp(float(np.interp(math.log(T), lg, [math.log(v) for v in arr])))
     if rep is not None:
         Ls, Ws, Lr, Wr = rep["chaotic"]["Ls_m"], rep["chaotic"]["Ws"], rep["regular"]["Ls_m"], rep["regular"]["Ws"]
     else:   # representative layout: the one whose both-dither residual at 1 s is closest to the median
@@ -158,7 +163,8 @@ def pack3(path, lg, rep=None):
     cur = {"gamma": g0, "L_mean_m": q([x["L_mean_m"] for x in c], .5), "T_trans": q([x["T_trans"] for x in c], .5), "M2": q([x["M2"] for x in c], .5),
            "Ls_m": Ls, "Ws": Ws, "env": env, "env_lo": lo, "env_hi": hi, "floor": {m: q([x["floor"][m] for x in c], .5) for m in MODES},
            "R_bounce": q([x["R_bounce"] for x in c], .5),
-           "lay": {"fr1": fr1, "none1": [at1(x["env"]["none"], lg) for x in c], "T": [x["T_trans"] for x in c], "L": [x["L_mean_m"] for x in c]}}
+           "lay": {"fr": {str(T): [atT(x["env"]["both"], T) for x in c] for T in (1, 15, 30, 60)}, "none": {str(T): [atT(x["env"]["none"], T) for x in c] for T in (1, 15, 30, 60)},
+                   "fl": [x["floor"]["both"] for x in c], "fln": [x["floor"]["none"] for x in c], "T": [x["T_trans"] for x in c], "L": [x["L_mean_m"] for x in c]}}
     g = r["regular"]
     reg = {"gamma": g0, "L_mean_m": g["L_mean_m"], "T_trans": g["T_trans"], "M2": g["M2"], "Ls_m": Lr, "Ws": Wr, "env": g["env"], "floor": g["floor"]}
     return cur, reg, r
@@ -223,7 +229,7 @@ def build2(s):
     s = rep_(s, 'syncCases();\n  const ensSets',
              'function applyDset() {\n'
              '    const M = DSM[dsK()]; ENS = ENSALL[dsK()]; CASES = ["ideal", "target", "lossy"].filter(c => ENS[c]);\n'
-             '    for (const c of ["ideal", "target", "lossy"]) caseOn[c] = c === "lossy";\n'
+             '    for (const c of ["ideal", "target", "lossy"]) caseOn[c] = (M.defaultOn || ["lossy"]).includes(c);\n'
              '    $("cMinOnly").textContent = (M.slots.lossy || "") + " only"; $("cMinOnly").hidden = CASES.length < 2;\n'
              '    $("caseLbl").textContent = "Cases in (f): " + CASES.map(c => M.slots[c]).join(" · ");\n'
              '    const lc = $("liveCase"); for (const o of lc.options) { o.hidden = !M.slots[o.value]; o.disabled = !M.slots[o.value];\n'
@@ -367,6 +373,82 @@ def build3(s):
              '  $("dset3").addEventListener("change", () => { setDS($("dset3").value); cache.clear(); relabel(); draw(); });\n'
              '  for (const id of ["nzModel", "nzIL", "nzP"]) $(id).addEventListener("change", () => { relabel(); draw(); });\n'
              '  const setSize = (w, h) =>')
+    s = build3_more(s)
+    return s
+
+
+def build3_more(s):
+    """15-30 s window, fringe-drift toggle, analysis time, and the 3.3 um cell for the 3.3 um strips of panel (a)."""
+    s = rep_(s, '        <legend style="padding:0;margin-top:4px">Curves</legend>',
+             '        <div class="checks"><label class="check"><input type="checkbox" id="drift" checked> fringe drift 0.1 rad/s (static fringe averages down)</label>'
+             '<label class="check"><input type="checkbox" id="win"> mark 15–30 s window</label></div>\n'
+             '        <div class="ctl"><label for="anaT">Analysis time (s)</label><select id="anaT"><option>1</option><option>15</option><option>30</option><option>60</option></select></div>\n'
+             '        <legend style="padding:0;margin-top:4px">Curves</legend>')
+    s = rep_(s, '<button type="button" id="anaBtn">Analyse the cases at 1 s</button>', '<button type="button" id="anaBtn">Analyse the cases</button>')
+    s = rep_(s, 'function noiseAt(o, T) {   /* white noise floor (fractional power) after averaging T */\n'
+                '    const z = NZ(); if (z.m === "shot") return Math.sqrt(Q_E / (z.P * o.T_trans * T));\n'
+                '    const Pd = z.P * 10 ** (-z.IL / 10); return Math.sqrt(NEP ** 2 + 2 * H_PL * C0 / LAM_N * Pd) / (Pd * Math.sqrt(2 * T));',
+             'function noiseAt(o, T, lam) {   /* white noise floor (fractional power) after averaging T */\n'
+             '    const z = NZ(); if (z.m === "shot") return Math.sqrt(Q_E / (z.P * o.T_trans * T));\n'
+             '    const Pd = z.P * 10 ** (-z.IL / 10); return Math.sqrt(NEP ** 2 + 2 * H_PL * C0 / (lam || LAM_N) * Pd) / (Pd * Math.sqrt(2 * T));')
+    s = rep_(s, '    D.n_eff = DSX.n_eff;\n',
+             '    D.n_eff = DSX.n_eff; mcur = x.mir ? x.mir.cur : null;\n'
+             '    if (!keepNoise) { $("avgT").value = String(Math.log10(DSX.T || 1)); $("win").checked = !!DSX.win; $("anaT").value = String(DSX.T || 1); }\n'
+             '    applyDrift();\n')
+    s = rep_(s, '  let cur, reg, GL, lcur, lreg, lGL, tcur, treg, tGL, DSX;\n',
+             '  let cur, reg, GL, lcur, lreg, lGL, tcur, treg, tGL, DSX, mcur = null;\n'
+             '  /* without drift the residual cannot fall below the static fringe (held at the floor) */\n'
+             '  function applyDrift() {\n'
+             '    const on = document.getElementById("drift").checked;\n'
+             '    for (const o of [cur, reg, lcur, lreg, tcur, treg, mcur]) { if (!o) continue; if (!o.env0) { o.env0 = o.env; o.lo0 = o.env_lo; o.hi0 = o.env_hi; }\n'
+             '      if (on) { o.env = o.env0; o.env_lo = o.lo0; o.env_hi = o.hi0; continue; }\n'
+             '      const f = m => o.env0[m].map(v => Math.max(1, o.floor[m] / v));\n'
+             '      o.env = Object.fromEntries(MODES.map(m => [m, o.env0[m].map(v => Math.max(v, o.floor[m]))]));\n'
+             '      if (o.lo0) { o.env_lo = Object.fromEntries(MODES.map(m => { const g = f(m); return [m, o.lo0[m].map((v, i) => v * g[i])]; }));\n'
+             '        o.env_hi = Object.fromEntries(MODES.map(m => { const g = f(m); return [m, o.hi0[m].map((v, i) => v * g[i])]; })); }\n'
+             '    }\n'
+             '  }\n')
+    s = rep_(s, '  for (const id of ["nzModel", "nzIL", "nzP"]) $(id).addEventListener("change", () => { relabel(); draw(); });',
+             '  for (const id of ["nzModel", "nzIL", "nzP", "anaT"]) $(id).addEventListener("change", () => { relabel(); draw(); });\n'
+             '  $("drift").addEventListener("change", () => { applyDrift(); relabel(); draw(); });\n'
+             '  $("win").addEventListener("change", () => draw());')
+    s = rep_(s, "if (!o) continue; const Ly = o.lay, g = o.gamma, sh = Ly.T.map(t => noiseAt({ T_trans: t }, 1));\n"
+                "      const nea = Ly.fr1.map((v, i) => Math.hypot(v, sh[i])), ppb = nea.map((n, i) => n / (g * Ly.L[i] * 100 * aNH3) * 1e3);\n"
+                "      const rppb = Math.hypot(interpLog(rg.env.both, 1), noiseAt(rg, 1)) / (g * rg.L_mean_m * 100 * aNH3) * 1e3, pm = qq(ppb, .5);",
+             "if (!o) continue; const Ly = o.lay, g = o.gamma, TA = +$(\"anaT\").value, dr = $(\"drift\").checked, sh = Ly.T.map(t => noiseAt({ T_trans: t }, TA));\n"
+             "      const fr = Ly.fr[TA].map((v, i) => dr ? v : Math.max(v, Ly.fl[i])), nn = Ly.none[TA].map((v, i) => dr ? v : Math.max(v, Ly.fln[i]));\n"
+             "      const nea = fr.map((v, i) => Math.hypot(v, sh[i])), ppb = nea.map((n, i) => n / (g * Ly.L[i] * 100 * aNH3) * 1e3);\n"
+             "      const rppb = Math.hypot(interpLog(rg.env.both, TA), noiseAt(rg, TA)) / (g * rg.L_mean_m * 100 * aNH3) * 1e3, pm = qq(ppb, .5);")
+    s = rep_(s, "fringe_med: qq(Ly.fr1, .5), shot_med: qq(sh, .5), reg_ppb: rppb, adv: rppb / pm, dither_gain: qq(Ly.none1, .5) / qq(nea, .5)",
+             "fringe_med: qq(fr, .5), shot_med: qq(sh, .5), reg_ppb: rppb, adv: rppb / pm, dither_gain: qq(nn, .5) / qq(nea, .5)")
+    s = rep_(s, '["NH₃ limit at 1 s, median (ppb)"', '[`NH₃ limit at ${$("anaT").value} s, median (ppb)`')
+    s = rep_(s, 'at T = 1 s: fringe residual (drift 0.1 rad/s) and ${noiseDesc()}.',
+             'at T = ${$("anaT").value} s: fringe residual (${$("drift").checked ? "drift 0.1 rad/s" : "no drift, static floor"}) and ${noiseDesc()}.')
+    s = rep_(s, '  function noiseFor(si, mode, seed) {\n    const key = `${si}|${mode}|${seed}`;',
+             '  function noiseFor(si, mode, seed, cc) {\n    const key = `${si}|${mode}|${seed}|${cc.key}`;')
+    s = rep_(s, 'for (let k = 0; k < cur.Ls_m.length; k++) {\n      const a = Math.sqrt(cur.Ws[k]), ph = 2 * Math.PI * rnd(), q = 2 * Math.PI * 1e9 * D.n_eff * cur.Ls_m[k] / C0;',
+             'for (let k = 0; k < cc.o.Ls_m.length; k++) {\n      const a = Math.sqrt(cc.o.Ws[k]), ph = 2 * Math.PI * rnd(), q = 2 * Math.PI * 1e9 * cc.n * cc.o.Ls_m[k] / C0;')
+    s = rep_(s, '      const si = D.strips.indexOf(st), top = yt + pos * (hs + gap), bot = top + hs, x = st.x_ghz, N = x.length;',
+             '      const si = D.strips.indexOf(st), top = yt + pos * (hs + gap), bot = top + hs, x = st.x_ghz, N = x.length;\n'
+             '      const mid = st.lam_um > 3 && mcur, CC = mid ? { o: mcur, n: DSX.n_eff_mir, key: "mir" } : { o: cur, n: D.n_eff, key: "nir" };\n'
+             '      const GL = CC.o.gamma * CC.o.L_mean_m * 100, sh = noiseAt(CC.o, T, mid ? st.lam_um * 1e-6 : LAM_N), lev = {}; for (const m of MODES) lev[m] = interpLog(CC.o.env[m], T);')
+    s = rep_(s, 'const nz = noiseFor(si, m, seed), L = lev[m];', 'const nz = noiseFor(si, m, seed, CC), L = lev[m];')
+    s = rep_(s, '    s += `<g clip-path="url(#clipb)">`;\n    if (on("bands")) {',
+             '    const WIN = $("win").checked ? [15, 30] : null;\n'
+             '    const rnd2 = v => v >= 100 ? Math.round(v) : +v.toPrecision(2), ppbOf = (o, shf, gl, t) => Math.hypot(interpLog(o.env.both, t), shf(t)) / (gl * aNH3) * 1e3;\n'
+             '    const ppbTxt = (o, shf, gl) => WIN ? `${rnd2(ppbOf(o, shf, gl, WIN[1]))}–${rnd2(ppbOf(o, shf, gl, WIN[0]))} ppb` : `${rnd2(ppbOf(o, shf, gl, T))} ppb`;\n'
+             '    s += `<g clip-path="url(#clipb)">`;\n'
+             '    if (WIN) s += `<rect x="${BX(WIN[0])}" y="${bt}" width="${BX(WIN[1]) - BX(WIN[0])}" height="${bb - bt}" fill="#000" fill-opacity="0.07"/>`;\n'
+             '    if (on("bands")) {')
+    s = rep_(s, 's += `<circle cx="${BX(T)}" cy="${BY(Math.hypot(interpLog(cur.env.both, T), sh))}" r="2.6" fill="#000"/>`;',
+             's += `<circle cx="${BX(T)}" cy="${BY(Math.hypot(interpLog(cur.env.both, T), sh))}" r="2.6" fill="#000"/>`;\n'
+             '      if (WIN) for (const t of WIN) if (Math.abs(Math.log(t / T)) > 0.05) s += `<circle cx="${BX(t)}" cy="${BY(Math.hypot(interpLog(cur.env.both, t), shotAt(t)))}" r="2" fill="#000"/>`;')
+    s = rep_(s, 'lab = `${ppbv >= 100 ? Math.round(ppbv) : +ppbv.toPrecision(2)} ppb`;', 'lab = ppbTxt(cur, shotAt, GL) + (WIN ? " (15–30 s)" : "");')
+    s = rep_(s, 'l = `${p >= 100 ? Math.round(p) : +p.toPrecision(2)} ppb (${nm})`;', 'l = `${ppbTxt(o, shf, gl)} (${nm})`;')
+    s = rep_(s, '["shot", 3.1, 0.2, noiseName(), "#595959"]', '["shot", $("win").checked ? 0.02 : 3.1, $("win").checked ? 0.15 : 0.2, noiseName(), "#595959"]')
+    s = rep_(s, 'const ax = Math.max(BX(T) - 36.8, bl + 30)', 'const ax = Math.max(BX(T) - (WIN ? 52 : 36.8), bl + 30)')
+    s = rep_(s, 'data_set: { key: $("dset3").value, label: DSX.label },',
+             'data_set: { key: $("dset3").value, label: DSX.label }, fringe_drift: $("drift").checked ? "0.1 rad/s (static fringe averages down)" : "none (held at the static floor)", window_s: $("win").checked ? [15, 30] : null,')
     return s
 
 

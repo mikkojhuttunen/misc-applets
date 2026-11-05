@@ -19,6 +19,7 @@ regular-cell value (single). Nothing was tuned after seeing results; failing cas
 | angle dither gives K ≈ many independent patterns (K ≲ M ≈ 300) | – | K_eff ≈ 1.7–2.3 in ±2 mrad (see Task 5) | FAIL (risk R1.4 materialises) |
 | angle dither suppresses the fringe (engine V_θ ≈ 5e-3) | – | wave-optics bound V_θ ≥ 0.98 at ±2 mrad, 40 µm waist (Task 5b): both-dither fringe 3.4e-6 at R 97 % | FAIL (engine optimistic) |
 | sweeping input states (Task 9): factor N^−½; near-IR M3 with combined angle + position + ±160 pm | – | 4.3e-7 median at R 97 % (75 µm, ±15 mrad, ±100 µm); 3.3 µm best 8e-6 | marginal PASS near-IR, FAIL 3.3 µm |
+| wide input sweeps (Task 9b, ±30–60 mrad + position), line-compatible ±35 pm | – | 6.0e-7 (R 97 %), 4.5e-7 (R 99.5 %); NH₃ static ≈ 0.9 ppm; CH₄ 3.3 µm static ≈ 37 ppb | marginal near-IR (M3 at median only), FAIL NH₃ 50 ppb and M7 |
 | NH3 ~50 ppb at 1 s (Sec. 3.2) | 56 ppb | 14 dB / 1 mW, 2 cm: 590–690 ppb; simulated Γ⟨L⟩: 270–480 ppb | FAIL |
 | M7: CH4 / C2H6 10 ppb at ≤ 15 s (2 cm, 14 dB, 1 mW) | – | R 95 %: 13 / 15 ppb; R 97 %: 9.8 / 11 ppb; R 99.5 %: 6.8 / 7.7 ppb | FAIL at 95 %, marginal at 97 %, PASS at 99.5 % |
 | ethane stretch 2 ppb | – | not reached in 100 s for any R at 2 cm (fringe floor 11–21 ppb) | FAIL |
@@ -366,6 +367,75 @@ Findings.
 Bottom line: sweeping input states works with the expected N^(−½) and reaches the near-IR target only at the edge (≈ 20–30
 input states plus ±20 GHz); the earlier fringe numbers (engine single ray) were optimistic by ≈ 3× (best configuration) to
 170× (±2 mrad, ±20 pm). Intracavity (non-uniform) modulation remains the untested option that could exceed N ≈ 30.
+
+## 6d. Task 9b: wide angle sweeps (±30–60 mrad), combinations, detection constraints
+
+`scripts/t9_input_states.js` (extended), `scripts/run_t9b.sh`, `scripts/t9_analysis.py t9b`, `scripts/t9_raytrace_dump.js`,
+`scripts/t9_raytrace_figure.py` → `results/t9b/` (all configurations in `table.md`), `figs/dither_raytrace.pdf`.
+
+Dither sampling. A "±A" dither is a sine sweep over the whole range, not discrete values: the static fringe is the time
+average over samples spaced evenly in time per period (dense near the turning points, as a sine dwells there); angle and
+position run at incommensurate rates, so their average is over the product of the two sample sets. Task 9 used 48 samples
+per period; for wide sweeps of large beams the tilt step 2πA/48 approaches the beam divergence (150 µm, ±15 mrad: 2.0 vs
+2.1 mrad), so the samples now scale with the sweep (tilt step ≤ half the divergence, shift step ≤ w/2; up to 357 samples).
+Rerunning the Task 9 configurations changes the fringe by ≤ 8 % (sampling bug, documented; Task 9 results kept).
+
+Results, circle, set B, R 97 %, 0.3 dB/cm, static both-dither fringe, median [share of layouts below 5e-7]:
+
+| input dither | N | factor sim (N^−½) | ±20 pm | ±35 pm | ±81 pm | R 99.5 %, ±35 pm | 3.3 µm: N, ±81 pm, CH₄ static ppb |
+|---|---|---|---|---|---|---|---|
+| 40 µm, ±2 mrad | 1.0 | 0.98 (0.98) | 2.3e-05 | 8.6e-06 [0 %] | 4.7e-06 | 7.3e-06 [0 %] | 1.0, 4.3e-05, 317 |
+| 150 µm, ±15 mrad | 6.0 | 0.37 (0.41) | 1.1e-05 | 4.4e-06 [0 %] | 2.9e-06 | 3.2e-06 [0 %] | 3.1, 2.8e-05, 205 |
+| 40 µm, ±30 mrad | 3.7 | 0.50 (0.52) | 1.3e-05 | 5.8e-06 [0 %] | 3e-06 | 4.8e-06 [0 %] | 2.0, 2.8e-05, 206 |
+| 40 µm, ±45 mrad | 5.0 | 0.45 (0.45) | 1.3e-05 | 5.3e-06 [0 %] | 2.5e-06 | 4.4e-06 [0 %] | 2.6, 2.6e-05, 191 |
+| 40 µm, ±60 mrad | 6.3 | 0.42 (0.40) | 9.2e-06 | 5.1e-06 [0 %] | 2.6e-06 | 4.3e-06 [3 %] | 3.3, 2.9e-05, 211 |
+| 75 µm, ±30 mrad | 6.0 | 0.40 (0.41) | 9.4e-06 | 4.7e-06 [0 %] | 2e-06 | 3.7e-06 [0 %] | 3.1, 1.8e-05, 134 |
+| 75 µm, ±45 mrad | 8.3 | 0.35 (0.35) | 9.4e-06 | 4.4e-06 [0 %] | 1.8e-06 | 3.5e-06 [0 %] | 4.2, 2.1e-05, 152 |
+| 75 µm, ±60 mrad | 10.4 | 0.33 (0.31) | 7.7e-06 | 3.4e-06 [3 %] | 1.9e-06 | 2.8e-06 [7 %] | 5.3, 2.5e-05, 181 |
+| 150 µm, ±30 mrad | 10.4 | 0.29 (0.31) | 9.4e-06 | 3.3e-06 [10 %] | 1.7e-06 | 3e-06 [3 %] | 5.3, 1.4e-05, 99 |
+| 150 µm, ±45 mrad | 14.5 | 0.24 (0.26) | 6.3e-06 | 3.4e-06 [0 %] | 1.4e-06 | 2.6e-06 [0 %] | 7.3, 1.7e-05, 127 |
+| 150 µm, ±60 mrad | 18.5 | 0.24 (0.23) | 6.6e-06 | 2.4e-06 [3 %] | 1.4e-06 | 2e-06 [3 %] | 9.2, 1.8e-05, 132 |
+| 40 µm, ±150 µm | 3.6 | 0.63 (0.52) | 1.2e-05 | 5.8e-06 [0 %] | 3e-06 | 4.8e-06 [0 %] | 3.6, 3e-05, 222 |
+| 75 µm, ±15 mrad, ±100 µm | 32.6 | 0.19 (0.18) | 5e-06 | 2e-06 [7 %] | 1.1e-06 | 1.7e-06 [10 %] | 6.7, 1.9e-05, 139 |
+| 40 µm, ±45 mrad, ±150 µm | 174.5 | 0.10 (0.08) | 2.6e-06 | 1.2e-06 [10 %] | 6.4e-07 | 9.2e-07 [23 %] | 38.1, 1.2e-05, 89 |
+| 40 µm, ±60 mrad, ±150 µm | 118.7 | 0.12 (0.09) | 3.2e-06 | 9.1e-07 [27 %] | 5e-07 | 6.8e-07 [37 %] | 66.0, 9.6e-06, 71 |
+| 75 µm, ±30 mrad, ±100 µm | 114.1 | 0.10 (0.09) | 3.1e-06 | 1.1e-06 [17 %] | 6.6e-07 | 8.4e-07 [17 %] | 24.5, 9.4e-06, 69 |
+| 75 µm, ±45 mrad, ±100 µm | 237.9 | 0.08 (0.06) | 1.9e-06 | 8.3e-07 [30 %] | 4.3e-07 | 6.8e-07 [40 %] | 51.2, 6.6e-06, 48 |
+| 75 µm, ±60 mrad, ±100 µm | 401.9 | 0.06 (0.05) | 1.3e-06 | 6e-07 [33 %] | 3.4e-07 | 4.5e-07 [57 %] | 86.1, 5e-06, 37 |
+
+Line compatibility (detection). The wavelength dither averages the absorption line as well: the line peak kept (uniform
+average over ±Δν) is 0.90 / 0.80 / 0.52 / 0.43 for NH₃ 1.53 µm at ±20 / 35 / 81 / 160 pm (±2.6 / 4.5 / 10 / 20 GHz; the
+1-atm line is ≈ 9 GHz FWHM), and 0.99 / 0.98 / 0.92 / 0.78 for CH₄ 3.31 µm (0.99 / 0.96 / 0.82 / 0.61 for C₂H₆) at
+±0.55 / 0.96 / 2.2 / 4.4 GHz. The near-IR wavelength dither is therefore limited to ≈ ±35 pm; the ±81 / 160 pm values of
+Task 9 gain fringe suppression but lose half the line. The input dithers do not touch the spectrum.
+
+Findings.
+1. N^(−½) holds to N ≈ 400 (factor 0.06). Angle alone saturates at N ≈ 18 (150 µm, ±60 mrad, factor 0.24), limited by the
+   phase-space area one beam can sweep; angle and position together reach N = 90–400.
+2. Near-IR, line-compatible (±35 pm): best 6.0e-7 at R 97 % (75 µm, ±60 mrad, ±100 µm; 33 % of layouts < 5e-7) and 4.5e-7
+   at R 99.5 % (57 %). The NH₃ static floor stays ≈ 0.9 ppm (R 97 %, line smearing included): the 5e-7 fringe target itself
+   corresponds to ≈ 0.6 ppm NH₃ at Γ⟨L⟩ = 3.6 cm, so the proposal's ≈ 50 ppb NH₃ needs a fringe ≈ 4e-8, an order below M3.
+3. 3.3 µm: best 5.0e-6 (±81 pm = ±2.2 GHz, 92 % of the CH₄ peak kept); static CH₄ floor ≈ 37 ppb, C₂H₆ ≈ 45 ppb; drift
+   averaging at 15–30 s lowers this by ≈ 1.5–4× (Task 7 curves) — the 10 ppb M7 level is not reached by input dithering.
+4. Practicality: ±60 mrad and ±100 µm at the input facet need an on-chip beam scanner (thermo-optic or MEMS); the footprint
+   (±250 µm) uses most of the 522 µm facet. Transmission changes with the input state (amplitude modulation at the dither
+   frequency) are not yet modelled.
+
+Detection model (as used throughout). An integrating detector collects all light leaving the 150 µm output port (all exit
+angles); the signal is the transmitted power. The fringe is the interference of the exit field with a stray copy of
+power fraction ε that reaches the detector without the cell paths (its phase follows the wavelength, not the input state;
+OPD = the exit path). Integration over the port's M ≈ 300 speckle grains gives the 1/√M factor. Dithers are removed by a
+boxcar average of length T (dither harmonics weighted by sinc); the absorbance is the line peak α Γ⟨L⟩ (no line-shape fit,
+no WMS demodulation). Consequences for detection: (i) a detector or coupler that collects fewer modes M_c raises the fringe
+∝ 1/√M_c and turns the input dither into amplitude modulation; (ii) the wavelength dither is bounded by the line width (above);
+(iii) in a scanned or WMS measurement the dither frequencies and harmonics must stay outside the demodulation band; (iv) if
+the stray copy itself passes part of the cell (shorter OPD), the wavelength dither is weaker still.
+
+`figs/dither_raytrace.pdf`: (a) input phase space covered by the old and two wide dithers; (b)–(d) centre-ray traces of the
+chaotic CMPC under ±45 mrad and ±100 µm and of the regular CMPC under ±45 mrad (the regular cell keeps a star orbit, the
+dithered rays join neighbouring orbits); (e) overlap of two input states against their tilt (wave optics) for 40 / 75 /
+150 µm waists, with the engine's single-ray decorrelation angle 1.16 mrad: a ray decorrelates within ≈ 1 mrad, the
+40 µm beam only after ≈ 8 mrad; (f) fringe against N with N^(−½).
 
 ## 7. Task 6: inclusions
 

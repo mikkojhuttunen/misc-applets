@@ -18,6 +18,7 @@ line files in `../HITRAN/hitran_data`).
 | `results/` | raw results (JSON / CSV) per task; `figs/` vector PDFs (+ PNG previews) |
 | `scripts/build_fig23_v32.py`, `artifacts/` | Fig. 2 / Fig. 3 claude.ai artifacts: live sources as last edited (`fig*_src_live.html`) patched to `fig*_v32.html` with a data-set selector (set B default; step 10 and published set A for comparison) and, in Fig. 3, the T1.3 detector noise model |
 | `scripts/t5b_wave_bound.py`, `t9_*`, `run_t9.sh` | Task 5b wave-optics bound of the angle dither; Task 9 Gaussian-beamlet model of angle / position input dithers (`results/t9/`, `figs/input_states.pdf`) |
+| `scripts/run_t9b.sh`, `t9_raytrace_dump.js`, `t9_raytrace_figure.py` | Task 9b: wide sweeps (±30–60 mrad), combinations, line smearing (`results/t9b/`), ray-trace figure `figs/dither_raytrace.pdf` |
 | `tests/test_t1_regression.py` | task-1 regression, including a bit-for-bit rerun against the published ensembles |
 
 Figures for the proposal: `figs/fig2ef_setB_R0.95.pdf` (Fig. 2 e, f at R = 95 %; R0.97 / R0.995 variants),

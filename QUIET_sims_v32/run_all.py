@@ -14,9 +14,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 RUNS = [["bash", "scripts/run_t1.sh"], ["bash", "scripts/run_t2.sh", "4"], ["bash", "scripts/run_t5_t6_t8.sh", "4"],
-        ["node", "scripts/poincare_dump.js", "results/fig2e_poincare.json"], [sys.executable, "scripts/t7_lines.py"], ["sh", "scripts/run_t9.sh"]]
+        ["node", "scripts/poincare_dump.js", "results/fig2e_poincare.json"], [sys.executable, "scripts/t7_lines.py"], ["sh", "scripts/run_t9.sh"], ["sh", "scripts/run_t9b.sh"], ["node", "scripts/t9_raytrace_dump.js"]]
 ANALYSES = [[sys.executable, "scripts/t1_summary.py"], [sys.executable, "scripts/t2_analysis.py"], [sys.executable, "scripts/t2_mir_dither.py"], [sys.executable, "scripts/t3_t4_analysis.py"],
-            [sys.executable, "scripts/t7_analysis.py"], [sys.executable, "scripts/t5_t6_t8_analysis.py"], [sys.executable, "scripts/fig2ef.py"], [sys.executable, "scripts/report_tables.py"], [sys.executable, "scripts/t5b_wave_bound.py"], [sys.executable, "scripts/t9_analysis.py"], [sys.executable, "scripts/t9_figure.py"],
+            [sys.executable, "scripts/t7_analysis.py"], [sys.executable, "scripts/t5_t6_t8_analysis.py"], [sys.executable, "scripts/fig2ef.py"], [sys.executable, "scripts/report_tables.py"], [sys.executable, "scripts/t5b_wave_bound.py"], [sys.executable, "scripts/t9_analysis.py"], [sys.executable, "scripts/t9_figure.py"], [sys.executable, "scripts/t9_analysis.py", "t9b"], [sys.executable, "scripts/t9_raytrace_figure.py"],
             [sys.executable, "-m", "pytest", "-q", "tests"]]
 
 

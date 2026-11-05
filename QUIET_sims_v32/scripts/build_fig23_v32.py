@@ -75,6 +75,12 @@ DSM2 = {
                   "Ensembles: the bit-for-bit rerun of the published 30 layouts."},
 }
 ORDER = ["B03", "B05", "S10", "A"]
+CAVEAT = (" Caveat (REPORT Task 5b): the engine averages the angle-dither fringe along single rays; for the 40 µm input beam a "
+          "±2 mrad tilt stays inside the beam divergence (7.9 mrad), and wave optics limits the angle-dither factor to ≥ 0.98, so the "
+          "“angle” and “both” results are optimistic: with both dithers the wave-bounded fringe is about the wavelength-dither one.")
+
+for _k in ("B03", "B05"):
+    DSM2[_k]["desc"] += CAVEAT
 
 
 def vals(r):
@@ -104,7 +110,8 @@ def fig3_files(ds):
         dB = "0.3" if ds == "B03" else "0.5"
         # slot keys of the drawing code: current = solid, lossy = dashed, target = dash-dot
         return {"current": T2 / f"circle_nir_R0.97_{dB}dB.json", "lossy": T2 / f"circle_nir_R0.95_{dB}dB.json",
-                "target": T2 / f"circle_nir_R0.995_{dB}dB.json", "mir": T2 / f"circle_mir_R0.97_{dB}dB.json"}
+                "target": T2 / f"circle_nir_R0.995_{dB}dB.json", "mir": T2 / f"circle_mir_R0.97_{dB}dB.json",
+                "mir_l": T2 / f"circle_mir_R0.95_{dB}dB.json", "mir_t": T2 / f"circle_mir_R0.995_{dB}dB.json"}
     if ds == "S10":
         return {"current": S10 / "circle_target.json", "lossy": S10 / "circle_minimum.json", "target": S10 / "circle_ideal.json"}
     return {"current": T1 / "circle_A.json"}
@@ -133,6 +140,9 @@ DSM3 = {
           "desc": "Published version (set A): n_eff 2, Γ 0.2, R 99.5 % per bounce, no membrane loss, NH₃ line, 1 mW, shot noise; medians and min–max bands over "
                   "the 30 published inclusion layouts (bit-for-bit rerun)."},
 }
+
+for _k in ("B03", "B05"):
+    DSM3[_k]["desc"] += CAVEAT
 
 
 def at1(arr, lg):
@@ -374,6 +384,7 @@ def build3(s):
              '  for (const id of ["nzModel", "nzIL", "nzP"]) $(id).addEventListener("change", () => { relabel(); draw(); });\n'
              '  const setSize = (w, h) =>')
     s = build3_more(s)
+    s = build3_species(s)
     return s
 
 
@@ -449,6 +460,54 @@ def build3_more(s):
     s = rep_(s, 'const ax = Math.max(BX(T) - 36.8, bl + 30)', 'const ax = Math.max(BX(T) - (WIN ? 52 : 36.8), bl + 30)')
     s = rep_(s, 'data_set: { key: $("dset3").value, label: DSX.label },',
              'data_set: { key: $("dset3").value, label: DSX.label }, fringe_drift: $("drift").checked ? "0.1 rad/s (static fringe averages down)" : "none (held at the static floor)", window_s: $("win").checked ? [15, 30] : null,')
+    return s
+
+
+def build3_species(s):
+    """Panel (b) for NH3 1.53 um, CH4 3.31 um and C2H6 3.34 um: set B uses its simulated 3.3 um cell, the earlier data sets
+    put the 1.53 um cell's noise-equivalent absorbance on the 3.3 um line (they have no 3.3 um simulation)."""
+    s = rep_(s, '#robSheet { min-width: 560px; }',
+             '#robSheet { min-width: 560px; }\n#spBtns button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }')
+    s = rep_(s, '        <div class="ctl"><label for="nzModel">Noise model</label>',
+             '        <div class="ctl"><label>Gas line of (b)</label><div class="btns" id="spBtns">'
+             '<button type="button" data-sp="NH3" aria-pressed="true">NH₃ 1.53 µm</button><button type="button" data-sp="CH4" aria-pressed="false">CH₄ 3.31 µm</button>'
+             '<button type="button" data-sp="C2H6" aria-pressed="false">C₂H₆ 3.34 µm</button></div><p class="hint" id="spNote"></p></div>\n'
+             '        <div class="ctl"><label for="nzModel">Noise model</label>')
+    s = rep_(s, 'const H_PL = 6.62607015e-34, NEP = 14e-12, LAM_N = 1.5317e-6;', 'const H_PL = 6.62607015e-34, NEP = 14e-12; let LAM_N = 1.5317e-6;')
+    s = rep_(s, '  const nh3 = D.strips[0], aNH3 = Math.max(...nh3.analyte_per_ppm);', '  const nh3 = D.strips[0]; let aNH3 = Math.max(...nh3.analyte_per_ppm);')
+    s = rep_(s, '  let cur, reg, GL, lcur, lreg, lGL, tcur, treg, tGL, DSX, mcur = null;\n',
+             '  let cur, reg, GL, lcur, lreg, lGL, tcur, treg, tGL, DSX, mcur = null, cur0 = null, SPK = "NH3", SLOT0 = null;\n'
+             '  const SPECS = { NH3: { mol: "NH3", txt: "NH₃", strip: "NH3", lam: 1.5317e-6 }, CH4: { mol: "CH4", txt: "CH₄", strip: "CH4 3.3", lam: 3.3137e-6 },\n'
+             '    C2H6: { mol: "C2H6", txt: "C₂H₆", strip: "C2H6", lam: 3.3368e-6 } };\n'
+             '  function applySpecies() {\n'
+             '    const sp = SPECS[SPK], x = DSX.data, st = D.strips.find(q => q.key === sp.strip), [c0, r0, l0, lr0, t0, tr0] = SLOT0;\n'
+             '    aNH3 = Math.max(...st.analyte_per_ppm); LAM_N = sp.lam;\n'
+             '    const sim = SPK !== "NH3" && x.mir;\n'
+             '    if (sim) { cur = x.mir.cur; reg = x.mir.reg; lcur = x.mir_l ? x.mir_l.cur : null; lreg = x.mir_l ? x.mir_l.reg : null; tcur = x.mir_t ? x.mir_t.cur : null; treg = x.mir_t ? x.mir_t.reg : null; }\n'
+             '    else { cur = c0; reg = r0; lcur = l0; lreg = lr0; tcur = t0; treg = tr0; }\n'
+             '    GL = cur.gamma * cur.L_mean_m * 100; lGL = lcur ? lcur.gamma * lcur.L_mean_m * 100 : 0; tGL = tcur ? tcur.gamma * tcur.L_mean_m * 100 : 0;\n'
+             '    document.querySelectorAll("#spBtns button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.sp === SPK)));\n'
+             '    const nt = document.getElementById("spNote");\n'
+             '    if (nt) nt.textContent = SPK === "NH3" ? "1.53 µm cell (500 nm SiNx in set B)." : sim ? "Simulated 3.3 µm cell of set B: 1000 nm SiNx, n_eff 1.425, Γ_E 0.553, same R cases, ±0.55 GHz wavelength dither (±20 pm), ±2 mrad angle dither; detector noise at 3.3 µm."\n'
+             '      : "This data set has no 3.3 µm simulation: the 1.53 µm cell\'s noise-equivalent absorbance is put on the 3.3 µm line (the scaling the proposal used).";\n'
+             '    applyDrift();\n'
+             '  }\n')
+    s = rep_(s, '    D.n_eff = DSX.n_eff; mcur = x.mir ? x.mir.cur : null;\n',
+             '    D.n_eff = DSX.n_eff; mcur = x.mir ? x.mir.cur : null; cur0 = cur; SLOT0 = [cur, reg, lcur, lreg, tcur, treg];\n')
+    s = rep_(s, '    applyDrift();\n    D.chaos = ', '    applySpecies();\n    D.chaos = ')
+    s = rep_(s, 'for (const o of [cur, reg, lcur, lreg, tcur, treg, mcur]) {', 'for (const o of [cur, reg, lcur, lreg, tcur, treg, mcur, cur0, ...(SLOT0 || []), ...["mir", "mir_l", "mir_t"].flatMap(k => DSX && DSX.data[k] ? [DSX.data[k].cur, DSX.data[k].reg] : [])]) {')
+    s = rep_(s, 'CC = mid ? { o: mcur, n: DSX.n_eff_mir, key: "mir" } : { o: cur, n: D.n_eff, key: "nir" };', 'CC = mid ? { o: mcur, n: DSX.n_eff_mir, key: "mir" } : { o: cur0, n: D.n_eff, key: "nir" };')
+    s = rep_(s, 'sh = noiseAt(CC.o, T, mid ? st.lam_um * 1e-6 : LAM_N)', 'sh = noiseAt(CC.o, T, mid ? st.lam_um * 1e-6 : 1.5317e-6)')
+    s = rep_(s, 's += txt(br + 34 * k, (bt + bb) / 2, `${chem("NH3")} (ppb)`', 's += txt(br + 34 * k, (bt + bb) / 2, `${chem(SPECS[SPK].mol)} (ppb)`')
+    s = rep_(s, 's += txt(bl, bt - 6, `(b) ${chem("NH3")} noise floor`);', 's += txt(bl, bt - 6, `(b) ${chem(SPECS[SPK].mol)} noise floor`);')
+    s = rep_(s, '[`NH₃ limit at ${$("anaT").value} s, median (ppb)`', '[`${SPECS[SPK].txt} limit at ${$("anaT").value} s, median (ppb)`')
+    s = rep_(s, 'ppb = noise-equivalent absorbance / (Γ⟨L⟩ α_NH₃)', 'ppb = noise-equivalent absorbance / (Γ⟨L⟩ α_${SPECS[SPK].txt})')
+    s = rep_(s, '["angle", 1.0, 2.5, "angle", "#2ca02c"],', '["angle", SPK === "NH3" ? 1.0 : 0.004, SPK === "NH3" ? 2.5 : 4, "angle", "#2ca02c"],')
+    s = rep_(s, '["shot", $("win").checked ? 0.02 : 3.1, $("win").checked ? 0.15 : 0.2,', '["shot", SPK !== "NH3" ? 3e-4 : $("win").checked ? 0.02 : 3.1, SPK !== "NH3" ? 0.12 : $("win").checked ? 0.15 : 0.2,')
+    s = rep_(s, 'ppb_axis: { line: "NH3 6528.77 cm^-1", alpha_per_ppm_cm: aNH3 },', 'ppb_axis: { line: SPECS[SPK].strip, alpha_per_ppm_cm: aNH3, cell: SPK !== "NH3" && DSX.data.mir ? "simulated 3.3 um cell" : "1.53 um cell" },')
+    s = rep_(s, '  $("win").addEventListener("change", () => draw());',
+             '  $("win").addEventListener("change", () => draw());\n'
+             '  document.querySelectorAll("#spBtns button").forEach(b => b.addEventListener("click", () => { SPK = b.dataset.sp; applySpecies(); cache.clear(); relabel(); draw(); }));')
     return s
 
 

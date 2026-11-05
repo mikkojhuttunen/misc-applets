@@ -17,6 +17,7 @@ regular-cell value (single). Nothing was tuned after seeing results; failing cas
 | M5: chaotic gain ≥ 2–5× (both dithers), R = 95 % | 3.1× | 2.06× (0.3 dB/cm), 1.93× (0.5 dB/cm) | marginal: at/below the lower edge |
 | ε thresholds (5e-7 up to ε ≈ 2e-4; 8e-8 up to 6e-6) | 2.3e-4 / 5.9e-6 | near-IR R 95 %: 7.6e-6 / 1.9e-7; mid-IR: < 1e-6 | FAIL (25–30× tighter) |
 | angle dither gives K ≈ many independent patterns (K ≲ M ≈ 300) | – | K_eff ≈ 1.7–2.3 in ±2 mrad (see Task 5) | FAIL (risk R1.4 materialises) |
+| angle dither suppresses the fringe (engine V_θ ≈ 5e-3) | – | wave-optics bound V_θ ≥ 0.98 at ±2 mrad, 40 µm waist (Task 5b): both-dither fringe 3.4e-6 at R 97 % | FAIL (engine optimistic) |
 | NH3 ~50 ppb at 1 s (Sec. 3.2) | 56 ppb | 14 dB / 1 mW, 2 cm: 590–690 ppb; simulated Γ⟨L⟩: 270–480 ppb | FAIL |
 | M7: CH4 / C2H6 10 ppb at ≤ 15 s (2 cm, 14 dB, 1 mW) | – | R 95 %: 13 / 15 ppb; R 97 %: 9.8 / 11 ppb; R 99.5 %: 6.8 / 7.7 ppb | FAIL at 95 %, marginal at 97 %, PASS at 99.5 % |
 | ethane stretch 2 ppb | – | not reached in 100 s for any R at 2 cm (fringe floor 11–21 ppb) | FAIL |
@@ -273,6 +274,48 @@ diversity at the detector). The two must be kept apart in T1.2: the fringe suppr
 "K ≲ M independent patterns" picture is not supported. A wider angle range does not help the fringe monotonically
 (C-CMPC angle-only 7.2e-7 at ±2 mrad, 5.5e-7 at ±5, 1.7e-6 at ±50 mrad: wider dithers move the beam onto different
 orbits), while the Herriott cell improves steadily (3.1e-5 → 7.7e-6).
+
+## 6b. Task 5b: wave-optics limit of the angle dither (model limitation found after the runs)
+
+`scripts/t5b_wave_bound.py` → `results/t5/wave_bound.json`. Question: why does the angle dither give so few independent
+speckle patterns (K_eff ≈ 2), although the chaotic cell is strongly chaotic? It is: the finite-time Lyapunov exponent of
+the C-CMPC is 0.53 per bounce (regular 0.018), and with ≈ 21 bounces a ray perturbation is stretched by ≈ 6×10⁴. Chaos is
+not the bottleneck; diffraction at the input is.
+
+The cell is linear and time-invariant, so the exit field for a tilted input is E(θ) = U E_in(θ), with
+E_in(θ) = E_in(x) e^{i k n θ x}. The time-averaged (static) fringe of a sine angle dither of amplitude A is therefore the
+fringe of the averaged input field E_in(x) J0(k n A x), whatever U does. For the 40 µm launch waist the beam's own
+divergence is λ / (π n w) = 7.9 mrad; a ±2 mrad tilt stays inside it and hardly changes the input field:
+
+| input waist w | divergence | V_wave ±2 mrad | ±5 | ±10 | ±20 | ±50 mrad |
+|---|---|---|---|---|---|---|
+| 40 µm (as simulated) | 7.9 mrad | 0.98 | 0.92 | 0.77 | 0.61 | 0.43 |
+| 75 µm | 4.2 mrad | 0.95 | 0.79 | 0.62 | 0.48 | 0.33 |
+| 150 µm (port width) | 2.1 mrad | 0.84 | 0.62 | 0.48 | 0.37 | 0.25 |
+
+(V_wave = √⟨J0(k n A x)²⟩ over the input intensity: rms static fringe factor, coherent part plus a random part from the
+orthogonal remainder.) The engine's V_θ ≈ 5×10⁻³ follows one centre ray per dither angle, whose exit path changes by many
+wavelengths per mrad; a ray has no width, so the engine resolves tilts far below the diffraction limit. Its speckle
+count K_eff ≈ 1.9 (from the full beam bundle) is consistent with the wave picture (≈ 1 + 2A / divergence); its fringe
+factor V_θ is not. The classical chaos amplifies sub-diffraction perturbations only for rays; a wave field cannot resolve
+them (the optical Ehrenfest-time argument).
+
+Consequence (circle, set B, 0.3 dB/cm, ε = 1e-6, both dithers, static): engine 1.8e-7 / 1.3e-7 / 8.2e-8 at R 95 / 97 /
+99.5 %, wave-bounded 5.3e-6 / 3.4e-6 / 2.9e-6, i.e. essentially the wavelength dither alone (±20 pm), 6–11× above the M3
+target 5e-7. The "angle" and "both" results of Tasks 2, 3, 5, 7, 8 and of the Fig. 2 / Fig. 3 artifacts are optimistic
+by this factor for ±2 mrad; the wavelength-dither results stand (a fixed path difference sweeps its fringe phase under
+a wavelength change, a genuine wave effect). Not a coding bug: the single-ray phase model is a physics limitation of the
+engine. Results are kept as computed and flagged here.
+
+Ways to make the decorrelation real (to be simulated with a wave-consistent model before relying on them):
+1. Sweep more input modes: dither range ≫ divergence, i.e. a larger input waist (w = 150 µm: ±10 mrad gives V ≈ 0.5),
+   or a combined angle and position dither covering N ≈ (Δx Δθ) n / λ input modes; V ∝ N^(−1/2) at best.
+2. Modulate inside the cell, not at the input: a non-uniform internal perturbation (local thermo-optic heaters over a
+   few inclusions, a vibrating or heated facet) changes the relative phases of the many paths; each independent setting is
+   a new speckle realisation (up to M ≈ 300), and chaos then does help. A uniform index or temperature change is only a
+   wavelength dither in disguise.
+3. Deeper wavelength dither: V_λ falls with the dither depth (Task 2 mid-IR: ±2.2 GHz gives 4–5× over ±0.55 GHz).
+4. Lower ε (fringe ∝ √ε): ε = 5×10⁻⁸ brings 3.4e-6 to 7.6e-7 at R 97 %.
 
 ## 7. Task 6: inclusions
 

@@ -1,0 +1,118 @@
+{
+ "model": "Task 5b: wave-optics limit of the input angle dither, against the engine's single-ray value.",
+ "lambda_m": 1.5317e-06,
+ "n_eff": 1.5391,
+ "beams": {
+  "w40um": {
+   "divergence_mrad": 7.919486269048667,
+   "2mrad": {
+    "rho": 0.9842446705928465,
+    "V_wave": 0.9844909287162408
+   },
+   "5mrad": {
+    "rho": 0.9074009169695713,
+    "V_wave": 0.9155594349173981
+   },
+   "10mrad": {
+    "rho": 0.6981833480595878,
+    "V_wave": 0.7736782347403484
+   },
+   "20mrad": {
+    "rho": 0.35406481373577675,
+    "V_wave": 0.6065227967159487
+   },
+   "50mrad": {
+    "rho": 0.12806261591710538,
+    "V_wave": 0.42835710305201163
+   }
+  },
+  "w75um": {
+   "divergence_mrad": 4.2237260101592895,
+   "2mrad": {
+    "rho": 0.9462306919548558,
+    "V_wave": 0.9490418901474227
+   },
+   "5mrad": {
+    "rho": 0.726231166117004,
+    "V_wave": 0.7896373857463111
+   },
+   "10mrad": {
+    "rho": 0.3828395092633911,
+    "V_wave": 0.6210098829997578
+   },
+   "20mrad": {
+    "rho": 0.17274071504313193,
+    "V_wave": 0.4789055493701713
+   },
+   "50mrad": {
+    "rho": 0.0676453815612843,
+    "V_wave": 0.3336036978612882
+   }
+  },
+  "w150um": {
+   "divergence_mrad": 2.1118630050796448,
+   "2mrad": {
+    "rho": 0.8092171794513531,
+    "V_wave": 0.8418202672667873
+   },
+   "5mrad": {
+    "rho": 0.3828395092633911,
+    "V_wave": 0.6210098829997578
+   },
+   "10mrad": {
+    "rho": 0.17274071504313193,
+    "V_wave": 0.4789055493701713
+   },
+   "20mrad": {
+    "rho": 0.08473321291611563,
+    "V_wave": 0.36489369957247525
+   },
+   "50mrad": {
+    "rho": 0.03373063994584197,
+    "V_wave": 0.2511385986624566
+   }
+  }
+ },
+ "engine": {
+  "circle_nir_R0.95_0.3dB": {
+   "V_theta_engine": 0.006660759873202858,
+   "V_lambda": 0.040015031970534506,
+   "lam_ftle_per_bounce": 0.532664844322585,
+   "mean_bounces": 17.644321657128827,
+   "lam_ftle_regular": 0.018321927451267726,
+   "fringe_both_engine": 1.816250152492394e-07,
+   "fringe_spectral_only": 5.4132635628297646e-06,
+   "fringe_both_wave_bound_2mrad_w40": 5.329308872356061e-06
+  },
+  "circle_nir_R0.97_0.3dB": {
+   "V_theta_engine": 0.005392642450228077,
+   "V_lambda": 0.023854345912622463,
+   "lam_ftle_per_bounce": 0.532664844322585,
+   "mean_bounces": 20.79855452132862,
+   "lam_ftle_regular": 0.018321927451267726,
+   "fringe_both_engine": 1.3420673585107297e-07,
+   "fringe_spectral_only": 3.4485060445676116e-06,
+   "fringe_both_wave_bound_2mrad_w40": 3.395022918499938e-06
+  },
+  "circle_nir_R0.995_0.3dB": {
+   "V_theta_engine": 0.0036489743036824855,
+   "V_lambda": 0.022400045588159063,
+   "lam_ftle_per_bounce": 0.532664844322585,
+   "mean_bounces": 27.8435971157689,
+   "lam_ftle_regular": 0.018321927451267726,
+   "fringe_both_engine": 8.227441664673839e-08,
+   "fringe_spectral_only": 2.9543050416948412e-06,
+   "fringe_both_wave_bound_2mrad_w40": 2.9084865142092266e-06
+  },
+  "herriott_nir_R0.97_0.3dB": {
+   "V_theta_engine": 0.11634084899680044,
+   "V_lambda": 0.04524896642056292,
+   "lam_ftle_per_bounce": 0.46082916911894206,
+   "mean_bounces": 7.274816645512535,
+   "lam_ftle_regular": 0.0012080693704829139,
+   "fringe_both_engine": 1.7516694755639376e-06,
+   "fringe_spectral_only": 1.2320164991425596e-05,
+   "fringe_both_wave_bound_2mrad_w40": 1.2129090674345902e-05
+  }
+ }
+}

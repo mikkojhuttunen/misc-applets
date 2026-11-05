@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import math
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -31,12 +32,18 @@ def load(path):
     return json.loads(Path(path).read_text())
 
 
+@lru_cache(maxsize=1)
 def fig3():
     return load(ROOT / "data" / "baseline" / "fig3data.json")
 
 
-def tgrid():
+@lru_cache(maxsize=1)
+def _tgrid():
     return np.array(fig3()["T"])
+
+
+def tgrid():
+    return _tgrid().copy()
 
 
 def chaotic(res):
@@ -55,8 +62,11 @@ def stats(v):
 
 
 def at_T(curve, T, Tg=None):
-    Tg = tgrid() if Tg is None else Tg
-    return float(np.exp(np.interp(math.log(T), np.log(Tg), np.log(np.asarray(curve, float)))))
+    lg = _LOGT if Tg is None else np.log(Tg)
+    return float(np.exp(np.interp(math.log(T), lg, np.log(np.asarray(curve, float)))))
+
+
+_LOGT = np.log(_tgrid())
 
 
 def shot_old(run, T, P_in=1e-3):

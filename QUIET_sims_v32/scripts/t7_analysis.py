@@ -103,8 +103,8 @@ def figure():
     nir = A.load(ROOT / "results" / "t2" / f"circle_nir_{R}_{dB}.json")
     mir = A.load(ROOT / "results" / "t2" / f"circle_mir_{R}_{dB}.json")
     IL, P = 14, 1e-3
-    fig = plt.figure(figsize=(16.8 * style.CM, 6.6 * style.CM), constrained_layout=True)
-    gs = fig.add_gridspec(4, 2, width_ratios=[1.35, 1])
+    fig = plt.figure(figsize=(16.8 * style.CM, 8.6 * style.CM), constrained_layout=True)
+    gs = fig.add_gridspec(4, 2, width_ratios=[1.25, 1])
     b = fig.add_subplot(gs[:, 1])
     ch = A.chaotic(nir)
     det = np.array([A.det_noise(T, P, IL, LAM["NH3_1.53"]) for T in TG])
@@ -117,17 +117,16 @@ def figure():
     reg = np.sqrt(np.array(nir["regular"]["env"]["both"]) ** 2 + det ** 2)
     b.loglog(TG, reg, ":", color=C["blue"], lw=1.5, label="both, regular")
     for ILx, ls in ((14, "--"), (20, "-."), (25, (0, (1, 1.5)))):
-        b.loglog(TG, [A.det_noise(T, P, ILx, LAM["NH3_1.53"]) for T in TG], ls=ls, color=C["shot"], lw=1.0)
-        b.text(TG[-1] * 0.6, A.det_noise(TG[-1], P, ILx, LAM["NH3_1.53"]) * 1.25, f"{ILx} dB", color=C["shot"], fontsize=10, ha="right")
+        b.loglog(TG, [A.det_noise(T, P, ILx, LAM["NH3_1.53"]) for T in TG], ls=ls, color=C["shot"], lw=1.0, label=f"detector, {ILx} dB")
     gl = float(np.median([GAMMA_LINE["NH3_1.53"] * x["L_mean_m"] * 100 for x in ch]))
     a = LINES["NH3_1.53"]["alpha_peak_per_ppm_cm"]
     v1 = float(np.exp(np.interp(0.0, np.log(TG), np.log(tot["both"]))))
     b.plot(1, v1, "o", color="k", ms=4)
     b.axvline(1, color="0.5", ls="--", lw=0.7)
-    b.annotate(f"{1e3 * v1 / (a * gl):.0f} ppb", (1, v1), (2e-3, v1 / 20), fontsize=10, arrowprops=dict(arrowstyle="-", lw=0.6))
-    b.set(xlim=(1e-4, TG[-1]), ylim=(1e-8, 1e-2), xlabel="Averaging time T (s)", ylabel="Noise-equivalent absorbance")
-    b.set_title("(b) NH$_3$, set B, 14 dB, 1 mW", loc="left", fontsize=10)
-    b.legend(fontsize=8.5, loc="lower left", ncol=2, handlelength=1.2, columnspacing=0.8)
+    b.annotate(f"{1e3 * v1 / (a * gl):.0f} ppb", (1, v1), (1.5e-3, v1 / 30), fontsize=10, arrowprops=dict(arrowstyle="-", lw=0.6))
+    b.set(xlim=(1e-4, TG[-1]), ylim=(1e-8, 1e-3), xlabel="Averaging time T (s)", ylabel="Noise-equivalent absorbance")
+    b.set_title("(b) NH$_3$, 14 dB, 1 mW", loc="left", fontsize=10)
+    b.legend(fontsize=10, loc="upper center", bbox_to_anchor=(0.45, -0.2), ncol=2, handlelength=1.4, columnspacing=0.8, labelspacing=0.15)
     r = b.twinx(); r.set_yscale("log"); lo, hi = b.get_ylim(); r.set_ylim(1e3 * lo / (a * gl), 1e3 * hi / (a * gl)); r.set_ylabel("NH$_3$ (ppb)")
     # (a) spectra with noise realisations of the representative layout's exit paths
     strips = {s["key"]: s for s in A.fig3()["strips"]}

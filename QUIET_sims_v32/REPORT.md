@@ -21,6 +21,7 @@ regular-cell value (single). Nothing was tuned after seeing results; failing cas
 | sweeping input states (Task 9): factor N^−½; near-IR M3 with combined angle + position + ±160 pm | – | 4.3e-7 median at R 97 % (75 µm, ±15 mrad, ±100 µm); 3.3 µm best 8e-6 | marginal PASS near-IR, FAIL 3.3 µm |
 | wide input sweeps (Task 9b, ±30–60 mrad + position), line-compatible ±35 pm | – | 6.0e-7 (R 97 %), 4.5e-7 (R 99.5 %); NH₃ static ≈ 0.9 ppm; CH₄ 3.3 µm static ≈ 37 ppb | marginal near-IR (M3 at median only), FAIL NH₃ 50 ppb and M7 |
 | design levers (Task 10): larger cells (10–20 mm), weaker scattering; extra / random ports | – | NH₃ at 15 s: 85 ppb (10 mm, R 99.5 %), 59 ppb (20 mm); CH₄ static 4–6 ppb (10–20 mm) | NH₃ ≈ 50 ppb only at 20 mm; M7 PASS at ≥ 10 mm (fringe; mid-IR detector permitting) |
+| grating-coupler design (Task 11), 10 / 15 / 20 mm, 8 × 25 µm, facet 11, drift, 10 mW | – | NH₃ 30 s: 61 / 35 / 32 ppb (R 97 %), 46 / 24 / 19 ppb (R 99.5 %); CH₄ 30 s: 1.6 / 0.9 / 1.1 ppb; C₂H₆ 2.0 / 1.2 / 1.4 ppb | NH₃ ≈ 50 ppb PASS at ≥ 10 mm (R 99.5 %) / 15 mm; M7 PASS incl. the 2 ppb ethane stretch at ≥ 10 mm (14 pW/√Hz) |
 | NH3 ~50 ppb at 1 s (Sec. 3.2) | 56 ppb | 14 dB / 1 mW, 2 cm: 590–690 ppb; simulated Γ⟨L⟩: 270–480 ppb | FAIL |
 | M7: CH4 / C2H6 10 ppb at ≤ 15 s (2 cm, 14 dB, 1 mW) | – | R 95 %: 13 / 15 ppb; R 97 %: 9.8 / 11 ppb; R 99.5 %: 6.8 / 7.7 ppb | FAIL at 95 %, marginal at 97 %, PASS at 99.5 % |
 | ethane stretch 2 ppb | – | not reached in 100 s for any R at 2 cm (fringe floor 11–21 ppb) | FAIL |
@@ -494,6 +495,51 @@ Findings.
 4. Caveats: transmission (detector noise and coupler losses) limits the largest cells; the output-facet choice was optimised
    on the 4 mm cell only; membrane loss of a 10–20 mm suspended film and the static (no-drift) fringe are assumptions; the
    15–30 s drift averaging of Task 7 would lower the fringe part further.
+
+## 6f. Task 11: the grating-coupler design at 5–20 mm, output facet, drift averaging, scaling
+
+`scripts/t11_sizes.js`, `scripts/run_t11.sh`, `scripts/t11_analysis.py` → `results/t11/` (`table.md`, `summary.json`,
+`artifact_data.json`); artifacts: Fig. 1 (input-design toggle, grating coupler and free-space dither in 3D and panel e),
+Fig. 2 panel (j)–(k) (size buttons; fringe per dither mode; fringe against the number of input states N), Fig. 3 data sets
+"grating-coupler design, 5 / 10 / 15 / 20 mm" (default 10 mm; NH₃, CH₄, C₂H₆; C₂H₆/CH₄ ratio readout).
+
+Design: free-space beam on a large-area input grating coupler (75 µm waist, ±60 mrad angle and ±100 µm position dither),
+24-facet circle, one input (facet 0), one output, set B, 0.3 dB/cm, ε = 1e-6; wavelength dither ±35 pm at 1.53 µm (keeps
+80 % of the NH₃ peak), ±81 pm (±2.2 GHz) at 3.3 µm (92 % CH₄, 82 % C₂H₆). One beamlet trace per layout serves all 17 input
+dithers (N = 1–400).
+
+1. Inclusions: 8 discs r 25 µm |Δn| 0.01 (10 mm: 133 ppb static NH₃ against 197 for 16 × 25 µm and 259 for 16 × 50 µm;
+   20 mm: 15 against 26 and 58). Sparser sets (4 × 25 µm, 8 × 15 µm) are better still in the model but lose chaos (20 mm,
+   4 discs: 73 % chaotic launch rays, 47 % in some layouts), where the beamlet model is no longer valid; 8 × 25 µm keeps
+   92–100 % (FTLE 0.15–0.23 per hit).
+2. Output facet: all 23 facets scanned at 5, 10, 15, 20 mm (30 layouts each), chosen on layouts 1–15 and checked on 16–30.
+   Facet 11, the facet the launch orbit aims at, is the best or equal-best at every size (20 mm: facets 9 and 11 both 15 ppb);
+   the 5 mm "winner" on the training half (facet 21) is worse on the holdout half (724 against 481 ppb): no size-specific
+   port is needed.
+3. Drift averaging: static fringe × 1/√(1 + 2 (0.05 T)²) (the engine's envelope for 0.1 rad/s; 0.69 at 15 s, 0.43 at 30 s);
+   the AC part at the ≥ 1 kHz dither frequencies is averaged out above ms. Detector: 10 mW, simulated cell transmission,
+   +8 dB for the two grating couplers, NEP 14 pW/√Hz.
+4. Limits (median over 30 layouts; R 97 % / R 99.5 %):
+
+| cell | T | Γ⟨L⟩ cm | NH₃ 15 s | NH₃ 30 s | CH₄ 15 s | CH₄ 30 s | C₂H₆ 30 s | CH₄ 30 s, NEP 1 nW/√Hz |
+|---|---|---|---|---|---|---|---|---|
+| 4 mm, 16 × 50 µm (reference) | 0.111 / 0.224 | 3.8 | 567 / 284 | 353 / 176 | 21.7 / 12.3 | 13.5 / 7.67 | 17.1 / 9.72 | 14.2 |
+| 5 mm | 0.081 / 0.165 | 5.6 | 328 / 199 | 204 / 124 | 9.15 / 6.32 | 5.68 / 3.93 | 7.21 / 4.98 | 7.54 |
+| 10 mm | 0.027 / 0.048 | 10.5 | 97.2 / 73 | 61.2 / 45.6 | 2.53 / 2.22 | 1.57 / 1.38 | 1.99 / 1.75 | 5.71 |
+| 15 mm | 0.018 / 0.032 | 15.5 | 51.6 / 37.4 | 35.1 / 23.6 | 1.46 / 1.38 | 0.906 / 0.86 | 1.15 / 1.09 | 6.3 |
+| 20 mm | 0.010 / 0.018 | 20.7 | 45.9 / 28.2 | 32.3 / 19.4 | 1.7 / 1.31 | 1.06 / 0.812 | 1.35 / 1.03 | 6.73 |
+
+5. Scaling: in every cell the both-dither fringe falls with the input states as N^(−½) (Fig. 2 k); the larger cells start
+   lower because the wavelength dither averages better over their longer paths, and they reach the 5e-7 target at N ≈ 3–30
+   (15–20 mm) instead of N ≈ 400 (5 mm).
+6. Near-IR 15–20 mm cells are detector-limited (T 1–3 %); the 3.3 µm limits are fringe-limited at 14 pW/√Hz and would be
+   set by a realistic mid-IR detector (≈ 6 ppb CH₄ at 30 s with 1 nW/√Hz).
+
+C₂H₆/CH₄ ratio: both 3.3 µm lines are in the Fig. 3 spectra (separate strips, 19.6 cm⁻¹ = 590 GHz apart: a tunable idler or
+two lasers, here each line for T/2). 10 mm design, 15 s: σ(CH₄) 3.6 ppb, σ(C₂H₆) 4.3 ppb, so a leak plume of 2.5 ppm CH₄ with
+125 ppb C₂H₆ gives the ratio 5.00 ± 0.17 % (1σ), enough to tell thermogenic (natural-gas, several %) from biogenic (≲ 0.1 %)
+sources; at ambient C₂H₆ (1–3 ppb) the ratio is not resolved. The CH₄ absorption under the C₂H₆ Q-branch is not removed in
+this estimate (a two-species fit would add its covariance).
 
 ## 7. Task 6: inclusions
 

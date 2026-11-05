@@ -77,7 +77,7 @@ def t5():
             row["ratio_Vtheta_over_Ntheta^-1/2"] = A.stats(vt * np.sqrt(nt))
             out["cases"][f"{cell}_A{Ad}"] = row
             K.append((Ad, row["N_theta"])); Kr.append((Ad, reg["N_theta"]))
-            if Ad == 20:
+            if Ad == 5:                                    # 0.25 mrad sampling up to 10 mrad
                 d = np.array(ch[0]["corr_theta"]["d"]) * 1e3
                 cm = np.median([x["corr_theta"]["c"] for x in ch], 0)
                 ax[0].plot(d, cm, color=cc, lw=1.5, label=f"C-{'CMPC' if cell == 'circle' else 'Herriott'}")
@@ -89,12 +89,15 @@ def t5():
             ax[1].plot(a, [k[1] for k in Kr], color=cr, marker="s", ms=3.5, ls="--", label=f"R-{'CMPC' if cell == 'circle' else 'Herriott'}")
     ax[0].axhline(math.exp(-1), color="0.5", lw=0.7, ls=":")
     ax[0].set(xlim=(0, 10), ylim=(0, 1.02), xlabel="Launch-angle change Δθ (mrad)", ylabel="Speckle correlation C(Δθ)")
-    ax[0].legend(fontsize=8.5)
+    ax[0].legend(fontsize=10)
     ax[0].set_title("(a)", loc="left", fontsize=10)
     ax[1].axhline(M_MODES, color=style.COL["target"], lw=1, ls="--")
-    ax[1].text(2.2, M_MODES * 0.6, f"M = 2n$_{{eff}}$w/λ = {M_MODES:.0f}", color=style.COL["target"], fontsize=9)
+    ax[1].text(2.2, M_MODES * 0.6, f"M = 2n$_{{eff}}$w/λ = {M_MODES:.0f}", color=style.COL["target"], fontsize=10)
     ax[1].set(xscale="log", yscale="log", xlabel="Angle dither ±A (mrad)", ylabel="Independent angle patterns K$_{eff}$", ylim=(0.8, 600))
-    ax[1].legend(fontsize=8.5, loc="center left")
+    from matplotlib.ticker import FixedLocator, NullFormatter, NullLocator
+    ax[1].xaxis.set_major_locator(FixedLocator(list(ADITH))); ax[1].set_xticklabels([str(a) for a in ADITH])
+    ax[1].xaxis.set_minor_locator(NullLocator()); ax[1].xaxis.set_minor_formatter(NullFormatter())
+    ax[1].legend(fontsize=10, loc="center left")
     ax[1].set_title("(b)", loc="left", fontsize=10)
     fig.savefig(ROOT / "figs" / "angle_dither.pdf")
     fig.savefig(ROOT / "figs" / "angle_dither.png", dpi=150)
@@ -220,7 +223,7 @@ def t8():
     ax[1].scatter(v, f, s=10, color=style.COL["c_cmpc"])
     ax[1].axhline(5e-7, color=style.COL["target"], ls="--", lw=1)
     ax[1].axvline(thr, color="0.5", ls=":", lw=0.8)
-    ax[1].set(yscale="log", xlabel=best, ylabel="ΔP/P, both dithers")
+    ax[1].set(yscale="log", xlabel={"n_pass": "Mean passes of the detected light"}.get(best, best), ylabel="ΔP/P, both dithers")
     ax[1].set_title(f"(b) Spearman ρ = {out['design_rule']['spearman']:.2f}", loc="left", fontsize=10)
     fig.savefig(ROOT / "figs" / "layout_spread.pdf")
     fig.savefig(ROOT / "figs" / "layout_spread.png", dpi=150)

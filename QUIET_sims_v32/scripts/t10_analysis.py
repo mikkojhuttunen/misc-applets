@@ -24,6 +24,8 @@ LABEL = {"base": "reference: 4 mm, 1 in, 1 out, 16 × 50 µm × 0.01, 75 µm ±6
          "d10_in2": "10 mm, 2 input ports", "d10_inc8": "10 mm, 8 inclusions", "d10_r25": "10 mm, r 25 µm", "d14": "14 mm cell", "d20": "20 mm cell",
          "d20_r25": "20 mm, r 25 µm", "d10_old": "10 mm, old dither", "d20_old": "20 mm, old dither"}
 LABEL.update({f"of{i}": f"output on facet {i}" for i in range(1, 24)})
+LABEL.update({"in2g": "2 inputs, facets 0 + 19", "in3g": "3 inputs, facets 0 + 19 + 4", "d20r25_in2g": "20 mm, r 25 µm, 2 inputs (0 + 19)",
+              "d20r25_in3g": "20 mm, r 25 µm, 3 inputs (0 + 19 + 4)", "d20_r25": "20 mm, r 25 µm"})
 q = lambda v, p: float(np.quantile(v, p))
 out, md = {}, []
 for f in sorted((ROOT / "results/t10").glob("*_R*_0.3dB*.json")):
@@ -48,9 +50,10 @@ for f in sorted((ROOT / "results/t10").glob("*_R*_0.3dB*.json")):
         out[key][nm] = row
     g0 = gases[0][0]
     for dl in (("35pm", "81pm") if d["band"] == "mir" else ("35pm",)):
-        ref = out[key]["old_dither"][dl]["ppb"][g0][1] if "old_dither" in out[key] else out[key]["of11"][dl]["ppb"][g0][1]
+        rk = "old_dither" if "old_dither" in out[key] else ("of11" if "of11" in out[key] else "base")
+        ref = out[key][rk][dl]["ppb"][g0][1]
         md.append(f"\n#### {key}: static both-dither fringe and {'/'.join(g for g, _, _ in gases)} floor, ±{dl[:-2]} pm wavelength dither (median [IQR] over 30 layouts)\n")
-        md.append(f"| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | {' | '.join(g + ' static floor ppb' for g, _, _ in gases)} | gain vs {'old dither' if 'old_dither' in out[key] else 'facet 11'} | regular cell {g0} ppb (indicative) |")
+        md.append(f"| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | {' | '.join(g + ' static floor ppb' for g, _, _ in gases)} | gain vs {LABEL.get(rk, rk).split(':')[0]} | regular cell {g0} ppb (indicative) |")
         md.append("|---|---|---|---|---|---|" + "---|" * len(gases) + "---|---|")
         for nm, r in out[key].items():
             x = r[dl]

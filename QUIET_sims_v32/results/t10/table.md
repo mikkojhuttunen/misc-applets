@@ -1,7 +1,29 @@
 
+#### inputs_nir_R0.97_0.3dB: static both-dither fringe and NH3 floor, ±35 pm wavelength dither (median [IQR] over 30 layouts)
+
+| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | NH3 static floor ppb | gain vs reference | regular cell NH3 ppb (indicative) |
+|---|---|---|---|---|---|---|---|---|
+| reference: 4 mm, 1 in, 1 out, 16 × 50 µm × 0.01, 75 µm ±60 mrad ±100 µm | 0.111 | 3.77 | 267 | 5.9e-07 [3.6e-07–8.4e-07] | 43 % | 827 [5e+02–1.2e+03] | 1.0× | 391 |
+| 2 inputs, facets 0 + 19 | 0.134 | 3.68 | 287 | 4.8e-07 [3.4e-07–5.7e-07] | 57 % | 721 [4.8e+02–8.4e+02] | 1.1× | 1.08e+03 |
+| 3 inputs, facets 0 + 19 + 4 | 0.124 | 3.68 | 312 | 4.8e-07 [3.3e-07–6.1e-07] | 53 % | 701 [5e+02–9.5e+02] | 1.2× | 1.2e+03 |
+| 20 mm, r 25 µm | 0.007 | 20.53 | 35 | 9.6e-08 [6.4e-08–1.6e-07] | 90 % | 26.3 [15–54] | 31.5× | 12.5 |
+| 20 mm, r 25 µm, 2 inputs (0 + 19) | 0.015 | 15.78 | 34 | 3.5e-07 [1.9e-07–4.4e-07] | 87 % | 121 [76–1.5e+02] | 6.8× | 187 |
+| 20 mm, r 25 µm, 3 inputs (0 + 19 + 4) | 0.014 | 16.07 | 37 | 3e-07 [1.3e-07–3.5e-07] | 93 % | 99.2 [48–1.2e+02] | 8.3× | 145 |
+
+#### inputs_nir_R0.995_0.3dB: static both-dither fringe and NH3 floor, ±35 pm wavelength dither (median [IQR] over 30 layouts)
+
+| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | NH3 static floor ppb | gain vs reference | regular cell NH3 ppb (indicative) |
+|---|---|---|---|---|---|---|---|---|
+| reference: 4 mm, 1 in, 1 out, 16 × 50 µm × 0.01, 75 µm ±60 mrad ±100 µm | 0.224 | 5.38 | 286 | 4.3e-07 [2.7e-07–6.5e-07] | 67 % | 414 [2.7e+02–6.5e+02] | 1.0× | 334 |
+| 2 inputs, facets 0 + 19 | 0.245 | 5.13 | 320 | 3.7e-07 [2.4e-07–4.5e-07] | 83 % | 405 [2.6e+02–5e+02] | 1.0× | 751 |
+| 3 inputs, facets 0 + 19 + 4 | 0.242 | 5.18 | 337 | 4e-07 [2.6e-07–4.6e-07] | 87 % | 418 [2.5e+02–4.9e+02] | 1.0× | 739 |
+| 20 mm, r 25 µm | 0.012 | 20.60 | 38 | 8.7e-08 [5.3e-08–1.4e-07] | 90 % | 23.8 [13–47] | 17.4× | 10.3 |
+| 20 mm, r 25 µm, 2 inputs (0 + 19) | 0.023 | 16.05 | 39 | 3.1e-07 [1.8e-07–3.7e-07] | 87 % | 107 [69–1.3e+02] | 3.9× | 167 |
+| 20 mm, r 25 µm, 3 inputs (0 + 19 + 4) | 0.022 | 16.30 | 42 | 2.5e-07 [1.4e-07–3e-07] | 97 % | 81 [39–1e+02] | 5.1× | 130 |
+
 #### mir_R0.97_0.3dB: static both-dither fringe and CH4/C2H6 floor, ±35 pm wavelength dither (median [IQR] over 30 layouts)
 
-| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | CH4 static floor ppb | C2H6 static floor ppb | gain vs old dither | regular cell CH4 ppb (indicative) |
+| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | CH4 static floor ppb | C2H6 static floor ppb | gain vs old dither (40 µm, ±2 mrad) | regular cell CH4 ppb (indicative) |
 |---|---|---|---|---|---|---|---|---|---|
 | reference: 4 mm, 1 in, 1 out, 16 × 50 µm × 0.01, 75 µm ±60 mrad ±100 µm | 0.133 | 4.31 | 107 | 1.3e-05 [1e-05–1.7e-05] | 0 % | 72.7 [59–1.2e+02] | 84.2 [68–1.4e+02] | 6.7× | 77.1 |
 | old dither (40 µm, ±2 mrad) | 0.130 | 4.46 | 88 | 9.7e-05 [6.4e-05–0.00012] | 0 % | 488 [3.2e+02–8.1e+02] | 566 [3.7e+02–9.3e+02] | 1.0× | 1.17e+03 |
@@ -11,7 +33,7 @@
 
 #### mir_R0.97_0.3dB: static both-dither fringe and CH4/C2H6 floor, ±81 pm wavelength dither (median [IQR] over 30 layouts)
 
-| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | CH4 static floor ppb | C2H6 static floor ppb | gain vs old dither | regular cell CH4 ppb (indicative) |
+| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | CH4 static floor ppb | C2H6 static floor ppb | gain vs old dither (40 µm, ±2 mrad) | regular cell CH4 ppb (indicative) |
 |---|---|---|---|---|---|---|---|---|---|
 | reference: 4 mm, 1 in, 1 out, 16 × 50 µm × 0.01, 75 µm ±60 mrad ±100 µm | 0.133 | 4.31 | 107 | 4.9e-06 [3.1e-06–8e-06] | 0 % | 31.7 [18–59] | 40.2 [23–75] | 9.0× | 20.3 |
 | old dither (40 µm, ±2 mrad) | 0.130 | 4.46 | 88 | 4.4e-05 [3e-05–7.1e-05] | 0 % | 286 [1.8e+02–4.3e+02] | 363 [2.2e+02–5.5e+02] | 1.0× | 326 |
@@ -21,7 +43,7 @@
 
 #### nir_R0.97_0.3dB: static both-dither fringe and NH3 floor, ±35 pm wavelength dither (median [IQR] over 30 layouts)
 
-| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | NH3 static floor ppb | gain vs old dither | regular cell NH3 ppb (indicative) |
+| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | NH3 static floor ppb | gain vs old dither (40 µm, ±2 mrad) | regular cell NH3 ppb (indicative) |
 |---|---|---|---|---|---|---|---|---|
 | reference: 4 mm, 1 in, 1 out, 16 × 50 µm × 0.01, 75 µm ±60 mrad ±100 µm | 0.111 | 3.77 | 267 | 5.9e-07 [3.6e-07–8.4e-07] | 43 % | 827 [5e+02–1.2e+03] | 13.8× | 391 |
 | old dither (40 µm, ±2 mrad) | 0.113 | 3.86 | 204 | 8.2e-06 [3.9e-06–1.6e-05] | 0 % | 1.14e+04 [5.1e+03–2.4e+04] | 1.0× | 1.04e+04 |
@@ -56,7 +78,7 @@
 
 #### nir_R0.995_0.3dB: static both-dither fringe and NH3 floor, ±35 pm wavelength dither (median [IQR] over 30 layouts)
 
-| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | NH3 static floor ppb | gain vs old dither | regular cell NH3 ppb (indicative) |
+| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | NH3 static floor ppb | gain vs old dither (40 µm, ±2 mrad) | regular cell NH3 ppb (indicative) |
 |---|---|---|---|---|---|---|---|---|
 | reference: 4 mm, 1 in, 1 out, 16 × 50 µm × 0.01, 75 µm ±60 mrad ±100 µm | 0.224 | 5.38 | 286 | 4.3e-07 [2.7e-07–6.5e-07] | 67 % | 414 [2.7e+02–6.5e+02] | 15.2× | 334 |
 | old dither (40 µm, ±2 mrad) | 0.228 | 5.36 | 251 | 6.2e-06 [3.3e-06–1.2e-05] | 0 % | 6.28e+03 [3.1e+03–1.2e+04] | 1.0× | 6.61e+03 |
@@ -91,7 +113,7 @@
 
 #### ports_nir_R0.97_0.3dB: static both-dither fringe and NH3 floor, ±35 pm wavelength dither (median [IQR] over 30 layouts)
 
-| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | NH3 static floor ppb | gain vs facet 11 | regular cell NH3 ppb (indicative) |
+| variant | T | Γ⟨L⟩ cm | M | fringe | < 5e-7 | NH3 static floor ppb | gain vs output on facet 11 | regular cell NH3 ppb (indicative) |
 |---|---|---|---|---|---|---|---|---|
 | output on facet 1 | 0.163 | 3.21 | 200 | 1.4e-06 [8.8e-07–1.8e-06] | 13 % | 2.39e+03 [1.5e+03–3.2e+03] | 0.3× | 2.24e+03 |
 | output on facet 2 | 0.621 | 0.58 | 77 | 7.2e-06 [4.8e-06–1.2e-05] | 0 % | 6.99e+04 [3.7e+04–1.2e+05] | 0.0× | 2.17e+05 |

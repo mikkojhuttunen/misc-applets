@@ -7,3 +7,6 @@ for R in 0.97 0.995; do node scripts/t10_design.js --band nir --R $R --dBcm 0.3 
 PORTS=$(node -e "console.log(Array.from({length:23},(_,i)=>'of'+(i+1)).join(','))")
 node scripts/t10_design.js --band nir --R 0.97 --dBcm 0.3 --variants $PORTS --out results/t10/ports_nir_R0.97_0.3dB.json
 node scripts/t10_design.js --band mir --R 0.97 --dBcm 0.3 --variants base,old_dither,d10,d14,d20 --extra "$EXTRA" --out results/t10/mir_R0.97_0.3dB.json
+# inputs at facets whose separation to the output (facet 11) is good in the port scan (11, 16, 7 facets)
+GOOD='{"in2g":{"in_facets":[0,19]},"in3g":{"in_facets":[0,19,4]},"d20r25_in2g":{"r":10e-3,"inc_r":25e-6,"in_facets":[0,19]},"d20r25_in3g":{"r":10e-3,"inc_r":25e-6,"in_facets":[0,19,4]},"d20_r25":{"r":10e-3,"inc_r":25e-6}}'
+for R in 0.97 0.995; do node scripts/t10_design.js --band nir --R $R --dBcm 0.3 --variants base,in2g,in3g,d20_r25,d20r25_in2g,d20r25_in3g --extra "$GOOD" --out results/t10/inputs_nir_R${R}_0.3dB.json; done

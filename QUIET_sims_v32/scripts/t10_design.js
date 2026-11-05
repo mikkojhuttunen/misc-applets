@@ -85,12 +85,12 @@ function run(v, seed) {
   const o = opts(v, seed), S = D.setup(o), c = S.mc.cell, P = c.perimeter, th0 = S.theta, cosT = Math.cos(th0), lamM = B.lam / B.n;
   G.setAlpha(o.alpha_m); G.setRTable(null);
   const flen = P / NF, rnd = Pl.mulberry32(1000 + (seed || 0) * 7 + v.n_out * 131);
-  const ins = IN_FACETS.slice(0, v.n_in).map(f => c.sIn + f * flen);
+  const inF = v.in_facets || IN_FACETS.slice(0, v.n_in), ins = inF.map(f => c.sIn + f * flen);
   let outs;
   if (v.out_facet !== undefined) outs = [c.sIn + v.out_facet * flen];
   else if (!v.rand && v.n_out === 1) outs = [c.sIn + OUT_FIXED * flen];
   else {
-    const pool = []; for (let f = 1; f < NF; f++) if (!IN_FACETS.slice(0, v.n_in).includes(f)) pool.push(f);
+    const pool = []; for (let f = 1; f < NF; f++) if (!inF.includes(f)) pool.push(f);
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
     outs = pool.slice(0, v.n_out).map(f => c.sIn + f * flen + (rnd() - 0.5) * (flen - PORTW) * 0.9);
   }

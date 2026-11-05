@@ -20,6 +20,7 @@ regular-cell value (single). Nothing was tuned after seeing results; failing cas
 | angle dither suppresses the fringe (engine V_θ ≈ 5e-3) | – | wave-optics bound V_θ ≥ 0.98 at ±2 mrad, 40 µm waist (Task 5b): both-dither fringe 3.4e-6 at R 97 % | FAIL (engine optimistic) |
 | sweeping input states (Task 9): factor N^−½; near-IR M3 with combined angle + position + ±160 pm | – | 4.3e-7 median at R 97 % (75 µm, ±15 mrad, ±100 µm); 3.3 µm best 8e-6 | marginal PASS near-IR, FAIL 3.3 µm |
 | wide input sweeps (Task 9b, ±30–60 mrad + position), line-compatible ±35 pm | – | 6.0e-7 (R 97 %), 4.5e-7 (R 99.5 %); NH₃ static ≈ 0.9 ppm; CH₄ 3.3 µm static ≈ 37 ppb | marginal near-IR (M3 at median only), FAIL NH₃ 50 ppb and M7 |
+| design levers (Task 10): larger cells (10–20 mm), weaker scattering; extra / random ports | – | NH₃ at 15 s: 85 ppb (10 mm, R 99.5 %), 59 ppb (20 mm); CH₄ static 4–6 ppb (10–20 mm) | NH₃ ≈ 50 ppb only at 20 mm; M7 PASS at ≥ 10 mm (fringe; mid-IR detector permitting) |
 | NH3 ~50 ppb at 1 s (Sec. 3.2) | 56 ppb | 14 dB / 1 mW, 2 cm: 590–690 ppb; simulated Γ⟨L⟩: 270–480 ppb | FAIL |
 | M7: CH4 / C2H6 10 ppb at ≤ 15 s (2 cm, 14 dB, 1 mW) | – | R 95 %: 13 / 15 ppb; R 97 %: 9.8 / 11 ppb; R 99.5 %: 6.8 / 7.7 ppb | FAIL at 95 %, marginal at 97 %, PASS at 99.5 % |
 | ethane stretch 2 ppb | – | not reached in 100 s for any R at 2 cm (fringe floor 11–21 ppb) | FAIL |
@@ -436,6 +437,63 @@ chaotic CMPC under ±45 mrad and ±100 µm and of the regular CMPC under ±45 mr
 dithered rays join neighbouring orbits); (e) overlap of two input states against their tilt (wave optics) for 40 / 75 /
 150 µm waists, with the engine's single-ray decorrelation angle 1.16 mrad: a ray decorrelates within ≈ 1 mrad, the
 40 µm beam only after ≈ 8 mrad; (f) fringe against N with N^(−½).
+
+## 6e. Task 10: design levers for sensitivity (ports, inclusions, cell size)
+
+`scripts/t10_design.js`, `scripts/run_t10.sh`, `scripts/t10_analysis.py`, `scripts/t10_figure.py` → `results/t10/`
+(all variants in `table.md`), `figs/t10_cell_size.pdf`. Beamlet model of Task 9b generalised: several input ports (one
+dithered beam each, their relative phase dithered, so each input interferes only with its own stray copy), several output
+ports (one detector each, photocurrents summed), any cell size and inclusion set; transmission T, Γ⟨L⟩ and the speckle
+grains M computed per geometry (M = the engine's phase-space definition on the beamlet exits, within-port covariance pooled
+over the ports, calibrated once to the engine's grains: c_cal = 1.41 at R 97 %, 1.36 at R 99.5 %). Reference design: 4 mm
+24-facet circle, 1 input (facet 0), 1 output (facet 11), 16 inclusions r 50 µm |Δn| 0.01, input dither 75 µm ±60 mrad
+±100 µm (large-area grating coupler), ±35 pm wavelength dither (line-compatible), set B, 0.3 dB/cm, ε = 1e-6, static
+fringe (no drift), 30 layouts. "Static floor" = fringe / (α Γ⟨L⟩ s), s = line peak kept (0.80 NH₃ at ±35 pm).
+
+Bugs found and fixed in this task (documented, first-run files overwritten): (1) the first run summed all inputs into one
+fringe phasor (one stray copy of the combined input), which removes any gain from extra inputs; (2) the second input sat
+on facet 13 next to the output; moved to facet 15.
+
+Results (NH₃ static floor, R 97 % / R 99.5 %, median):
+
+| lever | NH₃ ppb, R 97 % | R 99.5 % | finding |
+|---|---|---|---|
+| reference (4 mm) | 827 | 414 | – |
+| 2 / 3 / 4 extra input ports (facets 6, 15, 19) | 1720 / 1100 / 797 | 842 / 525 / 379 | no gain: the extra ports' routes to the output are shorter and worse |
+| 2 / 3 inputs at good separations (facets 19, 4) | 721 / 701 | 405 / 418 | ≤ 1.2×; in the 20 mm cell 4–5× worse (shorter routes, Γ⟨L⟩ 21 → 16 cm) |
+| 1 output at a random facet | 2160 | 1050 | the output position matters: facet 11 is the best of 23 (scan: 0.3–0.9× elsewhere; facets 2, 4, 13, 15 catastrophic, short routes) |
+| 2 / 4 / 8 random outputs | 2920 / 3250 / 10300 | 1710 / 2240 / 7810 | worse: T rises but Γ⟨L⟩ and M fall faster than the √K averaging gains |
+| 8 inclusions / r 25 µm | 623 / 597 | 422 / 357 | weaker scattering: slightly longer paths, ≤ 1.4× |
+| 32 / 64 inclusions, r 100 µm, |Δn| 0.02–0.04 | 846–1230 | 485–642 | stronger scattering: worse |
+| 7 mm cell | 463 | 284 | 1.8× |
+| 10 mm cell (16 / 8 inclusions) | 259 / 131 | 164 / 79 | 3–6× |
+| 14 mm cell | 144 | 110 | 5.7× |
+| 20 mm cell (r 50 / 25 µm) | 58 / 26 | 51 / 24 | 14–32× |
+
+With the detector at 15 s (10 mW, +8 dB for two grating couplers, NEP 14 pW/√Hz; T falls to 0.3–4 % in the large cells):
+NH₃ 152 / 85 ppb (10 mm, 8 inclusions, R 97 / 99.5 %), 91 / 59 ppb (20 mm, r 25 µm); the 20 mm cells become
+detector-limited (5–19 µW on the detector). 3.3 µm (R 97 %, ±81 pm = ±2.2 GHz, CH₄ peak kept 0.92): CH₄ 31.7 (4 mm) → 5.8
+(10 mm), 5.9 (14 mm), 4.3 ppb (20 mm); at ±35 pm 3.2 ppb (20 mm); C₂H₆ ≈ 1.25× CH₄. The detector term is negligible at 14 pW/√Hz,
+but a realistic TE-cooled mid-IR detector (0.1–1 nW/√Hz) adds 7–70× that term (≈ 2–25 ppb at 10–20 mm) — the mid-IR
+detector, not the fringe, may then set the limit.
+
+Chaos check (`D.chaosMap`, 10 layouts): all variants keep 100 % chaotic launch rays; the FTLE falls with weaker or sparser
+scattering (0.58 per hit reference, 0.33 for 10 mm with 8 inclusions, 0.27 for 20 mm with r 25 µm), so the beamlet
+independence assumption still holds for the chaotic designs. The regular-cell numbers (indicative only, the assumption
+does not hold for them) also improve with size.
+
+Findings.
+1. **The cell size is the lever.** Γ⟨L⟩ grows ≈ with the diameter (3.8 → 21 cm) while the fringe stays or falls (the
+   wavelength dither works better on longer paths, the input dither still sweeps N ≈ 400 states). 10–20 mm membranes give
+   3–30× lower static limits; the near-IR M3 fringe target (5e-7) is met by 57–90 % of the layouts, and NH₃ reaches the
+   proposal's ≈ 50 ppb only for the 20 mm cell with weak scatterers (at 15 s, R 99.5 %, detector included: 59 ppb).
+2. Extra input ports and extra / randomised output ports do not help: what matters is that the light reaches the detector
+   only after a long path. One input, one output at a good facet separation (11, then 16 or 7 facets) is best.
+3. Weaker, sparser scattering is better at every size, down to at least 8 discs or 25 µm: enough chaos to mix the input
+   states (FTLE ≈ 0.3 per hit), not more.
+4. Caveats: transmission (detector noise and coupler losses) limits the largest cells; the output-facet choice was optimised
+   on the 4 mm cell only; membrane loss of a 10–20 mm suspended film and the static (no-drift) fringe are assumptions; the
+   15–30 s drift averaging of Task 7 would lower the fringe part further.
 
 ## 7. Task 6: inclusions
 

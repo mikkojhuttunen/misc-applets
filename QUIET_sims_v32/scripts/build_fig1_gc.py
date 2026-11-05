@@ -56,15 +56,13 @@ def main():
             '      const P = (s_, h) => [sIn[0] + s_ * uIn[0] + h * wv[0], sIn[1] + s_ * uIn[1] + h * wv[1]];\n'
             '      for (let i = 0; i < nT; i++) { const a_ = 0.01 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, COL.gc, COL.gcSec, cut); }\n'
             '      gcC = P(0.01 + nT * gp / 2, 0);\n'
-            '      const Mp = [gcC[0] + uIn[0] * 0.55, gcC[1] + uIn[1] * 0.55, t + 0.85];\n'
-            '      const spots = [-1, -0.5, 0, 0.5, 1].map(f_ => [gcC[0] + wv[0] * f_ * Wg * 0.38, gcC[1] + wv[1] * f_ * Wg * 0.38, t + ts]);\n'
-            '      free = { Mp, spots, src: [Mp[0] + uIn[0] * 0.5, Mp[1] + uIn[1] * 0.5, Mp[2] + 0.25], u: uIn };\n'
+            '      free = freeFan(gcC, uIn, wv, Wg, t + ts);\n'
             '    } else guide(sIn, uIn);\n')
     s = rep(s, '    const inSegs = [toEdge(sIn, uIn), sIn], inBand = [sIn, p0];',
             '    const inSegs = GCD ? [] : [toEdge(sIn, uIn), sIn], inBand = GCD ? [gcC, p0] : [sIn, p0];')
     s = rep(s, '      { text: "tapered strip-loaded waveguide", p: [sIn[0] + uIn[0] * 0.2, sIn[1] + uIn[1] * 0.2, t + ts] },',
             '      GCD ? { text: "large-area grating coupler (free-space input)", p: [gcC[0], gcC[1], t + ts] } : { text: "tapered strip-loaded waveguide", p: [sIn[0] + uIn[0] * 0.2, sIn[1] + uIn[1] * 0.2, t + ts] },\n'
-            '      ...(GCD ? [{ text: "scanning mirror: angle + position dither", p: free.Mp }] : []),')
+            '      ...(GCD ? [{ text: "free-space beam: angle + position dither", p: free.top }] : []),')
     s = rep(s, '    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, incs, cloud: { pieces: cloudPieces, z: t, reach }, beamZ: t + 0.002, beamW: 0.012, labels, info: { M, N, Np, m, t, band, nOut, nOutPorts } };',
             '    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, incs, free, cloud: { pieces: cloudPieces, z: t, reach }, beamZ: t + 0.002, beamW: 0.012, labels, info: { M, N, Np, m, t, band, nOut, nOutPorts, gc: GCD } };')
     # draw the free-space fan and the mirror
@@ -73,15 +71,49 @@ def main():
             '        const fg = new THREE.Group(), V = a_ => new THREE.Vector3(...a_);\n'
             '        const rod = (a_, b_, r_, op) => { const A_ = V(a_), B_ = V(b_), L_ = A_.distanceTo(B_), m_ = new THREE.Mesh(new THREE.CylinderGeometry(r_, r_, L_, 10), new THREE.MeshBasicMaterial({ color: COL.beam, transparent: op < 1, opacity: op, depthWrite: op >= 1 }));\n'
             '          m_.position.copy(A_.clone().add(B_).multiplyScalar(0.5)); m_.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B_.clone().sub(A_).normalize()); fg.add(m_); };\n'
-            '        rod(desc.free.src, desc.free.Mp, 0.009, 1);\n'
-            '        desc.free.spots.forEach((p_, i) => rod(desc.free.Mp, p_, i === 2 ? 0.008 : 0.005, i === 2 ? 1 : 0.45));\n'
-            '        const mir = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.012), new THREE.MeshPhongMaterial({ color: COL.mirror, shininess: 90 }));\n'
-            '        mir.position.set(...desc.free.Mp); mir.rotation.z = Math.atan2(desc.free.u[1], desc.free.u[0]); mir.rotateY(-0.6); fg.add(mir);\n'
+            '        for (const [a_, b_, r_, op] of desc.free.rods) rod(a_, b_, r_, op);\n'
             '        group.add(fg);\n'
             '      }\n'
             '      if (desc.glow && $("glowOn").checked) for (const g of desc.glow) group.add(new THREE.Mesh(g, glowMaterial()));')
     s = rep(s, '<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span><span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span>',
-            '${desc.info.gc ? `<span><i class="sw" style="background:${COL.gc}"></i>input grating coupler</span><span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span><span><i class="sw" style="background:${COL.mirror}"></i>scanning mirror</span>` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span>')
+            '${desc.info.gc ? `<span><i class="sw" style="background:${COL.gc}"></i>input grating coupler</span><span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span>` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span>')
+    # short free-space fan shared by (a) and (b): only the last part of the beam above the grating is drawn (the scanning mirror is in e)
+    s = rep(s, '  function memChip() {',
+            '  function freeFan(gcC, u, wv, Wg, z, H = 0.22, run = 0.1) {   /* dither states: parallel shifts (position) with a small angle spread, faded upper ends */\n'
+            '    const rods = [], F = [-1, -0.5, 0, 0.5, 1];\n'
+            '    for (const f of F) {\n'
+            '      const e = [gcC[0] + wv[0] * f * Wg * 0.38, gcC[1] + wv[1] * f * Wg * 0.38, z];\n'
+            '      const a = [e[0] + u[0] * run + wv[0] * f * Wg * 0.25, e[1] + u[1] * run + wv[1] * f * Wg * 0.25, z + H];\n'
+            '      const m = [e[0] + (a[0] - e[0]) * 0.6, e[1] + (a[1] - e[1]) * 0.6, z + H * 0.6], c = f === 0;\n'
+            '      rods.push([m, e, c ? 0.008 : 0.005, c ? 1 : 0.45], [a, m, c ? 0.008 : 0.005, c ? 0.35 : 0.15]);\n'
+            '    }\n'
+            '    return { rods, top: [gcC[0] + u[0] * run, gcC[1] + u[1] * run, z + H] };\n'
+            '  }\n'
+            '  function memChip() {')
+    # (b) integrated Herriott cell: grating coupler at the input port
+    s = rep(s, '''    for (const [u, kind] of [[[-h.inDir[0], -h.inDir[1]], "in"], [h.exitDir, "out"]]) {
+      if (kind === "out" && h.exit !== "port") continue;
+      const w = [-u[1], u[0]], st = [p0[0] + u[0] * (band + 0.03), p0[1] + u[1] * (band + 0.03)];
+      const P = (s_, hh) => [st[0] + s_ * u[0] + hh * w[0], st[1] + s_ * u[1] + hh * w[1]], w1 = wp, w2 = 0.35 * wp, lt = 0.3;''',
+            '''    const GCD = S.indes === "gc"; let free = null, gcC = null;
+    for (const [u, kind] of [[[-h.inDir[0], -h.inDir[1]], "in"], [h.exitDir, "out"]]) {
+      if (kind === "out" && h.exit !== "port") continue;
+      const w = [-u[1], u[0]], st = [p0[0] + u[0] * (band + 0.03), p0[1] + u[1] * (band + 0.03)];
+      const P = (s_, hh) => [st[0] + s_ * u[0] + hh * w[0], st[1] + s_ * u[1] + hh * w[1]], w1 = wp, w2 = 0.35 * wp, lt = 0.3;
+      if (GCD && kind === "in") {                      /* grating coupler on the port axis, fed from above by the free-space beam */
+        const gp = 0.024, tooth = 0.012, nT = 9, Wg = Math.max(wp, 0.12);
+        for (let i = 0; i < nT; i++) { const a_ = 0.02 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, COL.gc, COL.gcSec, cut); }
+        gcC = P(0.02 + nT * gp / 2, 0); free = freeFan(gcC, u, w, Wg, t + ts, 0.4, 0.16);
+        io.push([kind, gcC, u]); continue;
+      }''')
+    s = rep(s, '    for (const [kind, st, u] of io) { (kind === "in" ? inSegs : outSegs).push(toEdge(st, u), st); inBand.push(st, p0); }',
+            '    for (const [kind, st, u] of io) { if (!(GCD && kind === "in")) (kind === "in" ? inSegs : outSegs).push(toEdge(st, u), st); inBand.push(st, p0); }')
+    s = rep(s, '      { text: "tapered strip-loaded waveguides", p: io.length',
+            '      { text: GCD ? "input grating coupler, output waveguide" : "tapered strip-loaded waveguides", p: io.length')
+    s = rep(s, '    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, cloud: { pieces: cloudPieces, z: t, reach }, framing:',
+            '    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, free, cloud: { pieces: cloudPieces, z: t, reach }, framing:')
+    s = rep(s, '<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span><span><i class="sw" style="background:${COL.outStrip}"></i>output waveguide</span>',
+            '${S.indes === "gc" ? `<span><i class="sw" style="background:${COL.gc}"></i>input grating coupler</span><span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span>` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output waveguide</span>')
     # ---------------------------------------------------------------- panel (e) with the dither system off the chip
     egc = r'''
   // ---- panel (e), grating-coupler design: the dither system (scanning mirror, scan lens) is its own block between the source and the chip
@@ -202,7 +234,7 @@ def main():
     s = rep(s, '      $("figNote").textContent = (liveView === "full" ? FIG_NOTE_FULL : FIG_NOTE_E) + tail',
             '      $("figNote").textContent = (liveView === "full" ? FIG_NOTE_FULL : FIG_NOTE_E) + (S.indes === "gc" ? FIG_NOTE_GC : "") + tail')
     s = rep(s, '  const liveSvgText = () =>',
-            '  const FIG_NOTE_GC = " New input design (QUIET Task 11): (e) shows the dither system off the chip, a scanning mirror and scan lens sweeping the angle (±60 mrad) and position (±100 µm) of a free-space beam on a large-area grating coupler at the input port of the CMPC; the chip has no heater section. The ray trace in (e) uses the design\'s 8 index inclusions of r 25 µm and shows the centre ray and an edge state of the input dither (+45 mrad, +100 µm).";\n'
+            '  const FIG_NOTE_GC = " New input design (QUIET Task 11): (e) shows the dither system off the chip, a scanning mirror and scan lens sweeping the angle (±60 mrad) and position (±100 µm) of a free-space beam on a large-area grating coupler at the input port of the CMPC; the chip has no heater section. In (a) and (b) only the last part of the free-space beam above the input grating coupler is drawn (the dither states as parallel shifts with a small angle spread). The ray trace in (e) uses the design\'s 8 index inclusions of r 25 µm and shows the centre ray and an edge state of the input dither (+45 mrad, +100 µm).";\n'
             '  const liveSvgText = () =>')
     s = rep(s, '<title>Fig. 1 MPC sensor schematics</title>', '<title>Fig. 1 MPC sensor schematics</title>')
     (ART / "fig1_v32.html").write_text(s, encoding="utf-8")

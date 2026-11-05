@@ -2398,6 +2398,16 @@ const DitherLab = (() => {
     const r = GasEngine.marchRay(mc, PlanarEngine.launch(c, c.sIn, S.theta), 300, c.sIn, c.sOut, c.meta.portW, "out", true);
     return { S, mc, c, pts: r.pts };
   }
+  function freeFan(gcC, u, wv, Wg, z, H = 0.22, run = 0.1) {   /* dither states: parallel shifts (position) with a small angle spread, faded upper ends */
+    const rods = [], F = [-1, -0.5, 0, 0.5, 1];
+    for (const f of F) {
+      const e = [gcC[0] + wv[0] * f * Wg * 0.38, gcC[1] + wv[1] * f * Wg * 0.38, z];
+      const a = [e[0] + u[0] * run + wv[0] * f * Wg * 0.25, e[1] + u[1] * run + wv[1] * f * Wg * 0.25, z + H];
+      const m = [e[0] + (a[0] - e[0]) * 0.6, e[1] + (a[1] - e[1]) * 0.6, z + H * 0.6], c = f === 0;
+      rods.push([m, e, c ? 0.008 : 0.005, c ? 1 : 0.45], [a, m, c ? 0.008 : 0.005, c ? 0.35 : 0.15]);
+    }
+    return { rods, top: [gcC[0] + u[0] * run, gcC[1] + u[1] * run, z + H] };
+  }
   function memChip() {
     const N = v("mFac"), Np = v("mPer"), m = Math.min(v("mStar"), Math.floor((N - 1) / 2)), M = mirrorModel();
     const band = v("dBand"), t = v("dT"), g = band / Np * M.dGap / (M.dGap + M.dTooth), tw = band / Np - g;
@@ -2460,9 +2470,7 @@ const DitherLab = (() => {
       const P = (s_, h) => [sIn[0] + s_ * uIn[0] + h * wv[0], sIn[1] + s_ * uIn[1] + h * wv[1]];
       for (let i = 0; i < nT; i++) { const a_ = 0.01 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, COL.gc, COL.gcSec, cut); }
       gcC = P(0.01 + nT * gp / 2, 0);
-      const Mp = [gcC[0] + uIn[0] * 0.55, gcC[1] + uIn[1] * 0.55, t + 0.85];
-      const spots = [-1, -0.5, 0, 0.5, 1].map(f_ => [gcC[0] + wv[0] * f_ * Wg * 0.38, gcC[1] + wv[1] * f_ * Wg * 0.38, t + ts]);
-      free = { Mp, spots, src: [Mp[0] + uIn[0] * 0.5, Mp[1] + uIn[1] * 0.5, Mp[2] + 0.25], u: uIn };
+      free = freeFan(gcC, uIn, wv, Wg, t + ts);
     } else guide(sIn, uIn);
     const outStarts = outK.map(k => { const u = [Math.cos(2 * Math.PI * k / N), Math.sin(2 * Math.PI * k / N)]; const st = [u[0] * (a0 + bandR + 0.01), u[1] * (a0 + bandR + 0.01)]; guide(st, u, true); return [st, u]; });
     const frame = w => [[[-L, -L], [L, -L], [L, -w], [-L, -w]], [[-L, w], [L, w], [L, L], [-L, L]], [[-L, -w], [-w, -w], [-w, w], [-L, w]], [[w, -w], [L, -w], [L, w], [w, w]]];
@@ -2496,7 +2504,7 @@ const DitherLab = (() => {
       { text: `trench DBR, ${Np} periods (drawn wide)`, p: [...at(a0 + band / 2, 2 * Math.PI * Math.round(N * 3 / 16) / N), t] },
       { text: `input port, χ = ${(90 - 180 * m / N).toFixed(1)}°`, p: [...p0.map((x, i) => x - 0.1 * d0[i]), t] },
       GCD ? { text: "large-area grating coupler (free-space input)", p: [gcC[0], gcC[1], t + ts] } : { text: "tapered strip-loaded waveguide", p: [sIn[0] + uIn[0] * 0.2, sIn[1] + uIn[1] * 0.2, t + ts] },
-      ...(GCD ? [{ text: "scanning mirror: angle + position dither", p: free.Mp }] : []),
+      ...(GCD ? [{ text: "free-space beam: angle + position dither", p: free.top }] : []),
       { text: `SiNx membrane, ${v("mThk")} nm`, p: [-0.5, 0.25, t] },
       { text: "buried oxide", p: [-L * 0.45, -L, -tb / 2] },
       { text: "Si handle", p: [-L * 0.85, -L, -tb - th / 2] },
@@ -2683,10 +2691,17 @@ const DitherLab = (() => {
     // waveguides behind mirror 1
     const sq = Q => clip(clip(clip(clip(Q, 1, 0, X1), -1, 0, -X0), 0, 1, Y1), 0, -1, Y1);
     const p0 = h.pts[0], io = [];
+    const GCD = S.indes === "gc"; let free = null, gcC = null;
     for (const [u, kind] of [[[-h.inDir[0], -h.inDir[1]], "in"], [h.exitDir, "out"]]) {
       if (kind === "out" && h.exit !== "port") continue;
       const w = [-u[1], u[0]], st = [p0[0] + u[0] * (band + 0.03), p0[1] + u[1] * (band + 0.03)];
       const P = (s_, hh) => [st[0] + s_ * u[0] + hh * w[0], st[1] + s_ * u[1] + hh * w[1]], w1 = wp, w2 = 0.35 * wp, lt = 0.3;
+      if (GCD && kind === "in") {                      /* grating coupler on the port axis, fed from above by the free-space beam */
+        const gp = 0.024, tooth = 0.012, nT = 9, Wg = Math.max(wp, 0.12);
+        for (let i = 0; i < nT; i++) { const a_ = 0.02 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, COL.gc, COL.gcSec, cut); }
+        gcC = P(0.02 + nT * gp / 2, 0); free = freeFan(gcC, u, w, Wg, t + ts, 0.4, 0.16);
+        io.push([kind, gcC, u]); continue;
+      }
       const c1 = kind === "out" ? COL.outStrip : COL.strip, c2 = kind === "out" ? COL.outStripSec : COL.stripSec;
       B.add(sq([P(0, -w1 / 2), P(lt, -w2 / 2), P(lt, w2 / 2), P(0, w1 / 2)]), t, t + ts, c1, c2, cut);
       B.add(sq([P(lt, -w2 / 2), P(8, -w2 / 2), P(8, w2 / 2), P(lt, w2 / 2)]), t, t + ts, c1, c2, cut);
@@ -2707,7 +2722,7 @@ const DitherLab = (() => {
     const segs = []; for (let i = 0; i < h.pts.length - 1; i++) keepSeg(h.pts[i], h.pts[i + 1], segs);
     const toEdge = (st, u) => { let s_ = 20; for (const [c, dd] of [[X1 - st[0], u[0]], [X0 - st[0], u[0]], [Y1 - st[1], u[1]], [-Y1 - st[1], u[1]]]) if (Math.abs(dd) > 1e-9 && c / dd > 0) s_ = Math.min(s_, c / dd); return [st[0] + s_ * u[0], st[1] + s_ * u[1]]; };
     const inSegs = [], inBand = [], outSegs = [];
-    for (const [kind, st, u] of io) { (kind === "in" ? inSegs : outSegs).push(toEdge(st, u), st); inBand.push(st, p0); }
+    for (const [kind, st, u] of io) { if (!(GCD && kind === "in")) (kind === "in" ? inSegs : outSegs).push(toEdge(st, u), st); inBand.push(st, p0); }
     let glow = null;
     if (cut && isFinite(M.ne)) {
       const mp = modeProfile(M), sc = t / M.t, ext = mp.tail * sc, L1g = d + band - Xc, L2g = 1.25 * A;
@@ -2718,7 +2733,7 @@ const DitherLab = (() => {
       { text: `mirror 1, curved trench DBR, ${Np} periods (drawn wide)`, p: [-band / 2, 0.9 * D, t] },
       { text: "mirror 2", p: [d + band / 2, 0.6 * D, t] },
       { text: `centre port, no DBR over ${(wp * 1e3).toFixed(0)} µm`, p: [p0[0], p0[1], t] },
-      { text: "tapered strip-loaded waveguides", p: io.length ? [io[0][1][0] + io[0][2][0] * 0.9, io[0][1][1] + io[0][2][1] * 0.9, t + ts] : [X0, 0, t] },
+      { text: GCD ? "input grating coupler, output waveguide" : "tapered strip-loaded waveguides", p: io.length ? [io[0][1][0] + io[0][2][0] * 0.9, io[0][1][1] + io[0][2][1] * 0.9, t + ts] : [X0, 0, t] },
       { text: `${h.pts.length - 1} passes, path ${(h.path / 10).toFixed(1)} cm`, p: [d * 0.3, 0.2 * A, t] },
     ];
     const reach = isFinite(M.ne) ? modeProfile(M).tail * t / M.t : 0.04, bM = 0.06;
@@ -2727,7 +2742,7 @@ const DitherLab = (() => {
       .concat(cut ? scatterMolecules(9, 9, [Xc, -1.1 * A, d - 0.15, 0], (x, y) => (x > Xc + 0.06 && x < Xc + 0.45) || (y < -0.06 && y > -0.45),
         [[-reach - 0.4 * bM, -0.75 * bM, 1], [-0.45, -0.18, 0.8]], [-reach - 0.4 * bM, 0], bM) : []);
     const cloudPieces = cutPieces([[0.02, -1.15 * A], [d - 0.02, -1.15 * A], [d - 0.02, 1.15 * A], [0.02, 1.15 * A]], cut);
-    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, cloud: { pieces: cloudPieces, z: t, reach }, framing: { target: [d * 0.5, -0.05 * Y1, 0], radius: 0.43 * Math.hypot(X1 - X0, 2 * Y1) }, beamZ: t + 0.002, beamW: 0.008, labels, info: { h, t } };
+    return { B, isSec, segs, inSegs, inBand, outSegs, glow, mols, free, cloud: { pieces: cloudPieces, z: t, reach }, framing: { target: [d * 0.5, -0.05 * Y1, 0], radius: 0.43 * Math.hypot(X1 - X0, 2 * Y1) }, beamZ: t + 0.002, beamW: 0.008, labels, info: { h, t } };
   }
   function crigfModel() {
     const c = { NGC: v("cNGC"), pGC: v("cPGC") / 1e3, fGC: v("cFGC"), NL: v("cNL"), NR: v("cNR"), pL: v("cPD") / 1e3, pR: v("cPD") / 1e3,
@@ -2854,10 +2869,7 @@ const DitherLab = (() => {
         const fg = new THREE.Group(), V = a_ => new THREE.Vector3(...a_);
         const rod = (a_, b_, r_, op) => { const A_ = V(a_), B_ = V(b_), L_ = A_.distanceTo(B_), m_ = new THREE.Mesh(new THREE.CylinderGeometry(r_, r_, L_, 10), new THREE.MeshBasicMaterial({ color: COL.beam, transparent: op < 1, opacity: op, depthWrite: op >= 1 }));
           m_.position.copy(A_.clone().add(B_).multiplyScalar(0.5)); m_.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B_.clone().sub(A_).normalize()); fg.add(m_); };
-        rod(desc.free.src, desc.free.Mp, 0.009, 1);
-        desc.free.spots.forEach((p_, i) => rod(desc.free.Mp, p_, i === 2 ? 0.008 : 0.005, i === 2 ? 1 : 0.45));
-        const mir = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.012), new THREE.MeshPhongMaterial({ color: COL.mirror, shininess: 90 }));
-        mir.position.set(...desc.free.Mp); mir.rotation.z = Math.atan2(desc.free.u[1], desc.free.u[0]); mir.rotateY(-0.6); fg.add(mir);
+        for (const [a_, b_, r_, op] of desc.free.rods) rod(a_, b_, r_, op);
         group.add(fg);
       }
       if (desc.glow && $("glowOn").checked) for (const g of desc.glow) group.add(new THREE.Mesh(g, glowMaterial()));
@@ -2908,7 +2920,7 @@ const DitherLab = (() => {
     if (S.dev === "her") {
       const h = desc.info.h, M = h.M, deg = x => (x / D2R).toFixed(1);
       const angIO = h.exit === "port" ? Math.acos(Math.max(-1, Math.min(1, -(h.inDir[0] * h.exitDir[0] + h.inDir[1] * h.exitDir[1])))) / D2R : NaN;
-      leg.innerHTML = `<span><i class="sw" style="background:${COL.si}"></i>SiNx membrane</span><span><i class="sw" style="background:${COL.beam}"></i>ray path (exact)</span><span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span><span><i class="sw" style="background:${COL.outStrip}"></i>output waveguide</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span>`;
+      leg.innerHTML = `<span><i class="sw" style="background:${COL.si}"></i>SiNx membrane</span><span><i class="sw" style="background:${COL.beam}"></i>ray path (exact)</span>${S.indes === "gc" ? `<span><i class="sw" style="background:${COL.gc}"></i>input grating coupler</span><span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span>` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output waveguide</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span>`;
       st.innerHTML = stat("Spacing d", `${h.d.toFixed(3)} mm`) + stat("θ per pass", `${deg(h.th)}°`) + stat("Exit", h.exit === "port" ? `port after ${h.pts.length - 1} passes` : h.exit === "edge" ? "lost past a mirror edge" : "not found") +
         stat("Path", `${(h.path / 10).toFixed(2)} cm`) + stat("Input/output angle", isFinite(angIO) ? `${angIO.toFixed(1)}°` : "–") +
         stat("Incidence angles", h.ang.length ? `${deg(Math.min(...h.ang))}–${deg(Math.max(...h.ang))}°` : "–") +
@@ -2928,7 +2940,7 @@ const DitherLab = (() => {
     const sg = Array.from({ length: 101 }, (_, i) => i / 100 * 0.999);
     const Rmin = Math.min(...sg.map(s => M.R(Np, s)));
     leg.innerHTML = S.mview === "chip"
-      ? `<span><i class="sw" style="background:${COL.si}"></i>SiNx membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>ray orbit, χ = ${(90 - 180 * desc.info.m / desc.info.N).toFixed(1)}° (Fig. 2 trace)</span>${desc.incs && desc.incs.length ? `<span><i class="sw" style="background:#e8590c"></i>index inclusions</span>` : ""}${desc.info.gc ? `<span><i class="sw" style="background:${COL.gc}"></i>input grating coupler</span><span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span><span><i class="sw" style="background:${COL.mirror}"></i>scanning mirror</span>` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span><span>lighter shade: cut face</span>`
+      ? `<span><i class="sw" style="background:${COL.si}"></i>SiNx membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>ray orbit, χ = ${(90 - 180 * desc.info.m / desc.info.N).toFixed(1)}° (Fig. 2 trace)</span>${desc.incs && desc.incs.length ? `<span><i class="sw" style="background:#e8590c"></i>index inclusions</span>` : ""}${desc.info.gc ? `<span><i class="sw" style="background:${COL.gc}"></i>input grating coupler</span><span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span>` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span><span>lighter shade: cut face</span>`
       : `<span><i class="sw" style="background:${COL.si}"></i>SiNx (to scale, µm)</span><span><i class="sw" style="background:${COL.beam}"></i>incident and reflected slab-mode ray</span><span><i class="sw" style="background:${COL.field}"></i>mode intensity across the membrane</span>`;
     st.innerHTML = stat("n_SiNx", M.n.toFixed(4)) + stat(`n_eff ${M.pol}₀`, isFinite(M.ne) ? M.ne.toFixed(4) : "cut off") + stat("Air gap / tooth", `${nm(M.dGap)} / ${nm(M.dTooth)}`) +
       stat("Mirror depth", `${((M.dGap + M.dTooth) * Np * 1e6).toFixed(2)} µm`) + stat(`R at 0°, N = ${Np}`, R0.toFixed(4)) +
@@ -3577,7 +3589,7 @@ const DitherLab = (() => {
   }
   const FIG_NOTE_FULL = "Figure 1, drawn live: (a) CMPC chip and (b) integrated Herriott cell are snapshots of the 3D views above (oblique, current settings; press Refresh after changing them); (c) evanescent field of the guided mode with δ and 3δ marked, molecules inside 3δ absorb; (d) confinement factor against membrane thickness; (e) system schematic with the same regular ray orbit (index inclusions off; switch them on for the chaotic cell of Figs. 2 and 3). All text Arial at the font size set above, on the figure width set above.";
   const FIG_NOTE_E = "System schematic, panel (e): I source, II gas sensor chip (edge coupler, micro-heater dither section, CMPC, output-port waveguides, reference tap), III detection. Ray path: the Fig. 2 trace (24 facets, launch angle 7.5°, centre ray plus 2 mrad dither-edge beam, output port at 0.458 of the perimeter, 16 index inclusions).";
-  const FIG_NOTE_GC = " New input design (QUIET Task 11): (e) shows the dither system off the chip, a scanning mirror and scan lens sweeping the angle (±60 mrad) and position (±100 µm) of a free-space beam on a large-area grating coupler at the input port of the CMPC; the chip has no heater section. The ray trace in (e) uses the design's 8 index inclusions of r 25 µm and shows the centre ray and an edge state of the input dither (+45 mrad, +100 µm).";
+  const FIG_NOTE_GC = " New input design (QUIET Task 11): (e) shows the dither system off the chip, a scanning mirror and scan lens sweeping the angle (±60 mrad) and position (±100 µm) of a free-space beam on a large-area grating coupler at the input port of the CMPC; the chip has no heater section. In (a) and (b) only the last part of the free-space beam above the input grating coupler is drawn (the dither states as parallel shifts with a small angle spread). The ray trace in (e) uses the design's 8 index inclusions of r 25 µm and shows the centre ray and an edge state of the input dither (+45 mrad, +100 µm).";
   const liveSvgText = () => '<?xml version="1.0" encoding="UTF-8"?>\n' + liveRes.svg.replace("<svg ", `<svg width="${liveRes.mm}mm" height="${liveRes.hMm.toFixed(2)}mm" `);
   const liveName = ext => `figure1-${liveView === "full" ? "a-e" : "e"}-${liveP.fs}pt-${liveP.mm}mm.${ext}`;
   async function liveCanvas(dpi) {

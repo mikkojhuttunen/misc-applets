@@ -1,28 +1,45 @@
-From 30901ec28c4a1c8c9bc93ecb5286aaecb553b144 Mon Sep 17 00:00:00 2001
+From 7e274a28639da218079084a3378adc33e9822fca Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
-Date: Fri, 6 Nov 2026 08:46:30 +0000
-Subject: [PATCH] Fig. 2: labels inside the top-row schematics, tighter layout,
- 16.8 x 8.5 cm
+Date: Fri, 6 Nov 2026 14:08:15 +0000
+Subject: [PATCH] Fig. 2: labels inside the schematics, tighter layout,
+ wave-bounded bars in (f)
 
 Labels (a)-(d) and the Herriott scale bar sit inside the schematics on
-semi-transparent white boxes, so the top row loses its title lines. The
-Herriott cells are drawn mirrored top to bottom (same simulation): port
-at the bottom left, label at the top left. The CMPCs shrink to the
-height of the two stacked Herriott views, which keep only a small gap.
-The rows sit closer together and the bottom x-axis titles closer to
-their tick labels. Default height 8.5 cm (21 cm preset: 10.4 cm).
+semi-transparent white boxes; the Herriott cells are drawn mirrored top
+to bottom (same simulation): port at the bottom left. The CMPCs shrink
+to the height of the stacked Herriott views, the rows sit closer and the
+default size is 16.8 x 8.5 cm (21 cm preset: 10.4 cm).
+
+Panel (f) shows wave-bounded bars by default: per layout, angle =
+max(ray value, 0.98 x no dither) and both = max(ray value, 0.98 x
+wavelength only), since a +-2 mrad tilt of the 40 um launch stays inside
+the beam divergence; black marks give the ray-optics medians. The rail
+selects wave+ray, wave only or ray only (the earlier figure); the
+ensemble table and the settings file carry the wave-bounded values.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01NLfEqncaEw1RGMDLUGdFgb
 ---
- QUIET_sims_v32/artifacts/fig2_v32.html | 62 ++++++++++++++++----------
- 1 file changed, 39 insertions(+), 23 deletions(-)
+ QUIET_sims_v32/artifacts/fig2_v32.html | 100 +++++++++++++++++--------
+ 1 file changed, 68 insertions(+), 32 deletions(-)
 
 diff --git a/QUIET_sims_v32/artifacts/fig2_v32.html b/QUIET_sims_v32/artifacts/fig2_v32.html
-index f93e1a1..97228be 100644
+index f93e1a1..5bff8a1 100644
 --- a/QUIET_sims_v32/artifacts/fig2_v32.html
 +++ b/QUIET_sims_v32/artifacts/fig2_v32.html
-@@ -222,12 +222,12 @@ table.vals thead th { font: 700 11px var(--f-ui); color: var(--muted); }
+@@ -169,6 +169,11 @@ table.vals thead th { font: 700 11px var(--f-ui); color: var(--muted); }
+           <label class="check"><input type="checkbox" id="bGrid" checked> Decade grid</label>
+         </div>
+         <div class="ctl"><div class="row"><label for="tgt">Target</label><output id="tgtOut"></output></div><input id="tgt" type="range" min="-7" max="-2" step="0.1" value="-6.3"></div>
++        <div class="pair">
++          <div class="ctl"><label for="abMode">Angle dither in (f)</label><select id="abMode"><option value="wave+ray" selected>wave-bounded bars, ray-optics marks</option><option value="wave">wave-bounded only</option><option value="ray">ray optics only (earlier figure)</option></select></div>
++          <div class="ctl"><label for="wbF">Wave bound on the angle factor</label><input id="wbF" type="number" min="0" max="1" step="0.01" value="0.98"></div>
++        </div>
++        <p class="hint">The engine averages the angle-dither fringe along single rays. For the 40 µm launch a ±2 mrad tilt stays inside the beam divergence (7.9 mrad), and wave optics keeps the angle-dither factor ≥ 0.98 (REPORT Task 5b). Wave-bounded bars: angle = max(ray value, 0.98 × no dither), both = max(ray value, 0.98 × wavelength only), per layout, then median and quartiles. Black marks: the ray-optics medians (the earlier bars).</p>
+         <p class="hint">“≤” over a bar: the value sits within 3× the sampling floor, so the true residual may be lower.</p>
+       </fieldset>
+       <fieldset>
+@@ -222,12 +227,12 @@ table.vals thead th { font: 700 11px var(--f-ui); color: var(--muted); }
          <h2>Figure size</h2>
          <div class="sizes">
            <div class="ctl"><div class="row"><label for="figW">Width</label><output id="figWOut"></output></div><input id="figW" type="range" min="12" max="26" step="0.1" value="16.8"></div>
@@ -37,7 +54,7 @@ index f93e1a1..97228be 100644
        </div>
        <div class="panel">
          <h2>Export</h2>
-@@ -2390,22 +2390,30 @@ onmessage = e => {
+@@ -2390,22 +2395,30 @@ onmessage = e => {
      text(x, y, [L ? `(${letter})` : "", T ? str : ""].filter(Boolean).join(" "));
    }
  
@@ -74,7 +91,7 @@ index f93e1a1..97228be 100644
      rays("herriott", kind, X, Y, col);
      inclusionsOn(S.mc, X, Y, s);
      for (let k = 0; k < c.E; k++) {
-@@ -2413,8 +2421,14 @@ onmessage = e => {
+@@ -2413,8 +2426,14 @@ onmessage = e => {
        path(wallPts(c, k, c.prof[k] ? 48 : 2).map(([u, v]) => [X(u), Y(v)]), mir ? { stroke: "#000", sw: 1.4, cap: "round" } : { stroke: "#8c8c8c", sw: 0.6 });
      }
      ports(c, X, Y);
@@ -91,7 +108,95 @@ index f93e1a1..97228be 100644
    }
  
    /* Poincaré map: dots de-duplicated on a 0.12 pt grid, then thinned evenly to the cap; or a 600 dpi raster */
-@@ -2652,24 +2666,26 @@ onmessage = e => {
+@@ -2497,24 +2516,32 @@ onmessage = e => {
+   $("dset").addEventListener("change", () => { applyDset(); $("ensPanel").hidden = true; if (typeof syncOut === "function") syncOut(); runStatus(); draw(); });
+   applyDset();
+   const ensSets = () => { const l = CASES.filter(c => caseOn[c]); return l.length ? l : [CASES[CASES.length - 1]]; };
+-  function EV(sn, c, k, cat) {
+-    const d = ENS[sn][c], f = Math.sqrt(eps() / 1e-6), key = cat[1];
+-    if (k === "regular") { const v = d.regular[key] * f; return { med: v, q1: v, q3: v, fl: cat[3] ? 0 : 0 }; }
++  /* angle-dither model of (f): "ray" (the engine's ray-optics average), "wave" (wave-bounded), "wave+ray" (wave bars, ray marks) */
++  const abMode = () => $("abMode").value, wbF = () => Math.min(1, Math.max(0, +$("wbF").value || 0));
++  const quant = (a, q) => { const b = [...a].sort((u, v) => u - v), i = q * (b.length - 1), k = Math.floor(i); return k + 1 < b.length ? b[k] + (b[k + 1] - b[k]) * (i - k) : b[k]; };
++  /* wave bound: the angle dither cannot take the fringe below wbF × the same fringe without it (none for "angle", wavelength only for "both") */
++  function EV(sn, c, k, cat, model) {
++    const d = ENS[sn][c], f = Math.sqrt(eps() / 1e-6), key = cat[1], wave = (model || (abMode() === "ray" ? "ray" : "wave")) === "wave" && (key === "angle" || key === "both");
++    const base = key === "angle" ? "none" : "spectral", F = wbF();
++    if (k === "regular") { const v = (wave ? Math.max(d.regular[key], F * d.regular[base]) : d.regular[key]) * f; return { med: v, q1: v, q3: v, fl: 0 }; }
+     const st = d.chaotic[key], fk = key === "angle" ? "fl_angle" : key === "both" ? "fl_both" : null;
+-    return { med: st.med * f, q1: st.q1 * f, q3: st.q3 * f, fl: fk ? d.chaotic[fk].med * f : 0 };
++    if (!wave) return { med: st.med * f, q1: st.q1 * f, q3: st.q3 * f, fl: fk ? d.chaotic[fk].med * f : 0 };
++    const sb = key === "angle" ? null : d.seeds[base], v = d.seeds[key].map((x, i) => Math.max(x, F * (sb ? sb[i] : d.chaotic.none.med)));
++    return { med: quant(v, 0.5) * f, q1: quant(v, 0.25) * f, q3: quant(v, 0.75) * f, fl: 0 };
+   }
+   function EVS(c, k, cat, topOnly) {
+     const es = ensSets().map(sn => EV(sn, c, k, cat)).filter(e => e.med > 0);
+     if (!es.length) return [0];
+     const wk = es.reduce((a, b) => b.med > a.med ? b : a), out = es.map(e => e.med);   /* the whisker belongs to the case with the highest median */
+     if (wk.q3 > wk.q1) { out.push(wk.q3); if (!topOnly && wk.q1 > 0) out.push(wk.q1); }
++    if (!topOnly && abMode() === "wave+ray") for (const sn of ensSets()) { const r = EV(sn, c, k, cat, "ray"); if (r.med > 0) out.push(r.med); }
+     return out;
+   }
+   function barsEns(x, y, w, h) {
+     const ser = SERIES(), have = ser;
+     /* legend: two columns when they fit, else one */
+     const lfs = FSZ, KEY = 9, items = ser.map(s => s[2]), colW = Math.max(...items.map(t => tw(t, lfs))) + KEY + 4 + 6;
+-    const nCol = 2, rows = Math.ceil(items.length / nCol), legH = rows * lfs * 1.0 + lfs * 0.2;   /* legend: 2 × 2 block in the top-right corner of the axes */
++    const marks = abMode() === "wave+ray", nCol = 2, rows = Math.ceil(items.length / nCol) + (marks ? 1 : 0), legH = rows * lfs * 1.0 + lfs * 0.2;   /* legend: 2 × 2 block in the top-right corner of the axes */
+     const tgtOn = $("bTarget").checked, tgt = 10 ** +$("tgt").value;
+     const vals = have.flatMap(([c, k]) => CATS.flatMap(cat => EVS(c, k, cat))).concat(tgtOn ? [tgt] : []).filter(v => v > 0 && Number.isFinite(v));
+     rect(x, y, w, h, { stroke: "#000", sw: LW });
+@@ -2523,6 +2550,11 @@ onmessage = e => {
+       rect(lx, ly + lfs * 0.2, KEY, lfs * 0.62, { fill: col });
+       text(lx + KEY + 4, ly + lfs * 0.8, name, { fs: lfs });
+     });
++    if (marks) {   /* last legend row: the ray-optics mark */
++      const lx = x + w - nCol * colW - 2, ly = y + 2 + (rows - 1) * lfs * 1.0, ym = ly + lfs * 0.51;
++      path([[lx - 1, ym], [lx + KEY + 1, ym]], { stroke: "#000", sw: 1.3 });
++      text(lx + KEY + 4, ly + lfs * 0.8, "ray optics", { fs: lfs });
++    }
+     const xt = i => x + (i + 0.5) / CATS.length * w;
+     CATS.forEach((cat, i) => { path([[xt(i), y + h], [xt(i), y + h + 3.5]], { stroke: "#000", sw: LW }); text(xt(i), y + h + FSZ * 1.3, cat[1], { anchor: "middle" }); });
+     if (!vals.length) { waitNote(x, y + legH, w, h - legH, nDone() < 4 ? "tracing…" : "no light reaches the output"); return; }
+@@ -2546,7 +2578,7 @@ onmessage = e => {
+       }
+       for (let m = 2; m < 10; m++) { const v = m * 10 ** p; if (v < lo || v > hi) continue; const ym = Y(v); path([[x, ym], [x - 2, ym]], { stroke: "#000", sw: 0.6 }); }
+     }
+-    const sets = ensSets(), nS = sets.length;
++    const sets = ensSets(), nS = sets.length, rayMk = [];
+     const mixW = (hex, f) => { const n = parseInt(hex.slice(1), 16), ch = [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => Math.round(v + (255 - v) * f)); return "#" + ch.map(v => v.toString(16).padStart(2, "0")).join(""); };
+     CATS.forEach((cat, i) => ser.forEach(([c, k, , col], j) => {
+       const bx = xt(i) - gw / 2 + j * bw, xc = bx + bw / 2;
+@@ -2557,6 +2589,7 @@ onmessage = e => {
+         last = e;
+         const f = nS > 1 ? r / (nS - 1) : 0, wd = (bw - 0.8) * (1 - 0.5 * f), by = Y(Math.max(e.med, lo));
+         rect(xc - wd / 2, by, wd, y + h - by, { fill: nS > 1 ? mixW(col, 0.5 * (1 - f)) : col });
++        if (marks && (cat[1] === "angle" || cat[1] === "both")) rayMk.push([xc, wd, EV(sn, c, k, cat, "ray").med]);
+       });
+       if (!wk) return;
+       let topY = Y(Math.max(wk.med, lo));
+@@ -2565,6 +2598,7 @@ onmessage = e => {
+       if (last && $("bVals").checked) { const le = last.med <= 3 * last.fl;
+         text(xc + FSZ * 0.25, Math.min(topY, Y(Math.max(last.med, lo))) - 2, `${le ? "≤" : ""}${sci(last.med, 2).replace(/e(-?\d+)/, (m, ee) => `·10^{${ee.replace("-", "−")}}`)}`, { rot: true, fs: FSZ * 0.7 }); }
+     }));
++    for (const [xc, wd, v] of rayMk) if (v > 0) { const ym = Y(Math.max(v, lo)); path([[xc - wd / 2 - 0.6, ym], [xc + wd / 2 + 0.6, ym]], { stroke: "#000", sw: 1.3 }); }
+     if (tgtOn && tgt >= lo && tgt <= hi) {
+       path([[x, Y(tgt)], [x + w, Y(tgt)]], { stroke: "#d62728", sw: 0.9, dash: [3, 2] });
+       text(x + w - 3, Y(tgt) - 3, "target", { anchor: "end", fill: "#d62728", fs: FSZ * 0.85 });
+@@ -2573,10 +2607,10 @@ onmessage = e => {
+ 
+   $("ensAna").onclick = () => {
+     const nm = DSM[dsK()].slots, f = v => v.toExponential(1), ks = ["ideal", "target", "lossy"].filter(k => ENS[k]), fz = Math.sqrt(eps() / 1e-6), TG = 5e-7 / fz;
+-    let h = "<thead><tr><th>cell</th><th>case</th><th>dither</th><th>regular</th><th>chaotic median</th><th>quartiles</th><th>regular/chaotic</th><th>layouts below target</th></tr></thead><tbody>";
++    let h = "<thead><tr><th>cell</th><th>case</th><th>dither</th><th>regular</th><th>chaotic median</th><th>quartiles</th><th>regular/chaotic</th><th>layouts below target</th><th>wave-bounded: regular</th><th>chaotic median</th><th>regular/chaotic</th></tr></thead><tbody>";
+     for (const [c, cn] of [["circle", "CMPC"], ["herriott", "Herriott"]]) for (const k of ks) for (const m of ["spectral", "angle", "both"]) {
+       const d = ENS[k][c], st = d.chaotic[m], below = d.seeds[m].filter(v => v < TG).length;
+-      h += `<tr><td>${cn}</td><td>${nm[k]}</td><td>${m}</td><td>${f(d.regular[m] * fz)}</td><td>${f(st.med * fz)}</td><td>${f(st.q1 * fz)} to ${f(st.q3 * fz)}</td><td>${(d.regular[m] / st.med).toFixed(1)}</td><td>${below} / ${d.seeds[m].length}</td></tr>`;
++      h += `<tr><td>${cn}</td><td>${nm[k]}</td><td>${m}</td><td>${f(d.regular[m] * fz)}</td><td>${f(st.med * fz)}</td><td>${f(st.q1 * fz)} to ${f(st.q3 * fz)}</td><td>${(d.regular[m] / st.med).toFixed(1)}</td><td>${below} / ${d.seeds[m].length}</td>${(() => { const cat = CATS.find(q => q[1] === m), wr = EV(k, c, "regular", cat, "wave").med, wc = EV(k, c, "current", cat, "wave").med; return `<td>${f(wr)}</td><td>${f(wc)}</td><td>${(wr / wc).toFixed(1)}</td>`; })()}</tr>`;
+     }
+     h += "</tbody>";
+     let h2 = "<thead><tr><th>cell</th><th>case</th><th>T (chaotic)</th><th>Γ⟨L⟩ cm (chaotic)</th><th>⟨R⟩ per bounce</th><th>T (regular)</th><th>Γ⟨L⟩ cm (regular)</th></tr></thead><tbody>";
+@@ -2652,24 +2686,26 @@ onmessage = e => {
      $("sheet").style.maxWidth = `${Math.round(W * 2.2)}px`;
      ops = [];
      if (!run.p) { $("sheet").innerHTML = ""; return; }
@@ -127,7 +232,7 @@ index f93e1a1..97228be 100644
        text(x0, yb + fs * 0.33, lab); scaleBar(x0 + tl + 4, yb, bar, sC, false);
      }
      drawHerriottCell("regular", xh, yt1, wH, hb, sH, $("colHR").value, "c", "R-Herriott");
-@@ -2681,12 +2697,12 @@ onmessage = e => {
+@@ -2681,12 +2717,12 @@ onmessage = e => {
      const MAPS = [["herriott", "regular", "R-Herriott", "colHR", 0, 0], ["circle", "regular", "R-CMPC", "colCR", 1, 0],
        ["herriott", "current", "C-Herriott", "colHC", 0, 1], ["circle", "current", "C-CMPC", "colCC", 1, 1]];
      for (const [c, k, lab, col, i, j] of MAPS) poinMap(c, k, LAX + i * (mw + gx), y2 + j * (mh + gy), mw, mh, $(col).value, lab, i === 0, j === 1);
@@ -142,7 +247,16 @@ index f93e1a1..97228be 100644
      text(xb - fs * 3.0, y2 + h2 / 2, "Fringe amplitude ΔP/P", { anchor: "middle", rot: true });
      lastSvg = toSvg(W, H);
      $("sheet").innerHTML = lastSvg;
-@@ -2996,8 +3012,8 @@ onmessage = e => {
+@@ -2979,7 +3015,7 @@ onmessage = e => {
+           one_scale_for_all: $("sameScale").checked, inclusions_shown: $("showInc").checked, ports_shown: $("showPorts").checked },
+         poincare: { points_per_map: ctl("pCap").shown, dot_size_pt: +$("pSize").value, opacity: +$("pAlpha").value, rasterised_600dpi: $("pRaster").checked,
+           axes: "x: position along the wall / perimeter, y: sin chi" },
+-        bars: { target_line: $("bTarget").checked, target: 10 ** +$("tgt").value, value_labels: $("bVals").checked, decade_grid: $("bGrid").checked,
++        bars: { angle_dither_model: abMode(), wave_bound_angle_factor: wbF(), target_line: $("bTarget").checked, target: 10 ** +$("tgt").value, value_labels: $("bVals").checked, decade_grid: $("bGrid").checked,
+           order: ["R-Herriott", "C-Herriott", "R-CMPC", "C-CMPC"] },
+       },
+       results: res,
+@@ -2996,8 +3032,8 @@ onmessage = e => {
    for (const el of document.querySelectorAll("input, select")) el.addEventListener("input", () => { if (el.closest("fieldset") && /^(sp|bud|dA|dL|dWave|lWave|cR|cNf|cTh|cOf|nInc[CH]|incR[CH]|incDn[CH]|incSeed[CH]|hL|hW|hN|hM)$/.test(el.id)) { syncOut(); runStatus(); } else draw(); });
    $("run").onclick = start;
    const setSize = (w, h, f) => { $("figW").value = w; $("figH").value = h; if (f) $("fs").value = f; draw(); };

@@ -273,11 +273,11 @@ ECART = r'''
     const line = (d, col, w, extra = "") => out.push(`<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${extra}/>`);
     const ELEC = ' stroke-dasharray="3.5 2.5"', g = 5, ty = 4 + fs, sp = 1.1 * lh;
     // rows: detectors 1, 2, (dots), N, R; the source row sits at the level of the input window
-    const dy1 = ty + 1.05 * lh, dy2 = dy1 + sp, dyN = dy2 + 1.55 * sp, refY = dyN + sp, HB = Math.ceil(refY + 0.85 * lh), y0 = ty + 1.75 * lh;
+    const dy1 = ty + 1.05 * lh, dy2 = dy1 + sp, dyN = dy2 + 1.55 * sp, refY = dyN + sp, yII = refY + 0.6 * lh, TB = 7, HB = Math.ceil(yII + TB + 0.45 * lh + 2), y0 = ty + 1.75 * lh;   /* II ends at yII; its gas tubing runs below it, within the row */
     const sw = Math.ceil(tw("Beam scanner") + 12), sx0 = 52, lab0 = noLab ? 0 : tw("(e)") + 5, wI = Math.max(Math.ceil(lab0 + tw("I: Source + scanner") + 14), sx0 + sw + 6);
     const wIII = Math.ceil(Math.max(tw("III: Detection") + 12, 22 + tw("Det. R") + 8)), xII = wI + g, xIII = WE - wIII, wII = xIII - g - xII;
-    const box = (x, w, f, st, rx = 5, ex = "") => out.push(`<rect x="${n2(x + 1.2)}" y="1.2" width="${n2(w - 2.4)}" height="${HB - 2.4}" rx="${rx}" fill="${f}" stroke="${st}" stroke-width="2.4"${ex}/>`);
-    box(0, wI, C.rdF, C.rdS); box(xII, wII, C.caF, C.caS, 8); box(xIII, wIII, C.rdF, C.rdS);
+    const box = (x, w, f, st, rx = 5, ex = "", h = HB) => out.push(`<rect x="${n2(x + 1.2)}" y="1.2" width="${n2(w - 2.4)}" height="${n2(h - 2.4)}" rx="${rx}" fill="${f}" stroke="${st}" stroke-width="2.4"${ex}/>`);
+    box(0, wI, C.rdF, C.rdS); box(xII, wII, C.caF, C.caS, 8, "", yII); box(xIII, wIII, C.rdF, C.rdS);
     if (!noLab) txt(8, ty, "(e)"); txt(8 + lab0, ty, "I: Source + scanner"); txt(xIII + 8, ty, "III: Detection");
     txt(xII + 8, ty, tw("II: Single-use cartridge") + 16 < wII ? "II: Single-use cartridge" : "II: Cartridge");
     // I: laser, isolator, beam scanner, driver electronics
@@ -312,17 +312,17 @@ ECART = r'''
     }
     const wx = xII + wII - 2.2;   // windows in the holder wall
     out.push(`<rect x="${n2(xII - 0.6)}" y="${n2(y0 - 9)}" width="3.6" height="18" fill="${C.win}" stroke="${C.winS}" stroke-width="0.7"/>`);
-    out.push(`<rect x="${n2(wx - 0.6)}" y="${n2(dy1 - 8)}" width="3.6" height="${n2(refY - dy1 + 16)}" fill="${C.win}" stroke="${C.winS}" stroke-width="0.7"/>`);
-    const TB = 12;   // tubing below the holder: fitting on the wall, tube bending outward, flow arrow along the tube
+    out.push(`<rect x="${n2(wx - 0.6)}" y="${n2(dy1 - 8)}" width="3.6" height="${n2(Math.min(refY - dy1 + 16, yII - dy1 + 4))}" fill="${C.win}" stroke="${C.winS}" stroke-width="0.7"/>`);
+    // tubing below the holder: fitting on the wall, tube bending outward, flow arrow along the tube
     const tube = (x, dir, lab) => {
-      const yb = HB + TB - 5, xe = x + dir * 24, d = `M${n2(x)} ${n2(HB - 6)}L${n2(x)} ${n2(yb - 4)}Q${n2(x)} ${n2(yb)} ${n2(x + dir * 4)} ${n2(yb)}L${n2(xe)} ${n2(yb)}`;
+      const yb = yII + TB, xe = x + dir * 15, d = `M${n2(x)} ${n2(yII - 3)}L${n2(x)} ${n2(yb - 4)}Q${n2(x)} ${n2(yb)} ${n2(x + dir * 4)} ${n2(yb)}L${n2(xe)} ${n2(yb)}`;
       out.push(`<path d="${d}" fill="none" stroke="#8d989f" stroke-width="5.4" stroke-linecap="butt" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#eef2f4" stroke-width="3.6" stroke-linecap="butt" stroke-linejoin="round"/>`);
-      out.push(`<rect x="${n2(x - 4.5)}" y="${n2(HB - 4)}" width="9" height="5" rx="1" fill="#b9c2c8" stroke="#6d7a82" stroke-width="0.6"/>`);
-      const ax = x + dir * 16, s_ = dir * (lab === "gas in" ? -1 : 1);   /* inlet flows toward the wall, outlet away from it */
+      out.push(`<rect x="${n2(x - 4.5)}" y="${n2(yII - 2.5)}" width="9" height="5" rx="1" fill="#b9c2c8" stroke="#6d7a82" stroke-width="0.6"/>`);
+      const ax = x + dir * 9, s_ = dir * (lab === "gas in" ? -1 : 1);   /* inlet flows toward the wall, outlet away from it */
       out.push(`<path d="M${n2(ax - s_ * 3.2)} ${n2(yb - 2.4)}L${n2(ax + s_ * 2.6)} ${n2(yb)}L${n2(ax - s_ * 3.2)} ${n2(yb + 2.4)}Z" fill="${C.gas}"/>`);
       txt(xe + dir * 3, yb + 0.35 * fs, lab, { anchor: dir < 0 ? "end" : "start", fill: C.mut });
     };
-    tube(xr + 12, -1, "gas in"); tube(xOC - 14, 1, "gas out");
+    tube(xr + 20, -1, "gas in"); tube(xOC - 30, 1, "gas out");
     // III: detectors 1, 2, ..., N and R
     const det = (y, raw, green) => {
       const xb = xIII + 12;
@@ -336,17 +336,18 @@ ECART = r'''
     const items = [["free-space beam", s_ => line(`M${s_[0]} ${s_[1]}L${s_[0] + 14} ${s_[1]}`, C.beam, 2.4)],
       ["ref. tap", s_ => line(`M${s_[0]} ${s_[1]}L${s_[0] + 14} ${s_[1]}`, C.ref, 2)],
       ["gas tubing", s_ => { out.push(`<rect x="${s_[0]}" y="${n2(s_[1] - 2.7)}" width="14" height="5.4" fill="#eef2f4" stroke="#8d989f" stroke-width="0.9"/>`); out.push(`<path d="M${s_[0] + 4.5} ${s_[1] - 2.4}L${s_[0] + 10.3} ${s_[1]}L${s_[0] + 4.5} ${s_[1] + 2.4}Z" fill="${C.gas}"/>`); }],
-      ["grating couplers", s_ => { for (let i = 0; i < 4; i++) out.push(`<rect x="${n2(s_[0] + 2 + i * 3)}" y="${n2(s_[1] - 4.5)}" width="1.7" height="9" fill="#8d989f"/>`); }],
+      ["In/Out GCs", s_ => { for (let i = 0; i < 4; i++) out.push(`<rect x="${n2(s_[0] + 2 + i * 3)}" y="${n2(s_[1] - 4.5)}" width="1.7" height="9" fill="#8d989f"/>`); }],
       ["reader", s_ => out.push(`<rect x="${n2(s_[0])}" y="${n2(s_[1] - 4.5)}" width="14" height="9" rx="2" fill="${C.rdF}" stroke="${C.rdS}" stroke-width="1.4"/>`)],
       ["cartridge", s_ => out.push(`<rect x="${n2(s_[0])}" y="${n2(s_[1] - 4.5)}" width="14" height="9" rx="2" fill="${C.caF}" stroke="${C.caS}" stroke-width="1.4"/>`)]];
     const body = out.splice(0).join("\n");
+    if (items.reduce((a_, it) => a_ + 22 + tw(it[0]), -6) > LW) items[0][0] = "input beam";
     let lx = 0, ly = 0.85 * fs;
     for (const [lab, draw] of items) {
-      const iw = 17 + tw(lab) + 7;
-      if (lx > 0 && lx + iw - 7 > LW) { lx = 0; ly += 1.25 * fs; }
-      draw([n2(lx), n2(ly - 0.35 * fs)]); txt(lx + 17, ly, lab); lx += iw;
+      const iw = 16 + tw(lab) + 6;
+      if (lx > 0 && lx + iw - 6 > LW) { lx = 0; ly += 1.25 * fs; }
+      draw([n2(lx), n2(ly - 0.35 * fs)]); txt(lx + 16, ly, lab); lx += iw;
     }
-    return { body, h: HB + TB + 1, leg: out.join("\n"), legH: Math.ceil(ly + 0.3 * fs + 2) };
+    return { body, h: HB, leg: out.join("\n"), legH: Math.ceil(ly + 0.3 * fs + 2) };
   }
 '''
 
@@ -384,17 +385,21 @@ def cart_pass(s):
     # composite: (e) = eCart, legend across the full width below (c)-(e); (d) with the axis title beside the ticks
     s = rep(s, '\n  const COMP_W = 595, E_X = 220,', ECART + '\n  const COMP_W = 595, E_X = 220,')
     s = rep(s, '    const eRes = (S.indes === "gc" ? eCompactGC : eCompact)(liveP, fs, COMP_W - E_X), COMP_CH = eRes.h, COMP_H = 164 + COMP_CH + 4;',
-            '    const eRes = (S.indes === "cart" ? eCart : S.indes === "gc" ? eCompactGC : eCompact)(liveP, fs, COMP_W - EX, COMP_W, true), COMP_CH = eRes.h, COMP_H = 164 + COMP_CH + 4 + (eRes.legH || 0);')
-    s = rep(s, 'ch = Math.round(COMP_CH - 2.35 * fs), mid', 'ch = Math.round(COMP_CH - (S.indes === "cart" ? 1.3 : 2.35) * fs), mid')
+            '    const eRes = (S.indes === "cart" ? eCart : S.indes === "gc" ? eCompactGC : eCompact)(liveP, fs, COMP_W - EX, COMP_W - LX0, true), COMP_CH = eRes.h, COMP_H = 164 + COMP_CH + 4 + (eRes.legH || 0);')
+    s = rep(s, '    const fs = res.fsU, n2 = x => Math.round(x * 100) / 100, o = [];\n',
+            '    const fs = res.fsU, n2 = x => Math.round(x * 100) / 100, o = [];\n'
+            '    const LX0 = S.indes === "cart" ? 114 : 0;   /* cartridge: the legend starts right of the (d) axis title, which sits under the tick column */\n')
+    s = rep(s, 'ch = Math.round(COMP_CH - 2.35 * fs), mid', 'ch = Math.round(S.indes === "cart" ? COMP_CH + eRes.legH : COMP_CH - 2.35 * fs), mid')
     s = rep(s, 'const cx0 = 0, cy0 = 164, cw = 74,', 'const cx0 = 0, cy0 = 164, cw = CART ? 62 : 74,')
-    s = rep(s, 'const dx0 = 76, dy0 = 164, dw = 144,', 'const dx0 = CART ? 64 : 76, dy0 = 164, dw = CART ? 128 : 144,')
-    s = rep(s, 'Rm = 12, Tm = 0, Bm = 2.35 * fs;', 'Rm = 12, Tm = 0, Bm = (S.indes === "cart" ? 1.3 : 2.35) * fs;')
-    s = rep(s, 'T((px0 + px1) / 2, dy0 + dh - 3, "t (µm)", { anchor: "middle" });',
-            'if (S.indes === "cart") T(px0 - 3, py1 + fs * 1.15, "t (µm)", { anchor: "end" }); else T((px0 + px1) / 2, dy0 + dh - 3, "t (µm)", { anchor: "middle" });')
+    s = rep(s, 'const dx0 = 76, dy0 = 164, dw = 144, dh = COMP_CH,', 'const dx0 = CART ? 64 : 76, dy0 = 164, dw = CART ? 128 : 144, dh = CART ? COMP_CH + eRes.legH + 2 : COMP_CH,')
+    s = rep(s, 'T((px0 + px1) / 2, dy0 + dh - 3, "t (µm)", { anchor: "middle" });', 'if (CART) T(px0 + 13, dy0 + dh - 3, "t (µm)", { anchor: "end" }); else T((px0 + px1) / 2, dy0 + dh - 3, "t (µm)", { anchor: "middle" });')
+    s = rep(s, 'Rm = 12, Tm = 0, Bm = 2.35 * fs;', 'Rm = 12, Tm = 0, Bm = CART ? eRes.legH + 2 + 1.25 * fs : 2.35 * fs;')
+    s = rep(s, '    const YMAX = 2.0,', '    const YMAX = CART ? 1.75 : 2.0,')
+    s = rep(s, 'height="${n2(3 * rp + 3)}" fill="#fff" fill-opacity="0.9"/>', 'height="${n2(3 * rp + 3)}" fill="#fff" fill-opacity="${CART ? 0.6 : 0.9}"/>')
     s = rep(s, '    o.push(`<g transform="translate(${E_X} 164)">${eRes.body}</g>`);',
             '    o.push(`<g transform="translate(${EX} 164)">${eRes.body}</g>`);\n'
             '    if (CART) T(EX - 2, 168 + fs, "(e)", { anchor: "end" });\n'
-            '    if (eRes.leg) o.push(`<g transform="translate(0 ${n2(164 + COMP_CH + 2)})">${eRes.leg}</g>`);')
+            '    if (eRes.leg) o.push(`<g transform="translate(${LX0} ${n2(164 + COMP_CH + 2)})">${eRes.leg}</g>`);')
     s = rep(s, '      if (liveView === "e" && S.indes === "gc") {', '      if (liveView === "e" && S.indes === "cart") {    /* panel (e) alone, cartridge layout: legend below */\n'
             '        const e = eCart(liveP, r.fsU, LIVE_W, LIVE_W), H_ = e.h + 2 + e.legH;\n'
             '        liveRes = Object.assign({}, r, { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LIVE_W} ${H_}" font-family=\'${LIVE_FONT}\' text-rendering="geometricPrecision" role="img" aria-label="System schematic: reusable reader (source with beam scanner; detection) and single-use cartridge"><rect width="${LIVE_W}" height="${H_}" fill="#fff"/>${e.body}<g transform="translate(0 ${e.h + 2})">${e.leg}</g></svg>`, hMm: liveP.mm * H_ / LIVE_W });\n'
@@ -407,7 +412,7 @@ def cart_pass(s):
             '    const fs = res.fsU, n2 = x => Math.round(x * 100) / 100, o = [];\n'
             '    const CART = S.indes === "cart", EX = CART ? 210 : E_X;   /* cartridge layout: narrower (c), (d), wider (e); 3D panels trimmed at the bottom (handle) */\n')
     s = rep(s, '    let rowH = liveP.hab;\n',
-            '    const trimI = q => q && CART ? { url: q.url, w: q.w, h: q.h * 0.86, full: q.h } : q, IA = trimI(panelImgs.a), IB = trimI(panelImgs.b);\n'
+            '    const trimI = q => q && CART ? { url: q.url, w: q.w, h: q.h * 0.8, full: q.h } : q, IA = trimI(panelImgs.a), IB = trimI(panelImgs.b);\n'
             '    let rowH = liveP.hab;\n')
     s = rep(s, 'const aa = panelImgs.a.w / panelImgs.a.h, ab = panelImgs.b.w / panelImgs.b.h;', 'const aa = IA.w / IA.h, ab = IB.w / IB.h;')
     s = rep(s, '      if (img) { const k = Math.min(w / img.w, h / img.h), iw = img.w * k, ih = img.h * k; o.push(`<image href="${img.url}" x="${n2(x + (w - iw) / 2)}" y="${n2(y + (h - ih) / 2)}" width="${n2(iw)}" height="${n2(ih)}"/>`); }',

@@ -125,9 +125,10 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
         <div class="ctl"><label>Input design (CMPC chip and panel e)</label>
         <div class="seg" role="group" aria-label="Input design" id="inSeg">
           <button type="button" data-indes="wg" aria-pressed="false">Waveguide + on-chip dither</button>
-          <button type="button" data-indes="gc" aria-pressed="true">Grating coupler + free-space dither (new)</button>
+          <button type="button" data-indes="gc" aria-pressed="false">Grating coupler + free-space dither</button>
+          <button type="button" data-indes="cart" aria-pressed="true">Reader + cartridge (new)</button>
         </div>
-        <p class="hint">New design (QUIET Task 11): a free-space beam on a large-area input grating coupler, its angle (±60 mrad) and position (±100 µm) swept by a scanning mirror off the chip; 8 index inclusions of r 25 µm, output on the facet the launch orbit aims at.</p></div>
+        <p class="hint">"Reader + cartridge": the same chip as a passive single-use cartridge (holder with windows and gas ports, on-chip reference tap) between a reusable reader (source with the beam scanner; detection); (a), (b) are drawn lower and without the free-space beam. Grating-coupler design (QUIET Task 11): a free-space beam on a large-area input grating coupler, its angle (±60 mrad) and position (±100 µm) swept by a scanning mirror off the chip; 8 index inclusions of r 25 µm, output on the facet the launch orbit aims at.</p></div>
       </fieldset>
 
       <fieldset id="fsMem">
@@ -2388,7 +2389,7 @@ const DitherLab = (() => {
     dbr: "#21855f", dbrSec: "#73bc9f", gc: "#e87a29", gcSec: "#f4b787", mirror: "#9aa3ad" };
 
   // ---------------------------------------------------------------- scene builders
-  const S = { dev: "mem", mview: "chip", cview: "gc", pol: "TM", indes: "gc" };
+  const S = { dev: "mem", mview: "chip", cview: "gc", pol: "TM", indes: "cart" };
   // the ray orbit of Figs. 2 and 3 (same engine, 24 facets by default, out_frac 0.458, 16 index inclusions) on the 3D chip; the launch angle is the old star-orbit angle chi
   function memOrbit(N, chiDeg, nInc, incR = 50e-6) {
     const o = { cell: "circle", c_radius: 2e-3, n_facets: N, facet_curv: 0, c_theta: chiDeg * Math.PI / 180, out_frac: 0.458, same_port: 0, c_port: 150e-6, c_waist: 40e-6,
@@ -2411,7 +2412,7 @@ const DitherLab = (() => {
   function memChip() {
     const N = v("mFac"), Np = v("mPer"), m = Math.min(v("mStar"), Math.floor((N - 1) / 2)), M = mirrorModel();
     const band = v("dBand"), t = v("dT"), g = band / Np * M.dGap / (M.dGap + M.dTooth), tw = band / Np - g;
-    const tb = 0.045, th = 0.30, L = 1.6, win = 1.38, und = 1.46, bw = 0.028, wp = 0.10, cB = 1.55;
+    const tb = 0.045, th = S.indes === "cart" ? 0.15 : 0.30, L = 1.6, win = 1.38, und = 1.46, bw = 0.028, wp = 0.10, cB = 1.55;
     const cham = Q => { const R = clip(Q, -Math.SQRT1_2, Math.SQRT1_2, cB); return R.length >= 3 ? R : null; };   // the far (back) corner of the chip is cut off, as the notch in the Herriott chip
     const a0 = Math.cos(Math.PI / N), sec = 1 / Math.cos(Math.PI / N), cut = $("cut").checked ? { cx: 0, cy: 0 } : null;
     const B = new Builder();
@@ -2422,7 +2423,7 @@ const DitherLab = (() => {
     // input beam: enters at the launch angle along the first star chord; no trenches along its path
     const chiDeg = 90 - 180 * m / N, rotE = 2 * Math.PI * port / N, kE = 1 / 2e-3, cr = Math.cos(rotE), sr = Math.sin(rotE);
     let orbit = null;
-    const GCD = S.indes === "gc";
+    const GCD = S.indes !== "wg";
     for (const nInc of ($("mInc").checked ? [GCD ? 8 : 16, 0] : [0])) { try { orbit = memOrbit(N, chiDeg, nInc, GCD ? 25e-6 : 50e-6); break; } catch (e) { orbit = null; } }
     const T3 = (x, y) => [(x * cr - y * sr) * kE, (x * sr + y * cr) * kE];
     const l0 = PlanarEngine.launch(orbit.c, orbit.c.sIn, orbit.S.theta);
@@ -2468,9 +2469,9 @@ const DitherLab = (() => {
     if (GCD) {                                         /* large-area grating coupler: teeth across the propagation direction */
       const wv = [-uIn[1], uIn[0]], Wg = 3 * wp, gp = 0.024, tooth = 0.012, nT = 9;
       const P = (s_, h) => [sIn[0] + s_ * uIn[0] + h * wv[0], sIn[1] + s_ * uIn[1] + h * wv[1]];
-      for (let i = 0; i < nT; i++) { const a_ = 0.01 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, COL.gc, COL.gcSec, cut); }
+      for (let i = 0; i < nT; i++) { const a_ = 0.01 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, S.indes === "cart" ? COL.strip : COL.gc, S.indes === "cart" ? COL.stripSec : COL.gcSec, cut); }
       gcC = P(0.01 + nT * gp / 2, 0);
-      free = freeFan(gcC, uIn, wv, Wg, t + ts);
+      free = S.indes === "gc" ? freeFan(gcC, uIn, wv, Wg, t + ts) : null;
     } else guide(sIn, uIn);
     const outStarts = outK.map(k => { const u = [Math.cos(2 * Math.PI * k / N), Math.sin(2 * Math.PI * k / N)]; const st = [u[0] * (a0 + bandR + 0.01), u[1] * (a0 + bandR + 0.01)]; guide(st, u, true); return [st, u]; });
     const frame = w => [[[-L, -L], [L, -L], [L, -w], [-L, -w]], [[-L, w], [L, w], [L, L], [-L, L]], [[-L, -w], [-w, -w], [-w, w], [-L, w]], [[w, -w], [L, -w], [L, w], [w, w]]];
@@ -2504,7 +2505,7 @@ const DitherLab = (() => {
       { text: `trench DBR, ${Np} periods (drawn wide)`, p: [...at(a0 + band / 2, 2 * Math.PI * Math.round(N * 3 / 16) / N), t] },
       { text: `input port, χ = ${(90 - 180 * m / N).toFixed(1)}°`, p: [...p0.map((x, i) => x - 0.1 * d0[i]), t] },
       GCD ? { text: "large-area grating coupler (free-space input)", p: [gcC[0], gcC[1], t + ts] } : { text: "tapered strip-loaded waveguide", p: [sIn[0] + uIn[0] * 0.2, sIn[1] + uIn[1] * 0.2, t + ts] },
-      ...(GCD ? [{ text: "free-space beam: angle + position dither", p: free.top }] : []),
+      ...(free ? [{ text: "free-space beam: angle + position dither", p: free.top }] : []),
       { text: `SiNx membrane, ${v("mThk")} nm`, p: [-0.5, 0.25, t] },
       { text: "buried oxide", p: [-L * 0.45, -L, -tb / 2] },
       { text: "Si handle", p: [-L * 0.85, -L, -tb - th / 2] },
@@ -2663,7 +2664,7 @@ const DitherLab = (() => {
   function herriottScene() {
     const h = herriottModel(), { M, R, d, D, y0, wp, Np, A, sx } = h;
     const band = v("hBand"), g = band / Np * M.dGap / (M.dGap + M.dTooth), tw = band / Np - g;
-    const t = 0.05, ts = 0.6 * t, tb = 0.04, th_ = 0.28, X0 = S.indes === "gc" ? -1.6 : -0.8, X1 = d + 0.4, Y1 = D + 0.45, Xc = d / 2;
+    const t = 0.05, ts = 0.6 * t, tb = 0.04, th_ = S.indes === "cart" ? 0.14 : 0.28, X0 = S.indes !== "wg" ? -1.6 : -0.8, X1 = d + 0.4, Y1 = D + 0.45, Xc = d / 2;
     const cut = $("cut").checked ? { cx: Xc, cy: 0 } : null, B = new Builder();
     // membrane in strips of Y: solid intervals along X bounded by the mirror surfaces and the trench arcs
     const ys = new Set(); const nY = 48; for (let i = 0; i <= nY; i++) ys.add(+(-D + 2 * D * i / nY).toFixed(12));
@@ -2693,7 +2694,7 @@ const DitherLab = (() => {
     // waveguides behind mirror 1
     const sq = Q => clip(clip(clip(clip(Q, 1, 0, X1), -1, 0, -X0), 0, 1, Y1), 0, -1, Y1);
     const p0 = h.pts[0], io = [];
-    const GCD = S.indes === "gc"; let free = null, gcC = null;
+    const GCD = S.indes !== "wg"; let free = null, gcC = null;
     for (const [u, kind] of [[[-h.inDir[0], -h.inDir[1]], "in"], [h.exitDir, "out"]]) {
       if (kind === "out" && h.exit !== "port") continue;
       const w = [-u[1], u[0]], st = [p0[0] + u[0] * (band + 0.03), p0[1] + u[1] * (band + 0.03)];
@@ -2703,8 +2704,8 @@ const DitherLab = (() => {
         /* in and out share the port gap and part at the in/out angle: the grating sits back along the input axis, clear of the output waveguide */
         const ex = h.exit === "port" ? h.exitDir : null, sIO = ex ? Math.abs(u[0] * ex[1] - u[1] * ex[0]) : 0;
         const s0 = sIO > 0.05 ? Math.min(2.5, (Wg / 2 + wp / 2 + 0.04) / sIO + 0.02) : 0.02;
-        for (let i = 0; i < nT; i++) { const a_ = s0 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, COL.gc, COL.gcSec, cut); }
-        gcC = P(s0 + nT * gp / 2, 0); free = freeFan(gcC, u, w, Wg, t + ts, 0.4, 0.16);
+        for (let i = 0; i < nT; i++) { const a_ = s0 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, S.indes === "cart" ? COL.strip : COL.gc, S.indes === "cart" ? COL.stripSec : COL.gcSec, cut); }
+        gcC = P(s0 + nT * gp / 2, 0); free = S.indes === "gc" ? freeFan(gcC, u, w, Wg, t + ts, 0.4, 0.16) : null;
         io.push([kind, gcC, u]); continue;
       }
       const c1 = kind === "out" ? COL.outStrip : COL.strip, c2 = kind === "out" ? COL.outStripSec : COL.stripSec;
@@ -2885,7 +2886,7 @@ const DitherLab = (() => {
         group.add(gi);
       }
       if (desc.gas && $("molOn").checked) group.add(gasMeshes(desc.gas));
-      if (desc.mols && $("molOn").checked) group.add(moleculeMeshes(desc.mols));
+      if (desc.mols && $("molOn").checked) group.add(moleculeMeshes(S.indes === "cart" ? desc.mols.filter(m_ => m_.c[2] > 0) : desc.mols));
       if (desc.prof) {
         const g = new THREE.BufferGeometry().setFromPoints(desc.prof.map(p => new THREE.Vector3(...p)));
         group.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: COL.field })));
@@ -2925,7 +2926,7 @@ const DitherLab = (() => {
     if (S.dev === "her") {
       const h = desc.info.h, M = h.M, deg = x => (x / D2R).toFixed(1);
       const angIO = h.exit === "port" ? Math.acos(Math.max(-1, Math.min(1, -(h.inDir[0] * h.exitDir[0] + h.inDir[1] * h.exitDir[1])))) / D2R : NaN;
-      leg.innerHTML = `<span><i class="sw" style="background:${COL.si}"></i>SiNx membrane</span><span><i class="sw" style="background:${COL.beam}"></i>ray path (exact)</span>${S.indes === "gc" ? `<span><i class="sw" style="background:${COL.gc}"></i>input grating coupler</span><span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span>` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output waveguide</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span>`;
+      leg.innerHTML = `<span><i class="sw" style="background:${COL.si}"></i>SiNx membrane</span><span><i class="sw" style="background:${COL.beam}"></i>ray path (exact)</span>${S.indes !== "wg" ? `<span><i class="sw" style="background:${S.indes === "cart" ? COL.strip : COL.gc}"></i>input grating coupler</span>${S.indes === "gc" ? `<span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span>` : ""}` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output waveguide</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span>`;
       st.innerHTML = stat("Spacing d", `${h.d.toFixed(3)} mm`) + stat("θ per pass", `${deg(h.th)}°`) + stat("Exit", h.exit === "port" ? `port after ${h.pts.length - 1} passes` : h.exit === "edge" ? "lost past a mirror edge" : "not found") +
         stat("Path", `${(h.path / 10).toFixed(2)} cm`) + stat("Input/output angle", isFinite(angIO) ? `${angIO.toFixed(1)}°` : "–") +
         stat("Incidence angles", h.ang.length ? `${deg(Math.min(...h.ang))}–${deg(Math.max(...h.ang))}°` : "–") +
@@ -2945,7 +2946,7 @@ const DitherLab = (() => {
     const sg = Array.from({ length: 101 }, (_, i) => i / 100 * 0.999);
     const Rmin = Math.min(...sg.map(s => M.R(Np, s)));
     leg.innerHTML = S.mview === "chip"
-      ? `<span><i class="sw" style="background:${COL.si}"></i>SiNx membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>ray orbit, χ = ${(90 - 180 * desc.info.m / desc.info.N).toFixed(1)}° (Fig. 2 trace)</span>${desc.incs && desc.incs.length ? `<span><i class="sw" style="background:#e8590c"></i>index inclusions</span>` : ""}${desc.info.gc ? `<span><i class="sw" style="background:${COL.gc}"></i>input grating coupler</span><span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span>` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span><span>lighter shade: cut face</span>`
+      ? `<span><i class="sw" style="background:${COL.si}"></i>SiNx membrane</span><span><i class="sw" style="background:${COL.box}"></i>buried oxide</span><span><i class="sw" style="background:${COL.handle}"></i>Si handle</span><span><i class="sw" style="background:${COL.beam}"></i>ray orbit, χ = ${(90 - 180 * desc.info.m / desc.info.N).toFixed(1)}° (Fig. 2 trace)</span>${desc.incs && desc.incs.length ? `<span><i class="sw" style="background:#e8590c"></i>index inclusions</span>` : ""}${S.indes !== "wg" ? `<span><i class="sw" style="background:${S.indes === "cart" ? COL.strip : COL.gc}"></i>input grating coupler</span>${S.indes === "gc" ? `<span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span>` : ""}` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span><span><i class="sw" style="background:#ff2a1a;opacity:.35"></i>molecule inside the evanescent field (absorbs)</span><span><i class="sw" style="background:#ff2a1a;opacity:.6"></i>guided-mode intensity (cut faces)</span><span>lighter shade: cut face</span>`
       : `<span><i class="sw" style="background:${COL.si}"></i>SiNx (to scale, µm)</span><span><i class="sw" style="background:${COL.beam}"></i>incident and reflected slab-mode ray</span><span><i class="sw" style="background:${COL.field}"></i>mode intensity across the membrane</span>`;
     st.innerHTML = stat("n_SiNx", M.n.toFixed(4)) + stat(`n_eff ${M.pol}₀`, isFinite(M.ne) ? M.ne.toFixed(4) : "cut off") + stat("Air gap / tooth", `${nm(M.dGap)} / ${nm(M.dTooth)}`) +
       stat("Mirror depth", `${((M.dGap + M.dTooth) * Np * 1e6).toFixed(2)} µm`) + stat(`R at 0°, N = ${Np}`, R0.toFixed(4)) +
@@ -3006,7 +3007,8 @@ const DitherLab = (() => {
   });
   for (const b of document.querySelectorAll("[data-cview]")) b.addEventListener("click", () => { S.cview = b.dataset.cview; press("[data-cview]", "cview", S.cview); needFit = true; update(); });
   for (const b of document.querySelectorAll("[data-pol]")) b.addEventListener("click", () => { S.pol = b.dataset.pol; press("[data-pol]", "pol", S.pol); update(); });
-  for (const b of document.querySelectorAll("[data-indes]")) b.addEventListener("click", () => { S.indes = b.dataset.indes; press("[data-indes]", "indes", S.indes); needFit = true; update(); if (typeof liveDraw === "function") { liveDraw(); setTimeout(refreshPanels, 300); } });
+  function camEl() { const e_ = S.indes === "cart" ? [19, 19] : [LIVE_DEF.elA, LIVE_DEF.elB]; $("lvElA").value = e_[0]; $("lvElB").value = e_[1]; }   /* the cartridge layout draws (a), (b) lower */
+  for (const b of document.querySelectorAll("[data-indes]")) b.addEventListener("click", () => { S.indes = b.dataset.indes; press("[data-indes]", "indes", S.indes); camEl(); needFit = true; update(); if (typeof liveDraw === "function") { liveDraw(); setTimeout(refreshPanels, 300); } });
 
   // ---------------------------------------------------------------- export (PNG / PDF of the current view)
   let dlNs;                                            // claude.ai downloads capability (null outside the viewer)
@@ -3458,10 +3460,92 @@ const DitherLab = (() => {
     return { body: out.join("\n"), h: Math.ceil(ly + 0.3 * fs + 2), nWalls: beams[0].nWalls, exit: beams[0].exit };
   }
 
+  // ---- panel (e), reader + cartridge: I and III are the reusable reader (same colours), II the single-use cartridge (gas-tight holder with windows)
+  function eCart(p, fs, WE, LW) {
+    const n2 = x => Math.round(x * 100) / 100, esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const cx_ = document.createElement("canvas").getContext("2d");
+    const tw = (s_, b) => { cx_.font = `${b ? "700 " : ""}${fs}px ${LIVE_FONT}`; return cx_.measureText(s_).width; };
+    const C = { rdF: "#e4eaf7", rdS: "#2f4f9a", caF: "#eef1f4", caS: "#8a949a", win: "#bfe3f2", winS: "#4f93b8", beam: "#e0453a", ray: "#d9342b",
+      gold: "#d4a63c", goldS: "#8a6414", blue: "#1f3f93", ref: "#9aa3ab", gas: "#6f63e6", elec: "#5a6a6f", ink: "#142026", mut: "#5a6a6f" };
+    const out = [], lh = 1.2 * fs;
+    const txt = (x, y, str, a = {}) => out.push(`<text x="${n2(x)}" y="${n2(y)}" font-size="${n2(fs)}"${a.b ? ' font-weight="700"' : ""}${a.anchor ? ` text-anchor="${a.anchor}"` : ""} fill="${a.fill || C.ink}"${a.halo ? ` stroke="${a.halo}" stroke-width="${n2(fs * 0.3)}" stroke-linejoin="round" paint-order="stroke"` : ""}>${a.raw || esc(str)}</text>`);
+    const line = (d, col, w, extra = "") => out.push(`<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${extra}/>`);
+    const ELEC = ' stroke-dasharray="3.5 2.5"', g = 5, ty = 4 + fs, sp = 1.1 * lh;
+    // rows: detectors 1, 2, (dots), N, R; the source row sits at the level of the input window
+    const dy1 = ty + 1.05 * lh, dy2 = dy1 + sp, dyN = dy2 + 1.55 * sp, refY = dyN + sp, HB = Math.ceil(refY + 0.85 * lh), y0 = ty + 1.75 * lh;
+    const sw = Math.ceil(tw("Beam scanner") + 12), sx0 = 52, wI = Math.max(Math.ceil(tw("(e)") + 5 + tw("I: Source, scanner") + 14), sx0 + sw + 6);
+    const wIII = Math.ceil(Math.max(tw("III: Detection") + 12, 22 + tw("Det. R") + 8)), xII = wI + g, xIII = WE - wIII, wII = xIII - g - xII;
+    const box = (x, w, f, st, rx = 5, ex = "") => out.push(`<rect x="${n2(x + 1.2)}" y="1.2" width="${n2(w - 2.4)}" height="${HB - 2.4}" rx="${rx}" fill="${f}" stroke="${st}" stroke-width="2.4"${ex}/>`);
+    box(0, wI, C.rdF, C.rdS); box(xII, wII, C.caF, C.caS, 8); box(xIII, wIII, C.rdF, C.rdS);
+    txt(8, ty, "(e)"); txt(8 + tw("(e)") + 5, ty, "I: Source, scanner"); txt(xIII + 8, ty, "III: Detection");
+    txt(xII + 8, ty, tw("II: Single-use cartridge") + 16 < wII ? "II: Single-use cartridge" : "II: Cartridge");
+    // I: laser, isolator, beam scanner, driver electronics
+    const SH = 2 * lh + 3, BY = y0 + SH / 2 + 5, BH = Math.max(lh + 6, HB - 5 - BY);
+    txt(8, y0 - 9, "Laser");
+    line(`M30 ${n2(y0)}L${sx0} ${n2(y0)}`, C.beam, 3);
+    out.push(`<rect x="6" y="${n2(y0 - 7)}" width="22" height="14" rx="1.5" fill="#2b2a33"/><rect x="6" y="${n2(y0 - 4)}" width="22" height="8" fill="#a8141a"/><rect x="28" y="${n2(y0 - 5.5)}" width="3.5" height="11" fill="#000"/>`);
+    out.push(`<rect x="35" y="${n2(y0 - 4.5)}" width="11" height="9" fill="#c9cdd0" stroke="#8a9296" stroke-width="0.5"/>`);
+    out.push(`<rect x="${sx0}" y="${n2(y0 - SH / 2)}" width="${sw}" height="${n2(SH)}" rx="4" fill="#fff" stroke="#222" stroke-width="1.6"/>`);
+    txt(sx0 + sw / 2, y0 - 0.15 * lh, "Beam scanner", { anchor: "middle" }); txt(sx0 + sw / 2, y0 + 0.85 * lh, "±θ, ±x", { anchor: "middle", fill: C.mut });
+    out.push(`<rect x="5" y="${n2(BY)}" width="${wI - 10}" height="${n2(BH)}" rx="4" fill="#fff" stroke="#222" stroke-width="1.6"/>`);
+    txt(wI / 2, BY + BH / 2 + 0.35 * fs, "Driver electronics", { anchor: "middle" });
+    line(`M17 ${n2(y0 + 7)}L17 ${n2(BY)}`, C.elec, 1.3, ELEC); line(`M${n2(sx0 + sw / 2)} ${n2(y0 + SH / 2)}L${n2(sx0 + sw / 2)} ${n2(BY)}`, C.elec, 1.3, ELEC);
+    // II: holder with windows, grating port, CMPC, output couplers, on-chip reference tap, gas ports
+    const gx0 = xII + 13, gx1 = gx0 + 11, R = Math.min(0.5 * (refY - ty) - 4, 0.22 * wII), CX = xII + 0.47 * wII, CY = (ty + 4 + refY - 4) / 2 + 2, xOC = Math.min(CX + R + 14, xII + wII - 14);
+    for (const [dd, op, w] of [[-4, 0.45, 1.3], [0, 1, 3], [4, 0.45, 1.3]]) line(`M${sx0 + sw} ${n2(y0)}L${n2(gx0 + 5)} ${n2(y0 + dd)}`, C.beam, w, ` stroke-opacity="${op}"`);
+    const ang = 158 * Math.PI / 180, Ein = [CX + R * Math.cos(ang), CY - R * Math.sin(ang)];
+    line(`M${n2(gx1)} ${n2(y0)}C${n2(gx1 + 10)} ${n2(y0)} ${n2(Ein[0] - 10)} ${n2(Ein[1])} ${n2(Ein[0])} ${n2(Ein[1])}`, C.gold, 2.6);
+    const xr = gx1 + 3;   // reference tap: a weak branch of the input waveguide, around the CMPC to its own output coupler
+    line(`M${n2(xr)} ${n2(y0 + 0.6)}L${n2(xr)} ${n2(refY - 4)}Q${n2(xr)} ${n2(refY)} ${n2(xr + 4)} ${n2(refY)}L${n2(xOC)} ${n2(refY)}`, C.ref, 2);
+    for (let i = 0; i < 4; i++) out.push(`<rect x="${n2(gx0 + i * 3)}" y="${n2(y0 - 8)}" width="1.7" height="16" fill="${C.gold}" stroke="${C.goldS}" stroke-width="0.4"/>`);
+    out.push(`<circle cx="${n2(CX)}" cy="${n2(CY)}" r="${n2(R)}" fill="#dbe6f4" stroke="#3f6283" stroke-width="2.4" stroke-dasharray="3.2 1.4"/>`);
+    { const K = 11, st = 4, pts = Array.from({ length: K }, (_, i) => { const a = 2 * Math.PI * i * st / K + 0.3; return `${n2(CX + (R - 2.5) * Math.cos(a))} ${n2(CY - (R - 2.5) * Math.sin(a))}`; });
+      out.push(`<path d="M${pts.join("L")}Z" fill="none" stroke="${C.ray}" stroke-width="0.7" stroke-opacity="0.85" stroke-linejoin="round"/>`); }
+    txt(CX, CY + 0.35 * fs, "CMPC", { b: 1, anchor: "middle", fill: "#1b3a5a", halo: "#dbe6f4" });
+    const rows = [dy1, dy2, dyN];
+    for (const y of rows) { const a = Math.atan2(CY - y, xOC - CX), P = [CX + R * Math.cos(a), CY - R * Math.sin(a)]; line(`M${n2(P[0])} ${n2(P[1])}L${n2(xOC - 3)} ${n2(y)}`, C.blue, 2.2); }
+    for (const y of rows.concat(refY)) {
+      out.push(`<rect x="${n2(xOC - 3)}" y="${n2(y - 3)}" width="6" height="6" fill="${y === refY ? "#5d6b80" : C.blue}"/>`);
+      line(`M${n2(xOC + 3)} ${n2(y)}L${n2(xIII + 9)} ${n2(y)}`, C.beam, 1.8);
+    }
+    const wx = xII + wII - 2.2;   // windows in the holder wall
+    out.push(`<rect x="${n2(xII - 0.6)}" y="${n2(y0 - 9)}" width="3.6" height="18" fill="${C.win}" stroke="${C.winS}" stroke-width="0.7"/>`);
+    out.push(`<rect x="${n2(wx - 0.6)}" y="${n2(dy1 - 8)}" width="3.6" height="${n2(refY - dy1 + 16)}" fill="${C.win}" stroke="${C.winS}" stroke-width="0.7"/>`);
+    const gasA = (x, up) => { const y1 = HB + 4, y2 = HB - 7, a = up ? [y1, y2] : [y2, y1];
+      line(`M${n2(x)} ${n2(a[0])}L${n2(x)} ${n2(a[1] + (up ? 3 : -3))}`, C.gas, 2);
+      out.push(`<path d="M${n2(x - 3.2)} ${n2(a[1] + (up ? 3.6 : -3.6))}L${n2(x)} ${n2(a[1])}L${n2(x + 3.2)} ${n2(a[1] + (up ? 3.6 : -3.6))}Z" fill="${C.gas}"/>`); };
+    gasA(xr + 10, true); gasA(xOC - 12, false);
+    // III: detectors 1, 2, ..., N and R
+    const det = (y, raw, green) => {
+      const xb = xIII + 12;
+      out.push(`<path d="M${n2(xb)} ${n2(y - 4.6)}A6 4.6 0 0 1 ${n2(xb)} ${n2(y + 4.6)}Z" fill="${green ? "#55b04a" : "#f08a24"}" stroke="#6a3a1a" stroke-width="0.5"/><rect x="${n2(xb - 2.6)}" y="${n2(y - 5.2)}" width="2.6" height="10.4" fill="#000"/>`);
+      txt(xb + 9, y + 0.35 * fs, "", { raw });
+    };
+    det(dy1, "Det. 1"); det(dy2, "Det. 2"); det(dyN, `Det. <tspan font-style="italic">N</tspan>`); det(refY, "Det. R", true);
+    for (const d of [-3.4, 0, 3.4]) out.push(`<circle cx="${n2(xIII + 12 + 9 + 4)}" cy="${n2((dy2 + dyN) / 2 + d)}" r="1.1" fill="${C.ink}"/>`);
+    // legend: one row across the full figure width when it fits
+    const L = [];
+    const items = [["free-space beam", s_ => line(`M${s_[0]} ${s_[1]}L${s_[0] + 14} ${s_[1]}`, C.beam, 2.4)],
+      ["ref. tap", s_ => line(`M${s_[0]} ${s_[1]}L${s_[0] + 14} ${s_[1]}`, C.ref, 2)],
+      ["gas", s_ => { line(`M${s_[0]} ${s_[1]}L${s_[0] + 10} ${s_[1]}`, C.gas, 2); out.push(`<path d="M${s_[0] + 9} ${s_[1] - 3.2}L${s_[0] + 14} ${s_[1]}L${s_[0] + 9} ${s_[1] + 3.2}Z" fill="${C.gas}"/>`); }],
+      ["grating port", s_ => { for (let i = 0; i < 4; i++) out.push(`<rect x="${n2(s_[0] + 2 + i * 3)}" y="${n2(s_[1] - 4)}" width="1.7" height="8" fill="${C.gold}"/>`); }],
+      ["out. coupler", s_ => out.push(`<rect x="${n2(s_[0] + 4)}" y="${n2(s_[1] - 3)}" width="6" height="6" fill="${C.blue}"/>`)],
+      ["reader", s_ => out.push(`<rect x="${n2(s_[0])}" y="${n2(s_[1] - 4.5)}" width="14" height="9" rx="2" fill="${C.rdF}" stroke="${C.rdS}" stroke-width="1.4"/>`)],
+      ["cartridge", s_ => out.push(`<rect x="${n2(s_[0])}" y="${n2(s_[1] - 4.5)}" width="14" height="9" rx="2" fill="${C.caF}" stroke="${C.caS}" stroke-width="1.4"/>`)]];
+    const body = out.splice(0).join("\n");
+    let lx = 0, ly = 0.85 * fs;
+    for (const [lab, draw] of items) {
+      const iw = 17 + tw(lab) + 7;
+      if (lx > 0 && lx + iw - 7 > LW) { lx = 0; ly += 1.25 * fs; }
+      draw([n2(lx), n2(ly - 0.35 * fs)]); txt(lx + 17, ly, lab); lx += iw;
+    }
+    return { body, h: HB + 5, leg: out.join("\n"), legH: Math.ceil(ly + 0.3 * fs + 2) };
+  }
+
   const COMP_W = 595, E_X = 220, COMP_CH = 190, COMP_H = 164 + COMP_CH + 4;   // bottom row: (c), (d) and (e) side by side; their height follows the compact (e)
   function compBuild(res) {
     const fs = res.fsU, n2 = x => Math.round(x * 100) / 100, o = [];
-    const eRes = (S.indes === "gc" ? eCompactGC : eCompact)(liveP, fs, COMP_W - E_X), COMP_CH = eRes.h, COMP_H = 164 + COMP_CH + 4;   // shadow the defaults: the row is as tall as (e)
+    const eRes = (S.indes === "cart" ? eCart : S.indes === "gc" ? eCompactGC : eCompact)(liveP, fs, COMP_W - E_X, COMP_W), COMP_CH = eRes.h, COMP_H = 164 + COMP_CH + 4 + (eRes.legH || 0);   // shadow the defaults: the row is as tall as (e)
     // height of the (a), (b) row: the slider is a cap; with "same height" both images are scaled to one common height (the smaller width-limited one) and the row shrinks to it
     let rowH = liveP.hab;
     let xa = 0, wa = 295, xb = 300, wb = 295;
@@ -3483,7 +3567,7 @@ const DitherLab = (() => {
     pic(panelImgs.b, xb, 0, wb, rowH, none); T(xb, fs, "(b)");
     o.push(`<g transform="translate(0 ${n2(dy)})">`);   // (c), (d), (e) follow the (a), (b) row
     // (c) evanescent field
-    const cx0 = 0, cy0 = 164, cw = 74, ch = Math.round(COMP_CH - 2.35 * fs), mid = cy0 + ch / 2;
+    const cx0 = 0, cy0 = 164, cw = 74, ch = Math.round(COMP_CH - (S.indes === "cart" ? 1.3 : 2.35) * fs), mid = cy0 + ch / 2;
     
     const ne = neffSlab(lam, n, tNm * 1e-9, "TM"), gam = isFinite(ne) && ne > 1 ? 2 * Math.PI / lam * Math.sqrt(ne * ne - 1) : 1e7, dNm = 1e9 / (2 * gam);
     const sc = Math.min(0.12, (ch / 2 - 12) / (tNm / 2 + 3.4 * dNm)), hm = tNm * sc / 2, dpx = dNm * sc;
@@ -3521,7 +3605,7 @@ const DitherLab = (() => {
     }
     T(3, cy0 + fs + 1, "(c)");
     // (d) Γ against membrane thickness
-    const dx0 = 76, dy0 = 164, dw = 144, dh = COMP_CH, L = 32, Rm = 12, Tm = 0, Bm = 2.35 * fs;
+    const dx0 = 76, dy0 = 164, dw = 144, dh = COMP_CH, L = 32, Rm = 12, Tm = 0, Bm = (S.indes === "cart" ? 1.3 : 2.35) * fs;
     
     const YMAX = 2.0, px0 = dx0 + L, px1 = dx0 + dw - Rm, py0 = dy0 + Tm, py1 = dy0 + dh - Bm, X = t => px0 + (t - 50) / 1450 * (px1 - px0), Y = g => py1 - g / YMAX * (py1 - py0);
     for (const t of [500, 1000, 1500]) { o.push(`<path d="M${n2(X(t))} ${n2(py0)}L${n2(X(t))} ${n2(py1)}" stroke="#e1e5e7" stroke-width="0.7"/>`); T(X(t) + (t === 1500 ? 4 : 0), py1 + fs * 1.15, (t / 1000).toFixed(1), { anchor: t === 1500 ? "end" : "middle" }); }
@@ -3552,10 +3636,11 @@ const DitherLab = (() => {
         o.push(`<path d="M${n2(c2 - 7)} ${ys}L${n2(c2 + 7)} ${ys}" stroke="${CUR[2 + r][3]}" stroke-width="1.8" stroke-dasharray="4 2"/>`);
       });
     }
-    T(dx0 + 8, py0 + fs, "(d)"); T((px0 + px1) / 2, dy0 + dh - 3, "t (µm)", { anchor: "middle" }); T(dx0 + 12, (py0 + py1) / 2 + fs * 0.35, "Γ", { anchor: "middle" });
+    T(dx0 + 8, py0 + fs, "(d)"); if (S.indes === "cart") T(px0 - 3, py1 + fs * 1.15, "t (µm)", { anchor: "end" }); else T((px0 + px1) / 2, dy0 + dh - 3, "t (µm)", { anchor: "middle" }); T(dx0 + 12, (py0 + py1) / 2 + fs * 0.35, "Γ", { anchor: "middle" });
     // (e) the system schematic
     // (e) is scaled to fit the row; its text is capped at the 11 layout units the schematic fits, so it is smaller than the 10 pt of the other panels
     o.push(`<g transform="translate(${E_X} 164)">${eRes.body}</g>`);
+    if (eRes.leg) o.push(`<g transform="translate(0 ${n2(164 + COMP_CH + 2)})">${eRes.leg}</g>`);
     o.push("</g>");
     return { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${COMP_W} ${n2(COMP_H + dy)}" font-family='${LIVE_FONT}' text-rendering="geometricPrecision" role="img" aria-label="Figure 1: (a) CMPC chip, (b) integrated Herriott cell, (c) evanescent field, (d) confinement factor against membrane thickness, (e) system schematic">${o.join("\n")}</svg>`, H: COMP_H + dy, rowH, gamma: gd, gMid, delta: dNm };
   }
@@ -3578,14 +3663,17 @@ const DitherLab = (() => {
     try {
       const r = liveBuild(liveP);
       liveRes = r;
-      if (liveView === "e" && S.indes === "gc") {    /* panel (e) alone, new design: the compact drawing at the full width */
+      if (liveView === "e" && S.indes === "cart") {    /* panel (e) alone, cartridge layout: legend below */
+        const e = eCart(liveP, r.fsU, LIVE_W, LIVE_W), H_ = e.h + 2 + e.legH;
+        liveRes = Object.assign({}, r, { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LIVE_W} ${H_}" font-family='${LIVE_FONT}' text-rendering="geometricPrecision" role="img" aria-label="System schematic: reusable reader (source with beam scanner; detection) and single-use cartridge"><rect width="${LIVE_W}" height="${H_}" fill="#fff"/>${e.body}<g transform="translate(0 ${e.h + 2})">${e.leg}</g></svg>`, hMm: liveP.mm * H_ / LIVE_W });
+      } else if (liveView === "e" && S.indes === "gc") {    /* panel (e) alone, new design: the compact drawing at the full width */
         const e = eCompactGC(liveP, r.fsU, LIVE_W);
         liveRes = Object.assign({}, r, { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LIVE_W} ${e.h}" font-family='${LIVE_FONT}' text-rendering="geometricPrecision" role="img" aria-label="System schematic, grating-coupler design: source, dither optics, gas sensor chip, detection"><rect width="${LIVE_W}" height="${e.h}" fill="#fff"/>${e.body}</svg>`, hMm: liveP.mm * e.h / LIVE_W });
       }
       let tail = "";
       if (liveView === "full") { const c = compBuild(r); liveRes = Object.assign({}, r, { svg: c.svg, hMm: liveP.mm * c.H / LIVE_W }); tail = ` (e): WG = waveguide; the free-space beam (pink, with lenses) and the ray path in the cell (red) are not in the legend, and the dither-waveform and current + TEC labels are left out to keep 10 pt text. (c): membrane ${v("mThk")} nm, δ = 1/(2γ) = ${c.delta.toFixed(0)} nm for TM₀. (d): confinement factor Γ = n_g∫_gas ε|E|²/∫ε|E|² (Robinson et al., Opt. Express 16, 4296 (2008); waveguide dispersion only) of TM₀ (navy) and TE₀ (light blue) of a free-standing SiNx membrane in air (n = ${nSiN(v("mLam") * 1e-6).toFixed(3)} at ${v("mLam").toFixed(2)} µm, ${nSiN(3.3e-6).toFixed(3)} at 3.3 µm; Si3N4 Sellmeier of Luke et al. 2015) at ${v("mLam").toFixed(2)} µm (solid) and 3.3 µm (dashed). Filled dot: this design (${S.pol}₀, ${v("mThk")} nm, Γ = ${isFinite(c.gamma) ? c.gamma.toFixed(2) : "cut off"}; the default, 500 nm at 1.55 µm, is the near-IR design). Open dot: the mid-IR design, 1.0 µm TM₀ (Γ = ${isFinite(c.gMid) ? c.gMid.toFixed(2) : "–"} at 3.3 µm). Panels (a), (b): ${(c.rowH * liveP.mm / LIVE_W).toFixed(1)} mm tall.`; }
       $("liveWrap").innerHTML = liveRes.svg.replace("<svg ", '<svg style="display:block;width:100%;height:auto" ');
-      $("figNote").textContent = (liveView === "full" ? FIG_NOTE_FULL : FIG_NOTE_E) + (S.indes === "gc" ? FIG_NOTE_GC : "") + tail + ` Ray path: ${r.nWalls} wall reflections` + (r.exit === 1 ? " to the output port." : ", still in the cell at the hit cap.") + (r.fsU > 11 ? " Warning: at this font size and figure width the text no longer fits the layout; widen the figure or lower the font size (up to 11 pt at 210 mm, 13 pt at 250 mm)." : "");
+      $("figNote").textContent = (liveView === "full" ? FIG_NOTE_FULL : FIG_NOTE_E) + (S.indes === "gc" ? FIG_NOTE_GC : S.indes === "cart" ? FIG_NOTE_CART : "") + tail + ` Ray path: ${r.nWalls} wall reflections` + (r.exit === 1 ? " to the output port." : ", still in the cell at the hit cap.") + (r.fsU > 11 ? " Warning: at this font size and figure width the text no longer fits the layout; widen the figure or lower the font size (up to 11 pt at 210 mm, 13 pt at 250 mm)." : "");
     } catch (e) {
       liveRes = null; $("liveWrap").innerHTML = "";
       $("figNote").textContent = `Could not draw the figure: ${e && e.message ? e.message : e}. Lower the launch angle or switch the inclusions off.`;
@@ -3594,6 +3682,7 @@ const DitherLab = (() => {
   const FIG_NOTE_FULL = "Figure 1, drawn live: (a) CMPC chip and (b) integrated Herriott cell are snapshots of the 3D views above (oblique, current settings; press Refresh after changing them); (c) evanescent field of the guided mode with δ and 3δ marked, molecules inside 3δ absorb; (d) confinement factor against membrane thickness; (e) system schematic with the same regular ray orbit (index inclusions off; switch them on for the chaotic cell of Figs. 2 and 3). All text Arial at the font size set above, on the figure width set above.";
   const FIG_NOTE_E = "System schematic, panel (e): I source, II gas sensor chip (edge coupler, micro-heater dither section, CMPC, output-port waveguides, reference tap), III detection. Ray path: the Fig. 2 trace (24 facets, launch angle 7.5°, centre ray plus 2 mrad dither-edge beam, output port at 0.458 of the perimeter, 16 index inclusions).";
   const FIG_NOTE_GC = " New input design (QUIET Task 11): (e) shows the dither system off the chip, a scanning mirror and scan lens sweeping the angle (±60 mrad) and position (±100 µm) of a free-space beam on a large-area grating coupler at the input port of the CMPC; the chip has no heater section. In (a) and (b) only the last part of the free-space beam above the input grating coupler is drawn (the dither states as parallel shifts with a small angle spread). The ray trace in (e) uses the design's 8 index inclusions of r 25 µm and shows the centre ray and an edge state of the input dither (+45 mrad, +100 µm).";
+  const FIG_NOTE_CART = " Reader + cartridge: (e) the complete sensor in two parts. Reusable reader: I, source (laser, driver electronics and a beam scanner for the angle, ±60 mrad, and position, ±100 µm, dithers) and III, detection (detectors 1 … N and reference R). Single-use cartridge: II, the passive chip in a gas-tight holder with windows and gas ports: a wide input grating port (gold), the CMPC with output couplers, and an on-chip reference tap from the input waveguide that bypasses the CMPC (it sees the same windows and input coupler); no electrical parts. (a), (b): grating input port, free-space beam not drawn, molecules above the membrane only.";
   const liveSvgText = () => '<?xml version="1.0" encoding="UTF-8"?>\n' + liveRes.svg.replace("<svg ", `<svg width="${liveRes.mm}mm" height="${liveRes.hMm.toFixed(2)}mm" `);
   const liveName = ext => `figure1-${liveView === "full" ? "a-e" : "e"}-${liveP.fs}pt-${liveP.mm}mm.${ext}`;
   async function liveCanvas(dpi) {
@@ -3655,6 +3744,7 @@ const DitherLab = (() => {
     panelImgs.busy = false; $("figStatus").textContent = FIG_STATUS_IDLE; liveDraw();
   }
 
+  camEl();
   for (const id of Object.keys(LIVE_IDS).concat("lvInc", "lvSame", "mThk", "mLam")) $(id).addEventListener("input", liveDraw);
   for (const b of document.querySelectorAll("[data-pol]")) b.addEventListener("click", liveDraw);
   for (const b of document.querySelectorAll("[data-lview]")) b.addEventListener("click", () => { liveView = b.dataset.lview; press("[data-lview]", "lview", liveView); liveDraw(); });

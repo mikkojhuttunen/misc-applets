@@ -80,7 +80,7 @@ def main():
     s = rep(s, 'port: "#1f8a4c"', 'port: "#d0352b"')
     # Herriott DBRs: mechanical bridges across the trenches, outside the spot pattern (|y| = 1.2 A, the aperture is 1.4 A), as on the CMPC facets
     s = rep(s, '    ys.add(0); if (Math.abs(y0 - wp / 2) < D)',
-            '    const yBr = 1.2 * A, bwH = Math.max(0.03, 0.04 * A), brOn = yBr + bwH / 2 < D;\n'
+            '    const yBr = 1.2 * A, bwH = Math.max(0.1, 0.2 * A), brOn = yBr + bwH / 2 < D;\n'
             '    if (brOn) for (const sg of [-1, 1]) for (const e_ of [-1, 1]) ys.add(+(sg * yBr + e_ * bwH / 2).toFixed(12));\n'
             '    ys.add(0); if (Math.abs(y0 - wp / 2) < D)')
     s = rep(s, '      const ya = Ys[i], yb = Ys[i + 1], ym = (ya + yb) / 2, port = Math.abs(ym - y0) <= wp / 2;',
@@ -89,6 +89,8 @@ def main():
     s = rep(s, '      for (let j = 0; j < Np; j++) add(cur(1, j * (g + tw) + g), cur(1, (j + 1) * (g + tw)));',
             '      if (br) add(cur(1, 0), cur(1, bandOff)); else for (let j = 0; j < Np; j++) add(cur(1, j * (g + tw) + g), cur(1, (j + 1) * (g + tw)));')
     s = rep(s, 'the corner bridges hold the inner membrane.</p>', 'the corner bridges hold the inner membrane. The Herriott DBRs have bridges at |y| = 1.2 A, outside the spot pattern.</p>')
+    s = rep(s, 'const t = 0.05, ts = 0.6 * t, tb = 0.04, th_ = 0.28, X0 = -0.8, X1 = d + 0.4,',
+            'const t = 0.05, ts = 0.6 * t, tb = 0.04, th_ = 0.28, X0 = S.indes === "gc" ? -1.6 : -0.8, X1 = d + 0.4,')
     # (c): as tall as the (d) axis box, so (d) and (e) set the row height
     s = rep(s, 'const cx0 = 0, cy0 = 164, cw = 74, ch = Math.round(COMP_CH * 0.88), mid = cy0 + ch / 2;',
             'const cx0 = 0, cy0 = 164, cw = 74, ch = Math.round(COMP_CH - 2.35 * fs), mid = cy0 + ch / 2;')
@@ -117,8 +119,11 @@ def main():
       const P = (s_, hh) => [st[0] + s_ * u[0] + hh * w[0], st[1] + s_ * u[1] + hh * w[1]], w1 = wp, w2 = 0.35 * wp, lt = 0.3;
       if (GCD && kind === "in") {                      /* grating coupler on the port axis, fed from above by the free-space beam */
         const gp = 0.024, tooth = 0.012, nT = 9, Wg = Math.max(wp, 0.12);
-        for (let i = 0; i < nT; i++) { const a_ = 0.02 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, COL.gc, COL.gcSec, cut); }
-        gcC = P(0.02 + nT * gp / 2, 0); free = freeFan(gcC, u, w, Wg, t + ts, 0.4, 0.16);
+        /* in and out share the port gap and part at the in/out angle: the grating sits back along the input axis, clear of the output waveguide */
+        const ex = h.exit === "port" ? h.exitDir : null, sIO = ex ? Math.abs(u[0] * ex[1] - u[1] * ex[0]) : 0;
+        const s0 = sIO > 0.05 ? Math.min(2.5, (Wg / 2 + wp / 2 + 0.04) / sIO + 0.02) : 0.02;
+        for (let i = 0; i < nT; i++) { const a_ = s0 + i * gp; B.add(sq([P(a_, -Wg / 2), P(a_ + tooth, -Wg / 2), P(a_ + tooth, Wg / 2), P(a_, Wg / 2)]), t, t + ts, COL.gc, COL.gcSec, cut); }
+        gcC = P(s0 + nT * gp / 2, 0); free = freeFan(gcC, u, w, Wg, t + ts, 0.4, 0.16);
         io.push([kind, gcC, u]); continue;
       }''')
     s = rep(s, '    for (const [kind, st, u] of io) { (kind === "in" ? inSegs : outSegs).push(toEdge(st, u), st); inBand.push(st, p0); }',
@@ -141,16 +146,16 @@ def main():
     const out = [], lh = 1.2 * fs;
     const txt = (x, y, str, a = {}) => out.push(`<text x="${n2(x)}" y="${n2(y)}" font-size="${n2(fs)}"${a.b ? ' font-weight="700"' : ""}${a.anchor ? ` text-anchor="${a.anchor}"` : ""} fill="${a.fill || COL.ink}"${a.halo ? ` stroke="${a.halo}" stroke-width="${n2(fs * 0.3)}" stroke-linejoin="round" paint-order="stroke"` : ""}>${a.raw || esc(str)}</text>`);
     const line = (d, col, w, extra = "") => out.push(`<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${extra}/>`);
-    const g = 5, HB = 104, y0 = 48, ELEC = ' stroke-dasharray="3.5 2.5"';
+    const g = 5, HB = 92, y0 = 46, ELEC = ' stroke-dasharray="3.5 2.5"';
     const bwE = Math.ceil(tw("electronics") + 10), xs_ = Math.max(56, 5 + bwE + 9);   // driver box, then the reference pick-off column right of it
     const wI = Math.max(Math.ceil(tw("(e)") + 5 + tw("I: Source") + 16), xs_ + 10);
-    const wD = Math.max(58, Math.ceil(Math.max(tw("Dither"), tw("±θ, ±x") + 22) + 16));
-    const wIII = Math.max(88, Math.ceil(tw("III: Detection") + 8)), xD = wI + g, xII = xD + wD + g, xIII = WE - wIII, xE = xIII - g;
+    const wD = Math.max(58, Math.ceil(Math.max(tw("II: Dither"), tw("±θ, ±x") + 22) + 16));
+    const wIII = Math.max(88, Math.ceil(tw("IV: Detection") + 8)), xD = wI + g, xII = xD + wD + g, xIII = WE - wIII, xE = xIII - g;
     // the design cell of Task 11 (8 inclusions r 25 um when shown); centre ray and an edge state of the input dither
     const o = { cell: "circle", c_radius: 2e-3, n_facets: 24, facet_curv: 0, c_theta: p.th * Math.PI / 180, out_frac: 0.458, same_port: 0, c_port: 150e-6, c_waist: 75e-6, f_tilt_rms: 0, f_curv_rms: 0, f_seed: 1, f_sel: 5,
       f_sel_tilt: 0, f_sel_curv: 0, inc_ring: 1, n_inc: p.inc ? 8 : 0, inc_radius: 25e-6, inc_dn: 0.01, inc_sign: "both", inc_seed: 1, wavelength: 1.6537e-6, n_eff: 2, ctr_dn: 0 };
     const S_ = D.setup(o), mc = S_.mc, c = mc.cell, N = c.meta.nFacets;
-    const RC = 20, PITCH = 2.5, ROUT = RC + 4 * PITCH, CX = xE - 24 - ROUT, CY = y0, k = RC / c.meta.r, PIN = Math.PI;
+    const RC = 16, PITCH = 2.5, ROUT = RC + 4 * PITCH, CX = xE - 24 - ROUT, CY = y0, k = RC / c.meta.r, PIN = Math.PI;
     const pin = Pl.pointAt(c, c.sIn), pout = Pl.pointAt(c, c.sOut), rot = PIN - Math.atan2(pin[1], pin[0]), cs = Math.cos(rot), sn = Math.sin(rot);
     const Tf = (x, y) => [CX + (x * cs - y * sn) * k, CY - (x * sn + y * cs) * k];
     const angOut = Math.atan2(pout[1], pout[0]) + rot, angs = [angOut + 0.75, angOut, angOut - 0.75];
@@ -169,9 +174,9 @@ def main():
     out.push(`<rect x="${xD}" y="1.2" width="${wD}" height="${HB - 2.4}" rx="5" fill="#fff1dc" stroke="#e08a00" stroke-width="2.4"/>`);
     out.push(`<rect x="${xII}" y="1.2" width="${xE - xII}" height="${HB - 2.4}" rx="8" fill="#eef1f4" stroke="#8a949a" stroke-width="2.8"/>`);
     out.push(`<rect x="${xIII}" y="1.2" width="${wIII - 1.2}" height="${HB - 2.4}" rx="5" fill="#dde3f4" stroke="#27408b" stroke-width="2.4"/>`);
-    const ty = 5 + fs; txt(8, ty, "(e)"); txt(8 + tw("(e)") + 5, ty, "I: Source"); txt(xD + 6, ty, "Dither"); txt(xII + 8, ty, tw("II: Gas sensor chip") + 6 < xE - 24 - 2 * ROUT - xII - 8 ? "II: Gas sensor chip" : "II: Chip"); txt(xIII + 8, ty, "III: Detection");
+    const ty = 5 + fs; txt(8, ty, "(e)"); txt(8 + tw("(e)") + 5, ty, "I: Source"); txt(xD + 6, ty, "II: Dither"); txt(xII + 8, ty, tw("III: Gas sensor chip") + 6 < xE - 24 - 2 * ROUT - xII - 8 ? "III: Gas sensor chip" : "III: Chip"); txt(xIII + 8, ty, "IV: Detection");
     // source: laser, isolator, reference pick-off; electronics drive the laser and the scanner
-    const refY = HB - 12, BY = y0 + 10, BH = 36;
+    const refY = HB - 11, BY = y0 + 8, BH = Math.min(HB - 6 - y0 - 8, Math.ceil(2 * lh + 5));
     txt(8, y0 - 12, "Laser");
     out.push(`<path d="M30 ${y0}L${xD + 15} ${y0}" stroke="${COL.beam}" stroke-width="3.2" fill="none"/>`);
     out.push(`<rect x="6" y="${y0 - 7}" width="22" height="14" rx="1.5" fill="#2b2a33"/><rect x="6" y="${y0 - 4}" width="22" height="8" fill="url(#gLas2)"/><rect x="28" y="${y0 - 5.5}" width="3.5" height="11" fill="#000"/>`);
@@ -209,7 +214,7 @@ def main():
     for (let j = 0; j < mc.nInc; j++) { const q = Tf(mc.cx[j], mc.cy[j]); out.push(`<circle cx="${n2(q[0])}" cy="${n2(q[1])}" r="${n2(Math.max(mc.r[j] * k, 0.9))}" fill="${COL.inc}"/>`); }
     bp.forEach((pts, i) => out.push(`<path d="M${pts.map(q => pt(Tf(q[0], q[1]))).join("L")}" fill="none" stroke="${COL.ray}" stroke-width="${p.rw}" stroke-opacity="${i ? 0.45 : 0.95}" stroke-linejoin="round" stroke-linecap="round"/>`));
     txt(CX, CY + 0.35 * fs, "CMPC", { b: 1, anchor: "middle", fill: "#1b3a5a", halo: "#c9d6ea" });
-    const dyy = [32, 49, 74], xT = xE - 11;
+    const dyy = [28, 45, 65], xT = xE - 11;
     angs.forEach((a, i) => {
       const E = onRing(a, ROUT), y = dyy[i];
       line(`M${pt(E)}C${n2(E[0] + 14 * (1 + Math.cos(a)) / 2)} ${n2((y < E[1] ? Math.min : Math.max)(E[1] - 14 * Math.sin(a) / 2, E[1]))} ${n2(xT - 16)} ${n2(y)} ${n2(xT)} ${n2(y)}`, COL.blue, 3);

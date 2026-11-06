@@ -262,7 +262,7 @@ def main():
 
 ECART = r'''
   // ---- panel (e), reader + cartridge: I and III are the reusable reader (same colours), II the single-use cartridge (gas-tight holder with windows)
-  function eCart(p, fs, WE, LW) {
+  function eCart(p, fs, WE, LW, noLab) {
     const n2 = x => Math.round(x * 100) / 100, esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
     const cx_ = document.createElement("canvas").getContext("2d");
     const tw = (s_, b) => { cx_.font = `${b ? "700 " : ""}${fs}px ${LIVE_FONT}`; return cx_.measureText(s_).width; };
@@ -274,11 +274,11 @@ ECART = r'''
     const ELEC = ' stroke-dasharray="3.5 2.5"', g = 5, ty = 4 + fs, sp = 1.1 * lh;
     // rows: detectors 1, 2, (dots), N, R; the source row sits at the level of the input window
     const dy1 = ty + 1.05 * lh, dy2 = dy1 + sp, dyN = dy2 + 1.55 * sp, refY = dyN + sp, HB = Math.ceil(refY + 0.85 * lh), y0 = ty + 1.75 * lh;
-    const sw = Math.ceil(tw("Beam scanner") + 12), sx0 = 52, wI = Math.max(Math.ceil(tw("(e)") + 5 + tw("I: Source, scanner") + 14), sx0 + sw + 6);
+    const sw = Math.ceil(tw("Beam scanner") + 12), sx0 = 52, lab0 = noLab ? 0 : tw("(e)") + 5, wI = Math.max(Math.ceil(lab0 + tw("I: Source + scanner") + 14), sx0 + sw + 6);
     const wIII = Math.ceil(Math.max(tw("III: Detection") + 12, 22 + tw("Det. R") + 8)), xII = wI + g, xIII = WE - wIII, wII = xIII - g - xII;
     const box = (x, w, f, st, rx = 5, ex = "") => out.push(`<rect x="${n2(x + 1.2)}" y="1.2" width="${n2(w - 2.4)}" height="${HB - 2.4}" rx="${rx}" fill="${f}" stroke="${st}" stroke-width="2.4"${ex}/>`);
     box(0, wI, C.rdF, C.rdS); box(xII, wII, C.caF, C.caS, 8); box(xIII, wIII, C.rdF, C.rdS);
-    txt(8, ty, "(e)"); txt(8 + tw("(e)") + 5, ty, "I: Source, scanner"); txt(xIII + 8, ty, "III: Detection");
+    if (!noLab) txt(8, ty, "(e)"); txt(8 + lab0, ty, "I: Source + scanner"); txt(xIII + 8, ty, "III: Detection");
     txt(xII + 8, ty, tw("II: Single-use cartridge") + 16 < wII ? "II: Single-use cartridge" : "II: Cartridge");
     // I: laser, isolator, beam scanner, driver electronics
     const SH = 2 * lh + 3, BY = y0 + SH / 2 + 5, BH = Math.max(lh + 6, HB - 5 - BY);
@@ -297,25 +297,32 @@ ECART = r'''
     const ang = 158 * Math.PI / 180, Ein = [CX + R * Math.cos(ang), CY - R * Math.sin(ang)];
     line(`M${n2(gx1)} ${n2(y0)}C${n2(gx1 + 10)} ${n2(y0)} ${n2(Ein[0] - 10)} ${n2(Ein[1])} ${n2(Ein[0])} ${n2(Ein[1])}`, C.gold, 2.6);
     const xr = gx1 + 3;   // reference tap: a weak branch of the input waveguide, around the CMPC to its own output coupler
-    line(`M${n2(xr)} ${n2(y0 + 0.6)}L${n2(xr)} ${n2(refY - 4)}Q${n2(xr)} ${n2(refY)} ${n2(xr + 4)} ${n2(refY)}L${n2(xOC)} ${n2(refY)}`, C.ref, 2);
+    line(`M${n2(xr)} ${n2(y0 + 0.6)}L${n2(xr)} ${n2(refY - 4)}Q${n2(xr)} ${n2(refY)} ${n2(xr + 4)} ${n2(refY)}L${n2(xOC - 5)} ${n2(refY)}`, C.ref, 2);
     for (let i = 0; i < 4; i++) out.push(`<rect x="${n2(gx0 + i * 3)}" y="${n2(y0 - 8)}" width="1.7" height="16" fill="${C.gold}" stroke="${C.goldS}" stroke-width="0.4"/>`);
     out.push(`<circle cx="${n2(CX)}" cy="${n2(CY)}" r="${n2(R)}" fill="#dbe6f4" stroke="#3f6283" stroke-width="2.4" stroke-dasharray="3.2 1.4"/>`);
     { const K = 11, st = 4, pts = Array.from({ length: K }, (_, i) => { const a = 2 * Math.PI * i * st / K + 0.3; return `${n2(CX + (R - 2.5) * Math.cos(a))} ${n2(CY - (R - 2.5) * Math.sin(a))}`; });
       out.push(`<path d="M${pts.join("L")}Z" fill="none" stroke="${C.ray}" stroke-width="0.7" stroke-opacity="0.85" stroke-linejoin="round"/>`); }
     txt(CX, CY + 0.35 * fs, "CMPC", { b: 1, anchor: "middle", fill: "#1b3a5a", halo: "#dbe6f4" });
     const rows = [dy1, dy2, dyN];
-    for (const y of rows) { const a = Math.atan2(CY - y, xOC - CX), P = [CX + R * Math.cos(a), CY - R * Math.sin(a)]; line(`M${n2(P[0])} ${n2(P[1])}L${n2(xOC - 3)} ${n2(y)}`, C.blue, 2.2); }
+    for (const y of rows) { const a = Math.atan2(CY - y, xOC - CX), P = [CX + R * Math.cos(a), CY - R * Math.sin(a)]; line(`M${n2(P[0])} ${n2(P[1])}L${n2(xOC - 5)} ${n2(y)}`, C.blue, 2.2); }
+    const bars = (x, y, col, edge, h = 16) => { for (let i = 0; i < 4; i++) out.push(`<rect x="${n2(x + i * 3)}" y="${n2(y - h / 2)}" width="1.7" height="${h}" fill="${col}" stroke="${edge}" stroke-width="0.4"/>`); };
     for (const y of rows.concat(refY)) {
-      out.push(`<rect x="${n2(xOC - 3)}" y="${n2(y - 3)}" width="6" height="6" fill="${y === refY ? "#5d6b80" : C.blue}"/>`);
-      line(`M${n2(xOC + 3)} ${n2(y)}L${n2(xIII + 9)} ${n2(y)}`, C.beam, 1.8);
+      bars(xOC - 5, y, y === refY ? "#6b7a90" : C.blue, "#14296a", 10);
+      line(`M${n2(xOC + 6)} ${n2(y)}L${n2(xIII + 9)} ${n2(y)}`, C.beam, 1.8);
     }
     const wx = xII + wII - 2.2;   // windows in the holder wall
     out.push(`<rect x="${n2(xII - 0.6)}" y="${n2(y0 - 9)}" width="3.6" height="18" fill="${C.win}" stroke="${C.winS}" stroke-width="0.7"/>`);
     out.push(`<rect x="${n2(wx - 0.6)}" y="${n2(dy1 - 8)}" width="3.6" height="${n2(refY - dy1 + 16)}" fill="${C.win}" stroke="${C.winS}" stroke-width="0.7"/>`);
-    const gasA = (x, up) => { const y1 = HB + 4, y2 = HB - 7, a = up ? [y1, y2] : [y2, y1];
-      line(`M${n2(x)} ${n2(a[0])}L${n2(x)} ${n2(a[1] + (up ? 3 : -3))}`, C.gas, 2);
-      out.push(`<path d="M${n2(x - 3.2)} ${n2(a[1] + (up ? 3.6 : -3.6))}L${n2(x)} ${n2(a[1])}L${n2(x + 3.2)} ${n2(a[1] + (up ? 3.6 : -3.6))}Z" fill="${C.gas}"/>`); };
-    gasA(xr + 10, true); gasA(xOC - 12, false);
+    const TB = 12;   // tubing below the holder: fitting on the wall, tube bending outward, flow arrow along the tube
+    const tube = (x, dir, lab) => {
+      const yb = HB + TB - 5, xe = x + dir * 24, d = `M${n2(x)} ${n2(HB - 6)}L${n2(x)} ${n2(yb - 4)}Q${n2(x)} ${n2(yb)} ${n2(x + dir * 4)} ${n2(yb)}L${n2(xe)} ${n2(yb)}`;
+      out.push(`<path d="${d}" fill="none" stroke="#8d989f" stroke-width="5.4" stroke-linecap="butt" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#eef2f4" stroke-width="3.6" stroke-linecap="butt" stroke-linejoin="round"/>`);
+      out.push(`<rect x="${n2(x - 4.5)}" y="${n2(HB - 4)}" width="9" height="5" rx="1" fill="#b9c2c8" stroke="#6d7a82" stroke-width="0.6"/>`);
+      const ax = x + dir * 16, s_ = dir * (lab === "gas in" ? -1 : 1);   /* inlet flows toward the wall, outlet away from it */
+      out.push(`<path d="M${n2(ax - s_ * 3.2)} ${n2(yb - 2.4)}L${n2(ax + s_ * 2.6)} ${n2(yb)}L${n2(ax - s_ * 3.2)} ${n2(yb + 2.4)}Z" fill="${C.gas}"/>`);
+      txt(xe + dir * 3, yb + 0.35 * fs, lab, { anchor: dir < 0 ? "end" : "start", fill: C.mut });
+    };
+    tube(xr + 12, -1, "gas in"); tube(xOC - 14, 1, "gas out");
     // III: detectors 1, 2, ..., N and R
     const det = (y, raw, green) => {
       const xb = xIII + 12;
@@ -328,9 +335,8 @@ ECART = r'''
     const L = [];
     const items = [["free-space beam", s_ => line(`M${s_[0]} ${s_[1]}L${s_[0] + 14} ${s_[1]}`, C.beam, 2.4)],
       ["ref. tap", s_ => line(`M${s_[0]} ${s_[1]}L${s_[0] + 14} ${s_[1]}`, C.ref, 2)],
-      ["gas", s_ => { line(`M${s_[0]} ${s_[1]}L${s_[0] + 10} ${s_[1]}`, C.gas, 2); out.push(`<path d="M${s_[0] + 9} ${s_[1] - 3.2}L${s_[0] + 14} ${s_[1]}L${s_[0] + 9} ${s_[1] + 3.2}Z" fill="${C.gas}"/>`); }],
-      ["grating port", s_ => { for (let i = 0; i < 4; i++) out.push(`<rect x="${n2(s_[0] + 2 + i * 3)}" y="${n2(s_[1] - 4)}" width="1.7" height="8" fill="${C.gold}"/>`); }],
-      ["out. coupler", s_ => out.push(`<rect x="${n2(s_[0] + 4)}" y="${n2(s_[1] - 3)}" width="6" height="6" fill="${C.blue}"/>`)],
+      ["gas tubing", s_ => { out.push(`<rect x="${s_[0]}" y="${n2(s_[1] - 2.7)}" width="14" height="5.4" fill="#eef2f4" stroke="#8d989f" stroke-width="0.9"/>`); out.push(`<path d="M${s_[0] + 4.5} ${s_[1] - 2.4}L${s_[0] + 10.3} ${s_[1]}L${s_[0] + 4.5} ${s_[1] + 2.4}Z" fill="${C.gas}"/>`); }],
+      ["grating couplers", s_ => { for (let i = 0; i < 4; i++) out.push(`<rect x="${n2(s_[0] + 2 + i * 3)}" y="${n2(s_[1] - 4.5)}" width="1.7" height="9" fill="#8d989f"/>`); }],
       ["reader", s_ => out.push(`<rect x="${n2(s_[0])}" y="${n2(s_[1] - 4.5)}" width="14" height="9" rx="2" fill="${C.rdF}" stroke="${C.rdS}" stroke-width="1.4"/>`)],
       ["cartridge", s_ => out.push(`<rect x="${n2(s_[0])}" y="${n2(s_[1] - 4.5)}" width="14" height="9" rx="2" fill="${C.caF}" stroke="${C.caS}" stroke-width="1.4"/>`)]];
     const body = out.splice(0).join("\n");
@@ -340,7 +346,7 @@ ECART = r'''
       if (lx > 0 && lx + iw - 7 > LW) { lx = 0; ly += 1.25 * fs; }
       draw([n2(lx), n2(ly - 0.35 * fs)]); txt(lx + 17, ly, lab); lx += iw;
     }
-    return { body, h: HB + 5, leg: out.join("\n"), legH: Math.ceil(ly + 0.3 * fs + 2) };
+    return { body, h: HB + TB + 1, leg: out.join("\n"), legH: Math.ceil(ly + 0.3 * fs + 2) };
   }
 '''
 
@@ -378,13 +384,16 @@ def cart_pass(s):
     # composite: (e) = eCart, legend across the full width below (c)-(e); (d) with the axis title beside the ticks
     s = rep(s, '\n  const COMP_W = 595, E_X = 220,', ECART + '\n  const COMP_W = 595, E_X = 220,')
     s = rep(s, '    const eRes = (S.indes === "gc" ? eCompactGC : eCompact)(liveP, fs, COMP_W - E_X), COMP_CH = eRes.h, COMP_H = 164 + COMP_CH + 4;',
-            '    const eRes = (S.indes === "cart" ? eCart : S.indes === "gc" ? eCompactGC : eCompact)(liveP, fs, COMP_W - E_X, COMP_W), COMP_CH = eRes.h, COMP_H = 164 + COMP_CH + 4 + (eRes.legH || 0);')
+            '    const eRes = (S.indes === "cart" ? eCart : S.indes === "gc" ? eCompactGC : eCompact)(liveP, fs, COMP_W - EX, COMP_W, true), COMP_CH = eRes.h, COMP_H = 164 + COMP_CH + 4 + (eRes.legH || 0);')
     s = rep(s, 'ch = Math.round(COMP_CH - 2.35 * fs), mid', 'ch = Math.round(COMP_CH - (S.indes === "cart" ? 1.3 : 2.35) * fs), mid')
+    s = rep(s, 'const cx0 = 0, cy0 = 164, cw = 74,', 'const cx0 = 0, cy0 = 164, cw = CART ? 62 : 74,')
+    s = rep(s, 'const dx0 = 76, dy0 = 164, dw = 144,', 'const dx0 = CART ? 64 : 76, dy0 = 164, dw = CART ? 128 : 144,')
     s = rep(s, 'Rm = 12, Tm = 0, Bm = 2.35 * fs;', 'Rm = 12, Tm = 0, Bm = (S.indes === "cart" ? 1.3 : 2.35) * fs;')
     s = rep(s, 'T((px0 + px1) / 2, dy0 + dh - 3, "t (µm)", { anchor: "middle" });',
             'if (S.indes === "cart") T(px0 - 3, py1 + fs * 1.15, "t (µm)", { anchor: "end" }); else T((px0 + px1) / 2, dy0 + dh - 3, "t (µm)", { anchor: "middle" });')
     s = rep(s, '    o.push(`<g transform="translate(${E_X} 164)">${eRes.body}</g>`);',
-            '    o.push(`<g transform="translate(${E_X} 164)">${eRes.body}</g>`);\n'
+            '    o.push(`<g transform="translate(${EX} 164)">${eRes.body}</g>`);\n'
+            '    if (CART) T(EX - 2, 168 + fs, "(e)", { anchor: "end" });\n'
             '    if (eRes.leg) o.push(`<g transform="translate(0 ${n2(164 + COMP_CH + 2)})">${eRes.leg}</g>`);')
     s = rep(s, '      if (liveView === "e" && S.indes === "gc") {', '      if (liveView === "e" && S.indes === "cart") {    /* panel (e) alone, cartridge layout: legend below */\n'
             '        const e = eCart(liveP, r.fsU, LIVE_W, LIVE_W), H_ = e.h + 2 + e.legH;\n'
@@ -394,6 +403,19 @@ def cart_pass(s):
     s = rep(s, '  const liveSvgText = () =>',
             '  const FIG_NOTE_CART = " Reader + cartridge: (e) the complete sensor in two parts. Reusable reader: I, source (laser, driver electronics and a beam scanner for the angle, ±60 mrad, and position, ±100 µm, dithers) and III, detection (detectors 1 … N and reference R). Single-use cartridge: II, the passive chip in a gas-tight holder with windows and gas ports: a wide input grating port (gold), the CMPC with output couplers, and an on-chip reference tap from the input waveguide that bypasses the CMPC (it sees the same windows and input coupler); no electrical parts. (a), (b): grating input port, free-space beam not drawn, molecules above the membrane only.";\n'
             '  const liveSvgText = () =>')
+    s = rep(s, '    const fs = res.fsU, n2 = x => Math.round(x * 100) / 100, o = [];\n',
+            '    const fs = res.fsU, n2 = x => Math.round(x * 100) / 100, o = [];\n'
+            '    const CART = S.indes === "cart", EX = CART ? 210 : E_X;   /* cartridge layout: narrower (c), (d), wider (e); 3D panels trimmed at the bottom (handle) */\n')
+    s = rep(s, '    let rowH = liveP.hab;\n',
+            '    const trimI = q => q && CART ? { url: q.url, w: q.w, h: q.h * 0.86, full: q.h } : q, IA = trimI(panelImgs.a), IB = trimI(panelImgs.b);\n'
+            '    let rowH = liveP.hab;\n')
+    s = rep(s, 'const aa = panelImgs.a.w / panelImgs.a.h, ab = panelImgs.b.w / panelImgs.b.h;', 'const aa = IA.w / IA.h, ab = IB.w / IB.h;')
+    s = rep(s, '      if (img) { const k = Math.min(w / img.w, h / img.h), iw = img.w * k, ih = img.h * k; o.push(`<image href="${img.url}" x="${n2(x + (w - iw) / 2)}" y="${n2(y + (h - ih) / 2)}" width="${n2(iw)}" height="${n2(ih)}"/>`); }',
+            '      if (img && img.full) { const k = Math.min(w / img.w, h / img.h), iw = img.w * k, ih = img.h * k, X_ = n2(x + (w - iw) / 2), Y_ = n2(y + (h - ih) / 2), id = `clp${Math.round(x)}`;\n'
+            '        o.push(`<clipPath id="${id}"><rect x="${X_}" y="${Y_}" width="${n2(iw)}" height="${n2(ih)}"/></clipPath><image href="${img.url}" x="${X_}" y="${Y_}" width="${n2(iw)}" height="${n2(img.full * k)}" clip-path="url(#${id})"/>`); }\n'
+            '      else if (img) { const k = Math.min(w / img.w, h / img.h), iw = img.w * k, ih = img.h * k; o.push(`<image href="${img.url}" x="${n2(x + (w - iw) / 2)}" y="${n2(y + (h - ih) / 2)}" width="${n2(iw)}" height="${n2(ih)}"/>`); }')
+    s = rep(s, '    pic(panelImgs.a, xa, 0, wa, rowH, none);', '    pic(IA, xa, 0, wa, rowH, none);')
+    s = rep(s, '    pic(panelImgs.b, xb, 0, wb, rowH, none);', '    pic(IB, xb, 0, wb, rowH, none);')
     return s
 
 

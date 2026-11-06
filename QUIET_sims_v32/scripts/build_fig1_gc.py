@@ -77,6 +77,21 @@ def main():
             '      if (desc.glow && $("glowOn").checked) for (const g of desc.glow) group.add(new THREE.Mesh(g, glowMaterial()));')
     s = rep(s, '<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span><span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span>',
             '${desc.info.gc ? `<span><i class="sw" style="background:${COL.gc}"></i>input grating coupler</span><span><i class="sw" style="background:${COL.beam}"></i>free-space beam (dither fan)</span>` : `<span><i class="sw" style="background:${COL.port}"></i>input beam</span><span><i class="sw" style="background:${COL.strip}"></i>input waveguide</span>`}<span><i class="sw" style="background:${COL.outStrip}"></i>output ports and waveguides</span>')
+    s = rep(s, 'port: "#1f8a4c"', 'port: "#d0352b"')
+    # Herriott DBRs: mechanical bridges across the trenches, outside the spot pattern (|y| = 1.2 A, the aperture is 1.4 A), as on the CMPC facets
+    s = rep(s, '    ys.add(0); if (Math.abs(y0 - wp / 2) < D)',
+            '    const yBr = 1.2 * A, bwH = Math.max(0.03, 0.04 * A), brOn = yBr + bwH / 2 < D;\n'
+            '    if (brOn) for (const sg of [-1, 1]) for (const e_ of [-1, 1]) ys.add(+(sg * yBr + e_ * bwH / 2).toFixed(12));\n'
+            '    ys.add(0); if (Math.abs(y0 - wp / 2) < D)')
+    s = rep(s, '      const ya = Ys[i], yb = Ys[i + 1], ym = (ya + yb) / 2, port = Math.abs(ym - y0) <= wp / 2;',
+            '      const ya = Ys[i], yb = Ys[i + 1], ym = (ya + yb) / 2, port = Math.abs(ym - y0) <= wp / 2, br = brOn && Math.abs(Math.abs(ym) - yBr) <= bwH / 2;')
+    s = rep(s, '      if (port) add(cur(0, bandOff), cur(0, 0));', '      if (port || br) add(cur(0, bandOff), cur(0, 0));')
+    s = rep(s, '      for (let j = 0; j < Np; j++) add(cur(1, j * (g + tw) + g), cur(1, (j + 1) * (g + tw)));',
+            '      if (br) add(cur(1, 0), cur(1, bandOff)); else for (let j = 0; j < Np; j++) add(cur(1, j * (g + tw) + g), cur(1, (j + 1) * (g + tw)));')
+    s = rep(s, 'the corner bridges hold the inner membrane.</p>', 'the corner bridges hold the inner membrane. The Herriott DBRs have bridges at |y| = 1.2 A, outside the spot pattern.</p>')
+    # (c): as tall as the (d) axis box, so (d) and (e) set the row height
+    s = rep(s, 'const cx0 = 0, cy0 = 164, cw = 74, ch = Math.round(COMP_CH * 0.88), mid = cy0 + ch / 2;',
+            'const cx0 = 0, cy0 = 164, cw = 74, ch = Math.round(COMP_CH - 2.35 * fs), mid = cy0 + ch / 2;')
     # short free-space fan shared by (a) and (b): only the last part of the beam above the grating is drawn (the scanning mirror is in e)
     s = rep(s, '  function memChip() {',
             '  function freeFan(gcC, u, wv, Wg, z, H = 0.22, run = 0.1) {   /* dither states: parallel shifts (position) with a small angle spread, faded upper ends */\n'
@@ -127,7 +142,8 @@ def main():
     const txt = (x, y, str, a = {}) => out.push(`<text x="${n2(x)}" y="${n2(y)}" font-size="${n2(fs)}"${a.b ? ' font-weight="700"' : ""}${a.anchor ? ` text-anchor="${a.anchor}"` : ""} fill="${a.fill || COL.ink}"${a.halo ? ` stroke="${a.halo}" stroke-width="${n2(fs * 0.3)}" stroke-linejoin="round" paint-order="stroke"` : ""}>${a.raw || esc(str)}</text>`);
     const line = (d, col, w, extra = "") => out.push(`<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${extra}/>`);
     const g = 5, HB = 104, y0 = 48, ELEC = ' stroke-dasharray="3.5 2.5"';
-    const wI = Math.max(70, Math.ceil(Math.max(tw("(e)") + 5 + tw("I: Source"), tw("electronics"), tw("Laser driving")) + 16));
+    const bwE = Math.ceil(tw("electronics") + 10), xs_ = Math.max(56, 5 + bwE + 9);   // driver box, then the reference pick-off column right of it
+    const wI = Math.max(Math.ceil(tw("(e)") + 5 + tw("I: Source") + 16), xs_ + 10);
     const wD = Math.max(58, Math.ceil(Math.max(tw("Dither"), tw("±θ, ±x") + 22) + 16));
     const wIII = Math.max(88, Math.ceil(tw("III: Detection") + 8)), xD = wI + g, xII = xD + wD + g, xIII = WE - wIII, xE = xIII - g;
     // the design cell of Task 11 (8 inclusions r 25 um when shown); centre ray and an edge state of the input dither
@@ -160,17 +176,15 @@ def main():
     out.push(`<path d="M30 ${y0}L${xD + 15} ${y0}" stroke="${COL.beam}" stroke-width="3.2" fill="none"/>`);
     out.push(`<rect x="6" y="${y0 - 7}" width="22" height="14" rx="1.5" fill="#2b2a33"/><rect x="6" y="${y0 - 4}" width="22" height="8" fill="url(#gLas2)"/><rect x="28" y="${y0 - 5.5}" width="3.5" height="11" fill="#000"/>`);
     out.push(`<rect x="36" y="${y0 - 4.5}" width="12" height="9" fill="#c9cdd0" stroke="#8a9296" stroke-width="0.5"/><rect x="38.5" y="${y0 - 6}" width="7" height="12" fill="url(#gIso2)"/>`);
-    const xs_ = wI - 12;   // reference pick-off (beam splitter) to Det. R
+    const REF = ' stroke-dasharray="5 2.6"';   // reference beam: optical (beam colour), dashed to tell it from the signal path
     out.push(`<path d="M${xs_ - 3.5} ${y0 + 3.5}L${xs_ + 3.5} ${y0 - 3.5}" stroke="#5a6a6f" stroke-width="1.6"/>`);
-    line(`M${xs_} ${y0}L${xs_} ${y0 + 6}`, COL.grey, 2.6);
-    line(`M${xs_} ${y0 + 6}L${xs_} ${y0 + 8}`, COL.grey, 2.6);
-    out.push(`<rect x="5" y="${BY}" width="${wI - 10}" height="${BH}" rx="5" fill="#fff" stroke="#222" stroke-width="2"/>`);
-    txt(wI / 2, BY + BH / 2 - lh / 2 + 0.35 * fs, "Laser driving", { anchor: "middle" }); txt(wI / 2, BY + BH / 2 + lh / 2 + 0.35 * fs, "electronics", { anchor: "middle" });
+    out.push(`<rect x="5" y="${BY}" width="${bwE}" height="${BH}" rx="5" fill="#fff" stroke="#222" stroke-width="2"/>`);
+    txt(5 + bwE / 2, BY + BH / 2 - lh / 2 + 0.35 * fs, "Driver", { anchor: "middle" }); txt(5 + bwE / 2, BY + BH / 2 + lh / 2 + 0.35 * fs, "electronics", { anchor: "middle" });
     line(`M18 ${y0 + 7}L18 ${BY}`, COL.elec, 1.3, ELEC);
-    line(`M${xs_} ${BY + BH}L${xs_} ${refY}L${xE} ${refY}`, COL.grey, 3);
+    line(`M${xs_} ${y0 + 3}L${xs_} ${refY}L${xE} ${refY}`, COL.beam, 2.2, REF);
     // dither block: scanning mirror (angle + position) and scan lens
     const xm = xD + 15, xl = xD + wD - 9;
-    line(`M${wI - 5} ${BY + BH - 6}L${n2(xm)} ${BY + BH - 6}L${n2(xm)} ${y0 + 9}`, COL.elec, 1.3, ELEC);
+    line(`M${5 + bwE} ${BY + BH - 6}L${n2(xm)} ${BY + BH - 6}L${n2(xm)} ${y0 + 9}`, COL.elec, 1.3, ELEC);
     out.push(`<rect x="${n2(xm - 2)}" y="${y0 - 9}" width="4" height="18" fill="#9aa3ad" stroke="#5a6470" stroke-width="0.6" transform="rotate(-35 ${n2(xm)} ${y0})"/>`);
     line(`M${n2(xm - 7)} ${y0 - 12}A9 9 0 0 1 ${n2(xm + 7)} ${y0 - 12}`, COL.mut, 1, ' marker-end="none"');
     out.push(`<path d="M${n2(xm + 7)} ${y0 - 12}l-2.6 -1.6l0.4 2.8z M${n2(xm - 7)} ${y0 - 12}l2.6 -1.6l-0.4 2.8z" fill="${COL.mut}"/>`);
@@ -210,7 +224,7 @@ def main():
     };
     det(dyy[0], "Det. 1"); det(dyy[1], "Det. 2"); det(dyy[2], `Det. <tspan font-style="italic">N</tspan>`); det(refY, "Det. R", true);
     for (const d of [-3.6, 0, 3.6]) out.push(`<circle cx="${xIII + 20 + 11 + 8}" cy="${n2((dyy[1] + dyy[2]) / 2 + d)}" r="1.2" fill="${COL.ink}"/>`);
-    const leg = [["grating coupler", COL.gc, 5, ""], ["output WGs", COL.blue, 3, ""], ["ref. tap", COL.grey, 3, ""], ["free-space beam", COL.beam, 3, ""], ["electrical", COL.elec, 1.3, ELEC]];
+    const leg = [["grating coupler", COL.gc, 5, ""], ["output WGs", COL.blue, 3, ""], ["ref. beam", COL.beam, 2.2, REF], ["free-space beam", COL.beam, 3, ""], ["electrical", COL.elec, 1.3, ELEC]];
     if (p.inc) leg.push(["index inclusions", COL.inc, 0, "dot"]);
     let lx = 0, ly = HB + 4 + fs * 0.85;
     for (const [lab, col, w, ex] of leg) {

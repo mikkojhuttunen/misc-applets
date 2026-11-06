@@ -190,7 +190,7 @@ footer { color: var(--muted); font-size: 12px; max-width: 100ch; display: grid; 
           <input id="dT" type="range" min="0.01" max="0.12" step="0.005" value="0.05"></div>
         <label class="check" for="beamOn"><input id="beamOn" type="checkbox" checked> Ray orbit (Fig. 2 trace) and input beam</label>
                 <label class="check" for="mInc"><input id="mInc" type="checkbox"> Index inclusions (chaotic cell, Figs. 2, 3)</label>
-        <p class="hint">A 2 µm DBR on a 5 mm cell is invisible at true scale, so the DBR band and the membrane are drawn wide. The gap : tooth ratio is the real one. Trenches stop short of the facet corners; the corner bridges hold the inner membrane.</p>
+        <p class="hint">A 2 µm DBR on a 5 mm cell is invisible at true scale, so the DBR band and the membrane are drawn wide. The gap : tooth ratio is the real one. Trenches stop short of the facet corners; the corner bridges hold the inner membrane. The Herriott DBRs have bridges at |y| = 1.2 A, outside the spot pattern.</p>
       </fieldset>
 
       <fieldset id="fsCr" hidden>
@@ -2383,7 +2383,7 @@ const DitherLab = (() => {
 
   // ---------------------------------------------------------------- colours (world materials, same in both themes)
   const COL = { si: "#8fa3c4", siSec: "#cdd8ea", handle: "#9a9fa6", handleSec: "#c8ccd1", box: "#e3d29a", boxSec: "#f1e7c6",
-    beam: "#d0352b", port: "#1f8a4c", field: "#8a4fc8", out: "#9fc3ff", outStrip: "#24459a", outStripSec: "#8ea2d6", strip: "#d4a63c", stripSec: "#ead39b", carrier: "#5f6b7d", carrierSec: "#a3adbd",
+    beam: "#d0352b", port: "#d0352b", field: "#8a4fc8", out: "#9fc3ff", outStrip: "#24459a", outStripSec: "#8ea2d6", strip: "#d4a63c", stripSec: "#ead39b", carrier: "#5f6b7d", carrierSec: "#a3adbd",
     layers: ["#c7cccc", "#91ada6", "#d4bf9e", "#b8a3c2"], layersSec: ["#e2e6e6", "#c2d4cf", "#e8dcc8", "#d9cde0"],
     dbr: "#21855f", dbrSec: "#73bc9f", gc: "#e87a29", gcSec: "#f4b787", mirror: "#9aa3ad" };
 
@@ -2667,19 +2667,21 @@ const DitherLab = (() => {
     const cut = $("cut").checked ? { cx: Xc, cy: 0 } : null, B = new Builder();
     // membrane in strips of Y: solid intervals along X bounded by the mirror surfaces and the trench arcs
     const ys = new Set(); const nY = 48; for (let i = 0; i <= nY; i++) ys.add(+(-D + 2 * D * i / nY).toFixed(12));
+    const yBr = 1.2 * A, bwH = Math.max(0.03, 0.04 * A), brOn = yBr + bwH / 2 < D;
+    if (brOn) for (const sg of [-1, 1]) for (const e_ of [-1, 1]) ys.add(+(sg * yBr + e_ * bwH / 2).toFixed(12));
     ys.add(0); if (Math.abs(y0 - wp / 2) < D) ys.add(+(y0 - wp / 2).toFixed(12)); if (Math.abs(y0 + wp / 2) < D) ys.add(+(y0 + wp / 2).toFixed(12));
     const Ys = [...ys].sort((a, b) => a - b);
     const cur = (k, off) => y => sx(k, y, R + off);                    // trench boundary at radial offset off behind mirror k
     const quad = (fa, fb, ya, yb) => [[fa(ya), ya], [fb(ya), ya], [fb(yb), yb], [fa(yb), yb]];
     const L0 = () => X0, L1 = () => X1, bandOff = Np * (g + tw);
     for (let i = 0; i < Ys.length - 1; i++) {
-      const ya = Ys[i], yb = Ys[i + 1], ym = (ya + yb) / 2, port = Math.abs(ym - y0) <= wp / 2;
+      const ya = Ys[i], yb = Ys[i + 1], ym = (ya + yb) / 2, port = Math.abs(ym - y0) <= wp / 2, br = brOn && Math.abs(Math.abs(ym) - yBr) <= bwH / 2;
       const add = (fa, fb) => B.add(quad(fa, fb, ya, yb), 0, t, COL.si, COL.siSec, cut);
       add(L0, cur(0, bandOff));
-      if (port) add(cur(0, bandOff), cur(0, 0));
+      if (port || br) add(cur(0, bandOff), cur(0, 0));
       else for (let j = 0; j < Np; j++) add(cur(0, (j + 1) * (g + tw)), cur(0, j * (g + tw) + g));
       add(cur(0, 0), cur(1, 0));
-      for (let j = 0; j < Np; j++) add(cur(1, j * (g + tw) + g), cur(1, (j + 1) * (g + tw)));
+      if (br) add(cur(1, 0), cur(1, bandOff)); else for (let j = 0; j < Np; j++) add(cur(1, j * (g + tw) + g), cur(1, (j + 1) * (g + tw)));
       add(cur(1, bandOff), L1);
     }
     B.add([[X0, -Y1], [X1, -Y1], [X1, -D], [X0, -D]], 0, t, COL.si, COL.siSec, cut);
@@ -3358,7 +3360,8 @@ const DitherLab = (() => {
     const txt = (x, y, str, a = {}) => out.push(`<text x="${n2(x)}" y="${n2(y)}" font-size="${n2(fs)}"${a.b ? ' font-weight="700"' : ""}${a.anchor ? ` text-anchor="${a.anchor}"` : ""} fill="${a.fill || COL.ink}"${a.halo ? ` stroke="${a.halo}" stroke-width="${n2(fs * 0.3)}" stroke-linejoin="round" paint-order="stroke"` : ""}>${a.raw || esc(str)}</text>`);
     const line = (d, col, w, extra = "") => out.push(`<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${extra}/>`);
     const g = 5, HB = 104, y0 = 48, ELEC = ' stroke-dasharray="3.5 2.5"';
-    const wI = Math.max(70, Math.ceil(Math.max(tw("(e)") + 5 + tw("I: Source"), tw("electronics"), tw("Laser driving")) + 16));
+    const bwE = Math.ceil(tw("electronics") + 10), xs_ = Math.max(56, 5 + bwE + 9);   // driver box, then the reference pick-off column right of it
+    const wI = Math.max(Math.ceil(tw("(e)") + 5 + tw("I: Source") + 16), xs_ + 10);
     const wD = Math.max(58, Math.ceil(Math.max(tw("Dither"), tw("±θ, ±x") + 22) + 16));
     const wIII = Math.max(88, Math.ceil(tw("III: Detection") + 8)), xD = wI + g, xII = xD + wD + g, xIII = WE - wIII, xE = xIII - g;
     // the design cell of Task 11 (8 inclusions r 25 um when shown); centre ray and an edge state of the input dither
@@ -3391,17 +3394,15 @@ const DitherLab = (() => {
     out.push(`<path d="M30 ${y0}L${xD + 15} ${y0}" stroke="${COL.beam}" stroke-width="3.2" fill="none"/>`);
     out.push(`<rect x="6" y="${y0 - 7}" width="22" height="14" rx="1.5" fill="#2b2a33"/><rect x="6" y="${y0 - 4}" width="22" height="8" fill="url(#gLas2)"/><rect x="28" y="${y0 - 5.5}" width="3.5" height="11" fill="#000"/>`);
     out.push(`<rect x="36" y="${y0 - 4.5}" width="12" height="9" fill="#c9cdd0" stroke="#8a9296" stroke-width="0.5"/><rect x="38.5" y="${y0 - 6}" width="7" height="12" fill="url(#gIso2)"/>`);
-    const xs_ = wI - 12;   // reference pick-off (beam splitter) to Det. R
+    const REF = ' stroke-dasharray="5 2.6"';   // reference beam: optical (beam colour), dashed to tell it from the signal path
     out.push(`<path d="M${xs_ - 3.5} ${y0 + 3.5}L${xs_ + 3.5} ${y0 - 3.5}" stroke="#5a6a6f" stroke-width="1.6"/>`);
-    line(`M${xs_} ${y0}L${xs_} ${y0 + 6}`, COL.grey, 2.6);
-    line(`M${xs_} ${y0 + 6}L${xs_} ${y0 + 8}`, COL.grey, 2.6);
-    out.push(`<rect x="5" y="${BY}" width="${wI - 10}" height="${BH}" rx="5" fill="#fff" stroke="#222" stroke-width="2"/>`);
-    txt(wI / 2, BY + BH / 2 - lh / 2 + 0.35 * fs, "Laser driving", { anchor: "middle" }); txt(wI / 2, BY + BH / 2 + lh / 2 + 0.35 * fs, "electronics", { anchor: "middle" });
+    out.push(`<rect x="5" y="${BY}" width="${bwE}" height="${BH}" rx="5" fill="#fff" stroke="#222" stroke-width="2"/>`);
+    txt(5 + bwE / 2, BY + BH / 2 - lh / 2 + 0.35 * fs, "Driver", { anchor: "middle" }); txt(5 + bwE / 2, BY + BH / 2 + lh / 2 + 0.35 * fs, "electronics", { anchor: "middle" });
     line(`M18 ${y0 + 7}L18 ${BY}`, COL.elec, 1.3, ELEC);
-    line(`M${xs_} ${BY + BH}L${xs_} ${refY}L${xE} ${refY}`, COL.grey, 3);
+    line(`M${xs_} ${y0 + 3}L${xs_} ${refY}L${xE} ${refY}`, COL.beam, 2.2, REF);
     // dither block: scanning mirror (angle + position) and scan lens
     const xm = xD + 15, xl = xD + wD - 9;
-    line(`M${wI - 5} ${BY + BH - 6}L${n2(xm)} ${BY + BH - 6}L${n2(xm)} ${y0 + 9}`, COL.elec, 1.3, ELEC);
+    line(`M${5 + bwE} ${BY + BH - 6}L${n2(xm)} ${BY + BH - 6}L${n2(xm)} ${y0 + 9}`, COL.elec, 1.3, ELEC);
     out.push(`<rect x="${n2(xm - 2)}" y="${y0 - 9}" width="4" height="18" fill="#9aa3ad" stroke="#5a6470" stroke-width="0.6" transform="rotate(-35 ${n2(xm)} ${y0})"/>`);
     line(`M${n2(xm - 7)} ${y0 - 12}A9 9 0 0 1 ${n2(xm + 7)} ${y0 - 12}`, COL.mut, 1, ' marker-end="none"');
     out.push(`<path d="M${n2(xm + 7)} ${y0 - 12}l-2.6 -1.6l0.4 2.8z M${n2(xm - 7)} ${y0 - 12}l2.6 -1.6l-0.4 2.8z" fill="${COL.mut}"/>`);
@@ -3441,7 +3442,7 @@ const DitherLab = (() => {
     };
     det(dyy[0], "Det. 1"); det(dyy[1], "Det. 2"); det(dyy[2], `Det. <tspan font-style="italic">N</tspan>`); det(refY, "Det. R", true);
     for (const d of [-3.6, 0, 3.6]) out.push(`<circle cx="${xIII + 20 + 11 + 8}" cy="${n2((dyy[1] + dyy[2]) / 2 + d)}" r="1.2" fill="${COL.ink}"/>`);
-    const leg = [["grating coupler", COL.gc, 5, ""], ["output WGs", COL.blue, 3, ""], ["ref. tap", COL.grey, 3, ""], ["free-space beam", COL.beam, 3, ""], ["electrical", COL.elec, 1.3, ELEC]];
+    const leg = [["grating coupler", COL.gc, 5, ""], ["output WGs", COL.blue, 3, ""], ["ref. beam", COL.beam, 2.2, REF], ["free-space beam", COL.beam, 3, ""], ["electrical", COL.elec, 1.3, ELEC]];
     if (p.inc) leg.push(["index inclusions", COL.inc, 0, "dot"]);
     let lx = 0, ly = HB + 4 + fs * 0.85;
     for (const [lab, col, w, ex] of leg) {
@@ -3479,7 +3480,7 @@ const DitherLab = (() => {
     pic(panelImgs.b, xb, 0, wb, rowH, none); T(xb, fs, "(b)");
     o.push(`<g transform="translate(0 ${n2(dy)})">`);   // (c), (d), (e) follow the (a), (b) row
     // (c) evanescent field
-    const cx0 = 0, cy0 = 164, cw = 74, ch = Math.round(COMP_CH * 0.88), mid = cy0 + ch / 2;
+    const cx0 = 0, cy0 = 164, cw = 74, ch = Math.round(COMP_CH - 2.35 * fs), mid = cy0 + ch / 2;
     
     const ne = neffSlab(lam, n, tNm * 1e-9, "TM"), gam = isFinite(ne) && ne > 1 ? 2 * Math.PI / lam * Math.sqrt(ne * ne - 1) : 1e7, dNm = 1e9 / (2 * gam);
     const sc = Math.min(0.12, (ch / 2 - 12) / (tNm / 2 + 3.4 * dNm)), hm = tNm * sc / 2, dpx = dNm * sc;

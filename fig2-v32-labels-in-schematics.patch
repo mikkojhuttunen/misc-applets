@@ -1,0 +1,108 @@
+From 38bf86bd5df26b12c9394d83b53c7e04ebee216b Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 06:23:45 +0000
+Subject: [PATCH] Fig. 2: panel labels inside the top-row schematics, Herriott
+ ports at bottom left
+
+Labels (a)-(d) and the Herriott scale bar sit inside the schematics on
+semi-transparent white boxes; the top row loses its title lines. The
+Herriott cells are drawn mirrored top to bottom (same simulation), so
+the port is at the bottom left and the label at the top left.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NLfEqncaEw1RGMDLUGdFgb
+---
+ QUIET_sims_v32/artifacts/fig2_v32.html | 40 +++++++++++++++++---------
+ 1 file changed, 27 insertions(+), 13 deletions(-)
+
+diff --git a/QUIET_sims_v32/artifacts/fig2_v32.html b/QUIET_sims_v32/artifacts/fig2_v32.html
+index f93e1a1..c5b3b63 100644
+--- a/QUIET_sims_v32/artifacts/fig2_v32.html
++++ b/QUIET_sims_v32/artifacts/fig2_v32.html
+@@ -2390,22 +2390,30 @@ onmessage = e => {
+     text(x, y, [L ? `(${letter})` : "", T ? str : ""].filter(Boolean).join(" "));
+   }
+ 
++  /* panel label inside a schematic, on a semi-transparent white box (drawn last, over rays and walls) */
++  function inTitle(x, y, letter, str) {
++    const L = $("letters").checked, T = $("titles").checked;
++    if (!L && !T) return;
++    const t = [L ? `(${letter})` : "", T ? str : ""].filter(Boolean).join(" "), pad = FSZ * 0.2;
++    rect(x, y, tw(t, FSZ) + 2 * pad, FSZ * 1.2, { fill: "#ffffff", fo: 0.75 });
++    text(x + pad, y + FSZ * 0.92, t);
++  }
+   function drawCircleCell(kind, x, y, d, s, col, letter, ttl) {
+     const S = run.cells["circle" + kind];
+-    title(x, y - FSZ * 0.3, letter, ttl);
+-    if (S.error) { waitNote(x, y, d, d, S.error); return; }
++    if (S.error) { inTitle(x, y, letter, ttl); waitNote(x, y, d, d, S.error); return; }
+     const c = S.mc.cell, cx = x + d / 2, cy = y + d / 2, X = v => cx + v * s, Y = v => cy - v * s;
+     rays("circle", kind, X, Y, col);
+     inclusionsOn(S.mc, X, Y, s);
+     for (let k = 0; k < c.E; k++) path(wallPts(c, k, c.kappa[k] ? 24 : 1).map(([u, v]) => [X(u), Y(v)]), { stroke: "#000", sw: 1.1, join: "round", cap: "round" });
+     ports(c, X, Y);
+-    /* the CMPC scale bar is drawn once, below the pair, in draw() */
++    inTitle(x, y, letter, ttl);
++    /* the CMPC scale bar is drawn once, between the pair, in draw() */
+   }
+   function drawHerriottCell(kind, x, y, w, h, s, col, letter, ttl) {
+     const S = run.cells["herriott" + kind];
+-    title(x, y - FSZ * 0.3, letter, ttl);
+-    if (S.error) { waitNote(x, y, w, h, S.error); return; }
+-    const c = S.mc.cell, m = c.meta, cx = x + w / 2, cy = y + h / 2, X = v => cx + v * s, Y = v => cy - v * s;
++    if (S.error) { inTitle(x, y, letter, ttl); waitNote(x, y, w, h, S.error); return; }
++    /* drawn mirrored top to bottom (a mirror image of the same simulation): the port sits at the bottom left, the label at the top left */
++    const c = S.mc.cell, m = c.meta, cx = x + w / 2, cy = y + h / 2, X = v => cx + v * s, Y = v => cy + v * s;
+     rays("herriott", kind, X, Y, col);
+     inclusionsOn(S.mc, X, Y, s);
+     for (let k = 0; k < c.E; k++) {
+@@ -2413,8 +2421,14 @@ onmessage = e => {
+       path(wallPts(c, k, c.prof[k] ? 48 : 2).map(([u, v]) => [X(u), Y(v)]), mir ? { stroke: "#000", sw: 1.4, cap: "round" } : { stroke: "#8c8c8c", sw: 0.6 });
+     }
+     ports(c, X, Y);
+-    if (kind === "regular") { const bar = niceLen(0.3 * m.d), right = cx + m.d / 2 * s, [bx, L] = scaleBar(right, y - FSZ * 0.3 - FSZ * 0.32, bar, s, true);   /* one bar serves both Herriott panels */
+-      text(bx - 4, y - FSZ * 0.3, lenLab(bar), { anchor: "end" }); }
++    const left = cx - m.d / 2 * s, right = cx + m.d / 2 * s;
++    inTitle(left + FSZ * 0.35, y + FSZ * 0.1, letter, ttl);
++    if (kind === "regular") {   /* one bar serves both Herriott panels: inside (c), top right, on the same kind of box */
++      const bar = niceLen(0.3 * m.d), lab = lenLab(bar), tl = tw(lab, FSZ), pad = FSZ * 0.2, xr = right - FSZ * 0.35, wbox = tl + 4 + bar * s + 2 * pad;
++      rect(xr - wbox, y + FSZ * 0.1, wbox, FSZ * 1.2, { fill: "#ffffff", fo: 0.75 });
++      scaleBar(xr - pad, y + FSZ * 0.62, bar, s, true);
++      text(xr - pad - bar * s - 4, y + FSZ * 1.02, lab, { anchor: "end" });
++    }
+   }
+ 
+   /* Poincaré map: dots de-duplicated on a 0.12 pt grid, then thinned evenly to the cap; or a 600 dpi raster */
+@@ -2652,24 +2666,24 @@ onmessage = e => {
+     $("sheet").style.maxWidth = `${Math.round(W * 2.2)}px`;
+     ops = [];
+     if (!run.p) { $("sheet").innerHTML = ""; return; }
+-    const fs = FSZ, m0 = fs * 0.3, yt1 = fs * 1.3, rowGap = fs * 1.8, MB = fs * 2.7;
++    const fs = FSZ, m0 = fs * 0.3, yt1 = fs * 0.3, rowGap = fs * 1.8, MB = fs * 2.7;
+     const avail = H - yt1 - rowGap - MB, h1m = avail * +$("rayShare").value;
+     let h1 = h1m, h2 = avail - h1m;   /* the ray-trace height share is a maximum: the row shrinks to what the cells need, the rest goes to row 2 */
+     /* row 1: the two CMPCs as squares, the two Herriott side views stacked to their right */
+     const g1 = fs * 0.9, dC = Math.max(20, Math.min(h1m, (W - 2 * m0) * 0.27) * 0.8);
+-    const xh = m0 + 2 * dC + 2 * g1, wH = W - m0 - xh, hb0 = (h1m - fs * 1.25) / 2;
++    const xh = m0 + 2 * dC + 2 * g1, wH = W - m0 - xh, hb0 = (h1m - fs * 0.5) / 2;
+     const Sc = run.cells.circlecurrent, Sh = run.cells.herriottcurrent;
+     let sC = Sc.error ? 1 : dC / 2 / (Sc.mc.cell.meta.r * 1.03);
+     let sH = Sh.error ? 1 : Math.min(wH / (Sh.mc.cell.meta.d * 1.04), hb0 / (2 * Sh.mc.cell.meta.aperture * 1.1));
+     if ($("sameScale").checked) sC = sH = Math.min(sC, sH);
+     const hbN = Sh.error ? hb0 : Math.min(hb0, 2 * Sh.mc.cell.meta.aperture * 1.1 * sH);   /* height of one Herriott cell, no extra margin */
+-    const gT = fs * 1.15;   /* room for the title of the lower cell between the two */
+-    h1 = Math.max(dC + fs * 0.5, 2 * hbN + gT); h2 = avail - h1;
++    const gT = fs * 0.5;   /* the labels sit inside the cells, so the two Herriott views only need a small gap */
++    h1 = Math.max(dC, 2 * hbN + gT); h2 = avail - h1;
+     const hb = hbN, gH = gT + Math.min(h1 - 2 * hbN - gT, fs * 1.0);
+     drawCircleCell("regular", m0, yt1, dC, sC, $("colCR").value, "a", "R-CMPC");
+     drawCircleCell("current", m0 + dC + g1, yt1, dC, sC, $("colCC").value, "b", "C-CMPC");
+     if (!Sc.error) {   /* one scale bar for both CMPC panels, centred below the pair in the space the shorter cells leave */
+-      const bar = niceLen(0.4 * Sc.mc.cell.meta.r), lab = lenLab(bar), tl = tw(lab, fs), x0 = m0 + dC + g1 / 2 - (tl + 4 + bar * sC) / 2, yb = yt1 + dC - fs * 0.05;
++      const bar = niceLen(0.4 * Sc.mc.cell.meta.r), lab = lenLab(bar), tl = tw(lab, fs), x0 = m0 + dC + g1 / 2 - (tl + 4 + bar * sC) / 2, yb = yt1 + dC - fs * 0.3;
+       text(x0, yb + fs * 0.33, lab); scaleBar(x0 + tl + 4, yb, bar, sC, false);
+     }
+     drawHerriottCell("regular", xh, yt1, wH, hb, sH, $("colHR").value, "c", "R-Herriott");
+-- 
+2.43.0
+

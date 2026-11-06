@@ -541,6 +541,21 @@ two lasers, here each line for T/2). 10 mm design, 15 s: σ(CH₄) 3.6 ppb, σ(C
 sources; at ambient C₂H₆ (1–3 ppb) the ratio is not resolved. The CH₄ absorption under the C₂H₆ Q-branch is not removed in
 this estimate (a two-species fit would add its covariance).
 
+## 6g. Task 12: 100 ms breath measurements (CH₄, C₂H₆, NH₃)
+
+`scripts/t12_fast.py` → `results/t12/fast.json`, `results/t12/table.md`, `figs/t12_fast.pdf`; technical report with setup
+considerations: `reports/breath_100ms_technical_report.md`. Model: the Task 11 runs at T = 0.1–2 s, fringe drift 0.1 / 0.05 / 0.02 rad/s,
+optional breath referencing (baseline every 3 s: the static fringe is left as 2 sin(wτ/2) = 0.30 at 0.1 rad/s), detector 14 pW/√Hz or
+1 nW/√Hz, 10 or 20 mW; HITRAN fits of one-laser CH₄ + C₂H₆ windows; gas exchange of the cartridge.
+
+- 0.1 s, 10 mm, R 99.5 %, referenced: CH₄ 1.35 ppb, C₂H₆ 1.71 ppb, NH₃ 230 ppb (raw: 3.5 / 4.5 / 316 ppb; drift 0.02 rad/s:
+  0.75 / 0.95 / 219 ppb). The static fringe, not the detector, sets the 3.3 µm limit at 100 ms; NH₃ is detector-limited.
+- One laser at 2990 cm⁻¹ (C₂H₆ 2990.06, CH₄ 2988.93/2989.02 cm⁻¹), line hopping 80/20: C₂H₆ 1.9 ppb, CH₄ 5.2 ppb at 0.1 s; a
+  full-window fit costs 6.6× (C₂H₆) and 14× (CH₄).
+- Gas exchange: 10 × 10 mm × 0.3 mm channel = 30 µL, 30 ms at 1 mL/s; diffusion 2–3 ms.
+- Assumptions to test first: drift rate, fringe spectral correlation, laser current tuning, condensation (heat the cartridge).
+- Fig. 3 artifact: analysis times 0.01–60 s, breath referencing toggle, line-hopping ratio readout; Fig. 2 artifact: 0.1 s column.
+
 ## 7. Task 6: inclusions
 
 `results/t6/`. One parameter at a time around 16 discs × Δn_eff 0.01 × r 50 µm (circle, set-B near-IR, R 97 %,

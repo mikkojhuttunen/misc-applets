@@ -204,12 +204,12 @@ table.vals thead th { font: 700 11px var(--f-ui); color: var(--muted); }
         <h2>Figure size</h2>
         <div class="sizes">
           <div class="ctl"><div class="row"><label for="figW">Width</label><output id="figWOut"></output></div><input id="figW" type="range" min="12" max="26" step="0.1" value="16.8"></div>
-          <div class="ctl"><div class="row"><label for="figH">Height</label><output id="figHOut"></output></div><input id="figH" type="range" min="6" max="24" step="0.1" value="9"></div>
+          <div class="ctl"><div class="row"><label for="figH">Height</label><output id="figHOut"></output></div><input id="figH" type="range" min="6" max="24" step="0.1" value="8.5"></div>
           <div class="ctl"><div class="row"><label for="fs">Font size</label><output id="fsOut"></output></div><input id="fs" type="range" min="7" max="12" step="0.5" value="10"></div>
           <div class="ctl"><div class="row"><label for="rayShare">Height share of the ray traces</label><output id="rayShareOut"></output></div><input id="rayShare" type="range" min="0.25" max="0.6" step="0.01" value="0.58"></div>
           <div class="ctl"><div class="row"><label for="poinShare">Width share of the Poincaré maps</label><output id="poinShareOut"></output></div><input id="poinShare" type="range" min="0.35" max="0.7" step="0.01" value="0.59"></div>
         </div>
-        <div class="btns"><button type="button" id="szF">16.8 × 9 cm, 10 pt (default)</button><button type="button" id="szE">21 × 11.1 cm, 10 pt</button><button type="button" id="szA">17 × 13 cm</button><button type="button" id="szB">18 × 14 cm</button><button type="button" id="szC">22 × 15 cm</button><button type="button" id="szD">8.5 × 11 cm, 7 pt</button></div>
+        <div class="btns"><button type="button" id="szF">16.8 × 8.5 cm, 10 pt (default)</button><button type="button" id="szE">21 × 10.4 cm, 10 pt</button><button type="button" id="szA">17 × 13 cm</button><button type="button" id="szB">18 × 14 cm</button><button type="button" id="szC">22 × 15 cm</button><button type="button" id="szD">8.5 × 11 cm, 7 pt</button></div>
       </div>
       <div class="panel">
         <h2>Export</h2>
@@ -2369,22 +2369,30 @@ onmessage = e => {
     text(x, y, [L ? `(${letter})` : "", T ? str : ""].filter(Boolean).join(" "));
   }
 
+  /* panel label inside a schematic, on a semi-transparent white box (drawn last, over rays and walls) */
+  function inTitle(x, y, letter, str) {
+    const L = $("letters").checked, T = $("titles").checked;
+    if (!L && !T) return;
+    const t = [L ? `(${letter})` : "", T ? str : ""].filter(Boolean).join(" "), pad = FSZ * 0.2;
+    rect(x, y, tw(t, FSZ) + 2 * pad, FSZ * 1.2, { fill: "#ffffff", fo: 0.75 });
+    text(x + pad, y + FSZ * 0.92, t);
+  }
   function drawCircleCell(kind, x, y, d, s, col, letter, ttl) {
     const S = run.cells["circle" + kind];
-    title(x, y - FSZ * 0.3, letter, ttl);
-    if (S.error) { waitNote(x, y, d, d, S.error); return; }
+    if (S.error) { inTitle(x, y, letter, ttl); waitNote(x, y, d, d, S.error); return; }
     const c = S.mc.cell, cx = x + d / 2, cy = y + d / 2, X = v => cx + v * s, Y = v => cy - v * s;
     rays("circle", kind, X, Y, col);
     inclusionsOn(S.mc, X, Y, s);
     for (let k = 0; k < c.E; k++) path(wallPts(c, k, c.kappa[k] ? 24 : 1).map(([u, v]) => [X(u), Y(v)]), { stroke: "#000", sw: 1.1, join: "round", cap: "round" });
     ports(c, X, Y);
-    /* the CMPC scale bar is drawn once, below the pair, in draw() */
+    inTitle(x, y, letter, ttl);
+    /* the CMPC scale bar is drawn once, between the pair, in draw() */
   }
   function drawHerriottCell(kind, x, y, w, h, s, col, letter, ttl) {
     const S = run.cells["herriott" + kind];
-    title(x, y - FSZ * 0.3, letter, ttl);
-    if (S.error) { waitNote(x, y, w, h, S.error); return; }
-    const c = S.mc.cell, m = c.meta, cx = x + w / 2, cy = y + h / 2, X = v => cx + v * s, Y = v => cy - v * s;
+    if (S.error) { inTitle(x, y, letter, ttl); waitNote(x, y, w, h, S.error); return; }
+    /* drawn mirrored top to bottom (a mirror image of the same simulation): the port sits at the bottom left, the label at the top left */
+    const c = S.mc.cell, m = c.meta, cx = x + w / 2, cy = y + h / 2, X = v => cx + v * s, Y = v => cy + v * s;
     rays("herriott", kind, X, Y, col);
     inclusionsOn(S.mc, X, Y, s);
     for (let k = 0; k < c.E; k++) {
@@ -2392,8 +2400,14 @@ onmessage = e => {
       path(wallPts(c, k, c.prof[k] ? 48 : 2).map(([u, v]) => [X(u), Y(v)]), mir ? { stroke: "#000", sw: 1.4, cap: "round" } : { stroke: "#8c8c8c", sw: 0.6 });
     }
     ports(c, X, Y);
-    if (kind === "regular") { const bar = niceLen(0.3 * m.d), right = cx + m.d / 2 * s, [bx, L] = scaleBar(right, y - FSZ * 0.3 - FSZ * 0.32, bar, s, true);   /* one bar serves both Herriott panels */
-      text(bx - 4, y - FSZ * 0.3, lenLab(bar), { anchor: "end" }); }
+    const left = cx - m.d / 2 * s, right = cx + m.d / 2 * s;
+    inTitle(left + FSZ * 0.35, y + FSZ * 0.1, letter, ttl);
+    if (kind === "regular") {   /* one bar serves both Herriott panels: inside (c), top right, on the same kind of box */
+      const bar = niceLen(0.3 * m.d), lab = lenLab(bar), tl = tw(lab, FSZ), pad = FSZ * 0.2, xr = right - FSZ * 0.35, wbox = tl + 4 + bar * s + 2 * pad;
+      rect(xr - wbox, y + FSZ * 0.1, wbox, FSZ * 1.2, { fill: "#ffffff", fo: 0.75 });
+      scaleBar(xr - pad, y + FSZ * 0.62, bar, s, true);
+      text(xr - pad - bar * s - 4, y + FSZ * 1.02, lab, { anchor: "end" });
+    }
   }
 
   /* Poincaré map: dots de-duplicated on a 0.12 pt grid, then thinned evenly to the cap; or a 600 dpi raster */
@@ -2617,24 +2631,26 @@ onmessage = e => {
     $("sheet").style.maxWidth = `${Math.round(W * 2.2)}px`;
     ops = [];
     if (!run.p) { $("sheet").innerHTML = ""; return; }
-    const fs = FSZ, m0 = fs * 0.3, yt1 = fs * 1.3, rowGap = fs * 1.8, MB = fs * 2.7;
+    const fs = FSZ, m0 = fs * 0.3, yt1 = fs * 0.3, rowGap = fs * 1.4, MB = fs * 2.45;
     const avail = H - yt1 - rowGap - MB, h1m = avail * +$("rayShare").value;
     let h1 = h1m, h2 = avail - h1m;   /* the ray-trace height share is a maximum: the row shrinks to what the cells need, the rest goes to row 2 */
     /* row 1: the two CMPCs as squares, the two Herriott side views stacked to their right */
-    const g1 = fs * 0.9, dC = Math.max(20, Math.min(h1m, (W - 2 * m0) * 0.27) * 0.8);
-    const xh = m0 + 2 * dC + 2 * g1, wH = W - m0 - xh, hb0 = (h1m - fs * 1.25) / 2;
+    const g1 = fs * 0.9, dC0 = Math.max(20, Math.min(h1m, (W - 2 * m0) * 0.27) * 0.8);
+    const xh = m0 + 2 * dC0 + 2 * g1, wH = W - m0 - xh, hb0 = (h1m - fs * 0.5) / 2;
     const Sc = run.cells.circlecurrent, Sh = run.cells.herriottcurrent;
-    let sC = Sc.error ? 1 : dC / 2 / (Sc.mc.cell.meta.r * 1.03);
     let sH = Sh.error ? 1 : Math.min(wH / (Sh.mc.cell.meta.d * 1.04), hb0 / (2 * Sh.mc.cell.meta.aperture * 1.1));
-    if ($("sameScale").checked) sC = sH = Math.min(sC, sH);
     const hbN = Sh.error ? hb0 : Math.min(hb0, 2 * Sh.mc.cell.meta.aperture * 1.1 * sH);   /* height of one Herriott cell, no extra margin */
-    const gT = fs * 1.15;   /* room for the title of the lower cell between the two */
-    h1 = Math.max(dC + fs * 0.5, 2 * hbN + gT); h2 = avail - h1;
-    const hb = hbN, gH = gT + Math.min(h1 - 2 * hbN - gT, fs * 1.0);
+    const gT = fs * 0.5;   /* the labels sit inside the cells, so the two Herriott views only need a small gap */
+    /* the CMPCs shrink to the height of the two stacked Herriott views, so row 1 is as tall as the Herriott pair and no taller */
+    const dC = Sh.error ? dC0 : Math.max(20, Math.min(dC0, 2 * hbN + gT));
+    let sC = Sc.error ? 1 : dC / 2 / (Sc.mc.cell.meta.r * 1.03);
+    if ($("sameScale").checked) sC = sH = Math.min(sC, sH);
+    h1 = Math.max(dC, 2 * hbN + gT); h2 = avail - h1;
+    const hb = hbN, gH = gT;
     drawCircleCell("regular", m0, yt1, dC, sC, $("colCR").value, "a", "R-CMPC");
     drawCircleCell("current", m0 + dC + g1, yt1, dC, sC, $("colCC").value, "b", "C-CMPC");
     if (!Sc.error) {   /* one scale bar for both CMPC panels, centred below the pair in the space the shorter cells leave */
-      const bar = niceLen(0.4 * Sc.mc.cell.meta.r), lab = lenLab(bar), tl = tw(lab, fs), x0 = m0 + dC + g1 / 2 - (tl + 4 + bar * sC) / 2, yb = yt1 + dC - fs * 0.05;
+      const bar = niceLen(0.4 * Sc.mc.cell.meta.r), lab = lenLab(bar), tl = tw(lab, fs), x0 = m0 + dC + g1 / 2 - (tl + 4 + bar * sC) / 2, yb = yt1 + dC - fs * 0.3;
       text(x0, yb + fs * 0.33, lab); scaleBar(x0 + tl + 4, yb, bar, sC, false);
     }
     drawHerriottCell("regular", xh, yt1, wH, hb, sH, $("colHR").value, "c", "R-Herriott");
@@ -2646,12 +2662,12 @@ onmessage = e => {
     const MAPS = [["herriott", "regular", "R-Herriott", "colHR", 0, 0], ["circle", "regular", "R-CMPC", "colCR", 1, 0],
       ["herriott", "current", "C-Herriott", "colHC", 0, 1], ["circle", "current", "C-CMPC", "colCC", 1, 1]];
     for (const [c, k, lab, col, i, j] of MAPS) poinMap(c, k, LAX + i * (mw + gx), y2 + j * (mh + gy), mw, mh, $(col).value, lab, i === 0, j === 1);
-    text(LAX + wP / 2, y2 + h2 + fs * 2.45, "Position along the wall s / perimeter", { anchor: "middle" });
+    text(LAX + wP / 2, y2 + h2 + fs * 2.2, "Position along the wall s / perimeter", { anchor: "middle" });
     text(LAX - fs * 1.95, y2 + h2 / 2, "sin χ", { anchor: "middle", rot: true });
     const xb = LAX + wP + colGap, wB = W - MR - xb;
     title(xb - fs * 1.2, y2 - fs * 0.45, "f", "Static residual fringe");
     bars(xb, y2, wB, h2);
-    text(xb + wB / 2, y2 + h2 + fs * 2.45, "Dither", { anchor: "middle" });
+    text(xb + wB / 2, y2 + h2 + fs * 2.2, "Dither", { anchor: "middle" });
     text(xb - fs * 3.0, y2 + h2 / 2, "Fringe amplitude ΔP/P", { anchor: "middle", rot: true });
     lastSvg = toSvg(W, H);
     $("sheet").innerHTML = lastSvg;
@@ -2889,8 +2905,8 @@ onmessage = e => {
   for (const el of document.querySelectorAll("input, select")) el.addEventListener("input", () => { if (el.closest("fieldset") && /^(sp|bud|dA|dL|dWave|lWave|cR|cNf|cTh|cOf|nInc[CH]|incR[CH]|incDn[CH]|incSeed[CH]|hL|hW|hN|hM)$/.test(el.id)) { syncOut(); runStatus(); } else draw(); });
   $("run").onclick = start;
   const setSize = (w, h, f) => { $("figW").value = w; $("figH").value = h; if (f) $("fs").value = f; draw(); };
-  $("szF").onclick = () => { setSize(16.8, 9, 10); $("rayShare").value = 0.58; $("poinShare").value = 0.59; draw(); };
-  $("szE").onclick = () => setSize(21, 11.1, 10); $("szA").onclick = () => setSize(17, 13); $("szB").onclick = () => setSize(18, 14); $("szC").onclick = () => setSize(22, 15); $("szD").onclick = () => setSize(8.5, 11, 7);
+  $("szF").onclick = () => { setSize(16.8, 8.5, 10); $("rayShare").value = 0.58; $("poinShare").value = 0.59; draw(); };
+  $("szE").onclick = () => setSize(21, 10.4, 10); $("szA").onclick = () => setSize(17, 13); $("szB").onclick = () => setSize(18, 14); $("szC").onclick = () => setSize(22, 15); $("szD").onclick = () => setSize(8.5, 11, 7);
   $("colReset").onclick = () => { for (const [k, v] of Object.entries(LAB_COLS)) $(k).value = v; draw(); };
   $("colGrey").onclick = () => { $("colHR").value = "#9a9a9a"; $("colCR").value = "#9a9a9a"; draw(); robDraw(); };
   for (const id of ["colCR", "colCC"]) $(id).addEventListener("input", () => robDraw());

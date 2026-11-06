@@ -21,6 +21,7 @@ line files in `../HITRAN/hitran_data`).
 | `scripts/run_t9b.sh`, `t9_raytrace_dump.js`, `t9_raytrace_figure.py` | Task 9b: wide sweeps (±30–60 mrad), combinations, line smearing (`results/t9b/`), ray-trace figure `figs/dither_raytrace.pdf` |
 | `scripts/t10_design.js`, `run_t10.sh`, `t10_analysis.py`, `t10_figure.py` | Task 10 design levers: input / output ports, inclusions, cell size 4–20 mm (`results/t10/`, `figs/t10_cell_size.pdf`) |
 | `scripts/t11_sizes.js`, `run_t11.sh`, `t11_analysis.py`; `build_fig1_gc.py`, `build_fig23_v32.py` | Task 11 grating-coupler design at 5–20 mm (`results/t11/`); the Fig. 1–3 artifact builders (`artifacts/`) |
+| `scripts/t12_fast.py`, `reports/breath_100ms_technical_report.md` | Task 12: 100 ms breath measurements (`results/t12/`, `figs/t12_fast.pdf`), technical report with setup considerations |
 | `tests/test_t1_regression.py` | task-1 regression, including a bit-for-bit rerun against the published ensembles |
 
 Figures for the proposal: `figs/fig2ef_setB_R0.95.pdf` (Fig. 2 e, f at R = 95 %; R0.97 / R0.995 variants),

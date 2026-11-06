@@ -173,7 +173,7 @@ def pack3(path, lg, rep=None):
     cur = {"gamma": g0, "L_mean_m": q([x["L_mean_m"] for x in c], .5), "T_trans": q([x["T_trans"] for x in c], .5), "M2": q([x["M2"] for x in c], .5),
            "Ls_m": Ls, "Ws": Ws, "env": env, "env_lo": lo, "env_hi": hi, "floor": {m: q([x["floor"][m] for x in c], .5) for m in MODES},
            "R_bounce": q([x["R_bounce"] for x in c], .5),
-           "lay": {"fr": {str(T): [atT(x["env"]["both"], T) for x in c] for T in (1, 15, 30, 60)}, "none": {str(T): [atT(x["env"]["none"], T) for x in c] for T in (1, 15, 30, 60)},
+           "lay": {"fr": {str(T): [atT(x["env"]["both"], T) for x in c] for T in (0.01, 0.1, 0.5, 1, 15, 30, 60)}, "none": {str(T): [atT(x["env"]["none"], T) for x in c] for T in (0.01, 0.1, 0.5, 1, 15, 30, 60)},
                    "fl": [x["floor"]["both"] for x in c], "fln": [x["floor"]["none"] for x in c], "T": [x["T_trans"] for x in c], "L": [x["L_mean_m"] for x in c]}}
     g = r["regular"]
     reg = {"gamma": g0, "L_mean_m": g["L_mean_m"], "T_trans": g["T_trans"], "M2": g["M2"], "Ls_m": Lr, "Ws": Wr, "env": g["env"], "floor": g["floor"]}
@@ -587,10 +587,10 @@ def build2_design(s):
   }
   function gcTable() {
     const cs = GC.cases[$("gcCase").value], nir = $("gcCase").value.startsWith("nir"), gases = nir ? ["NH3"] : ["CH4", "C2H6"], f = v => v >= 100 ? Math.round(v) : +v.toPrecision(2);
-    let h = `<thead><tr><th>cell</th><th>T</th><th>Γ⟨L⟩ cm</th><th>M</th><th>static fringe, both</th>${gases.map(g => `<th>${g} 1 s</th><th>${g} 15 s</th><th>${g} 30 s</th>`).join("")}${nir ? "" : "<th>CH4 30 s, NEP 1 nW/√Hz</th>"}</tr></thead><tbody>`;
+    let h = `<thead><tr><th>cell</th><th>T</th><th>Γ⟨L⟩ cm</th><th>M</th><th>static fringe, both</th>${gases.map(g => `<th>${g} 0.1 s</th><th>${g} 1 s</th><th>${g} 15 s</th><th>${g} 30 s</th>`).join("")}${nir ? "" : "<th>CH4 30 s, NEP 1 nW/√Hz</th>"}</tr></thead><tbody>`;
     for (const c of ["d4ref", ...GC.sizes]) { const t = cs.table[c];
       h += `<tr${c === gcSel ? ' style="font-weight:700"' : ""}><td>${c === "d4ref" ? "4 mm, 16 × 50 µm" : GC_D[c] + " mm"}</td><td>${t.T.toFixed(4)}</td><td>${t.GL_cm.toFixed(1)}</td><td>${Math.round(t.M)}</td><td>${t.static[1].toExponential(1)}</td>`
-        + gases.map(g => [1, 15, 30].map(T => `<td>${f(t.lim[`${g}_${T}s_NEP14pW`])} ppb</td>`).join("")).join("") + (nir ? "" : `<td>${f(t.lim["CH4_30s_NEP1000pW"])} ppb</td>`) + "</tr>"; }
+        + gases.map(g => [0.1, 1, 15, 30].map(T => `<td>${f(t.lim[`${g}_${T}s_NEP14pW`])} ppb</td>`).join("")).join("") + (nir ? "" : `<td>${f(t.lim["CH4_30s_NEP1000pW"])} ppb</td>`) + "</tr>"; }
     return h + "</tbody>";
   }
   const gcSize = () => ({ w: +$("gcW").value, h: +$("gcH").value, fs: +$("gcFs").value });
@@ -719,12 +719,71 @@ def build3_gc(s):
     return s
 
 
+def apply_external(s, name):
+    """Edits made on the published artifact by another session (CH4 default, 0.1 s default, NH3 strip optional, layout
+    tweaks): kept as a unified diff against the build3 + build3_gc output and re-applied on every build."""
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        src, out = Path(d) / "in.html", Path(d) / "out.html"
+        src.write_text(s, encoding="utf-8")
+        r = subprocess.run(["patch", "-s", "-o", str(out), str(src), str(ART / name)], capture_output=True, text=True)
+        assert r.returncode == 0, r.stdout + r.stderr
+        return out.read_text(encoding="utf-8")
+
+
+def build3_fast(s):
+    """Task 12: 0.1 / 0.5 s analysis times, breath referencing (baseline every 3 s: the static fringe is left as its change
+    2 sin(w tau / 2) = 0.30 at 0.1 rad/s), and a one-laser C2H6 + CH4 line-hopping ratio readout (2990 /cm window,
+    results/t12/fast.json)."""
+    W = json.load(open(ROOT / "results" / "t12" / "fast.json"))["windows"]["W2990"]["alpha_sm_peak_per_ppm_cm"]
+    s = rep_(s, '<option>0.1</option><option>1</option><option>15</option>', '<option>0.1</option><option>0.5</option><option>1</option><option>15</option>')
+    s = rep_(s, '<input type="checkbox" id="drift" checked> fringe drift 0.1 rad/s (static fringe averages down)</label>',
+             '<input type="checkbox" id="drift" checked> fringe drift 0.1 rad/s (static fringe averages down)</label>'
+             '<label class="check"><input type="checkbox" id="bref"> breath referencing every 3 s (fringe × 0.30)</label>')
+    s = rep_(s, '<label>C₂H₆ / CH₄ ratio (each line measured for T/2)</label><div class="checks">',
+             '<label>C₂H₆ / CH₄ ratio</label><select id="rMode"><option value="hop" selected>one laser, line hopping at 2990 cm⁻¹ (80 % C₂H₆ / 20 % CH₄)</option>'
+             '<option value="seq">main lines in turn, T/2 each (3.31 / 3.34 µm)</option></select><div class="checks">')
+    s = rep_(s, '  function applyDrift() {\n',
+             f'  const BREF = 2 * Math.sin(0.1 * 3 / 2), AW = {{ CH4: {W["CH4"]:.5g}, C2H6: {W["C2H6"]:.5g} }}, FR = {{ CH4: 0.2, C2H6: 0.8 }};\n'
+             '  function applyDrift() { applyDrift0(); applyRef(); }\n'
+             '  /* breath referencing: a baseline every 3 s leaves the static fringe as its change over 3 s; the AC part below the dither period is untouched */\n'
+             '  function applyRef() {\n'
+             '    if (!document.getElementById("bref").checked) return;\n'
+             '    const sc = a => a.map((v, i) => v * (BREF + (1 - BREF) / Math.sqrt(1 + 2 * (Math.PI * 1000 * D.T[i]) ** 2)));   /* rolls in above the 1 kHz dither period */\n'
+             '    for (const o of [cur, reg, lcur, lreg, tcur, treg, mcur]) { if (!o) continue;\n'
+             '      o.env = Object.fromEntries(MODES.map(m => [m, sc(o.env[m])]));\n'
+             '      if (o.env_lo) { o.env_lo = Object.fromEntries(MODES.map(m => [m, sc(o.env_lo[m])])); o.env_hi = Object.fromEntries(MODES.map(m => [m, sc(o.env_hi[m])])); }\n'
+             '    }\n'
+             '  }\n'
+             '  function applyDrift0() {\n')
+    s = rep_(s, 'const fr = Ly.fr[TA].map((v, i) => dr ? v : Math.max(v, Ly.fl[i])),',
+             'const fr = Ly.fr[TA].map((v, i) => (dr ? v : Math.max(v, Ly.fl[i])) * ($("bref").checked ? BREF : 1)),')
+    s = rep_(s, '    const x = DSX.data, o = x.mir ? x.mir.cur : cur0, sim = !!x.mir, s = {};\n',
+             '    const x = DSX.data, o = x.mir ? x.mir.cur : cur0, sim = !!x.mir, s = {}, hop = $("rMode").value === "hop";\n')
+    s = rep_(s, '      const st = D.strips.find(q => q.key === key), al = Math.max(...st.analyte_per_ppm) * ((DSX.smear || {})[g] || 1), Th = T / 2;\n'
+                '      s[g] = Math.hypot(interpLog(o.env.both, Th), noiseAt(o, Th, lam)) / (o.gamma * o.L_mean_m * 100 * al) * 1e3;   /* ppb */',
+             '      const st = D.strips.find(q => q.key === key), al = hop ? AW[g] : Math.max(...st.analyte_per_ppm) * ((DSX.smear || {})[g] || 1), Th = hop ? T : T / 2;\n'
+             '      /* line hopping: both lines in every frame, the white part over the dwell fraction; the fringe residual is common */\n'
+             '      s[g] = Math.hypot(interpLog(o.env.both, Th), noiseAt(o, Th, lam) / (hop ? Math.sqrt(FR[g]) : 1)) / (o.gamma * o.L_mean_m * 100 * al) * 1e3;   /* ppb */')
+    s = rep_(s, '; 1.53 µm cell scaled"}). CH₄ absorption under the C₂H₆ line not removed.`;',
+             '; 1.53 µm cell scaled"}).${hop ? " One laser at 2990 cm⁻¹: C₂H₆ 2990.06 and CH₄ 2988.9–2989.0 cm⁻¹ peaks (±81 pm dither), 80/20 % dwell per frame; breath H₂O next to the CH₄ line needs tracking." : " CH₄ absorption under the C₂H₆ line not removed."}`;')
+    s = rep_(s, '  $("drift").addEventListener("change", () => { applyDrift(); relabel(); draw(); });',
+             '  $("drift").addEventListener("change", () => { applyDrift(); relabel(); draw(); });\n'
+             '  $("bref").addEventListener("change", () => { applyDrift(); relabel(); draw(); });\n'
+             '  $("rMode").addEventListener("change", () => draw());')
+    s = rep_(s, 'fringe_drift: $("drift").checked ?', 'breath_referencing_3s: $("bref").checked, ratio_mode: $("rMode").value, fringe_drift: $("drift").checked ?')
+    return s
+
+
 def main():
     s2 = build2(open(ART / "fig2_src_live.html", encoding="utf-8").read())
     s2 = build2_design(s2)
     (ART / "fig2_v32.html").write_text(s2, encoding="utf-8")
     s3 = build3(open(ART / "fig3_src_live.html", encoding="utf-8").read())
     s3 = build3_gc(s3)
+    s3 = apply_external(s3, "fig3_external_edits.patch")
+    s3 = build3_fast(s3)
     (ART / "fig3_v32.html").write_text(s3, encoding="utf-8")
     print("ok", len(s2), len(s3))
 

@@ -1,0 +1,182 @@
+--- fig3_v32.html
++++ fig3_v32.html
+@@ -82,7 +82,7 @@
+             <th>±1σ band</th></tr></thead>
+           <tbody id="mtx"></tbody>
+         </table>
+-        <div class="btns"><button type="button" id="allBoth">Both on every strip</button><button type="button" id="clearAll">Clear</button><button type="button" id="drop5" aria-pressed="true" title="Hide the NO strip at 5.26 µm (range likely dropped from the proposal)">Restore 5 µm strip (NO)</button></div>
++        <div class="btns"><button type="button" id="allBoth">Both on every strip</button><button type="button" id="clearAll">Clear</button><button type="button" id="drop5" aria-pressed="true" title="Hide the NO strip at 5.26 µm (range likely dropped from the proposal)">Restore 5 µm strip (NO)</button><button type="button" id="dropNH3" aria-pressed="true" title="Hide the NH3 strip at 1.53 µm (dropped from the proposal figure)">Restore 1.53 µm strip (NH₃)</button></div>
+         <div class="ctl"><div class="row"><label for="avgT">Averaging time T</label><output id="avgTOut"></output></div>
+           <input id="avgT" type="range" min="-5" max="2" step="0.01" value="0"></div>
+         <div class="ctl"><div class="row"><label for="alpha">Trace opacity</label><output id="alphaOut"></output></div>
+@@ -108,12 +108,12 @@
+         <legend>Panel (b): data and noise</legend>
+         <div class="ctl"><label for="dset3">Data set</label><select id="dset3"><option value="G5">grating-coupler design, 5 mm cell (Task 11)</option><option value="G10" selected>grating-coupler design, 10 mm cell (Task 11)</option><option value="G15">grating-coupler design, 15 mm cell (Task 11)</option><option value="G20">grating-coupler design, 20 mm cell (Task 11)</option><option value="B03">v32 set B: 500 nm SiNx, 1.53 µm, 0.3 dB/cm (default)</option><option value="B05">v32 set B: 500 nm SiNx, 1.53 µm, 0.5 dB/cm</option><option value="S10">earlier: step 10, 600 nm SiNx, R(χ) tables</option><option value="A">published (set A: n_eff 2, Γ 0.2, R 99.5 %, no loss)</option></select></div>
+         <div class="btns" id="gcBtns3"><span class="sel">design cell</span><button type="button" data-ds="G5" aria-pressed="false">5 mm</button><button type="button" data-ds="G10" aria-pressed="true">10 mm</button><button type="button" data-ds="G15" aria-pressed="false">15 mm</button><button type="button" data-ds="G20" aria-pressed="false">20 mm</button></div>
+-        <div class="ctl"><label>Gas line of (b)</label><div class="btns" id="spBtns"><button type="button" data-sp="NH3" aria-pressed="true">NH₃ 1.53 µm</button><button type="button" data-sp="CH4" aria-pressed="false">CH₄ 3.31 µm</button><button type="button" data-sp="C2H6" aria-pressed="false">C₂H₆ 3.34 µm</button></div><p class="hint" id="spNote"></p></div>
++        <div class="ctl"><label>Gas line of (b)</label><div class="btns" id="spBtns"><button type="button" data-sp="CH4" aria-pressed="true">CH₄ 3.31 µm</button><button type="button" data-sp="C2H6" aria-pressed="false">C₂H₆ 3.34 µm</button></div><p class="hint" id="spNote"></p></div>
+         <div class="ctl"><label for="nzModel">Noise model</label><select id="nzModel"><option value="det">detector, proposal T1.3 (NEP 14 pW/√Hz, insertion loss)</option><option value="shot">shot noise of the transmitted light (earlier figures)</option></select></div>
+         <div class="checks"><label class="sel mono" for="nzIL">insertion loss (dB) <select id="nzIL"><option value="sim">sim. T + 8 dB</option><option>14</option><option>20</option><option>25</option></select></label><label class="sel mono" for="nzP">P_in (mW) <select id="nzP"><option>1</option><option>3</option><option>10</option></select></label></div>
+         <p class="hint">Detector model: δ = √(NEP² + 2hνP_d) / (P_d √(2T)), P_d = P_in·10^(−IL/10), independent of the simulated cell transmission. Shot model: √(q / (P_in T_cell T)). Selecting a data set loads its own noise model (set B: detector, 14 dB, 1 mW; earlier sets: shot, 1 mW).</p>
+         <div class="checks"><label class="check"><input type="checkbox" id="drift" checked> fringe drift 0.1 rad/s (static fringe averages down)</label><label class="check"><input type="checkbox" id="win"> mark 15–30 s window</label></div>
+-        <div class="ctl"><label for="anaT">Analysis time (s)</label><select id="anaT"><option>1</option><option>15</option><option>30</option><option>60</option></select></div>
++        <div class="ctl"><label for="anaT">Analysis time (s)</label><select id="anaT"><option>0.01</option><option>0.1</option><option>1</option><option>15</option><option>30</option><option>60</option></select></div>
+         <div class="ctl"><label>C₂H₆ / CH₄ ratio (each line measured for T/2)</label><div class="checks"><label class="sel mono" for="rCH4">CH₄ (ppm) <input id="rCH4" type="number" min="0.1" max="1000" step="0.1" value="2.5" style="width:5em"></label><label class="sel mono" for="rC2">C₂H₆ (ppb) <input id="rC2" type="number" min="0.1" max="100000" step="1" value="125" style="width:6em"></label></div><p class="hint mono" id="ratioOut"></p></div>
+         <legend style="padding:0;margin-top:4px">Curves</legend>
+         <div class="checks" id="bCurves"></div>
+@@ -141,8 +141,8 @@
+         <h2>Figure size</h2>
+         <div class="sizes">
+           <div class="ctl"><div class="row"><label for="figW">Width</label><output id="figWOut"></output></div><input id="figW" type="range" min="14" max="28" step="0.1" value="16.8"></div>
+-          <div class="ctl"><div class="row"><label for="figH">Height</label><output id="figHOut"></output></div><input id="figH" type="range" min="4" max="15" step="0.1" value="5.2"></div>
+-          <div class="ctl"><div class="row"><label for="aShare">Width share of (a)</label><output id="aShareOut"></output></div><input id="aShare" type="range" min="0.4" max="0.75" step="0.01" value="0.64"></div>
++          <div class="ctl"><div class="row"><label for="figH">Height</label><output id="figHOut"></output></div><input id="figH" type="range" min="4" max="15" step="0.1" value="4.6"></div>
++          <div class="ctl"><div class="row"><label for="aShare">Width share of (a)</label><output id="aShareOut"></output></div><input id="aShare" type="range" min="0.4" max="0.8" step="0.01" value="0.68"></div>
+           <div class="ctl"><div class="row"><label for="head">Strip headroom in (a)</label><output id="headOut"></output></div><input id="head" type="range" min="1.05" max="2" step="0.05" value="1.4"></div>
+         </div>
+         <div class="ctl"><div class="row"><label>Text size</label><output id="fsOut"></output></div><div class="btns"><button type="button" id="fsDn" aria-label="Smaller text">A−</button><button type="button" id="fsUp" aria-label="Larger text">A+</button><button type="button" id="fsReset">Reset to 10 pt</button></div></div>
+@@ -176,7 +176,7 @@
+   const MODE_SHORT = { none: "no dither", angle: "angle", spectral: "wavelength", both: "both" };
+   const STRIP = { "NH3": ["NH₃", "#1f77b4"], "CH4 1.6": ["CH₄", "#1f77b4"], "CH4 3.3": ["CH₄", "#ff7f0e"], "C2H6": ["C₂H₆", "#ff7f0e"], "NO": ["NO", "#d62728"] };
+   const B_ALL = [["none", "no dither"], ["angle", "angle dither"], ["spectral", "wavelength dither"], ["both", "both dithers"], ["regular", "both, regular cell"], ["shot", "shot noise"], ["total", "total"], ["lossy", "minimum spec (R ≤ 95 % below θc, 0.3 dB/cm), dashed"], ["target", "ideal (designed R(χ), no loss), dash-dot"], ["bands", "min–max bands (30 layouts)"], ["shotx", "shot noise of the dashed / dash-dot cases (gray dotted)"]];
+-  let cur, reg, GL, lcur, lreg, lGL, tcur, treg, tGL, DSX, mcur = null, cur0 = null, SPK = "NH3", SLOT0 = null;
++  let cur, reg, GL, lcur, lreg, lGL, tcur, treg, tGL, DSX, mcur = null, cur0 = null, SPK = "CH4", SLOT0 = null;
+   const SPECS = { NH3: { mol: "NH3", txt: "NH₃", strip: "NH3", lam: 1.5317e-6 }, CH4: { mol: "CH4", txt: "CH₄", strip: "CH4 3.3", lam: 3.3137e-6 },
+     C2H6: { mol: "C2H6", txt: "C₂H₆", strip: "C2H6", lam: 3.3368e-6 } };
+   function applySpecies() {
+@@ -217,7 +217,7 @@
+     lcur = x.lossy ? x.lossy.cur : null; lreg = x.lossy ? x.lossy.reg : null; lGL = lcur ? lcur.gamma * lcur.L_mean_m * 100 : 0;
+     tcur = x.target ? x.target.cur : null; treg = x.target ? x.target.reg : null; tGL = tcur ? tcur.gamma * tcur.L_mean_m * 100 : 0;
+     D.n_eff = DSX.n_eff; mcur = x.mir ? x.mir.cur : null; cur0 = cur; SLOT0 = [cur, reg, lcur, lreg, tcur, treg];
+-    if (!keepNoise) { $("avgT").value = String(Math.log10(DSX.T || 1)); $("win").checked = !!DSX.win; $("anaT").value = String(DSX.T || 1); }
++    if (!keepNoise) { $("avgT").value = String(Math.log10(0.1)); $("win").checked = false; $("anaT").value = "0.1"; }
+     applySpecies();
+     D.chaos = Object.assign({}, D.chaos0, { source: DSX.desc, circle: Object.assign({}, D.chaos0.circle, x.circle), lossy: lcur ? { name: DSX.names.lossy } : null, target: tcur ? { name: DSX.names.target } : null });
+     if (!keepNoise) { $("nzModel").value = DSX.noise.model; $("nzIL").value = String(DSX.noise.IL); $("nzP").value = String(DSX.noise.P); }
+@@ -234,9 +234,9 @@
+     return `C₂H₆/CH₄ = ${(100 * r).toPrecision(3)} % ± ${(100 * sr).toPrecision(2)} % (1σ, T = ${+T.toPrecision(2)} s; σ CH₄ ${+s.CH4.toPrecision(2)} ppb, σ C₂H₆ ${+s.C2H6.toPrecision(2)} ppb${sim ? "" : "; 1.53 µm cell scaled"}). CH₄ absorption under the C₂H₆ line not removed.`;
+   }
+   const nh3 = D.strips[0]; let aNH3 = Math.max(...nh3.analyte_per_ppm);
+-  const DROPPABLE = "NO", dropped = new Set(["NO"]);                      /* the 5 µm strip */
++  const DROPPABLE = "NO", dropped = new Set(["NO", "NH3"]);                      /* the 5 µm strip */
+   const act = () => D.strips.filter(s => !dropped.has(s.key));
+-  const state = { ov: { "NH3": ["spectral", "both"], "CH4 1.6": ["angle", "both"], "CH4 3.3": ["none", "both"], "C2H6": ["none", "both"], "NO": ["none", "both"] }, band: {} };
++  const state = { ov: { "NH3": ["spectral", "both"], "CH4 1.6": ["angle", "spectral", "both"], "CH4 3.3": ["none", "both"], "C2H6": ["none", "both"], "NO": ["none", "both"] }, band: {} };
+ 
+   /* ---- controls ---- */
+   const mtx = $("mtx");
+@@ -261,13 +261,13 @@
+   }
+   $("allBoth").onclick = () => { for (const s of D.strips) { const L = state.ov[s.key] || (state.ov[s.key] = []); if (!L.includes("both")) L.push("both"); } syncMatrix(); draw(); };
+   $("clearAll").onclick = () => { for (const s of D.strips) state.ov[s.key] = []; state.band = {}; syncMatrix(); draw(); };
+-  $("drop5").onclick = () => {
+-    const b = $("drop5");
+-    if (dropped.has(DROPPABLE)) dropped.delete(DROPPABLE); else dropped.add(DROPPABLE);
+-    const d = dropped.has(DROPPABLE);
++  for (const [bid, key, nm] of [["drop5", "NO", "5 µm strip (NO)"], ["dropNH3", "NH3", "1.53 µm strip (NH₃)"]]) $(bid).onclick = () => {
++    const b = $(bid);
++    if (dropped.has(key)) dropped.delete(key); else dropped.add(key);
++    const d = dropped.has(key);
+     b.setAttribute("aria-pressed", String(d));
+-    b.textContent = d ? "Restore 5 µm strip (NO)" : "Remove 5 µm strip (NO)";
+-    $("row-NO").hidden = d;
++    b.textContent = (d ? "Restore " : "Remove ") + nm;
++    $("row-" + key).hidden = d;
+     draw();
+   };
+   setDS($("dset3").value);
+@@ -278,7 +278,7 @@
+     $("nzIL").disabled = NZ().m === "shot"; if (!$("anaPanel").hidden) $("anaBtn").onclick();
+   }
+   const bc = $("bCurves");
+-  for (const [k, n] of B_ALL) bc.insertAdjacentHTML("beforeend", `<label class="check"><input type="checkbox" id="b-${k}"${["shotx", "lossy", "target"].includes(k) ? "" : " checked"}> ${n}</label>`);
++  for (const [k, n] of B_ALL) bc.insertAdjacentHTML("beforeend", `<label class="check"><input type="checkbox" id="b-${k}"${["shotx", "lossy", "target", "regular"].includes(k) ? "" : " checked"}> ${n}</label>`);
+   for (const id of ["avgT", "alpha", "lw", "seed", "shotOn", "ppm", "bgH2O", "bgCO2", "bgCH4", "anaLine", "bMark", "figW", "figH", "aShare", "head", ...B_ALL.map(([k]) => "b-" + k)])
+     $(id).addEventListener("input", draw);
+   relabel();
+@@ -345,7 +345,7 @@
+   }
+ 
+   /* ---- drawing: the figure in points, all text Arial 12 pt; margins fixed in points (same layout as fig6_spectra_noise.py) ---- */
+-  const FS0 = 12, LW = 0.8, ML0 = 45.2, GAP0 = 67.7, MR0 = 39, MT0 = 17.1, MB0 = 30.5;      /* margins [pt] at 12 pt text; scaled with the text size */
++  const FS0 = 12, LW = 0.8, ML0 = 45.2, GAP0 = 58, MR0 = 39, MT0 = 17.1, MB0 = 30.5;      /* margins [pt] at 12 pt text; scaled with the text size */
+   let FS = 10, k = FS / FS0, ML = ML0 * k, GAP = GAP0 * k, MR = MR0 * k, MT_A = MT0 * k, MB = MB0 * k;
+   const mctx = document.createElement("canvas").getContext("2d");
+   const tw = t => { mctx.font = `${FS}px Arial, "Liberation Sans", Arimo, Helvetica, sans-serif`; return mctx.measureText(t).width; };   /* text width [pt] */
+@@ -418,7 +418,7 @@
+     });
+     s += txt((xl + xr) / 2, yb + 26.5 * k, "Detuning (GHz)", { anchor: "middle" });
+     const fitY = (cy, lab) => { const w = tw(lab); return Math.min(Math.max(cy, 3 + w / 2), H - 3 - w / 2); };
+-    s += txt(xl - 34 * k, fitY((yt + yb) / 2, "Absorption coefficient α (cm−1)"), "Absorption coefficient <tspan font-style=\"italic\">α</tspan> (cm<tspan baseline-shift=\"super\" font-size=\"" + (FS * 0.7) + "\">−1</tspan>)", { anchor: "middle", rot: -90 });
++    s += txt(xl - 34 * k, fitY((yt + yb) / 2, "α (cm−1)"), "<tspan font-style=\"italic\">α</tspan> (cm<tspan baseline-shift=\"super\" font-size=\"" + (FS * 0.7) + "\">−1</tspan>)", { anchor: "middle", rot: -90 });
+     /* legend of (a): short line keys on the title line, right-aligned with the axes */
+     const LORD = { angle: 0, both: 1, spectral: 2, none: 3 }, ordK = q => LORD[q.replace("#band", "")] + (q.endsWith("#band") ? 10 : 0);
+     used.sort((p, q) => ordK(p) - ordK(q));
+@@ -436,20 +436,20 @@
+ 
+     /* ---------- (b): right column ---------- */
+     const bl = ML + WA + GAP, br = W - MR, bt = MT_A, bb = H - MB;
+-    const Tl = 1e-5, Th = 100, Al = 1e-9, Ah = 1e-3;
++    const Tl = 1e-5, Th = 100, Al = 10 ** -7.5, Ah = 10 ** -2.5;
+     const BX = t => bl + (Math.log10(t) - Math.log10(Tl)) / (Math.log10(Th) - Math.log10(Tl)) * (br - bl);
+     const BY = a => bb - (Math.log10(Math.max(a, Al * 1e-3)) - Math.log10(Al)) / (Math.log10(Ah) - Math.log10(Al)) * (bb - bt);
+     s += `<clipPath id="clipb"><rect x="${bl}" y="${bt}" width="${br - bl}" height="${bb - bt}"/></clipPath>`;
+     for (const p of [-4, -2, 0, 2]) s += `<path d="M${BX(10 ** p)} ${bt}V${bb}" stroke="#000" stroke-opacity="0.12" stroke-width="0.6"/>`;
+-    for (const p of [-9, -7, -5, -3]) s += `<path d="M${bl} ${BY(10 ** p)}H${br}" stroke="#000" stroke-opacity="0.12" stroke-width="0.6"/>`;
++    for (const p of [-7, -5, -3]) s += `<path d="M${bl} ${BY(10 ** p)}H${br}" stroke="#000" stroke-opacity="0.12" stroke-width="0.6"/>`;
+     const on = k => $("b-" + k).checked, Ts = D.T;
+     const shotC = Ts.map(shotAt), totC = Ts.map((t, i) => Math.hypot(cur.env.both[i], shotC[i]));
+     const BC = [["none", cur.env.none, "#a3a3a3", 1.4, ""], ["angle", cur.env.angle, "#2ca02c", 1.4, ""], ["spectral", cur.env.spectral, "#e377c2", 1.4, ""],
+       ["both", cur.env.both, "#1f77b4", 1.4, ""], ["regular", reg.env.both, "#1f77b4", 1.4, "1.4 2.6"], ["shot", shotC, "#737373", 1.0, "3.7 1.6"], ["total", totC, "#000", 2.0, ""]];
+     const ARR = Object.fromEntries(BC.map(c => [c[0], c[1]]));
+     /* direct labels: [curve, T of the label centre, factor above (>1) or below (<1) the curve, text, colour] */
+-    const LBL = [["none", 0.13, 2.2, "none", "#a3a3a3"], ["spectral", 0.6, 2.6, "λ", "#e377c2"], ["angle", SPK === "NH3" ? 1.0 : 0.004, SPK === "NH3" ? 2.5 : 4, "angle", "#2ca02c"],
+-      ["shot", SPK !== "NH3" ? 3e-4 : $("win").checked ? 0.02 : 3.1, SPK !== "NH3" ? 0.12 : $("win").checked ? 0.15 : 0.2, noiseName(), "#595959"], ["total", 3.6, 2.0, "both", "#000"]];
++    const LBL = [["none", 0.13, 2.2, "none", "#a3a3a3"], ["spectral", SPK === "NH3" ? 1.0 : 1.5, SPK === "NH3" ? 0.5 : 2.6, "λ", "#e377c2"], ["angle", SPK === "NH3" ? 1.8 : 0.05, SPK === "NH3" ? 2.5 : 4, "angle", "#2ca02c"],
++      ["shot", SPK !== "NH3" ? 3e-4 : $("win").checked ? 0.02 : 3.1, SPK !== "NH3" ? 0.2 : $("win").checked ? 0.15 : 0.2, noiseName(), "#595959"], ["total", 3.6, 2.0, "both", "#000"]];
+     const WIN = $("win").checked ? [15, 30] : null;
+     const rnd2 = v => v >= 100 ? Math.round(v) : +v.toPrecision(2), ppbOf = (o, shf, gl, t) => Math.hypot(interpLog(o.env.both, t), shf(t)) / (gl * aNH3) * 1e3;
+     const ppbTxt = (o, shf, gl) => WIN ? `${rnd2(ppbOf(o, shf, gl, WIN[1]))}–${rnd2(ppbOf(o, shf, gl, WIN[0]))} ppb` : `${rnd2(ppbOf(o, shf, gl, T))} ppb`;
+@@ -474,14 +474,13 @@
+     if ($("bMark").checked) {
+       s += `<path d="M${BX(T)} ${bt}V${bb}" stroke="#000" stroke-width="0.6" stroke-dasharray="2 2" stroke-opacity="0.6"/>`;
+       s += `<circle cx="${BX(T)}" cy="${BY(Math.hypot(interpLog(cur.env.both, T), sh))}" r="2.6" fill="#000"/>`;
+-      if (WIN) for (const t of WIN) if (Math.abs(Math.log(t / T)) > 0.05) s += `<circle cx="${BX(t)}" cy="${BY(Math.hypot(interpLog(cur.env.both, t), shotAt(t)))}" r="2" fill="#000"/>`;
+     }
+     s += `</g>`;
+     for (const [kk, tl, fac, t, col] of LBL) if (on(kk)) s += txt(BX(tl), BY(interpLog(ARR[kk], tl) * fac) + 4.2 * k, t, { anchor: "middle", fill: col });
+     if ($("bMark").checked) {
+-      const tv = Math.hypot(interpLog(cur.env.both, T), sh), ppbv = tv / (GL * aNH3) * 1e3, lab = ppbTxt(cur, shotAt, GL) + (WIN ? " (15–30 s)" : "");
+-      const ax = Math.max(BX(T) - (WIN ? 52 : 36.8), bl + 30), ay = Math.min(BY(tv) + 34.3, bb - 4);
+-      s += `<path d="M${BX(T)} ${BY(tv)}L${ax + 14} ${ay - 11}" stroke="#000" stroke-width="0.6"/>` + txt(ax, ay, lab, { anchor: "middle" });
++      const tv = Math.hypot(interpLog(cur.env.both, T), sh), ppbv = tv / (GL * aNH3) * 1e3, lab = ppbTxt(cur, shotAt, GL);
++      const ax = Math.max(BX(T) - 62, bl + Math.max(tw(lab), tw("(100 ms)")) / 2 + 6), ay = Math.min(BY(tv) + 28, bb - 4 - FS * 1.15);
++      s += `<path d="M${BX(T)} ${BY(tv)}L${ax + 14} ${ay - 11}" stroke="#000" stroke-width="0.6"/>` + txt(ax, ay, lab, { anchor: "middle" }) + txt(ax, ay + FS * 1.15, WIN ? "(15–30 s)" : `(${fmtT(T)})`, { anchor: "middle" });
+       const lbl = (o, shf, gl, nm, dy) => { const v = Math.hypot(interpLog(o.env.both, T), shf(T)), p = v / (gl * aNH3) * 1e3, l = `${ppbTxt(o, shf, gl)} (${nm})`;
+         const rt = BX(T) < br - 95, y = Math.min(Math.max(BY(v) + dy, bt + 10), bb - 4);
+         return `<circle cx="${BX(T)}" cy="${BY(v)}" r="2.6" fill="none" stroke="#000" stroke-width="1"/>` + txt(rt ? BX(T) + 6 : BX(T) - 6, y, l, { anchor: rt ? "start" : "end" }).replace("<text ", '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke" '); };
+@@ -494,12 +493,12 @@
+       for (let m = 2; m < 10 && p < 2; m++) s += `<path d="M${BX(m * 10 ** p)} ${bb}v2" stroke="#000" stroke-width="0.6"/>`;
+     }
+     for (const p of [-4, -2, 0, 2]) s += txt(BX(10 ** p), bb + 15.6 * k, sup(p), { anchor: "middle" });
+-    for (const p of [-9, -7, -5, -3]) s += `<path d="M${bl} ${BY(10 ** p)}h-3.5" stroke="#000" stroke-width="${LW}"/>` + txt(bl - 5 * k, BY(10 ** p) + 4.2 * k, sup(p), { anchor: "end" });
++    for (const p of [-7, -5, -3]) s += `<path d="M${bl} ${BY(10 ** p)}h-3.5" stroke="#000" stroke-width="${LW}"/>` + txt(bl - 5 * k, BY(10 ** p) + 4.2 * k, sup(p), { anchor: "end" });
+     const ppbTo = c => c * 1e-3 * GL * aNH3;
+-    for (const p of [0, 2, 4, 6]) { const y = BY(ppbTo(10 ** p)); if (y < bt - 1 || y > bb + 1) continue; s += `<path d="M${br} ${y}h3.5" stroke="#000" stroke-width="${LW}"/>` + txt(br + 5 * k, y + 4.2 * k, sup(p)); }
++    for (const p of [-2, 0, 2, 4, 6]) { const y = BY(ppbTo(10 ** p)); if (y < bt - 1 || y > bb + 1) continue; s += `<path d="M${br} ${y}h3.5" stroke="#000" stroke-width="${LW}"/>` + txt(br + 5 * k, y + 4.2 * k, sup(p)); }
+     s += txt(br + 34 * k, (bt + bb) / 2, `${chem(SPECS[SPK].mol)} (ppb)`, { anchor: "middle", rot: -90 });
+     s += txt((bl + br) / 2, bb + 26.5 * k, "Averaging time <tspan font-style=\"italic\">T</tspan> (s)", { anchor: "middle" });
+-    s += txt(bl - 37 * k, fitY((bt + bb) / 2, "Noise-equivalent absorbance"), "Noise-equivalent absorbance", { anchor: "middle", rot: -90 });
++    s += txt(bl - 37 * k, fitY((bt + bb) / 2, "NEA"), "NEA", { anchor: "middle", rot: -90 });
+     s += txt(bl, bt - 6, `(b) ${chem(SPECS[SPK].mol)} noise floor`);
+ 
+     s += `</svg>`;
+@@ -779,7 +778,7 @@
+ 
+   $("savePdf").onclick = () => savePdf(false);
+   $("savePdfA4").onclick = () => savePdf(true);
+-  $("row-NO").hidden = dropped.has(DROPPABLE);
++  $("row-NO").hidden = dropped.has("NO"); $("row-NH3").hidden = dropped.has("NH3");
+   syncMatrix();
+   draw();
+ })();

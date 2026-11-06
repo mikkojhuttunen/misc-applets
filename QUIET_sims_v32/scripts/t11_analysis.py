@@ -72,7 +72,7 @@ for f in sorted((ROOT / "results/t11").glob("final_*_R*.json")):
                "static": {m: [q([s["fringe"][dl][m] for s in S], p) for p in (.25, .5, .75)] for m in MODES}, "limits": {}}
         for g, ln, sm in GASES[band]:
             a = LN[ln]["alpha_peak_per_ppm_cm"]
-            for T in (1, 15, 30, 60):
+            for T in (0.1, 1, 15, 30, 60):
                 for NEP in ((14e-12,) if band == "nir" else (14e-12, 1e-9)):
                     v = [1e3 * math.hypot(curve(s["fringe"][dl], "both", T), det(T, 10e-3 * s["T"] * 10 ** -0.8, lam, NEP)) / (a * s["GL_cm"] * sm[dl]) for s in S]
                     row["limits"][f"{g}_{T}s_NEP{NEP * 1e12:g}pW"] = [q(v, .25), q(v, .5), q(v, .75)]
@@ -100,8 +100,8 @@ for f in sorted((ROOT / "results/t11").glob("final_*_R*.json")):
                "env_lo": {m: [float(curves[m][:, i].min()) for i in range(len(TG))] for m in MODES},
                "env_hi": {m: [float(curves[m][:, i].max()) for i in range(len(TG))] for m in MODES},
                "floor": floor, "R_bounce": R,
-               "lay": {"fr": {str(T): [curve(s["fringe"][dl], "both", T) for s in S] for T in (1, 15, 30, 60)},
-                       "none": {str(T): [curve(s["fringe"][dl], "none", T) for s in S] for T in (1, 15, 30, 60)},
+               "lay": {"fr": {str(T): [curve(s["fringe"][dl], "both", T) for s in S] for T in (0.01, 0.1, 0.5, 1, 15, 30, 60)},
+                       "none": {str(T): [curve(s["fringe"][dl], "none", T) for s in S] for T in (0.01, 0.1, 0.5, 1, 15, 30, 60)},
                        "fl": [s["fringe"][dl]["both"] for s in S], "fln": [s["fringe"][dl]["none"] for s in S],
                        "T": [s["T"] for s in S], "L": [s["GL_cm"] / 100 / (0.4532 if band == "nir" else 0.5526) for s in S]}}
         if "error" not in reg and reg["d"][DESIGN]:

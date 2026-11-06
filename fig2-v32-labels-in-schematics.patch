@@ -1,25 +1,25 @@
-From 25ae5d364435298b36173a9121ba0654cc23f005 Mon Sep 17 00:00:00 2001
+From 30901ec28c4a1c8c9bc93ecb5286aaecb553b144 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
-Date: Fri, 6 Nov 2026 06:42:00 +0000
-Subject: [PATCH] Fig. 2: labels inside the top-row schematics, tighter top
- row, 16.8 x 8.5 cm
+Date: Fri, 6 Nov 2026 08:46:30 +0000
+Subject: [PATCH] Fig. 2: labels inside the top-row schematics, tighter layout,
+ 16.8 x 8.5 cm
 
 Labels (a)-(d) and the Herriott scale bar sit inside the schematics on
 semi-transparent white boxes, so the top row loses its title lines. The
 Herriott cells are drawn mirrored top to bottom (same simulation): port
 at the bottom left, label at the top left. The CMPCs shrink to the
 height of the two stacked Herriott views, which keep only a small gap.
-Default height 8.5 cm (21 cm preset: 10.4 cm) keeps the bottom row as
-tall as before.
+The rows sit closer together and the bottom x-axis titles closer to
+their tick labels. Default height 8.5 cm (21 cm preset: 10.4 cm).
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01NLfEqncaEw1RGMDLUGdFgb
 ---
- QUIET_sims_v32/artifacts/fig2_v32.html | 58 ++++++++++++++++----------
- 1 file changed, 37 insertions(+), 21 deletions(-)
+ QUIET_sims_v32/artifacts/fig2_v32.html | 62 ++++++++++++++++----------
+ 1 file changed, 39 insertions(+), 23 deletions(-)
 
 diff --git a/QUIET_sims_v32/artifacts/fig2_v32.html b/QUIET_sims_v32/artifacts/fig2_v32.html
-index f93e1a1..f74e18d 100644
+index f93e1a1..97228be 100644
 --- a/QUIET_sims_v32/artifacts/fig2_v32.html
 +++ b/QUIET_sims_v32/artifacts/fig2_v32.html
 @@ -222,12 +222,12 @@ table.vals thead th { font: 700 11px var(--f-ui); color: var(--muted); }
@@ -96,7 +96,7 @@ index f93e1a1..f74e18d 100644
      ops = [];
      if (!run.p) { $("sheet").innerHTML = ""; return; }
 -    const fs = FSZ, m0 = fs * 0.3, yt1 = fs * 1.3, rowGap = fs * 1.8, MB = fs * 2.7;
-+    const fs = FSZ, m0 = fs * 0.3, yt1 = fs * 0.3, rowGap = fs * 1.8, MB = fs * 2.7;
++    const fs = FSZ, m0 = fs * 0.3, yt1 = fs * 0.3, rowGap = fs * 1.4, MB = fs * 2.45;
      const avail = H - yt1 - rowGap - MB, h1m = avail * +$("rayShare").value;
      let h1 = h1m, h2 = avail - h1m;   /* the ray-trace height share is a maximum: the row shrinks to what the cells need, the rest goes to row 2 */
      /* row 1: the two CMPCs as squares, the two Herriott side views stacked to their right */
@@ -127,6 +127,21 @@ index f93e1a1..f74e18d 100644
        text(x0, yb + fs * 0.33, lab); scaleBar(x0 + tl + 4, yb, bar, sC, false);
      }
      drawHerriottCell("regular", xh, yt1, wH, hb, sH, $("colHR").value, "c", "R-Herriott");
+@@ -2681,12 +2697,12 @@ onmessage = e => {
+     const MAPS = [["herriott", "regular", "R-Herriott", "colHR", 0, 0], ["circle", "regular", "R-CMPC", "colCR", 1, 0],
+       ["herriott", "current", "C-Herriott", "colHC", 0, 1], ["circle", "current", "C-CMPC", "colCC", 1, 1]];
+     for (const [c, k, lab, col, i, j] of MAPS) poinMap(c, k, LAX + i * (mw + gx), y2 + j * (mh + gy), mw, mh, $(col).value, lab, i === 0, j === 1);
+-    text(LAX + wP / 2, y2 + h2 + fs * 2.45, "Position along the wall s / perimeter", { anchor: "middle" });
++    text(LAX + wP / 2, y2 + h2 + fs * 2.2, "Position along the wall s / perimeter", { anchor: "middle" });
+     text(LAX - fs * 1.95, y2 + h2 / 2, "sin χ", { anchor: "middle", rot: true });
+     const xb = LAX + wP + colGap, wB = W - MR - xb;
+     title(xb - fs * 1.2, y2 - fs * 0.45, "f", "Static residual fringe");
+     bars(xb, y2, wB, h2);
+-    text(xb + wB / 2, y2 + h2 + fs * 2.45, "Dither", { anchor: "middle" });
++    text(xb + wB / 2, y2 + h2 + fs * 2.2, "Dither", { anchor: "middle" });
+     text(xb - fs * 3.0, y2 + h2 / 2, "Fringe amplitude ΔP/P", { anchor: "middle", rot: true });
+     lastSvg = toSvg(W, H);
+     $("sheet").innerHTML = lastSvg;
 @@ -2996,8 +3012,8 @@ onmessage = e => {
    for (const el of document.querySelectorAll("input, select")) el.addEventListener("input", () => { if (el.closest("fieldset") && /^(sp|bud|dA|dL|dWave|lWave|cR|cNf|cTh|cOf|nInc[CH]|incR[CH]|incDn[CH]|incSeed[CH]|hL|hW|hN|hM)$/.test(el.id)) { syncOut(); runStatus(); } else draw(); });
    $("run").onclick = start;

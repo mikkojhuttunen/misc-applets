@@ -1,0 +1,23 @@
+const { chromium } = require('playwright');
+const L = '/tmp/claude-0/-home-user-misc-applets/dcb7d7e6-8665-5d69-a2fd-bb9f54a2d33e/scratchpad/npmlibs/node_modules/three/';
+const A = '/home/user/misc-applets/QUIET_sims_v32/artifacts/', O = '/tmp/claude-0/-home-user-misc-applets/dcb7d7e6-8665-5d69-a2fd-bb9f54a2d33e/scratchpad/docfig/';
+(async () => {
+  const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl'] });
+  const page = async () => { const p = await b.newPage({ viewport: { width: 1400, height: 1400 }, deviceScaleFactor: 2 });
+    p.on('pageerror', e => console.log('PAGEERR', e.message));
+    await p.route(/fonts\.(googleapis|gstatic)|jspdf|svg2pdf/, r => r.abort());
+    await p.route(/three\.min\.js/, r => r.fulfill({ path: L + 'build/three.min.js', contentType: 'text/javascript' }));
+    await p.route(/OrbitControls\.js/, r => r.fulfill({ path: L + 'examples/js/controls/OrbitControls.js', contentType: 'text/javascript' }));
+    return p; };
+  const shot = async (p, sel, name) => { const e = await p.$(sel); if (!e) { console.log('missing', sel); return; } await e.scrollIntoViewIfNeeded(); await p.waitForTimeout(400); await e.screenshot({ path: O + name }); console.log('ok', name); };
+  let p = await page(); await p.goto('file://' + A + 'fig1_v32.html'); await p.waitForTimeout(9000);
+  await shot(p, '#liveWrap', 'fig1_cart.png');
+  await p.click('[data-indes="gc"]'); await p.waitForTimeout(7000); await shot(p, '#liveWrap', 'fig1_gc.png');
+  await p.click('[data-indes="wg"]'); await p.waitForTimeout(7000); await shot(p, '#liveWrap', 'fig1_wg.png');
+  await p.close();
+  p = await page(); await p.goto('file://' + A + 'fig2_v32.html'); await p.waitForTimeout(12000);
+  await shot(p, '#sheet', 'fig2_main.png'); await shot(p, '#gcSheet', 'fig2_design.png'); await shot(p, '#robSheet', 'fig2_rob.png');
+  await p.close();
+  p = await page(); await p.goto('file://' + A + 'fig3_v32.html'); await p.waitForTimeout(4000);
+  await shot(p, '#sheet', 'fig3_main.png'); await shot(p, '#robSheet', 'fig3_rob.png');
+  await b.close(); })();

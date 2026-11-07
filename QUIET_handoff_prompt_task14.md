@@ -15,7 +15,7 @@ edits are already in my newest file. Keep the ones that still apply, and do not 
 
 - Branch `quiet-v32-realistic`, folder `QUIET_sims_v32/`. If the newest commits are missing, apply these patches from
   branch `claude/gracious-turing-tstil7`, in order: `task13-wave-vs-ray.patch`, `task14-waist-modulation.patch`,
-  `figs23-task14-default.patch`, `herriott-wave-smooth-averaging.patch`, `split-dithers-handoff.patch`, `fig2-ray-trace-example.patch`.
+  `figs23-task14-default.patch`, `herriott-wave-smooth-averaging.patch`, `split-dithers-handoff.patch`, `fig2-ray-trace-example.patch`, `fig3-separate-dithers.patch`.
 - `REPORT.md` sections 6b (wave bound), 6c–6f (beamlet model, grating input, cell size), 6g (100 ms), **6h (Task 13: wave vs
   ray)**, **6i (Task 14: waists, membrane modulation, Herriott, averaging)**.
 - `results/t14/table.md`, `results/t14/outlook.json`, `results/t14/artifact_data.json`, `results/t13/table.md`.
@@ -24,7 +24,7 @@ edits are already in my newest file. Keep the ones that still apply, and do not 
   Fig. 2 https://claude.ai/artifact/BiVxtNey99hyrtPLYcvhm8, Fig. 3 https://claude.ai/artifact/9sezcN5zEXTv9Som5LCpBr.
   Export the paper PDFs from them. Fig. 2 (f) has a "Newest bars" menu: dithers added one by one (default), input
   combined, or each dither alone. Fig. 3 (b) has a "Dither averaging" menu: period-locked (default), boxcar, or ideal
-  whole periods.
+  whole periods, and checkboxes for the separate dithers (λ + angle, λ + angle + position, λ + δn, angle only, position only).
 
 ## Design and parameters (identical in Fig. 2 and Fig. 3)
 

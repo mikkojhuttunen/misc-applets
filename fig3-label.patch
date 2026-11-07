@@ -1,0 +1,42 @@
+From 328d6cc00a2b52b0d845e7107fbe955d2ce29241 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 7 Nov 2026 04:51:43 +0000
+Subject: [PATCH] Fig. 3 (b): move the lambda+ang.+pos. label clear of the axis
+ and its curve
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NLfEqncaEw1RGMDLUGdFgb
+---
+ QUIET_sims_v32/artifacts/fig3_v32.html        | 2 +-
+ QUIET_sims_v32/scripts/build_t14_artifacts.py | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/QUIET_sims_v32/artifacts/fig3_v32.html b/QUIET_sims_v32/artifacts/fig3_v32.html
+index 298fdc8..f8d09e8 100644
+--- a/QUIET_sims_v32/artifacts/fig3_v32.html
++++ b/QUIET_sims_v32/artifacts/fig3_v32.html
+@@ -232,7 +232,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
+   function Wav(T, f) { const m = $("avgMode").value; if (m === "box") return HacT(T, f); if (m === "step") return T < 1 / f ? 1 : 0;
+     return HacT(T, f) * Math.sqrt(1 / (1 + (2 * f * T) ** 4) + ETA_LOCK ** 2); }
+   /* separate dithers of the newest data: [key, checkbox label, colour, dash, direct label, T of the label, factor] */
+-  const XT = [["lam_ang", "λ + angle", "#bcbd22", "", "λ+angle", 20, 0.42], ["lam_in", "λ + angle + position", "#17becf", "", "λ+ang.+pos.", 20, 2.2],
++  const XT = [["lam_ang", "λ + angle", "#bcbd22", "", "λ+angle", 20, 0.42], ["lam_in", "λ + angle + position", "#17becf", "", "λ+ang.+pos.", 0.7, 2.0],
+     ["lam_dn", "λ + δn", "#ff7f0e", "4 2", "λ+δn", 30, 0.4], ["ang", "angle only", "#2ca02c", "1.5 2", "angle", 3e-4, 1.6], ["pos", "position only", "#8c564b", "1.5 2", "pos.", 3e-4, 0.55]];
+   const XKEYS = XT.map(x => x[0]), PREMOD = { both: "both_nomod", lam_dn: "spectral" };
+   function curveT(s, m, T) { const n0 = s.none; if (m === "none") return n0 * HdT(T); const v = s[m], a = PREMOD[m] ? s[PREMOD[m]] : v, w1 = Wav(T, 1000), w2 = Wav(T, 50);
+diff --git a/QUIET_sims_v32/scripts/build_t14_artifacts.py b/QUIET_sims_v32/scripts/build_t14_artifacts.py
+index 5ebd773..1a2422e 100644
+--- a/QUIET_sims_v32/scripts/build_t14_artifacts.py
++++ b/QUIET_sims_v32/scripts/build_t14_artifacts.py
+@@ -46,7 +46,7 @@ AVG_JS = r'''  /* newest data: the curves against T are recomputed from the per-
+   function Wav(T, f) { const m = $("avgMode").value; if (m === "box") return HacT(T, f); if (m === "step") return T < 1 / f ? 1 : 0;
+     return HacT(T, f) * Math.sqrt(1 / (1 + (2 * f * T) ** 4) + ETA_LOCK ** 2); }
+   /* separate dithers of the newest data: [key, checkbox label, colour, dash, direct label, T of the label, factor] */
+-  const XT = [["lam_ang", "λ + angle", "#bcbd22", "", "λ+angle", 20, 0.42], ["lam_in", "λ + angle + position", "#17becf", "", "λ+ang.+pos.", 20, 2.2],
++  const XT = [["lam_ang", "λ + angle", "#bcbd22", "", "λ+angle", 20, 0.42], ["lam_in", "λ + angle + position", "#17becf", "", "λ+ang.+pos.", 0.7, 2.0],
+     ["lam_dn", "λ + δn", "#ff7f0e", "4 2", "λ+δn", 30, 0.4], ["ang", "angle only", "#2ca02c", "1.5 2", "angle", 3e-4, 1.6], ["pos", "position only", "#8c564b", "1.5 2", "pos.", 3e-4, 0.55]];
+   const XKEYS = XT.map(x => x[0]), PREMOD = { both: "both_nomod", lam_dn: "spectral" };
+   function curveT(s, m, T) { const n0 = s.none; if (m === "none") return n0 * HdT(T); const v = s[m], a = PREMOD[m] ? s[PREMOD[m]] : v, w1 = Wav(T, 1000), w2 = Wav(T, 50);
+-- 
+2.43.0
+

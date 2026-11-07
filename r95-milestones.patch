@@ -1,0 +1,687 @@
+From 3020f058655be83dd468817b2f3648a3e7fed7ff Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 7 Nov 2026 11:52:40 +0000
+Subject: [PATCH] QUIET v32: milestone check with period-locked averaging
+
+scripts/t14_milestones.py now uses the Fig. 3 period-locked dither
+remainders, as the proposal assumes, and writes milestones.json. REPORT 6i
+item 14.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NLfEqncaEw1RGMDLUGdFgb
+---
+ QUIET_sims_v32/REPORT.md                   |   1 +
+ QUIET_sims_v32/results/t14/milestones.json | 530 +++++++++++++++++++++
+ QUIET_sims_v32/results/t14/milestones.txt  |  21 +-
+ QUIET_sims_v32/scripts/t14_milestones.py   |  83 +++-
+ 4 files changed, 601 insertions(+), 34 deletions(-)
+ create mode 100644 QUIET_sims_v32/results/t14/milestones.json
+
+diff --git a/QUIET_sims_v32/REPORT.md b/QUIET_sims_v32/REPORT.md
+index b5f85b8..6175ae7 100644
+--- a/QUIET_sims_v32/REPORT.md
++++ b/QUIET_sims_v32/REPORT.md
+@@ -615,6 +615,7 @@ Findings (3.3 µm; 100 ms, referenced every 3 s, drift 0.1 rad/s, NEP 14 pW/√H
+ 8. Herriott in the wave model (`scripts/t14_herriott.js` → `results/t14/herriott_*.json`): length 5–20 mm, width 1.5 mm, N 14, M 3, 8 inclusions r 25 µm, the same grating-coupler beam launched from the M1 wall around its port (clip loss in T), exit through the same port, the same dithers and membrane modulation, 30 layouts. Chaos check (layouts 1–10): 88–100 % chaotic launch rays, FTLE 0.23–0.27 per hit. 3.3 µm, R 97 %, 10 mm, static fringe (regular / chaotic median): input + λ 1.0e-6 / 5.4e-6, + membrane δn 3.0e-7 / 1.4e-6 (CMPC: 2.6e-6 / 1.6e-6 and 5.5e-8 / 1.5e-7); Γ⟨L⟩ 3.7 cm (CMPC 11 cm), T 0.43: the light leaves through the re-entrance port after short paths. The chaotic Herriott is ≈ 9× above the chaotic CMPC with all dithers and has a third of its absorption path. Regular-cell values indicative only (beamlet model).
+ 9. Fig. 3 averaging of the newest data (menu): period-locked (default: boxcar remainder below one period, suppressed smoothly over the first period to a leakage of 1e-3), boxcar (as Task 11), ideal whole periods (the step curves of the first Task 14 version). 10 mm, R 97 %, CH₄ at 100 ms without referencing: 1.4 ppb (period-locked), 2.6 ppb (boxcar).
+ 10. Angle and position dithers separately (beams w75 A60 X0 and w75 A0 X100 added to both Task 14 scripts; Fig. 2 (f) menu “Newest bars”: added one by one, combined, each alone). 10 mm CMPC, chaotic median: 3.3 µm, R 97 %: none 3.6e-4, λ 1.8e-5, +angle 2.1e-5, +position 1.6e-6, +δn 1.5e-7 (N: angle 5, position 2, both 86); 1.53 µm: 1.7e-4, 3.7e-6, 1.8e-6, 2.0e-7, 1.8e-8 (N 10, 2, 403). At 3.3 µm the angle alone sweeps too few states to help next to the wavelength dither; angle × position does. Hand-off prompt for the proposal: `reports/handoff_prompt_task14.md`.
++14. Correction to item 13: `scripts/t14_milestones.py` now uses the period-locked averaging of Fig. 3 (the 1 kHz and 50 Hz dither remainders W(T, f) with eta 1e-3), as the proposal assumes; item 13 left the boxcar 1 kHz remainder in. R 95 %, 10 mm, referenced, 100 ms, CH₄ / C₂H₆: 20.2 / 25.6 ppb at 1 mW, 2.05 / 2.59 at 10 mW, 0.71 / 0.90 at 30 mW, 0.45 / 0.57 at 50 mW; 1 s at 1 mW 6.4 / 8.1; CH₄ 10 ppb in 0.41 s (1 mW) or 4 ms (10 mW); C₂H₆ 2 ppb at 100 ms needs 13 mW (R 97 %: 8.5 mW). The fringe alone gives 0.14 / 0.18 ppb at 100 ms, so the detector sets the limit up to 30 mW. Results in `results/t14/milestones.json` and `milestones.txt`.
+ 13. Figure defaults moved to R 95 %, the M2 minimum (Fig. 2 case menu "3.3 µm, R 95 %"; Fig. 3 solid R 95 %, dash-dot R 99.5 %, dashed R 97 % optional). Milestones at R 95 % (10 mm CMPC, 3.3 µm, all dithers, referenced, locked averaging, 14 pW/√Hz): M3 fringe 1.7e-7 < 5e-7 (all cells ≤ 3.5e-7); M4 Γ⟨L⟩ 5.8 cm in the 5 mm cell (≥ 2 cm), simulated insertion loss incl. 8 dB couplers 20.8 dB (5 mm), 23.9 dB (10 mm), 27.9 dB (20 mm) against ≤ 25 dB; M7 CH₄ / C₂H₆ at 1 s, 1 mW: 6.4 / 8.1 ppb (≤ 10 ppb; CH₄ 10 ppb reached at 0.41 s), 15 s: 1.6 / 2.1 ppb; stretch C₂H₆ 2 ppb at 1 mW needs 17 s (R 97 %: 7 s), at 10 mW 1 s gives 0.83 ppb.
+ 12. R 95 % runs (same design, `c_cal` 1.540 mid-IR / 1.641 near-IR; Herriott too). Γ⟨L⟩ barely depends on R (5.8 / 11.1 / 16.6 / 20.7 cm at 5 / 10 / 15 / 20 mm against 6.4 / 11.4 / 17.0 / 21.2 cm at R 97 %): the light leaves through the port and the membrane loss dominates. Transmission drops (10 mm: 2.6 % against 4.0 % and 7.0 %), so the 100 ms limits at 1–10 mW follow the detector: 10 mm, CH₄ / C₂H₆ ppb at 1 / 10 / 50 mW: 20.2 / 25.6, 2.05 / 2.59, 0.45 / 0.57. Static fringe, all dithers, 10 mm 3.3 µm: 1.7e-7 (R 97 %: 1.5e-7). Herriott 10 mm: T 38 %, Γ⟨L⟩ 3.5 cm, fringe 1.4e-6. Pages: Fig. 2 case menu "3.3 µm, R 95 %" / "1.53 µm, R 95 %" (newest bars; Task 11 panels fall back to R 97 %, which has no R 95 % run, and the status line says so); Fig. 3 checkbox "R 95 %, {D} mm (dashed)". Task 11 exit-path lists for R 95 % reuse R 97 %.
+ 11. Fig. 3 (b), newest data: curves of the separate dithers (checkboxes): λ + angle, λ + angle + position (on by default), λ + δn, angle only, position only (off by default), recomputed in the page for the chosen averaging; drift and breath referencing now act on every stored curve. Fig. 2 ray traces (a)–(e) default to the 4 mm example cell (16 × 50 µm inclusions): in the 10 mm design cell the drawn centre ray crosses its sparse disks only once or twice, so the trace looked like the regular orbit.
+diff --git a/QUIET_sims_v32/results/t14/milestones.json b/QUIET_sims_v32/results/t14/milestones.json
+new file mode 100644
+index 0000000..1eba443
+--- /dev/null
++++ b/QUIET_sims_v32/results/t14/milestones.json
+@@ -0,0 +1,530 @@
++{
++ "R0.95|d5": {
++  "T": 0.0520010218975887,
++  "IL_dB": 20.83988121747449,
++  "GL_cm": 5.793929059913068,
++  "fringe_all": 3.5048372224412093e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 21.890491161467963,
++   "CH4|0.1s|10mW": 2.4198311950944014,
++   "CH4|0.1s|20mW": 1.379049303133113,
++   "CH4|0.1s|30mW": 1.0622798424161917,
++   "CH4|0.1s|50mW": 0.7441042467850627,
++   "CH4|1s|1mW": 6.982058937615438,
++   "CH4|1s|10mW": 0.9891180754987303,
++   "CH4|1s|20mW": 0.6806541997770958,
++   "CH4|1s|30mW": 0.5914144313320919,
++   "CH4|1s|50mW": 0.5543916805348175,
++   "C2H6|0.1s|1mW": 27.76652463405271,
++   "C2H6|0.1s|10mW": 3.069383048248249,
++   "C2H6|0.1s|20mW": 1.7492255502434784,
++   "C2H6|0.1s|30mW": 1.3474261127875415,
++   "C2H6|0.1s|50mW": 0.9438430936181493,
++   "C2H6|1s|1mW": 8.856243108375569,
++   "C2H6|1s|10mW": 1.254625636617308,
++   "C2H6|1s|20mW": 0.8633612405485553,
++   "C2H6|1s|30mW": 0.750166967720773,
++   "C2H6|1s|50mW": 0.7032062524745839
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.5461103137266419,
++   "C2H6": 0.6927019301281039
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 3.1773676541491174,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.4871780218794631,
++   "10mW": 0.00596727119597331,
++   "30mW": 0.0014796880626863963
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 22.874908173557042,
++   "10mW": 0.2834343306151309,
++   "30mW": 0.034796979038876914
++  },
++  "P_C2H6_2ppb_0.1s_mW": 17.152832220144795
++ },
++ "R0.95|d10": {
++  "T": 0.025592179636745854,
++  "IL_dB": 23.918927245114116,
++  "GL_cm": 11.106135488223114,
++  "fringe_all": 1.6531538542617932e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 20.16710372317901,
++   "CH4|0.1s|10mW": 2.045067032796278,
++   "CH4|0.1s|20mW": 1.041158981927293,
++   "CH4|0.1s|30mW": 0.7085807108703521,
++   "CH4|0.1s|50mW": 0.4488558715949421,
++   "CH4|1s|1mW": 6.378367951247817,
++   "CH4|1s|10mW": 0.6560953897517736,
++   "CH4|1s|20mW": 0.34967991611431487,
++   "CH4|1s|30mW": 0.2552902864931611,
++   "CH4|1s|50mW": 0.18765065607856257,
++   "C2H6|0.1s|1mW": 25.580530751763852,
++   "C2H6|0.1s|10mW": 2.59402147377944,
++   "C2H6|0.1s|20mW": 1.3206358096951343,
++   "C2H6|0.1s|30mW": 0.8987840253775663,
++   "C2H6|0.1s|50mW": 0.5693416161313936,
++   "C2H6|1s|1mW": 8.090504207375595,
++   "C2H6|1s|10mW": 0.8322101440052558,
++   "C2H6|1s|20mW": 0.44354399968477004,
++   "C2H6|1s|30mW": 0.32381749575469,
++   "C2H6|1s|50mW": 0.23802145535103442
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.13971703791114645,
++   "C2H6": 0.1772210840926865
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 2.079293901007766,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.40983836717572614,
++   "10mW": 0.0042230441872066725,
++   "30mW": 0.0012305240043592616
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 16.56605958949915,
++   "10mW": 0.16874356777273758,
++   "30mW": 0.019783188827841643
++  },
++  "P_C2H6_2ppb_0.1s_mW": 13.040319151841308
++ },
++ "R0.95|d15": {
++  "T": 0.013820246119223709,
++  "IL_dB": 26.594842227165977,
++  "GL_cm": 16.591262736386724,
++  "fringe_all": 2.932421752719613e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 24.995999901712523,
++   "CH4|0.1s|10mW": 2.5182115315767524,
++   "CH4|0.1s|20mW": 1.273140658751768,
++   "CH4|0.1s|30mW": 0.8606277450856878,
++   "CH4|0.1s|50mW": 0.5383784875561264,
++   "CH4|1s|1mW": 7.905573243311949,
++   "CH4|1s|10mW": 0.8076050637273398,
++   "CH4|1s|20mW": 0.43049358958816974,
++   "CH4|1s|30mW": 0.31495906330378065,
++   "CH4|1s|50mW": 0.2304605010890738,
++   "C2H6|0.1s|1mW": 31.70564067769127,
++   "C2H6|0.1s|10mW": 3.194171478818137,
++   "C2H6|0.1s|20mW": 1.6148879987704423,
++   "C2H6|0.1s|30mW": 1.0916448291820098,
++   "C2H6|0.1s|50mW": 0.6828946608326698,
++   "C2H6|1s|1mW": 10.027655048376214,
++   "C2H6|1s|10mW": 1.0243893447234613,
++   "C2H6|1s|20mW": 0.5460503728277291,
++   "C2H6|1s|30mW": 0.3995030776347431,
++   "C2H6|1s|50mW": 0.2923226862963078
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.1500364068337022,
++   "C2H6": 0.19031046656850698
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 2.55878959610538,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.62776601058065,
++   "10mW": 0.006394488428556943,
++   "30mW": 0.0013650078065460137
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 25.374903797335715,
++   "10mW": 0.2584713507469564,
++   "30mW": 0.02927294835042816
++  },
++  "P_C2H6_2ppb_0.1s_mW": 16.190981738675873
++ },
++ "R0.95|d20": {
++  "T": 0.010287145139853716,
++  "IL_dB": 27.8770513272368,
++  "GL_cm": 20.695676103762487,
++  "fringe_all": 1.5669385990310592e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 28.35775061513075,
++   "CH4|0.1s|10mW": 2.8484938846291037,
++   "CH4|0.1s|20mW": 1.4318049936755295,
++   "CH4|0.1s|30mW": 0.9599153885988048,
++   "CH4|0.1s|50mW": 0.5830019845640934,
++   "CH4|1s|1mW": 8.967666086704984,
++   "CH4|1s|10mW": 0.9023440518959345,
++   "CH4|1s|20mW": 0.45589428619143507,
++   "CH4|1s|30mW": 0.30818306392768613,
++   "CH4|1s|50mW": 0.19691118257009235,
++   "C2H6|0.1s|1mW": 35.96978136366992,
++   "C2H6|0.1s|10mW": 3.6131110551198153,
++   "C2H6|0.1s|20mW": 1.8161423759203237,
++   "C2H6|0.1s|30mW": 1.2175841139211618,
++   "C2H6|0.1s|50mW": 0.7394963798069007,
++   "C2H6|1s|1mW": 11.37484396625823,
++   "C2H6|1s|10mW": 1.144558985020016,
++   "C2H6|1s|20mW": 0.5782693423681718,
++   "C2H6|1s|30mW": 0.3909082063635204,
++   "C2H6|1s|50mW": 0.2497677718249182
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.06684840000198103,
++   "C2H6": 0.0847924211343983
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 2.854153250249979,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.8089243486805938,
++   "10mW": 0.008145371766280746,
++   "30mW": 0.0013808297652180923
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 32.697497445117676,
++   "10mW": 0.3292437333007769,
++   "30mW": 0.037288213071828336
++  },
++  "P_C2H6_2ppb_0.1s_mW": 18.1718229271809
++ },
++ "R0.97|d5": {
++  "T": 0.08274386214246654,
++  "IL_dB": 18.822642118908806,
++  "GL_cm": 6.355627579928251,
++  "fringe_all": 3.098186492137683e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 11.50347116742814,
++   "CH4|0.1s|10mW": 1.4047897472980408,
++   "CH4|0.1s|20mW": 0.7888462391343867,
++   "CH4|0.1s|30mW": 0.6498271307346176,
++   "CH4|0.1s|50mW": 0.5187735106820424,
++   "CH4|1s|1mW": 3.6471151114910785,
++   "CH4|1s|10mW": 0.6189672416822789,
++   "CH4|1s|20mW": 0.4607884032330781,
++   "CH4|1s|30mW": 0.42162629318510486,
++   "CH4|1s|50mW": 0.40132814720233134,
++   "C2H6|0.1s|1mW": 14.591331605649042,
++   "C2H6|0.1s|10mW": 1.7818754653013458,
++   "C2H6|0.1s|20mW": 1.0005951154700332,
++   "C2H6|0.1s|30mW": 0.8242593051168692,
++   "C2H6|0.1s|50mW": 0.6580271478422585,
++   "C2H6|1s|1mW": 4.6261050443991945,
++   "C2H6|1s|10mW": 0.7851157398466584,
++   "C2H6|1s|20mW": 0.5844771803009232,
++   "C2H6|1s|30mW": 0.5348028406368326,
++   "C2H6|1s|50mW": 0.5090560921377238
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.3933581527667732,
++   "C2H6": 0.4989467234079019
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 2.006987846097993,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.13247139878661174,
++   "10mW": 0.0020668802496290823,
++   "30mW": 0.0011483124145435111
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 6.365079081295571,
++   "10mW": 0.0719211887222119,
++   "30mW": 0.013840160965731315
++  },
++  "P_C2H6_2ppb_0.1s_mW": 8.4589857965743
++ },
++ "R0.97|d10": {
++  "T": 0.03982176311679468,
++  "IL_dB": 21.998795154049525,
++  "GL_cm": 11.377083736181003,
++  "fringe_all": 1.528964180578063e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 13.00538211422504,
++   "CH4|0.1s|10mW": 1.3358061661058747,
++   "CH4|0.1s|20mW": 0.6931205887072035,
++   "CH4|0.1s|30mW": 0.47622440913352165,
++   "CH4|0.1s|50mW": 0.30589897027046664,
++   "CH4|1s|1mW": 4.116452276453514,
++   "CH4|1s|10mW": 0.4372598565221283,
++   "CH4|1s|20mW": 0.2427577903080593,
++   "CH4|1s|30mW": 0.18649990290164284,
++   "CH4|1s|50mW": 0.14640647172910637,
++   "C2H6|0.1s|1mW": 16.496398376183436,
++   "C2H6|0.1s|10mW": 1.6943747193204133,
++   "C2H6|0.1s|20mW": 0.8791739645652192,
++   "C2H6|0.1s|30mW": 0.6040566513563961,
++   "C2H6|0.1s|50mW": 0.38801099668778205,
++   "C2H6|1s|1mW": 5.221425718406948,
++   "C2H6|1s|10mW": 0.5546328991911869,
++   "C2H6|1s|20mW": 0.30792091940640187,
++   "C2H6|1s|30mW": 0.23656180713213565,
++   "C2H6|1s|50mW": 0.18570615313586974
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.1160118527585331,
++   "C2H6": 0.14715274973509962
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 1.3872315278385492,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.1706994934038408,
++   "10mW": 0.0017999285067824766,
++   "30mW": 0.0011750871309048076
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 6.899837121430019,
++   "10mW": 0.0719211887222119,
++   "30mW": 0.00872852662384838
++  },
++  "P_C2H6_2ppb_0.1s_mW": 8.4589857965743
++ },
++ "R0.97|d15": {
++  "T": 0.020407305543270665,
++  "IL_dB": 24.902143331054933,
++  "GL_cm": 17.019225784390045,
++  "fringe_all": 2.6875861877472444e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 15.898247532593832,
++   "CH4|0.1s|10mW": 1.619657977152884,
++   "CH4|0.1s|20mW": 0.8405123168843354,
++   "CH4|0.1s|30mW": 0.5775052550411497,
++   "CH4|0.1s|50mW": 0.3739903533492853,
++   "CH4|1s|1mW": 5.03202724703249,
++   "CH4|1s|10mW": 0.5398942407259715,
++   "CH4|1s|20mW": 0.30361056278893583,
++   "CH4|1s|30mW": 0.23343318121815354,
++   "CH4|1s|50mW": 0.1792221041542346,
++   "C2H6|0.1s|1mW": 20.16579155286672,
++   "C2H6|0.1s|10mW": 2.0544204691266374,
++   "C2H6|0.1s|20mW": 1.0661298451390513,
++   "C2H6|0.1s|30mW": 0.7325241709798007,
++   "C2H6|0.1s|50mW": 0.47438005308212716,
++   "C2H6|1s|1mW": 6.382767178833021,
++   "C2H6|1s|10mW": 0.6848172854745386,
++   "C2H6|1s|20mW": 0.38510831523399536,
++   "C2H6|1s|30mW": 0.29609331873321454,
++   "C2H6|1s|50mW": 0.22733043919657772
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.1316268703755313,
++   "C2H6": 0.16695928436812482
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 1.7160712249445567,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.2555097090352507,
++   "10mW": 0.002663332725174981,
++   "30mW": 0.0012738113231864786
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 10.327947319189525,
++   "10mW": 0.10642092440647247,
++   "30mW": 0.012476595526308698
++  },
++  "P_C2H6_2ppb_0.1s_mW": 10.352317759307383
++ },
++ "R0.97|d20": {
++  "T": 0.014472608798808859,
++  "IL_dB": 26.39453176910945,
++  "GL_cm": 21.248944194333355,
++  "fringe_all": 1.4596142332357732e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 18.88606640726413,
++   "CH4|0.1s|10mW": 1.9009399060741259,
++   "CH4|0.1s|20mW": 0.9577987395880028,
++   "CH4|0.1s|30mW": 0.6437456907364996,
++   "CH4|0.1s|50mW": 0.3930734196556617,
++   "CH4|1s|1mW": 5.972456733369171,
++   "CH4|1s|10mW": 0.6026991399923591,
++   "CH4|1s|20mW": 0.30598504048749275,
++   "CH4|1s|30mW": 0.2081582435800074,
++   "CH4|1s|50mW": 0.14000755551838218,
++   "C2H6|0.1s|1mW": 23.95562640735599,
++   "C2H6|0.1s|10mW": 2.411206506995592,
++   "C2H6|0.1s|20mW": 1.2148992958206188,
++   "C2H6|0.1s|30mW": 0.8165454328116423,
++   "C2H6|0.1s|50mW": 0.49858555979190566,
++   "C2H6|1s|1mW": 7.575634817404815,
++   "C2H6|1s|10mW": 0.7644808147099607,
++   "C2H6|1s|20mW": 0.38812017061100224,
++   "C2H6|1s|30mW": 0.26403386545840424,
++   "C2H6|1s|50mW": 0.17758958492889138
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.05893831431917171,
++   "C2H6": 0.07475904237879508
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 1.9065919762952601,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.356904934567523,
++   "10mW": 0.0036354699612933176,
++   "30mW": 0.001259215613694151
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 14.426439512181588,
++   "10mW": 0.14694918006248173,
++   "30mW": 0.016642601764859037
++  },
++  "P_C2H6_2ppb_0.1s_mW": 12.132768183007542
++ },
++ "R0.995|d5": {
++  "T": 0.1548498693848751,
++  "IL_dB": 16.100891566323604,
++  "GL_cm": 8.099635833116047,
++  "fringe_all": 2.3874622547197905e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 4.172077261249042,
++   "CH4|0.1s|10mW": 0.5862048039452514,
++   "CH4|0.1s|20mW": 0.3687576634361193,
++   "CH4|0.1s|30mW": 0.30017247376238165,
++   "CH4|0.1s|50mW": 0.2652928668712337,
++   "CH4|1s|1mW": 1.4178073037544578,
++   "CH4|1s|10mW": 0.2839332596022326,
++   "CH4|1s|20mW": 0.24970814750172116,
++   "CH4|1s|30mW": 0.2430292534938865,
++   "CH4|1s|50mW": 0.24046609018991538,
++   "C2H6|0.1s|1mW": 5.291982038920787,
++   "C2H6|0.1s|10mW": 0.7435589274486771,
++   "C2H6|0.1s|20mW": 0.46774275964249745,
++   "C2H6|0.1s|30mW": 0.3807473448498351,
++   "C2H6|0.1s|50mW": 0.33650505458666,
++   "C2H6|1s|1mW": 1.7983873059611164,
++   "C2H6|1s|10mW": 0.3601490614815236,
++   "C2H6|1s|20mW": 0.31673695111668976,
++   "C2H6|1s|30mW": 0.3082652510699041,
++   "C2H6|1s|50mW": 0.3050140614782293
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.23894528024090755,
++   "C2H6": 0.3030850226731445
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 0.93572497885331,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.01742774678408919,
++   "10mW": 0.001,
++   "30mW": 0.001
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 0.7996554525892346,
++   "10mW": 0.011777987011971192,
++   "30mW": 0.006394488428556943
++  },
++  "P_C2H6_2ppb_0.1s_mW": 2.8667741762226067
++ },
++ "R0.995|d10": {
++  "T": 0.0695940195255153,
++  "IL_dB": 19.574280793357303,
++  "GL_cm": 12.183016463454578,
++  "fringe_all": 1.3335221668007071e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 7.011592036034681,
++   "CH4|0.1s|10mW": 0.7374644060276542,
++   "CH4|0.1s|20mW": 0.3933908155275552,
++   "CH4|0.1s|30mW": 0.28151619958878354,
++   "CH4|0.1s|50mW": 0.19220407586864208,
++   "CH4|1s|1mW": 2.2221050232931843,
++   "CH4|1s|10mW": 0.25733600117065636,
++   "CH4|1s|20mW": 0.15113345195318192,
++   "CH4|1s|30mW": 0.13013854678011857,
++   "CH4|1s|50mW": 0.1207500600542617,
++   "C2H6|0.1s|1mW": 8.893703734486198,
++   "C2H6|0.1s|10mW": 0.9354209298303722,
++   "C2H6|0.1s|20mW": 0.49898815378720135,
++   "C2H6|0.1s|30mW": 0.35708319347927653,
++   "C2H6|0.1s|50mW": 0.24379714315254775,
++   "C2H6|1s|1mW": 2.8185815207896363,
++   "C2H6|1s|10mW": 0.3264123387195158,
++   "C2H6|1s|20mW": 0.19170198995233667,
++   "C2H6|1s|30mW": 0.16507145218242164,
++   "C2H6|1s|50mW": 0.15316282729012848
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.10867716332446792,
++   "C2H6": 0.13784922002661226
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 0.8231259661990302,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.04916903577628029,
++   "10mW": 0.001259215613694151,
++   "30mW": 0.0011483124145435111
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 2.0104964162604992,
++   "10mW": 0.02119953457536071,
++   "30mW": 0.003851107002325569
++  },
++  "P_C2H6_2ppb_0.1s_mW": 4.548777947003778
++ },
++ "R0.995|d15": {
++  "T": 0.03435172686787061,
++  "IL_dB": 22.640514259891084,
++  "GL_cm": 17.494703320870475,
++  "fringe_all": 2.3673791328077505e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 9.091286670287843,
++   "CH4|0.1s|10mW": 0.939852059338885,
++   "CH4|0.1s|20mW": 0.5006734793375698,
++   "CH4|0.1s|30mW": 0.3513878430159265,
++   "CH4|0.1s|50mW": 0.24335063199653728,
++   "CH4|1s|1mW": 2.8799246191442,
++   "CH4|1s|10mW": 0.32718406113655596,
++   "CH4|1s|20mW": 0.20371706155966623,
++   "CH4|1s|30mW": 0.16081534572286285,
++   "CH4|1s|50mW": 0.13645682054246133,
++   "C2H6|0.1s|1mW": 11.531647847633511,
++   "C2H6|0.1s|10mW": 1.1921352136645393,
++   "C2H6|0.1s|20mW": 0.6350685507739541,
++   "C2H6|0.1s|30mW": 0.44571038298046506,
++   "C2H6|0.1s|50mW": 0.30867289674787857,
++   "C2H6|1s|1mW": 3.6529786970901315,
++   "C2H6|1s|10mW": 0.41500961428443206,
++   "C2H6|1s|20mW": 0.25840054325185735,
++   "C2H6|1s|30mW": 0.20398278072478546,
++   "C2H6|1s|50mW": 0.1730857312030581
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.1125961111310842,
++   "C2H6": 0.1428201254306681
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 1.0465657138515518,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.08354528058382867,
++   "10mW": 0.001429404533431761,
++   "30mW": 0.001216424293857368
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 3.3769803108250915,
++   "10mW": 0.034796979038876914,
++   "30mW": 0.004577840538376616
++  },
++  "P_C2H6_2ppb_0.1s_mW": 5.8976187154767254
++ },
++ "R0.995|d20": {
++  "T": 0.023109399761987646,
++  "IL_dB": 24.362113346352128,
++  "GL_cm": 21.908765327286012,
++  "fringe_all": 1.2286238926764983e-07,
++  "lim": {
++   "CH4|0.1s|1mW": 11.3549576509119,
++   "CH4|0.1s|10mW": 1.1487177728161484,
++   "CH4|0.1s|20mW": 0.5824616852068729,
++   "CH4|0.1s|30mW": 0.3946032804746813,
++   "CH4|0.1s|50mW": 0.2444499671740556,
++   "CH4|1s|1mW": 3.5911088138981535,
++   "CH4|1s|10mW": 0.3666626014126774,
++   "CH4|1s|20mW": 0.18894109475075482,
++   "CH4|1s|30mW": 0.13470473132042088,
++   "CH4|1s|50mW": 0.09333054524325324,
++   "C2H6|0.1s|1mW": 14.402952816684426,
++   "C2H6|0.1s|10mW": 1.457066454160585,
++   "C2H6|0.1s|20mW": 0.7388110486600861,
++   "C2H6|0.1s|30mW": 0.5005260789791933,
++   "C2H6|0.1s|50mW": 0.3100673249067758,
++   "C2H6|1s|1mW": 4.555065055834965,
++   "C2H6|1s|10mW": 0.4650853230936929,
++   "C2H6|1s|20mW": 0.23965828464444155,
++   "C2H6|1s|30mW": 0.1708633311579427,
++   "C2H6|1s|50mW": 0.11838313103581266
++  },
++  "fringe_only_0.1s": {
++   "CH4": 0.04758187381893784,
++   "C2H6": 0.060354208673649844
++  },
++  "fig3_unreferenced_CH4_0.1s_10mW": 1.1604038322930545,
++  "t_CH4_10ppb_s": {
++   "1mW": 0.1294529978227916,
++   "10mW": 0.0015494950393146315,
++   "30mW": 0.0012024861420374122
++  },
++  "t_C2H6_2ppb_s": {
++   "1mW": 5.2326142394866615,
++   "10mW": 0.0532999408084409,
++   "30mW": 0.006619433458774394
++  },
++  "P_C2H6_2ppb_0.1s_mW": 7.322538337604533
++ }
++}
+\ No newline at end of file
+diff --git a/QUIET_sims_v32/results/t14/milestones.txt b/QUIET_sims_v32/results/t14/milestones.txt
+index 63679fc..b852749 100644
+--- a/QUIET_sims_v32/results/t14/milestones.txt
++++ b/QUIET_sims_v32/results/t14/milestones.txt
+@@ -1,9 +1,12 @@
+-0.95 d5 IL 20.8 dB ['22/28', '7/8.9', '1.9/2.5', '2.5/3.1', '0.99/1.3', '0.42/0.53'] t(CH4 10ppb,1mW)=0.48s t(C2H6 2ppb,1mW)=23s
+-0.95 d10 IL 23.9 dB ['20/26', '6.4/8.1', '1.6/2.1', '2.1/2.6', '0.66/0.83', '0.19/0.24'] t(CH4 10ppb,1mW)=0.41s t(C2H6 2ppb,1mW)=17s
+-0.95 d20 IL 27.9 dB ['28/36', '9/11', '2.3/2.9', '2.9/3.7', '0.9/1.1', '0.24/0.3'] t(CH4 10ppb,1mW)=0.82s t(C2H6 2ppb,1mW)=33s
+-0.97 d5 IL 18.8 dB ['12/15', '3.6/4.6', '1.1/1.3', '1.5/1.9', '0.62/0.79', '0.29/0.37'] t(CH4 10ppb,1mW)=0.13s t(C2H6 2ppb,1mW)=6.4s
+-0.97 d10 IL 22.0 dB ['13/17', '4.1/5.2', '1.1/1.4', '1.5/1.9', '0.44/0.56', '0.14/0.17'] t(CH4 10ppb,1mW)=0.17s t(C2H6 2ppb,1mW)=7s
+-0.97 d20 IL 26.4 dB ['19/24', '6/7.6', '1.5/2', '2/2.5', '0.61/0.77', '0.16/0.2'] t(CH4 10ppb,1mW)=0.36s t(C2H6 2ppb,1mW)=14s
+-0.995 d5 IL 16.1 dB ['4.2/5.3', '1.4/1.8', '0.44/0.56', '0.74/0.93', '0.28/0.36', '0.17/0.21'] t(CH4 10ppb,1mW)=0.019s t(C2H6 2ppb,1mW)=0.8s
+-0.995 d10 IL 19.6 dB ['7/8.9', '2.2/2.8', '0.58/0.74', '0.95/1.2', '0.26/0.33', '0.09/0.11'] t(CH4 10ppb,1mW)=0.05s t(C2H6 2ppb,1mW)=2s
+-0.995 d20 IL 24.4 dB ['11/14', '3.6/4.6', '0.93/1.2', '1.3/1.6', '0.37/0.47', '0.1/0.13'] t(CH4 10ppb,1mW)=0.13s t(C2H6 2ppb,1mW)=5.2s
++R 95 %  5 mm  T 5.2 %  IL 20.8 dB  GL 5.8 cm  fringe 3.5e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 21.9/27.8 | 2.42/3.07 | 1.06/1.35 | 0.744/0.944  1 s 1 mW: 6.98/8.86  fringe-only 0.1 s: 0.55/0.69  Fig3 unref CH4 10 mW: 3.2  t(CH4 10 ppb) {'1mW': 0.4871780218794631, '10mW': 0.00596727119597331, '30mW': 0.0014796880626863963}  P(C2H6 2 ppb, 0.1 s) 17.152832220144795 mW
++R 95 % 10 mm  T 2.6 %  IL 23.9 dB  GL 11.1 cm  fringe 1.7e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 20.2/25.6 | 2.05/2.59 | 0.709/0.899 | 0.449/0.569  1 s 1 mW: 6.38/8.09  fringe-only 0.1 s: 0.14/0.18  Fig3 unref CH4 10 mW: 2.1  t(CH4 10 ppb) {'1mW': 0.40983836717572614, '10mW': 0.0042230441872066725, '30mW': 0.0012305240043592616}  P(C2H6 2 ppb, 0.1 s) 13.040319151841308 mW
++R 95 % 15 mm  T 1.4 %  IL 26.6 dB  GL 16.6 cm  fringe 2.9e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 25/31.7 | 2.52/3.19 | 0.861/1.09 | 0.538/0.683  1 s 1 mW: 7.91/10  fringe-only 0.1 s: 0.15/0.19  Fig3 unref CH4 10 mW: 2.6  t(CH4 10 ppb) {'1mW': 0.62776601058065, '10mW': 0.006394488428556943, '30mW': 0.0013650078065460137}  P(C2H6 2 ppb, 0.1 s) 16.190981738675873 mW
++R 95 % 20 mm  T 1.0 %  IL 27.9 dB  GL 20.7 cm  fringe 1.6e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 28.4/36 | 2.85/3.61 | 0.96/1.22 | 0.583/0.739  1 s 1 mW: 8.97/11.4  fringe-only 0.1 s: 0.067/0.085  Fig3 unref CH4 10 mW: 2.9  t(CH4 10 ppb) {'1mW': 0.8089243486805938, '10mW': 0.008145371766280746, '30mW': 0.0013808297652180923}  P(C2H6 2 ppb, 0.1 s) 18.1718229271809 mW
++R 97 %  5 mm  T 8.3 %  IL 18.8 dB  GL 6.4 cm  fringe 3.1e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 11.5/14.6 | 1.4/1.78 | 0.65/0.824 | 0.519/0.658  1 s 1 mW: 3.65/4.63  fringe-only 0.1 s: 0.39/0.5  Fig3 unref CH4 10 mW: 2  t(CH4 10 ppb) {'1mW': 0.13247139878661174, '10mW': 0.0020668802496290823, '30mW': 0.0011483124145435111}  P(C2H6 2 ppb, 0.1 s) 8.4589857965743 mW
++R 97 % 10 mm  T 4.0 %  IL 22.0 dB  GL 11.4 cm  fringe 1.5e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 13/16.5 | 1.34/1.69 | 0.476/0.604 | 0.306/0.388  1 s 1 mW: 4.12/5.22  fringe-only 0.1 s: 0.12/0.15  Fig3 unref CH4 10 mW: 1.4  t(CH4 10 ppb) {'1mW': 0.1706994934038408, '10mW': 0.0017999285067824766, '30mW': 0.0011750871309048076}  P(C2H6 2 ppb, 0.1 s) 8.4589857965743 mW
++R 97 % 15 mm  T 2.0 %  IL 24.9 dB  GL 17.0 cm  fringe 2.7e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 15.9/20.2 | 1.62/2.05 | 0.578/0.733 | 0.374/0.474  1 s 1 mW: 5.03/6.38  fringe-only 0.1 s: 0.13/0.17  Fig3 unref CH4 10 mW: 1.7  t(CH4 10 ppb) {'1mW': 0.2555097090352507, '10mW': 0.002663332725174981, '30mW': 0.0012738113231864786}  P(C2H6 2 ppb, 0.1 s) 10.352317759307383 mW
++R 97 % 20 mm  T 1.4 %  IL 26.4 dB  GL 21.2 cm  fringe 1.5e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 18.9/24 | 1.9/2.41 | 0.644/0.817 | 0.393/0.499  1 s 1 mW: 5.97/7.58  fringe-only 0.1 s: 0.059/0.075  Fig3 unref CH4 10 mW: 1.9  t(CH4 10 ppb) {'1mW': 0.356904934567523, '10mW': 0.0036354699612933176, '30mW': 0.001259215613694151}  P(C2H6 2 ppb, 0.1 s) 12.132768183007542 mW
++R 99.5 %  5 mm  T 15.5 %  IL 16.1 dB  GL 8.1 cm  fringe 2.4e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 4.17/5.29 | 0.586/0.744 | 0.3/0.381 | 0.265/0.337  1 s 1 mW: 1.42/1.8  fringe-only 0.1 s: 0.24/0.3  Fig3 unref CH4 10 mW: 0.94  t(CH4 10 ppb) {'1mW': 0.01742774678408919, '10mW': 0.001, '30mW': 0.001}  P(C2H6 2 ppb, 0.1 s) 2.8667741762226067 mW
++R 99.5 % 10 mm  T 7.0 %  IL 19.6 dB  GL 12.2 cm  fringe 1.3e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 7.01/8.89 | 0.737/0.935 | 0.282/0.357 | 0.192/0.244  1 s 1 mW: 2.22/2.82  fringe-only 0.1 s: 0.11/0.14  Fig3 unref CH4 10 mW: 0.82  t(CH4 10 ppb) {'1mW': 0.04916903577628029, '10mW': 0.001259215613694151, '30mW': 0.0011483124145435111}  P(C2H6 2 ppb, 0.1 s) 4.548777947003778 mW
++R 99.5 % 15 mm  T 3.4 %  IL 22.6 dB  GL 17.5 cm  fringe 2.4e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 9.09/11.5 | 0.94/1.19 | 0.351/0.446 | 0.243/0.309  1 s 1 mW: 2.88/3.65  fringe-only 0.1 s: 0.11/0.14  Fig3 unref CH4 10 mW: 1  t(CH4 10 ppb) {'1mW': 0.08354528058382867, '10mW': 0.001429404533431761, '30mW': 0.001216424293857368}  P(C2H6 2 ppb, 0.1 s) 5.8976187154767254 mW
++R 99.5 % 20 mm  T 2.3 %  IL 24.4 dB  GL 21.9 cm  fringe 1.2e-07  0.1 s CH4/C2H6 1|10|30|50 mW: 11.4/14.4 | 1.15/1.46 | 0.395/0.501 | 0.244/0.31  1 s 1 mW: 3.59/4.56  fringe-only 0.1 s: 0.048/0.06  Fig3 unref CH4 10 mW: 1.2  t(CH4 10 ppb) {'1mW': 0.1294529978227916, '10mW': 0.0015494950393146315, '30mW': 0.0012024861420374122}  P(C2H6 2 ppb, 0.1 s) 7.322538337604533 mW
+diff --git a/QUIET_sims_v32/scripts/t14_milestones.py b/QUIET_sims_v32/scripts/t14_milestones.py
+index dc31247..b5acfa4 100644
+--- a/QUIET_sims_v32/scripts/t14_milestones.py
++++ b/QUIET_sims_v32/scripts/t14_milestones.py
+@@ -1,27 +1,60 @@
+-"""Task 14 milestone check vs R (run from QUIET_sims_v32/): 10 mm-style limits at 0.1 / 1 / 15 s, 1 and 10 mW, insertion loss incl. 8 dB couplers, time to CH4 10 ppb and C2H6 2 ppb at 1 mW. Model of scripts/t14_analysis.py (all dithers, referenced, synchronous)."""
+-import json,math,sys,numpy as np
+-sys.path.insert(0,".")
+-sys.argv=['x']; src=open('scripts/t14_analysis.py').read().split('summary, L =')[0]
+-__file__="scripts/t14_analysis.py"; src=src.replace("Path(__file__).resolve().parent.parent","Path(\".\").resolve()"); exec(src)
+-def lim(rows,T,P,gas,ln,sm,band='mir'):
+-    lam=BAND[band][0]; a=LN[ln]["alpha_peak_per_ppm_cm"]; v=[]
++"""Task 14 milestone check against the mirror reflectivity R (run from QUIET_sims_v32/).
++
++python scripts/t14_milestones.py      -> results/t14/milestones.json, results/t14/milestones.txt
++
++CMPC at 3.3 um, design beam (w75 A60 X100), all dithers (input + wavelength + membrane delta n_eff 1e-4), median over the
++chaotic layouts. Fringe residual at the averaging time T as in Fig. 3 (b) with period-locked averaging ("lock", eta 1e-3):
++static x drift envelope, plus the 1 kHz and 50 Hz dither remainders W(T, f); breath referencing every 3 s at 0.1 rad/s
++(x 2 sin(0.15) = 0.30); detector NEP 14 pW/rtHz, simulated transmission + 8 dB couplers. Insertion loss = -10 log T + 8 dB.
++"""
++import json, math, sys
++from pathlib import Path
++import numpy as np
++ROOT = Path(__file__).resolve().parent.parent
++sys.path.insert(0, str(ROOT))
++from qv import analysis as A  # noqa: E402
++LN = A.load(ROOT / "results/t7/lines.json")
++LAM, BM, KEY, ETA, W_D, TAU = 3.3151e-6, "w75 A60 X100", "both+global 0.0001", 1e-3, 0.1, 3.0
++GAS = {"CH4": ("CH4_3.31", 0.921), "C2H6": ("C2H6_3.34Q", 0.824)}
++Hd = lambda T: 1 / math.sqrt(1 + 2 * (W_D / 2 * T) ** 2)
++Hac = lambda T, f: 1 / math.sqrt(1 + 2 * (math.pi * f * T) ** 2)
++Wl = lambda T, f: Hac(T, f) * math.sqrt(1 / (1 + (2 * f * T) ** 4) + ETA ** 2)
++det = lambda T, Pd: math.sqrt((14e-12) ** 2 + 2 * 6.626e-34 * 2.998e8 / LAM * Pd) / (Pd * math.sqrt(2 * T))
++
++
++def lim(rows, T, P, gas, ref=True, fringe_only=False):
++    ln, sm = GAS[gas]; a = LN[ln]["alpha_peak_per_ppm_cm"]; v = []
+     for x in rows:
+-        d=x.get("d",{}).get("w75 A60 X100")
+-        if not d: continue
+-        k=1e3/(a*d["GL_cm"]*sm)
+-        v.append(k*math.hypot(residual(d["fringe"],"both+global 0.0001",T,0.1,TAU,True),det(T,P*d["T"]*10**-0.8,lam,14e-12)))
++        d = x["d"][BM]; F = d["fringe"]; s, n0, b = F[KEY], F["none"], F["both"]
++        r = math.sqrt((s * Hd(T)) ** 2 + max(n0 ** 2 - b ** 2, 0) * Wl(T, 1000) ** 2 + max(b ** 2 - s ** 2, 0) * Wl(T, 50) ** 2)
++        r *= 2 * math.sin(W_D * TAU / 2) if ref else 1
++        v.append(1e3 / (a * d["GL_cm"] * sm) * (r if fringe_only else math.hypot(r, det(T, P * d["T"] * 10 ** -0.8))))
+     return float(np.median(v))
+-for R in (0.95,0.97,0.995):
+-    d=json.load(open(f"results/t14/mir_R{R}.json"))
+-    for c in ("d5","d10","d20"):
+-        rows=d["cells"][c]["chaotic"]
+-        Tm=med(rows,"w75 A60 X100",lambda x:x["T"])
+-        il=-10*math.log10(Tm)+8
+-        s=[]
+-        for P in (1e-3,10e-3):
+-            for T in (0.1,1,15):
+-                s.append(f"{lim(rows,T,P,'CH4','CH4_3.31',0.921):.2g}/{lim(rows,T,P,'C2H6','C2H6_3.34Q',0.824):.2g}")
+-        # time for ethane 2 ppb at 1 mW
+-        Ts=np.logspace(-2,2,400); t2=next((t for t in Ts if lim(rows,t,1e-3,'C2H6','C2H6_3.34Q',0.824)<=2),None)
+-        t10=next((t for t in Ts if lim(rows,t,1e-3,'CH4','CH4_3.31',0.921)<=10),None)
+-        print(R,c,f"IL {il:.1f} dB",s,f"t(CH4 10ppb,1mW)={t10:.2g}s" if t10 else "", f"t(C2H6 2ppb,1mW)={t2:.2g}s" if t2 else "none")
++
++
++def t_for(rows, P, gas, ppb):
++    return next((float(t) for t in np.logspace(-3, 2, 1000) if lim(rows, t, P, gas) <= ppb), None)
++
++
++out, L = {}, []
++for R in (0.95, 0.97, 0.995):
++    d = json.load(open(ROOT / f"results/t14/mir_R{R}.json"))
++    for c in ("d5", "d10", "d15", "d20"):
++        rows = [x for x in d["cells"][c]["chaotic"] if x.get("d", {}).get(BM)]
++        Tm = float(np.median([x["d"][BM]["T"] for x in rows])); GL = float(np.median([x["d"][BM]["GL_cm"] for x in rows]))
++        e = {"T": Tm, "IL_dB": -10 * math.log10(Tm) + 8, "GL_cm": GL, "fringe_all": float(np.median([x["d"][BM]["fringe"][KEY] for x in rows])),
++             "lim": {f"{g}|{T}s|{P * 1e3:g}mW": lim(rows, T, P, g) for g in GAS for T in (0.1, 1) for P in (1e-3, 10e-3, 20e-3, 30e-3, 50e-3)},
++             "fringe_only_0.1s": {g: lim(rows, 0.1, 1, g, fringe_only=True) for g in GAS},
++             "fig3_unreferenced_CH4_0.1s_10mW": lim(rows, 0.1, 10e-3, "CH4", ref=False),
++             "t_CH4_10ppb_s": {f"{P * 1e3:g}mW": t_for(rows, P, "CH4", 10) for P in (1e-3, 10e-3, 30e-3)},
++             "t_C2H6_2ppb_s": {f"{P * 1e3:g}mW": t_for(rows, P, "C2H6", 2) for P in (1e-3, 10e-3, 30e-3)},
++             "P_C2H6_2ppb_0.1s_mW": next((float(p) * 1e3 for p in np.logspace(-3, -0.5, 400) if lim(rows, 0.1, p, "C2H6") <= 2), None)}
++        out[f"R{R}|{c}"] = e
++        l = e["lim"]
++        L.append(f"R {R * 100:g} % {c[1:]:>2} mm  T {Tm * 100:.1f} %  IL {e['IL_dB']:.1f} dB  GL {GL:.1f} cm  fringe {e['fringe_all']:.2g}  "
++                 f"0.1 s CH4/C2H6 1|10|30|50 mW: " + " | ".join(f"{l[f'CH4|0.1s|{p}mW']:.3g}/{l[f'C2H6|0.1s|{p}mW']:.3g}" for p in (1, 10, 30, 50)) +
++                 f"  1 s 1 mW: {l['CH4|1s|1mW']:.3g}/{l['C2H6|1s|1mW']:.3g}  fringe-only 0.1 s: {e['fringe_only_0.1s']['CH4']:.2g}/{e['fringe_only_0.1s']['C2H6']:.2g}"
++                 f"  Fig3 unref CH4 10 mW: {e['fig3_unreferenced_CH4_0.1s_10mW']:.2g}  t(CH4 10 ppb) {e['t_CH4_10ppb_s']}  P(C2H6 2 ppb, 0.1 s) {e['P_C2H6_2ppb_0.1s_mW']} mW")
++json.dump(out, open(ROOT / "results/t14/milestones.json", "w"), indent=1)
++open(ROOT / "results/t14/milestones.txt", "w").write("\n".join(L) + "\n")
++print("\n".join(L))
+-- 
+2.43.0
+

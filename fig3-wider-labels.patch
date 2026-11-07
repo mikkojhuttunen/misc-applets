@@ -1,0 +1,90 @@
+From f39886b3b42fe403e112508080ab0b07bd042558 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 7 Nov 2026 04:53:45 +0000
+Subject: [PATCH] Fig. 3 (b): wider panel, detector label along its line at
+ 1e-4 s
+
+Panel (a) takes 0.56 of the width by default (was 0.68). The detector label
+sits just under its line at 1e-4 s, turned to the line's slope on the plot;
+the lambda+angle label moves to 8 s.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NLfEqncaEw1RGMDLUGdFgb
+---
+ QUIET_sims_v32/artifacts/fig3_v32.html        | 10 ++++++----
+ QUIET_sims_v32/scripts/build_t14_artifacts.py | 10 +++++++++-
+ 2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/QUIET_sims_v32/artifacts/fig3_v32.html b/QUIET_sims_v32/artifacts/fig3_v32.html
+index f8d09e8..a8681d2 100644
+--- a/QUIET_sims_v32/artifacts/fig3_v32.html
++++ b/QUIET_sims_v32/artifacts/fig3_v32.html
+@@ -144,7 +144,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
+         <div class="sizes">
+           <div class="ctl"><div class="row"><label for="figW">Width</label><output id="figWOut"></output></div><input id="figW" type="range" min="14" max="28" step="0.1" value="16.8"></div>
+           <div class="ctl"><div class="row"><label for="figH">Height</label><output id="figHOut"></output></div><input id="figH" type="range" min="4" max="15" step="0.1" value="4.6"></div>
+-          <div class="ctl"><div class="row"><label for="aShare">Width share of (a)</label><output id="aShareOut"></output></div><input id="aShare" type="range" min="0.4" max="0.8" step="0.01" value="0.68"></div>
++          <div class="ctl"><div class="row"><label for="aShare">Width share of (a)</label><output id="aShareOut"></output></div><input id="aShare" type="range" min="0.4" max="0.8" step="0.01" value="0.56"></div>
+           <div class="ctl"><div class="row"><label for="head">Strip headroom in (a)</label><output id="headOut"></output></div><input id="head" type="range" min="1.05" max="2" step="0.05" value="1.4"></div>
+         </div>
+         <div class="ctl"><div class="row"><label>Text size</label><output id="fsOut"></output></div><div class="btns"><button type="button" id="fsDn" aria-label="Smaller text">A−</button><button type="button" id="fsUp" aria-label="Larger text">A+</button><button type="button" id="fsReset">Reset to 10 pt</button></div></div>
+@@ -232,7 +232,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
+   function Wav(T, f) { const m = $("avgMode").value; if (m === "box") return HacT(T, f); if (m === "step") return T < 1 / f ? 1 : 0;
+     return HacT(T, f) * Math.sqrt(1 / (1 + (2 * f * T) ** 4) + ETA_LOCK ** 2); }
+   /* separate dithers of the newest data: [key, checkbox label, colour, dash, direct label, T of the label, factor] */
+-  const XT = [["lam_ang", "λ + angle", "#bcbd22", "", "λ+angle", 20, 0.42], ["lam_in", "λ + angle + position", "#17becf", "", "λ+ang.+pos.", 0.7, 2.0],
++  const XT = [["lam_ang", "λ + angle", "#bcbd22", "", "λ+angle", 8, 0.42], ["lam_in", "λ + angle + position", "#17becf", "", "λ+ang.+pos.", 0.7, 2.0],
+     ["lam_dn", "λ + δn", "#ff7f0e", "4 2", "λ+δn", 30, 0.4], ["ang", "angle only", "#2ca02c", "1.5 2", "angle", 3e-4, 1.6], ["pos", "position only", "#8c564b", "1.5 2", "pos.", 3e-4, 0.55]];
+   const XKEYS = XT.map(x => x[0]), PREMOD = { both: "both_nomod", lam_dn: "spectral" };
+   function curveT(s, m, T) { const n0 = s.none; if (m === "none") return n0 * HdT(T); const v = s[m], a = PREMOD[m] ? s[PREMOD[m]] : v, w1 = Wav(T, 1000), w2 = Wav(T, 50);
+@@ -506,7 +506,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
+     const ARR = Object.fromEntries(BC.map(c => [c[0], c[1]]));
+     /* direct labels: [curve, T of the label centre, factor above (>1) or below (<1) the curve, text, colour] */
+     const LBL = [["none", 0.13, 2.2, "none", "#a3a3a3"], ["spectral", SPK === "NH3" ? 1.0 : 1.5, SPK === "NH3" ? 0.5 : 2.6, "λ", "#e377c2"], ["angle", SPK === "NH3" ? 1.8 : 0.05, SPK === "NH3" ? 2.5 : 4, MODE_SHORT.angle, "#2ca02c"],
+-      ["shot", SPK !== "NH3" ? 3e-4 : $("win").checked ? 0.02 : 3.1, SPK !== "NH3" ? 0.2 : $("win").checked ? 0.15 : 0.2, noiseName(), "#595959"], ["total", 3.6, 2.0, DSX.modeNames ? "all" : "both", "#000"]];
++      ["shot", SPK !== "NH3" ? 1e-4 : $("win").checked ? 0.02 : 3.1, SPK !== "NH3" ? 0.45 : $("win").checked ? 0.15 : 0.2, noiseName(), "#595959"], ["total", 3.6, 2.0, DSX.modeNames ? "all" : "both", "#000"]];
+     if (DSX.modeNames) for (const [k2, , col, , lab, tl, fac] of XT) if (cur.env[k2]) LBL.push([k2, tl, fac, lab, col]);
+     const WIN = $("win").checked ? [15, 30] : null;
+     const rnd2 = v => v >= 100 ? Math.round(v) : +v.toPrecision(2), ppbOf = (o, shf, gl, t) => Math.hypot(interpLog(o.env.both, t), shf(t)) / (gl * aNH3) * 1e3;
+@@ -534,7 +534,9 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
+       s += `<circle cx="${BX(T)}" cy="${BY(Math.hypot(interpLog(cur.env.both, T), sh))}" r="2.6" fill="#000"/>`;
+     }
+     s += `</g>`;
+-    for (const [kk, tl, fac, t, col] of LBL) if (on(kk)) s += txt(BX(tl), BY(interpLog(ARR[kk], tl) * fac) + 4.2 * k, t, { anchor: "middle", fill: col });
++    for (const [kk, tl, fac, t, col] of LBL) if (on(kk)) { let rot = 0;
++      if (kk === "shot" && SPK !== "NH3") { const a1 = tl / 3, a2 = tl * 3; rot = Math.atan2(BY(interpLog(ARR[kk], a2)) - BY(interpLog(ARR[kk], a1)), BX(a2) - BX(a1)) * 180 / Math.PI; }
++      s += txt(BX(tl), BY(interpLog(ARR[kk], tl) * fac) + 4.2 * k, t, { anchor: "middle", fill: col, rot }); }
+     if ($("bMark").checked) {
+       const tv = Math.hypot(interpLog(cur.env.both, T), sh), ppbv = tv / (GL * aNH3) * 1e3, lab = ppbTxt(cur, shotAt, GL);
+       const ax = Math.max(BX(T) - 62, bl + Math.max(tw(lab), tw("(100 ms)")) / 2 + 6), ay = Math.min(BY(tv) + 28, bb - 4 - FS * 1.15);
+diff --git a/QUIET_sims_v32/scripts/build_t14_artifacts.py b/QUIET_sims_v32/scripts/build_t14_artifacts.py
+index 1a2422e..917a84c 100644
+--- a/QUIET_sims_v32/scripts/build_t14_artifacts.py
++++ b/QUIET_sims_v32/scripts/build_t14_artifacts.py
+@@ -46,7 +46,7 @@ AVG_JS = r'''  /* newest data: the curves against T are recomputed from the per-
+   function Wav(T, f) { const m = $("avgMode").value; if (m === "box") return HacT(T, f); if (m === "step") return T < 1 / f ? 1 : 0;
+     return HacT(T, f) * Math.sqrt(1 / (1 + (2 * f * T) ** 4) + ETA_LOCK ** 2); }
+   /* separate dithers of the newest data: [key, checkbox label, colour, dash, direct label, T of the label, factor] */
+-  const XT = [["lam_ang", "λ + angle", "#bcbd22", "", "λ+angle", 20, 0.42], ["lam_in", "λ + angle + position", "#17becf", "", "λ+ang.+pos.", 0.7, 2.0],
++  const XT = [["lam_ang", "λ + angle", "#bcbd22", "", "λ+angle", 8, 0.42], ["lam_in", "λ + angle + position", "#17becf", "", "λ+ang.+pos.", 0.7, 2.0],
+     ["lam_dn", "λ + δn", "#ff7f0e", "4 2", "λ+δn", 30, 0.4], ["ang", "angle only", "#2ca02c", "1.5 2", "angle", 3e-4, 1.6], ["pos", "position only", "#8c564b", "1.5 2", "pos.", 3e-4, 0.55]];
+   const XKEYS = XT.map(x => x[0]), PREMOD = { both: "both_nomod", lam_dn: "spectral" };
+   function curveT(s, m, T) { const n0 = s.none; if (m === "none") return n0 * HdT(T); const v = s[m], a = PREMOD[m] ? s[PREMOD[m]] : v, w1 = Wav(T, 1000), w2 = Wav(T, 50);
+@@ -161,6 +161,14 @@ def fig3(s):
+             '  $("avgMode").addEventListener("change", () => { setDS($("dset3").value, true); cache.clear(); relabel(); draw(); });')
+     s = rep(s, 'data_set: { key: $("dset3").value, label: DSX.label, description: DSX.desc, parameters: DSX.params || null }',
+             'data_set: { key: $("dset3").value, label: DSX.label, description: DSX.desc, parameters: DSX.params || null, dither_averaging: DSX.modeNames ? $("avgMode").value : "boxcar (built in)" }')
++    # panel (b) wider: (a) takes 0.56 of the width by default (was 0.68)
++    s = rep(s, '<input id="aShare" type="range" min="0.4" max="0.8" step="0.01" value="0.68">', '<input id="aShare" type="range" min="0.4" max="0.8" step="0.01" value="0.56">')
++    # detector label: at 1e-4 s (3.3 um lines), just under its line and turned to the line's slope on the plot
++    s = rep(s, '["shot", SPK !== "NH3" ? 3e-4 : $("win").checked ? 0.02 : 3.1, SPK !== "NH3" ? 0.2 :', '["shot", SPK !== "NH3" ? 1e-4 : $("win").checked ? 0.02 : 3.1, SPK !== "NH3" ? 0.45 :')
++    s = rep(s, 'for (const [kk, tl, fac, t, col] of LBL) if (on(kk)) s += txt(BX(tl), BY(interpLog(ARR[kk], tl) * fac) + 4.2 * k, t, { anchor: "middle", fill: col });',
++            'for (const [kk, tl, fac, t, col] of LBL) if (on(kk)) { let rot = 0;\n'
++            '      if (kk === "shot" && SPK !== "NH3") { const a1 = tl / 3, a2 = tl * 3; rot = Math.atan2(BY(interpLog(ARR[kk], a2)) - BY(interpLog(ARR[kk], a1)), BX(a2) - BX(a1)) * 180 / Math.PI; }\n'
++            '      s += txt(BX(tl), BY(interpLog(ARR[kk], tl) * fac) + 4.2 * k, t, { anchor: "middle", fill: col, rot }); }')
+     s = rep(s, '<h1>Fig. 3 spectra and noise: v32 realistic parameters, earlier data for comparison</h1>',
+             '<h1>Fig. 3 spectra and noise: newest results (Task 14) by default, earlier results one click away</h1>')
+     return s
+-- 
+2.43.0
+

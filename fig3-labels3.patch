@@ -1,0 +1,42 @@
+From 0adb932d6bc5dbc2ad3ff41d065c31504095a134 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 7 Nov 2026 05:01:45 +0000
+Subject: [PATCH] Fig. 3 (b): angle + position label moved right, clear of the
+ curves
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NLfEqncaEw1RGMDLUGdFgb
+---
+ QUIET_sims_v32/artifacts/fig3_v32.html        | 2 +-
+ QUIET_sims_v32/scripts/build_t14_artifacts.py | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/QUIET_sims_v32/artifacts/fig3_v32.html b/QUIET_sims_v32/artifacts/fig3_v32.html
+index 03989ff..3baed1e 100644
+--- a/QUIET_sims_v32/artifacts/fig3_v32.html
++++ b/QUIET_sims_v32/artifacts/fig3_v32.html
+@@ -509,7 +509,7 @@ pre { margin: 0; font: 12px/1.5 var(--f-data); background: var(--bg); border: 1p
+       ["shot", SPK !== "NH3" ? 1e-4 : $("win").checked ? 0.02 : 3.1, SPK !== "NH3" ? 0.45 : $("win").checked ? 0.15 : 0.2, noiseName(), "#595959"], ["total", 3.6, 2.0, DSX.modeNames ? "all" : "both", "#000"]];
+     if (DSX.modeNames) for (const [k2, , col, , lab, tl, fac] of XT) if (cur.env[k2]) LBL.push([k2, tl, fac, lab, col]);
+     if (DSX.modeNames && SPK !== "NH3") {   /* newest data: angle + position and λ apart, and the fringe (blue) labelled under its curve right of the 100 ms line */
+-      for (const L1 of LBL) { if (L1[0] === "angle") { L1[1] = 0.012; L1[2] = 3.2; } if (L1[0] === "spectral") { L1[1] = 12; L1[2] = 2.4; } }
++      for (const L1 of LBL) { if (L1[0] === "angle") { L1[1] = 0.06; L1[2] = 3.2; } if (L1[0] === "spectral") { L1[1] = 12; L1[2] = 2.4; } }
+       LBL.push(["both", 0.45, 0.3, "fringe", "#1f77b4"]); }
+     const WIN = $("win").checked ? [15, 30] : null;
+     const rnd2 = v => v >= 100 ? Math.round(v) : +v.toPrecision(2), ppbOf = (o, shf, gl, t) => Math.hypot(interpLog(o.env.both, t), shf(t)) / (gl * aNH3) * 1e3;
+diff --git a/QUIET_sims_v32/scripts/build_t14_artifacts.py b/QUIET_sims_v32/scripts/build_t14_artifacts.py
+index 9493b79..66def39 100644
+--- a/QUIET_sims_v32/scripts/build_t14_artifacts.py
++++ b/QUIET_sims_v32/scripts/build_t14_artifacts.py
+@@ -152,7 +152,7 @@ def fig3(s):
+             '    const ARR = Object.fromEntries(BC.map(c => [c[0], c[1]]));\n')
+     s = rep(s, '    const WIN = $("win").checked ? [15, 30] : null;\n', '    if (DSX.modeNames) for (const [k2, , col, , lab, tl, fac] of XT) if (cur.env[k2]) LBL.push([k2, tl, fac, lab, col]);\n'
+             '    if (DSX.modeNames && SPK !== "NH3") {   /* newest data: angle + position and λ apart, and the fringe (blue) labelled under its curve right of the 100 ms line */\n'
+-            '      for (const L1 of LBL) { if (L1[0] === "angle") { L1[1] = 0.012; L1[2] = 3.2; } if (L1[0] === "spectral") { L1[1] = 12; L1[2] = 2.4; } }\n'
++            '      for (const L1 of LBL) { if (L1[0] === "angle") { L1[1] = 0.06; L1[2] = 3.2; } if (L1[0] === "spectral") { L1[1] = 12; L1[2] = 2.4; } }\n'
+             '      LBL.push(["both", 0.45, 0.3, "fringe", "#1f77b4"]); }\n    const WIN = $("win").checked ? [15, 30] : null;\n')
+     s = rep(s, '  function relabel() {\n', '  function relabel() {\n    for (const k2 of ["lam_ang", "lam_in", "lam_dn", "ang", "pos"]) { const el = $("b-" + k2); if (el) el.parentNode.hidden = !DSX.modeNames; }\n')
+     s = rep(s, '    Object.assign(MODE_NAME, MODE_NAME0, (DSX.modeNames || {}).long || {}); Object.assign(MODE_SHORT, MODE_SHORT0, (DSX.modeNames || {}).short || {});\n',
+-- 
+2.43.0
+

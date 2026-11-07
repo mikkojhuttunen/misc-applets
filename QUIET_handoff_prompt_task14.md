@@ -16,7 +16,7 @@ edits are already in my newest file. Keep the ones that still apply, and do not 
 - Branch `quiet-v32-realistic`, folder `QUIET_sims_v32/`. If the newest commits are missing, apply these patches from
   branch `claude/gracious-turing-tstil7`, in order: `task13-wave-vs-ray.patch`, `task14-waist-modulation.patch`,
   `figs23-task14-default.patch`, `herriott-wave-smooth-averaging.patch`, `split-dithers-handoff.patch`, `fig2-ray-trace-example.patch`, `fig3-separate-dithers.patch`, `fig3-label.patch`,
-  `fig3-wider-labels.patch`, `fig3-labels2.patch`, `fig3-labels3.patch`, `r95-case.patch`.
+  `fig3-wider-labels.patch`, `fig3-labels2.patch`, `fig3-labels3.patch`, `r95-case.patch`, `r95-default.patch`.
 - `REPORT.md` sections 6b (wave bound), 6c–6f (beamlet model, grating input, cell size), 6g (100 ms), **6h (Task 13: wave vs
   ray)**, **6i (Task 14: waists, membrane modulation, Herriott, averaging)**.
 - `results/t14/table.md`, `results/t14/outlook.json`, `results/t14/artifact_data.json`, `results/t13/table.md`.
@@ -33,7 +33,7 @@ edits are already in my newest file. Keep the ones that still apply, and do not 
 - Grating-coupler input: 75 µm waist, ±60 mrad angle, ±100 µm position (sine, ≥ 1 kHz).
 - Wavelength dither ±81 pm at 3.3 µm (keeps 92 % of the CH₄ peak and 82 % of C₂H₆).
 - **Membrane (δn) modulation:** thermo-optic, whole membrane, δn_eff 1e-4 (≈ ±9 K), 50 Hz.
-- Set B: 1000 nm SiNₓ at 3.3 µm (n_eff 1.425, Γ 0.553); R 97 % (and 95 %, 99.5 %); 0.3 dB/cm; ε = 10⁻⁶; 30 inclusion layouts.
+- Set B: 1000 nm SiNₓ at 3.3 µm (n_eff 1.425, Γ 0.553); R 95 % (the M2 minimum; the figure default) and 97 %, 99.5 %; 0.3 dB/cm; ε = 10⁻⁶; 30 inclusion layouts.
 - Model: wave-consistent Gaussian-beamlet model (Tasks 9–14). Modulation is a first-order phase k₀·δn·ℓ per route with the
   exact J₀ time average.
 - Herriott for comparison: same length, 1.5 mm wide, the same input, dithers and modulation.

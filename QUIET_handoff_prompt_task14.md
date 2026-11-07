@@ -15,7 +15,7 @@ edits are already in my newest file. Keep the ones that still apply, and do not 
 
 - Branch `quiet-v32-realistic`, folder `QUIET_sims_v32/`. If the newest commits are missing, apply these patches from
   branch `claude/gracious-turing-tstil7`, in order: `task13-wave-vs-ray.patch`, `task14-waist-modulation.patch`,
-  `figs23-task14-default.patch`, `herriott-wave-smooth-averaging.patch`, `split-dithers-handoff.patch`.
+  `figs23-task14-default.patch`, `herriott-wave-smooth-averaging.patch`, `split-dithers-handoff.patch`, `fig2-ray-trace-example.patch`.
 - `REPORT.md` sections 6b (wave bound), 6c–6f (beamlet model, grating input, cell size), 6g (100 ms), **6h (Task 13: wave vs
   ray)**, **6i (Task 14: waists, membrane modulation, Herriott, averaging)**.
 - `results/t14/table.md`, `results/t14/outlook.json`, `results/t14/artifact_data.json`, `results/t13/table.md`.
